@@ -1,0 +1,39 @@
+#!/bin/bash
+
+mount binfmt_misc -t binfmt_misc /proc/sys/fs/binfmt_misc
+echo -1 > /proc/sys/fs/binfmt_misc/qemu-aarch64 || true
+echo ':qemu-aarch64:M::\x7fELF\x02\x01\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x02\x00\xb7\x00:\xff\xff\xff\xff\xff\xff\xff\x00\xff\xff\xff\xff\xff\xff\xff\xff\xfe\xff\xff\xff:/usr/bin/qemu-aarch64-static:OCF' > /proc/sys/fs/binfmt_misc/register
+
+CHROOT_DIR=./arm64_debian9
+DEBIAN_REL=stretch
+
+if [ ! -d "${CHROOT_DIR}" ]; then
+  qemu-debootstrap --arch arm64 ${DEBIAN_REL} "${CHROOT_DIR}"
+  cat << EOF > "${CHROOT_DIR}/update.sh"
+#!/bin/bash  
+apt-get update && apt-get -y install \
+  apt-utils \
+  build-essential \
+  curl \
+  autoconf \
+  automake \
+  libtool \
+  pkg-config \
+  cmake \
+  jq \
+  make \
+  gcc \
+  g++ \
+  libfuse-dev \
+  libstdc++-6-dev \
+  diffutils \
+  git \
+  tar \
+  wget \
+  zlib1g-dev \
+  zip
+EOF
+
+  chmod +x "${CHROOT_DIR}/update.sh"
+  systemd-nspawn -D "${CHROOT_DIR}" "./update.sh"
+fi

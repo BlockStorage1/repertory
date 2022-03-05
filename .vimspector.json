@@ -1,0 +1,20 @@
+{
+  "configurations": {
+    "UnixDebug": {
+      "adapter": "vscode-cpptools",
+      "configuration": {
+        "request": "launch",
+        "program": "${workspaceRoot}/build/debug/repertory",
+        "args": ["-f", "-sk", "./skynet_mount"],
+        "cwd": "${workspaceRoot}/build/debug",
+        "environment": [],
+        "externalConsole": true,
+        "MIMode": "gdb",
+        "stopAtEntry": true,
+        "logging": {
+          "engineLogging": false
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,23 @@
+#!groovy
+
+pipeline {
+  agent any
+
+  options {
+    disableConcurrentBuilds()
+  }
+
+  stages {
+    stage('configure') {
+      steps {
+        cmake arguments: '.. -DCMAKE_BUILD_TYPE=Release -DREPERTORY_ENABLE_S3=ON', installation: 'InSearchPath', workingDir: 'build'
+      }
+    }
+
+    stage('build') {
+      steps {
+        cmake arguments: '--build . --target ALL_BUILD --config Release -j 4', installation: 'InSearchPath', workingDir: 'build'
+      }
+    }
+  }
+}

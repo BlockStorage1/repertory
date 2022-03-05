@@ -1,0 +1,26 @@
+FROM         opensuse/tumbleweed
+MAINTAINER   Scott E. Graves <scott.e.graves@protonmail.com>
+CMD          bash
+
+# Required system packages
+RUN zypper --non-interactive patch && zypper --non-interactive install \
+  cmake \
+  curl \
+  make \
+  git \
+  fuse \
+  fuse-devel \
+  pkgconfig \
+  patch \
+  autoconf \
+  automake \
+  libtool \
+  zip \
+  file \
+  gzip \
+  which \
+  wget \
+  zlib-devel \
+  zlib-devel-static \
+  gcc \
+  gcc-c++

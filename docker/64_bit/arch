@@ -1,0 +1,26 @@
+FROM         archlinux:base
+MAINTAINER   Scott E. Graves <scott.e.graves@protonmail.com>
+CMD          bash
+
+# Required system packages
+RUN pacman -Syy --noconfirm && pacman -Su --noconfirm && pacman --noconfirm -S \
+  automake \
+  autoconf \
+  m4 \
+  perl \
+  base-devel \
+  autoconf \
+  automake \
+  libtool \
+  nano \
+  cmake \
+  make \
+  fuse2 \
+  gcc \
+  gnupg \
+  git \
+  diffutils \
+  tar \
+  wget \
+  zip \
+  pkgconf

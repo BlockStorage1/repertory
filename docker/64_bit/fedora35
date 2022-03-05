@@ -1,0 +1,24 @@
+FROM         fedora:35
+MAINTAINER   Scott E. Graves <scott.e.graves@protonmail.com>
+CMD          bash
+
+# Required system packages
+RUN dnf -y update && dnf -y install \
+  cmake \
+  curl \
+  make \
+  git \
+  fuse \
+  fuse-devel \
+  pkgconfig \
+  patch \
+  zip \
+  autoconf \
+  automake \
+  libtool \
+  file \
+  zlib-devel \
+  zlib-static \
+  gcc \
+  gcc-c++ \
+  cpan

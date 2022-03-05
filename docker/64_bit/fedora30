@@ -1,0 +1,33 @@
+FROM         fedora:30
+MAINTAINER   Scott E. Graves <scott.e.graves@protonmail.com>
+CMD          bash
+
+ARG CMAKE_VERSION=3.22.2
+
+# Required system packages
+RUN dnf -y update && dnf -y install \
+  curl \
+  make \
+  git \
+  fuse \
+  fuse-devel \
+  pkgconfig \
+  patch \
+  zip \
+  file \
+  autoconf \
+  automake \
+  libtool \
+  wget \
+  zlib-devel \
+  zlib-static \
+  gcc \
+  gcc-c++
+RUN wget https://github.com/Kitware/CMake/releases/download/v${CMAKE_VERSION}/cmake-${CMAKE_VERSION}-Linux-x86_64.sh \
+      -q -O /tmp/cmake-install.sh \
+      && chmod u+x /tmp/cmake-install.sh \
+      && mkdir /cmake \
+      && /tmp/cmake-install.sh --skip-license --prefix=/cmake \
+      && rm /tmp/cmake-install.sh
+
+ENV PATH="/cmake/bin:${PATH}"
