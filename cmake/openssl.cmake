@@ -1,0 +1,37 @@
+if (MACOS OR LINUX)
+  if (IS_CLANG_COMPILER)
+    set(OPENSSL_COMPILE_TYPE_EXTRA -clang)
+  endif()
+
+  if (MACOS)
+    set(OPENSSL_COMPILE_TYPE darwin64-x86_64-cc)
+  elseif(IS_ARM64)
+    set(OPENSSL_COMPILE_TYPE linux-aarch64${OPENSSL_COMPILE_TYPE_EXTRA})
+  else()
+    set(OPENSSL_COMPILE_TYPE linux-x86_64${OPENSSL_COMPILE_TYPE_EXTRA})
+  endif()
+
+  set(OPENSSL_PROJECT_NAME openssl_${OPENSSL_VERSION})
+  set(OPENSSL_BUILD_ROOT ${EXTERNAL_BUILD_ROOT}/builds/${OPENSSL_PROJECT_NAME})
+  ExternalProject_Add(openssl_project
+    DOWNLOAD_NO_PROGRESS 1
+    URL https://github.com/openssl/openssl/archive/OpenSSL_${OPENSSL_VERSION}.tar.gz
+    PREFIX ${OPENSSL_BUILD_ROOT}
+    BUILD_IN_SOURCE 1
+    CONFIGURE_COMMAND ./Configure ${OPENSSL_COMPILE_TYPE} --prefix=${EXTERNAL_BUILD_ROOT}
+    BUILD_COMMAND make -j1
+    INSTALL_COMMAND make install
+  )
+
+  if (MACOS)
+    set(OPENSSL_LIBRARIES
+      ${EXTERNAL_BUILD_ROOT}/lib/libssl.a
+      ${EXTERNAL_BUILD_ROOT}/lib/libcrypto.a
+    )
+  else()
+    set(OPENSSL_LIBRARIES
+      libssl.a
+      libcrypto.a
+    )
+  endif()
+endif()
