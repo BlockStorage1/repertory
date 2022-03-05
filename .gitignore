@@ -1,0 +1,15 @@
+cmake-build-*/
+.idea/
+build*/
+/3rd_party/winfsp-*/tst/passthrough-cpp/passthrough-cpp.VC.db
+/src/version.rc
+tag_builds/
+/codelite/
+blockstorage_dev_private.pem
+compile_commands.json
+.clangd/
+tags
+/cacert.pem
+/arm64_debian*/
+.cache/
+src/common.cpp

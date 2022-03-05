@@ -1,0 +1,283 @@
+pipeline {
+  agent none
+
+  environment {
+    BUILD_ARGS = '--build . -j 8'
+    CONFIGURE_ARGS = '../.. -DCMAKE_BUILD_TYPE=Release -DREPERTORY_ENABLE_S3=ON' 
+  }
+
+  options {
+    disableConcurrentBuilds()
+  }
+
+  stages {
+    stage('arch') {
+      agent {
+        dockerfile {
+          filename 'arch'
+          dir 'docker/64_bit'
+        }
+      }
+
+      steps {
+        cmake arguments: "${env.CONFIGURE_ARGS}", installation: 'InSearchPath', workingDir: 'build/arch'
+        cmake arguments: "${env.BUILD_ARGS}", installation: 'InSearchPath', workingDir: 'build/arch'
+      }
+    }
+
+    stage('centos7') {
+      agent {
+        dockerfile {
+          filename 'centos7'
+          dir 'docker/64_bit'
+        }
+      }
+      steps {
+        cmake arguments: "${env.CONFIGURE_ARGS}", installation: 'InSearchPath', workingDir: 'build/centos7'
+        cmake arguments: "${env.BUILD_ARGS}", installation: 'InSearchPath', workingDir: 'build/centos7'
+      }
+    }
+
+    stage('debian9') {
+      agent {
+        dockerfile {
+          filename 'debian9'
+          dir 'docker/64_bit'
+        }
+      }
+      steps {
+        cmake arguments: "${env.CONFIGURE_ARGS}", installation: 'InSearchPath', workingDir: 'build/debian9'
+        cmake arguments: "${env.BUILD_ARGS}", installation: 'InSearchPath', workingDir: 'build/debian9'
+      }
+    }
+
+    stage('debian10') {
+      agent {
+        dockerfile {
+          filename 'debian10'
+          dir 'docker/64_bit'
+        }
+      }
+      steps {
+        cmake arguments: "${env.CONFIGURE_ARGS}", installation: 'InSearchPath', workingDir: 'build/debian10'
+        cmake arguments: "${env.BUILD_ARGS}", installation: 'InSearchPath', workingDir: 'build/debian10'
+      }
+    }
+
+    stage('debian11') {
+      agent {
+        dockerfile {
+          filename 'debian11'
+          dir 'docker/64_bit'
+        }
+      }
+      steps {
+        cmake arguments: "${env.CONFIGURE_ARGS}", installation: 'InSearchPath', workingDir: 'build/debian11'
+        cmake arguments: "${env.BUILD_ARGS}", installation: 'InSearchPath', workingDir: 'build/debian11'
+      }
+    }
+
+    stage('fedora29') {
+      agent {
+        dockerfile {
+          filename 'fedora29'
+          dir 'docker/64_bit'
+        }
+      }
+      steps {
+        cmake arguments: "${env.CONFIGURE_ARGS}", installation: 'InSearchPath', workingDir: 'build/fedora29'
+        cmake arguments: "${env.BUILD_ARGS}", installation: 'InSearchPath', workingDir: 'build/fedora29'
+      }
+    }
+
+    stage('fedora30') {
+      agent {
+        dockerfile {
+          filename 'fedora30'
+          dir 'docker/64_bit'
+        }
+      }
+      steps {
+        cmake arguments: "${env.CONFIGURE_ARGS}", installation: 'InSearchPath', workingDir: 'build/fedora30'
+        cmake arguments: "${env.BUILD_ARGS}", installation: 'InSearchPath', workingDir: 'build/fedora30'
+      }
+    }
+
+    stage('fedora31') {
+      agent {
+        dockerfile {
+          filename 'fedora31'
+          dir 'docker/64_bit'
+        }
+      }
+      steps {
+        cmake arguments: "${env.CONFIGURE_ARGS}", installation: 'InSearchPath', workingDir: 'build/fedora31'
+        cmake arguments: "${env.BUILD_ARGS}", installation: 'InSearchPath', workingDir: 'build/fedora31'
+      }
+    }
+
+    stage('fedora32') {
+      agent {
+        dockerfile {
+          filename 'fedora32'
+          dir 'docker/64_bit'
+        }
+      }
+      steps {
+        cmake arguments: "${env.CONFIGURE_ARGS}", installation: 'InSearchPath', workingDir: 'build/fedora32'
+        cmake arguments: "${env.BUILD_ARGS}", installation: 'InSearchPath', workingDir: 'build/fedora32'
+      }
+    }
+
+    stage('fedora33') {
+      agent {
+        dockerfile {
+          filename 'fedora33'
+          dir 'docker/64_bit'
+        }
+      }
+      steps {
+        cmake arguments: "${env.CONFIGURE_ARGS}", installation: 'InSearchPath', workingDir: 'build/fedora33'
+        cmake arguments: "${env.BUILD_ARGS}", installation: 'InSearchPath', workingDir: 'build/fedora33'
+      }
+    }
+
+    stage('fedora34') {
+      agent {
+        dockerfile {
+          filename 'fedora34'
+          dir 'docker/64_bit'
+        }
+      }
+      steps {
+        cmake arguments: "${env.CONFIGURE_ARGS}", installation: 'InSearchPath', workingDir: 'build/fedora34'
+        cmake arguments: "${env.BUILD_ARGS}", installation: 'InSearchPath', workingDir: 'build/fedora34'
+      }
+    }
+
+    stage('fedora35') {
+      agent {
+        dockerfile {
+          filename 'fedora35'
+          dir 'docker/64_bit'
+        }
+      }
+      steps {
+        cmake arguments: "${env.CONFIGURE_ARGS}", installation: 'InSearchPath', workingDir: 'build/fedora35'
+        cmake arguments: "${env.BUILD_ARGS}", installation: 'InSearchPath', workingDir: 'build/fedora35'
+      }
+    }
+
+    stage('opensuse15') {
+      agent {
+        dockerfile {
+          filename 'opensuse15'
+          dir 'docker/64_bit'
+        }
+      }
+      steps {
+        cmake arguments: "${env.CONFIGURE_ARGS}", installation: 'InSearchPath', workingDir: 'build/opensuse15'
+        cmake arguments: "${env.BUILD_ARGS}", installation: 'InSearchPath', workingDir: 'build/opensuse15'
+      }
+    }
+
+    stage('opensuse15.1') {
+      agent {
+        dockerfile {
+          filename 'opensuse15.1'
+          dir 'docker/64_bit'
+        }
+      }
+      steps {
+        cmake arguments: "${env.CONFIGURE_ARGS}", installation: 'InSearchPath', workingDir: 'build/opensuse15.1'
+        cmake arguments: "${env.BUILD_ARGS}", installation: 'InSearchPath', workingDir: 'build/opensuse15.1'
+      }
+    }
+
+    stage('opensuse15.2') {
+      agent {
+        dockerfile {
+          filename 'opensuse15.2'
+          dir 'docker/64_bit'
+        }
+      }
+      steps {
+        cmake arguments: "${env.CONFIGURE_ARGS}", installation: 'InSearchPath', workingDir: 'build/opensuse15.2'
+        cmake arguments: "${env.BUILD_ARGS}", installation: 'InSearchPath', workingDir: 'build/opensuse15.2'
+      }
+    }
+
+    stage('opensuse15.3') {
+      agent {
+        dockerfile {
+          filename 'opensuse15.3'
+          dir 'docker/64_bit'
+        }
+      }
+      steps {
+        cmake arguments: "${env.CONFIGURE_ARGS}", installation: 'InSearchPath', workingDir: 'build/opensuse15.3'
+        cmake arguments: "${env.BUILD_ARGS}", installation: 'InSearchPath', workingDir: 'build/opensuse15.3'
+      }
+    }
+
+    stage('solus') {
+      agent any
+      steps {
+        cmake arguments: "${env.CONFIGURE_ARGS}", installation: 'InSearchPath', workingDir: 'build/solus'
+        cmake arguments: "${env.BUILD_ARGS}", installation: 'InSearchPath', workingDir: 'build/solus'
+      }
+    }
+
+    stage('tumbleweed') {
+      agent {
+        dockerfile {
+          filename 'tumbleweed'
+          dir 'docker/64_bit'
+        }
+      }
+      steps {
+        cmake arguments: "${env.CONFIGURE_ARGS}", installation: 'InSearchPath', workingDir: 'build/tumbleweed'
+        cmake arguments: "${env.BUILD_ARGS}", installation: 'InSearchPath', workingDir: 'build/tumbleweed'
+      }
+    }
+
+    stage('ubuntu18.04') {
+      agent {
+        dockerfile {
+          filename 'ubuntu18.04'
+          dir 'docker/64_bit'
+        }
+      }
+      steps {
+        cmake arguments: "${env.CONFIGURE_ARGS}", installation: 'InSearchPath', workingDir: 'build/ubuntu18.04'
+        cmake arguments: "${env.BUILD_ARGS}", installation: 'InSearchPath', workingDir: 'build/ubuntu18.04'
+      }
+    }
+
+    stage('ubuntu20.04') {
+      agent {
+        dockerfile {
+          filename 'ubuntu20.04'
+          dir 'docker/64_bit'
+        }
+      }
+      steps {
+        cmake arguments: "${env.CONFIGURE_ARGS}", installation: 'InSearchPath', workingDir: 'build/ubuntu20.04'
+        cmake arguments: "${env.BUILD_ARGS}", installation: 'InSearchPath', workingDir: 'build/ubuntu20.04'
+      }
+    }
+
+    stage('ubuntu21.10') {
+      agent {
+        dockerfile {
+          filename 'ubuntu21.10'
+          dir 'docker/64_bit'
+        }
+      }
+      steps {
+        cmake arguments: "${env.CONFIGURE_ARGS}", installation: 'InSearchPath', workingDir: 'build/ubuntu21.10'
+        cmake arguments: "${env.BUILD_ARGS}", installation: 'InSearchPath', workingDir: 'build/ubuntu21.10'
+      }
+    }
+  }
+}
