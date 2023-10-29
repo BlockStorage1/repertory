@@ -1,269 +1,231 @@
 /*
-  Copyright <2018-2022> <scott.e.graves@protonmail.com>
+  Copyright <2018-2023> <scott.e.graves@protonmail.com>
 
-  Permission is hereby granted, free of charge, to any person obtaining a copy of this software and
-  associated documentation files (the "Software"), to deal in the Software without restriction,
-  including without limitation the rights to use, copy, modify, merge, publish, distribute,
-  sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is
+  Permission is hereby granted, free of charge, to any person obtaining a copy
+  of this software and associated documentation files (the "Software"), to deal
+  in the Software without restriction, including without limitation the rights
+  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+  copies of the Software, and to permit persons to whom the Software is
   furnished to do so, subject to the following conditions:
 
-  The above copyright notice and this permission notice shall be included in all copies or
-  substantial portions of the Software.
+  The above copyright notice and this permission notice shall be included in all
+  copies or substantial portions of the Software.
 
-  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT
-  NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
-  NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
-  DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT
-  OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+  SOFTWARE.
 */
 #ifndef INCLUDE_COMM_CURL_CURL_COMM_HPP_
 #define INCLUDE_COMM_CURL_CURL_COMM_HPP_
 
-#include "common.hpp"
 #include "comm/curl/multi_request.hpp"
-#include "comm/curl/session_manager.hpp"
-#include "comm/i_comm.hpp"
-#include "app_config.hpp"
+#include "comm/i_http_comm.hpp"
+#include "utils/encryption.hpp"
+#include "utils/utils.hpp"
 
 namespace repertory {
-class curl_resolver;
-namespace utils::encryption {
-class encrypting_reader;
-}
-struct curl_setup;
-struct raw_write_data;
-
-class curl_comm : public virtual i_comm {
+class curl_comm final : public i_http_comm {
 public:
-  typedef size_t (*curl_read_callback)(char *, size_t, size_t, void *);
-  typedef size_t (*curl_write_callback)(char *, size_t, size_t, void *);
+  curl_comm() = delete;
 
-  static curl_read_callback read_data_callback_;
-  static curl_write_callback write_data_callback_;
-  static curl_write_callback write_header_callback_;
-  static curl_write_callback write_null_callback_;
-  static curl_write_callback write_string_callback_;
+  explicit curl_comm(host_config hc);
 
-public:
-  explicit curl_comm(const app_config &config) : config_(config) {}
-
-  ~curl_comm() override = default;
+  explicit curl_comm(s3_config s3);
 
 private:
-  const app_config &config_;
-  session_manager session_manager_;
+  using write_callback = size_t (*)(char *, size_t, size_t, void *);
 
-public:
-  static std::string construct_url(CURL *curl_handle, const std::string &relative_path,
-                                   const host_config &hc);
+  struct read_write_info final {
+    repertory::data_buffer data{};
+    repertory::stop_type &stop_requested;
+  };
 
-  static bool create_auth_session(CURL *&curl_handle, const app_config &config, host_config hc,
-                                  std::string &session);
-
-  static std::string http_range_to_string(const http_range &range);
-
-  static void release_auth_session(const app_config &config, host_config hc,
-                                   const std::string &session);
-
-  static void update_auth_session(CURL *curl_handle, const app_config &config,
-                                  const std::string &session);
+  static const write_callback write_data;
+  static const write_callback write_headers;
 
 private:
-  CURL *common_curl_setup(const std::string &path, curl_setup &setup, std::string &url,
-                          std::string &fields);
+  std::optional<host_config> host_config_;
+  std::optional<s3_config> s3_config_;
 
-  CURL *common_curl_setup(CURL *curl_handle, const std::string &path, curl_setup &setup,
-                          std::string &url, std::string &fields);
-
-  template <typename begin, typename end>
-  api_error execute_binary_operation(CURL *curl_handle, const std::string &url,
-                                     std::vector<char> &data, json &error,
-                                     const bool &stop_requested,
-                                     const CURLcode &default_code = CURLE_OK) {
-    auto curl_code = default_code;
-    long http_code = 400;
-    execute_operation<begin>(curl_handle, url, curl_code, http_code, stop_requested);
-
-    const auto ret = process_binary_response(url, curl_code, http_code, data, error);
-    if (config_.get_event_level() >= end::level) {
-      event_system::instance().raise<end>(url, curl_code, http_code,
-                                          ((ret == api_error::success) ? "" : error.dump(2)));
-    }
-
-    return ret;
-  }
-
-  template <typename begin, typename end>
-  api_error execute_json_operation(CURL *curl_handle, const std::string &url,
-                                   const std::string &result, json &data, json &error,
-                                   const bool &stop_requested,
-                                   const CURLcode &default_code = CURLE_OK) {
-    auto curl_code = default_code;
-    long http_code = 400;
-    execute_operation<begin>(curl_handle, url, curl_code, http_code, stop_requested);
-
-    const auto ret = process_json_response(url, curl_code, http_code, result, data, error);
-    if (config_.get_event_level() >= end::level) {
-      event_system::instance().raise<end>(url, curl_code, http_code,
-                                          ((ret == api_error::success) ? "" : error.dump(2)));
-    }
-
-    return ret;
-  }
-
-  template <typename begin>
-  void execute_operation(CURL *curl_handle, const std::string &url, CURLcode &curl_code,
-                         long &http_code, const bool &stop_requested) {
-    if (config_.get_event_level() >= begin::level) {
-      event_system::instance().raise<begin>(url);
-    }
-
-    if (curl_code == CURLE_OK) {
-      multi_request request(curl_handle, stop_requested);
-      request.get_result(curl_code, http_code);
-    }
-  }
-
-  api_error get_or_post(const host_config &hc, const bool &post, const std::string &path,
-                        const http_parameters &parameters, json &data, json &error,
-                        http_headers *headers = nullptr,
-                        std::function<void(CURL *curl_handle)> cb = nullptr);
-
-  api_error get_range(const host_config &hc, const std::string &path,
-                      const std::uint64_t &data_size, const http_parameters &parameters,
-                      const std::string &encryption_token, std::vector<char> &data,
-                      const http_ranges &ranges, json &error, http_headers *headers,
-                      const bool &stop_requested);
-
-  api_error get_range_unencrypted(const host_config &hc, const std::string &path,
-                                  const http_parameters &parameters, std::vector<char> &data,
-                                  const http_ranges &ranges, json &error, http_headers *headers,
-                                  const bool &stop_requested);
-
-  api_error process_binary_response(const std::string &url, const CURLcode &res,
-                                    const long &http_code, std::vector<char> data, json &error);
-
-  api_error process_json_response(const std::string &url, const CURLcode &res,
-                                  const long &http_code, const std::string &result, json &data,
-                                  json &error);
-
-  api_error process_response(const std::string &url, const CURLcode &res, const long &http_code,
-                             const std::size_t &data_size,
-                             const std::function<std::string()> &to_string_converter,
-                             const std::function<void()> &success_handler, json &error) const;
-
-  static std::string url_encode(CURL *curl_handle, const std::string &data,
-                                const bool &allow_slash = false);
+private:
+  bool use_s3_path_style_{false};
 
 public:
-  api_error get(const std::string &path, json &data, json &error) override {
-    return get_or_post(config_.get_host_config(), false, path, {}, data, error);
+  [[nodiscard]] static auto construct_url(CURL *curl,
+                                          const std::string &relative_path,
+                                          const host_config &hc) -> std::string;
+
+  [[nodiscard]] static auto create_host_config(const s3_config &config,
+                                               bool use_s3_path_style)
+      -> host_config;
+
+  [[nodiscard]] static auto url_encode(CURL *curl, const std::string &data,
+                                       bool allow_slash) -> std::string;
+
+  template <typename request_type>
+  [[nodiscard]] static auto
+  make_encrypted_request(const host_config &hc, const request_type &request,
+                         long &response_code, stop_type &stop_requested)
+      -> bool {
+    response_code = 0;
+
+    if (not request.decryption_token.has_value() ||
+        request.decryption_token.value().empty()) {
+      return false;
+    }
+
+    if (not request.range.has_value()) {
+      return false;
+    }
+
+    if (not request.total_size.has_value()) {
+      return false;
+    }
+
+    data_buffer data{};
+    const auto key =
+        utils::encryption::generate_key(request.decryption_token.value());
+    const auto result = utils::encryption::read_encrypted_range(
+        request.range.value(), key,
+        [&](std::vector<char> &ct, std::uint64_t start_offset,
+            std::uint64_t end_offset) -> api_error {
+          auto encrypted_request = request;
+          encrypted_request.decryption_token = std::nullopt;
+          encrypted_request.range = {{start_offset, end_offset}};
+          encrypted_request.response_handler = [&ct](const auto &encrypted_data,
+                                                     long /*response_code*/) {
+            ct = encrypted_data;
+          };
+          encrypted_request.total_size = std::nullopt;
+
+          if (not make_request(hc, encrypted_request, response_code,
+                               stop_requested)) {
+            return api_error::comm_error;
+          }
+
+          if (response_code != 200) {
+            return api_error::comm_error;
+          }
+
+          return api_error::success;
+        },
+        request.total_size.value(), data);
+    if (result != api_error::success) {
+      return false;
+    }
+
+    if (request.response_handler.has_value()) {
+      request.response_handler.value()(data, response_code);
+    }
+
+    return true;
   }
 
-  api_error get(const host_config &hc, const std::string &path, json &data, json &error) override {
-    return get_or_post(hc, false, path, {}, data, error);
+  template <typename request_type>
+  [[nodiscard]] static auto
+  make_request(const host_config &hc, const request_type &request,
+               long &response_code, stop_type &stop_requested) -> bool {
+    if (request.decryption_token.has_value() &&
+        not request.decryption_token.value().empty()) {
+      return make_encrypted_request(hc, request, response_code, stop_requested);
+    }
+
+    response_code = 0;
+
+    auto *curl = utils::create_curl();
+    if (not request.set_method(curl, stop_requested)) {
+      return false;
+    }
+
+    if (not hc.agent_string.empty()) {
+      curl_easy_setopt(curl, CURLOPT_USERAGENT, hc.agent_string.c_str());
+    }
+
+    if (request.allow_timeout && hc.timeout_ms) {
+      curl_easy_setopt(curl, CURLOPT_TIMEOUT_MS, hc.timeout_ms);
+    }
+
+    std::string range_list{};
+    if (request.range.has_value()) {
+      range_list = std::to_string(request.range.value().begin) + '-' +
+                   std::to_string(request.range.value().end);
+      curl_easy_setopt(curl, CURLOPT_RANGE, range_list.c_str());
+    }
+
+    if (request.response_headers.has_value()) {
+      curl_easy_setopt(curl, CURLOPT_HEADERDATA,
+                       &request.response_headers.value());
+      curl_easy_setopt(curl, CURLOPT_HEADERFUNCTION, write_headers);
+    }
+
+    read_write_info write_info{{}, stop_requested};
+    if (request.response_handler.has_value()) {
+      curl_easy_setopt(curl, CURLOPT_WRITEDATA, &write_info);
+      curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_data);
+    }
+
+    std::string parameters{};
+    for (const auto &kv : request.query) {
+      parameters += (parameters.empty() ? '?' : '&') + kv.first + '=' +
+                    url_encode(curl, kv.second, false);
+    }
+
+    if (not hc.api_password.empty()) {
+      curl_easy_setopt(curl, CURLOPT_USERNAME, hc.api_user.c_str());
+      curl_easy_setopt(curl, CURLOPT_PASSWORD, hc.api_password.c_str());
+    } else if (not hc.api_user.empty()) {
+      curl_easy_setopt(curl, CURLOPT_USERNAME, hc.api_user.c_str());
+    }
+
+    if (request.aws_service.has_value()) {
+      curl_easy_setopt(curl, CURLOPT_AWS_SIGV4,
+                       request.aws_service.value().c_str());
+    }
+
+    auto url = construct_url(curl, request.get_path(), hc) + parameters;
+    curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
+
+    multi_request curl_request(curl, stop_requested);
+
+    CURLcode curl_code{};
+    curl_request.get_result(curl_code, response_code);
+    if (curl_code != CURLE_OK) {
+      return false;
+    }
+
+    if (request.response_handler.has_value()) {
+      request.response_handler.value()(write_info.data, response_code);
+    }
+
+    return true;
   }
 
-  api_error get(const std::string &path, const http_parameters &parameters, json &data,
-                json &error) override {
-    return get_or_post(config_.get_host_config(), false, path, parameters, data, error);
-  }
+public:
+  void enable_s3_path_style(bool enable) override;
 
-  api_error get(const host_config &hc, const std::string &path, const http_parameters &parameters,
-                json &data, json &error) override {
-    return get_or_post(hc, false, path, parameters, data, error);
-  }
+  [[nodiscard]] auto make_request(const curl::requests::http_delete &del,
+                                  long &response_code,
+                                  stop_type &stop_requested) const
+      -> bool override;
 
-  api_error get_range(const std::string &path, const std::uint64_t &data_size,
-                      const http_parameters &parameters, const std::string &encryption_token,
-                      std::vector<char> &data, const http_ranges &ranges, json &error,
-                      const bool &stop_requested) override {
-    return get_range(config_.get_host_config(), path, data_size, parameters, encryption_token, data,
-                     ranges, error, nullptr, stop_requested);
-  }
+  [[nodiscard]] auto make_request(const curl::requests::http_get &get,
+                                  long &response_code,
+                                  stop_type &stop_requested) const
+      -> bool override;
 
-  api_error get_range(const host_config &hc, const std::string &path,
-                      const std::uint64_t &data_size, const http_parameters &parameters,
-                      const std::string &encryption_token, std::vector<char> &data,
-                      const http_ranges &ranges, json &error, const bool &stop_requested) override {
-    return get_range(hc, path, data_size, parameters, encryption_token, data, ranges, error,
-                     nullptr, stop_requested);
-  }
+  [[nodiscard]] auto make_request(const curl::requests::http_head &head,
+                                  long &response_code,
+                                  stop_type &stop_requested) const
+      -> bool override;
 
-  api_error get_range_and_headers(const std::string &path, const std::uint64_t &dataSize,
-                                  const http_parameters &parameters,
-                                  const std::string &encryption_token, std::vector<char> &data,
-                                  const http_ranges &ranges, json &error, http_headers &headers,
-                                  const bool &stop_requested) override {
-    return get_range(config_.get_host_config(), path, dataSize, parameters, encryption_token, data,
-                     ranges, error, &headers, stop_requested);
-  }
-
-  api_error get_range_and_headers(const host_config &hc, const std::string &path,
-                                  const std::uint64_t &dataSize, const http_parameters &parameters,
-                                  const std::string &encryption_token, std::vector<char> &data,
-                                  const http_ranges &ranges, json &error, http_headers &headers,
-                                  const bool &stop_requested) override {
-    return get_range(hc, path, dataSize, parameters, encryption_token, data, ranges, error,
-                     &headers, stop_requested);
-  }
-
-  api_error get_raw(const std::string &path, const http_parameters &parameters,
-                    std::vector<char> &data, json &error, const bool &stop_requested) override {
-    return get_raw(config_.get_host_config(), path, parameters, data, error, stop_requested);
-  }
-
-  api_error get_raw(const host_config &hc, const std::string &path,
-                    const http_parameters &parameters, std::vector<char> &data, json &error,
-                    const bool &stop_requested) override;
-
-  api_error post(const std::string &path, json &data, json &error) override {
-    return get_or_post(config_.get_host_config(), true, path, {}, data, error);
-  }
-
-  api_error post(const host_config &hc, const std::string &path, json &data, json &error) override {
-    return get_or_post(hc, true, path, {}, data, error);
-  }
-
-  api_error post(const std::string &path, const http_parameters &parameters, json &data,
-                 json &error) override {
-    return get_or_post(config_.get_host_config(), true, path, parameters, data, error);
-  }
-
-  api_error post(const host_config &hc, const std::string &path, const http_parameters &parameters,
-                 json &data, json &error) override {
-    return get_or_post(hc, true, path, parameters, data, error);
-  }
-
-  api_error post_file(const std::string &path, const std::string &source_path,
-                      const http_parameters &parameters, json &data, json &error,
-                      const bool &stop_requested) override {
-    return post_file(config_.get_host_config(), path, source_path, parameters, data, error,
-                     stop_requested);
-  }
-
-  api_error post_file(const host_config &hc, const std::string &path,
-                      const std::string &source_path, const http_parameters &parameters, json &data,
-                      json &error, const bool &stop_requested) override;
-
-  api_error post_multipart_file(const std::string &path, const std::string &file_name,
-                                const std::string &source_path, const std::string &encryption_token,
-                                json &data, json &error, const bool &stop_requested) override {
-    return post_multipart_file(config_.get_host_config(), path, file_name, source_path,
-                               encryption_token, data, error, stop_requested);
-  }
-
-  api_error post_multipart_file(const host_config &hc, const std::string &path,
-                                const std::string &file_name, const std::string &source_path,
-                                const std::string &encryption_token, json &data, json &error,
-                                const bool &stop_requested) override;
-
-  bool tus_upload(host_config hc, const std::string &source_path, const std::string &file_name,
-                  std::uint64_t file_size, const std::string &location, std::string &skylink,
-                  const bool &stop_requested, utils::encryption::encrypting_reader *reader);
-
-  bool tus_upload_create(host_config hc, const std::string &file_name,
-                         const std::uint64_t &file_size, std::string &location);
+  [[nodiscard]] auto make_request(const curl::requests::http_put_file &put_file,
+                                  long &response_code,
+                                  stop_type &stop_requested) const
+      -> bool override;
 };
 } // namespace repertory
 

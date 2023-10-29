@@ -1,25 +1,27 @@
 /*
-  Copyright <2018-2022> <scott.e.graves@protonmail.com>
+  Copyright <2018-2023> <scott.e.graves@protonmail.com>
 
-  Permission is hereby granted, free of charge, to any person obtaining a copy of this software and
-  associated documentation files (the "Software"), to deal in the Software without restriction,
-  including without limitation the rights to use, copy, modify, merge, publish, distribute,
-  sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is
+  Permission is hereby granted, free of charge, to any person obtaining a copy
+  of this software and associated documentation files (the "Software"), to deal
+  in the Software without restriction, including without limitation the rights
+  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+  copies of the Software, and to permit persons to whom the Software is
   furnished to do so, subject to the following conditions:
 
-  The above copyright notice and this permission notice shall be included in all copies or
-  substantial portions of the Software.
+  The above copyright notice and this permission notice shall be included in all
+  copies or substantial portions of the Software.
 
-  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT
-  NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
-  NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
-  DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT
-  OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+  SOFTWARE.
 */
 #ifndef INCLUDE_DB_META_DB_HPP_
 #define INCLUDE_DB_META_DB_HPP_
 
-#include "common.hpp"
 #include "app_config.hpp"
 #include "types/repertory.hpp"
 #include "utils/rocksdb_utils.hpp"
@@ -34,47 +36,73 @@ public:
 
 private:
   std::unique_ptr<rocksdb::DB> db_;
-  std::unique_ptr<rocksdb::ColumnFamilyHandle> default_family_;
-  std::unique_ptr<rocksdb::ColumnFamilyHandle> source_family_;
-  std::unique_ptr<rocksdb::ColumnFamilyHandle> keys_family_;
+  rocksdb::ColumnFamilyHandle *default_family_{};
+  rocksdb::ColumnFamilyHandle *source_family_{};
+  rocksdb::ColumnFamilyHandle *keys_family_{};
   const std::string METADB_NAME = "meta_db";
 
 private:
-  api_error get_item_meta_json(const std::string &api_path, json &json_data) const;
+  [[nodiscard]] auto
+  perform_action(const std::string &function_name,
+                 const std::function<rocksdb::Status()> &action) const
+      -> api_error;
 
-  void release_resources();
+  [[nodiscard]] auto get_item_meta_json(const std::string &api_path,
+                                        json &json_data) const -> api_error;
+
+  [[nodiscard]] auto store_item_meta(const std::string &api_path,
+                                     const std::string &key,
+                                     const std::string &value) -> api_error;
 
 public:
-  std::shared_ptr<rocksdb::Iterator> create_iterator(const bool &source_family);
+  [[nodiscard]] auto create_iterator(bool source_family) const
+      -> std::shared_ptr<rocksdb::Iterator>;
 
-  api_error get_api_path_from_key(const std::string &key, std::string &api_path) const;
+  [[nodiscard]] auto get_api_path_from_key(const std::string &key,
+                                           std::string &api_path) const
+      -> api_error;
 
-  api_error get_api_path_from_source(const std::string &source_path, std::string &api_path) const;
+  [[nodiscard]] auto get_api_path_from_source(const std::string &source_path,
+                                              std::string &api_path) const
+      -> api_error;
 
-  api_error get_item_meta(const std::string &api_path, api_meta_map &meta) const;
+  [[nodiscard]] auto get_item_meta(const std::string &api_path,
+                                   api_meta_map &meta) const -> api_error;
 
-  api_error get_item_meta(const std::string &api_path, const std::string &key,
-                          std::string &value) const;
+  [[nodiscard]] auto get_item_meta(const std::string &api_path,
+                                   const std::string &key,
+                                   std::string &value) const -> api_error;
 
-  bool get_item_meta_exists(const std::string &api_path) const;
+  [[nodiscard]] auto get_item_meta_exists(const std::string &api_path) const
+      -> bool;
 
-  std::vector<std::string> get_pinned_files() const;
+  [[nodiscard]] auto get_total_item_count() const -> std::uint64_t;
 
-  bool get_source_path_exists(const std::string &source_path) const;
+  [[nodiscard]] auto get_pinned_files() const -> std::vector<std::string>;
 
-  void remove_item_meta(const std::string &api_path);
+  [[nodiscard]] auto
+  get_source_path_exists(const std::string &source_path) const -> bool;
 
-  api_error remove_item_meta(const std::string &api_path, const std::string &key);
+  [[nodiscard]] auto remove_item_meta(const std::string &api_path) -> api_error;
 
-  api_error rename_item_meta(const std::string &source_path, const std::string &from_api_path,
-                             const std::string &to_api_path);
+  [[nodiscard]] auto remove_item_meta(const std::string &api_path,
+                                      const std::string &key) -> api_error;
 
-  api_error set_item_meta(const std::string &api_path, const std::string &key,
-                          const std::string &value);
+  [[nodiscard]] auto rename_item_meta(const std::string &source_path,
+                                      const std::string &from_api_path,
+                                      const std::string &to_api_path)
+      -> api_error;
 
-  api_error set_item_meta(const std::string &api_path, const api_meta_map &meta);
+  [[nodiscard]] auto set_item_meta(const std::string &api_path,
+                                   const std::string &key,
+                                   const std::string &value) -> api_error;
 
-  api_error set_source_path(const std::string &api_path, const std::string &source_path);
+  [[nodiscard]] auto set_item_meta(const std::string &api_path,
+                                   const api_meta_map &meta) -> api_error;
+
+  [[nodiscard]] auto set_source_path(const std::string &api_path,
+                                     const std::string &source_path)
+      -> api_error;
 };
 } // namespace repertory
 

@@ -1,27 +1,33 @@
 /*
-  Copyright <2018-2022> <scott.e.graves@protonmail.com>
+  Copyright <2018-2023> <scott.e.graves@protonmail.com>
 
-  Permission is hereby granted, free of charge, to any person obtaining a copy of this software and
-  associated documentation files (the "Software"), to deal in the Software without restriction,
-  including without limitation the rights to use, copy, modify, merge, publish, distribute,
-  sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is
+  Permission is hereby granted, free of charge, to any person obtaining a copy
+  of this software and associated documentation files (the "Software"), to deal
+  in the Software without restriction, including without limitation the rights
+  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+  copies of the Software, and to permit persons to whom the Software is
   furnished to do so, subject to the following conditions:
 
-  The above copyright notice and this permission notice shall be included in all copies or
-  substantial portions of the Software.
+  The above copyright notice and this permission notice shall be included in all
+  copies or substantial portions of the Software.
 
-  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT
-  NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
-  NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
-  DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT
-  OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+  SOFTWARE.
 */
 #include "comm/curl/multi_request.hpp"
+
 #include "utils/utils.hpp"
 
 namespace repertory {
-multi_request::multi_request(CURL *curl_handle, const bool &stop_requested)
-    : curl_handle_(curl_handle), stop_requested_(stop_requested), multi_handle_(curl_multi_init()) {
+multi_request::multi_request(CURL *curl_handle, stop_type &stop_requested)
+    : curl_handle_(curl_handle),
+      stop_requested_(stop_requested),
+      multi_handle_(curl_multi_init()) {
   curl_multi_add_handle(multi_handle_, curl_handle);
 }
 
@@ -48,9 +54,11 @@ void multi_request::get_result(CURLcode &curl_code, long &http_code) {
 
   if (not stop_requested_) {
     int remaining_messages = 0;
-    auto *multi_result = curl_multi_info_read(multi_handle_, &remaining_messages);
+    auto *multi_result =
+        curl_multi_info_read(multi_handle_, &remaining_messages);
     if (multi_result && (multi_result->msg == CURLMSG_DONE)) {
-      curl_easy_getinfo(multi_result->easy_handle, CURLINFO_RESPONSE_CODE, &http_code);
+      curl_easy_getinfo(multi_result->easy_handle, CURLINFO_RESPONSE_CODE,
+                        &http_code);
       curl_code = multi_result->data.result;
     }
   }

@@ -1,29 +1,54 @@
 /*
-  Copyright <2018-2022> <scott.e.graves@protonmail.com>
+  Copyright <2018-2023> <scott.e.graves@protonmail.com>
 
-  Permission is hereby granted, free of charge, to any person obtaining a copy of this software and
-  associated documentation files (the "Software"), to deal in the Software without restriction,
-  including without limitation the rights to use, copy, modify, merge, publish, distribute,
-  sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is
+  Permission is hereby granted, free of charge, to any person obtaining a copy
+  of this software and associated documentation files (the "Software"), to deal
+  in the Software without restriction, including without limitation the rights
+  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+  copies of the Software, and to permit persons to whom the Software is
   furnished to do so, subject to the following conditions:
 
-  The above copyright notice and this permission notice shall be included in all copies or
-  substantial portions of the Software.
+  The above copyright notice and this permission notice shall be included in all
+  copies or substantial portions of the Software.
 
-  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT
-  NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
-  NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
-  DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT
-  OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+  SOFTWARE.
 */
-#include "common.hpp"
+#include "types/repertory.hpp"
 
-const std::string &get_repertory_version() {
+namespace repertory {
+auto get_repertory_git_revision() -> const std::string & {
+  static const std::string git_revision = "@REPERTORY_GIT_REV@";
+  return git_revision;
+}
+
+auto get_repertory_version() -> const std::string & {
   static const std::string version = "@REPERTORY_VERSION@";
   return version;
 }
 
-const std::string &get_repertory_git_revision() {
-  static const std::string git_revision = "@REPERTORY_GIT_REV@";
-  return git_revision;
+void repertory_init() {
+#ifdef REPERTORY_MUSL
+  pthread_attr_t a;
+  memset(&a, 0, sizeof(pthread_attr_t));
+  pthread_attr_setstacksize(&a, 8U * 1024U * 1024U);
+  pthread_attr_setguardsize(&a, 4096U);
+  pthread_setattr_default_np(&a);
+#endif
+
+  const auto err = sodium_init();
+  if (err < 0) {
+    std::cerr << "failed to initialize libsodium|err|" << err << std::endl;
+    exit(static_cast<std::int32_t>(exit_code::init_failed));
+  }
+
+  curl_global_init(CURL_GLOBAL_DEFAULT);
 }
+
+void repertory_shutdown() { curl_global_cleanup(); }
+} // namespace repertory

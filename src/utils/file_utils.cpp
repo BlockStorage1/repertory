@@ -1,44 +1,34 @@
 /*
-  Copyright <2018-2022> <scott.e.graves@protonmail.com>
+  Copyright <2018-2023> <scott.e.graves@protonmail.com>
 
-  Permission is hereby granted, free of charge, to any person obtaining a copy of this software and
-  associated documentation files (the "Software"), to deal in the Software without restriction,
-  including without limitation the rights to use, copy, modify, merge, publish, distribute,
-  sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is
+  Permission is hereby granted, free of charge, to any person obtaining a copy
+  of this software and associated documentation files (the "Software"), to deal
+  in the Software without restriction, including without limitation the rights
+  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+  copies of the Software, and to permit persons to whom the Software is
   furnished to do so, subject to the following conditions:
 
-  The above copyright notice and this permission notice shall be included in all copies or
-  substantial portions of the Software.
+  The above copyright notice and this permission notice shall be included in all
+  copies or substantial portions of the Software.
 
-  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT
-  NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
-  NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
-  DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT
-  OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+  SOFTWARE.
 */
 #include "utils/file_utils.hpp"
+
+#include "types/repertory.hpp"
+#include "utils/error_utils.hpp"
 #include "utils/path_utils.hpp"
 #include "utils/string_utils.hpp"
 #include "utils/utils.hpp"
 
 namespace repertory::utils::file {
-api_error assign_and_get_native_file(filesystem_item &fi, native_file_ptr &nf) {
-  recur_mutex_lock l(*fi.lock);
-  if (fi.handle == REPERTORY_INVALID_HANDLE) {
-    const auto res = native_file::create_or_open(fi.source_path, nf);
-    if (res != api_error::success) {
-      return res;
-    }
-
-    fi.handle = nf->get_handle();
-  } else {
-    nf = native_file::attach(fi.handle);
-  }
-
-  return api_error::success;
-}
-
-std::uint64_t calculate_used_space(std::string path, const bool &recursive) {
+auto calculate_used_space(std::string path, bool recursive) -> std::uint64_t {
   path = utils::path::absolute(path);
   std::uint64_t ret = 0u;
 #ifdef _WIN32
@@ -50,7 +40,8 @@ std::uint64_t calculate_used_space(std::string path, const bool &recursive) {
       const auto file_name = std::string(fd.cFileName);
       if (fd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
         if (recursive && (file_name != ".") && (file_name != "..")) {
-          ret += calculate_used_space(utils::path::combine(path, {file_name}), recursive);
+          ret += calculate_used_space(utils::path::combine(path, {file_name}),
+                                      recursive);
         }
       } else {
         std::uint64_t file_size{};
@@ -67,12 +58,15 @@ std::uint64_t calculate_used_space(std::string path, const bool &recursive) {
     struct dirent *de{};
     while ((de = readdir(root)) != nullptr) {
       if (de->d_type == DT_DIR) {
-        if (recursive && (strcmp(de->d_name, ".") != 0) && (strcmp(de->d_name, "..") != 0)) {
-          ret += calculate_used_space(utils::path::combine(path, {de->d_name}), recursive);
+        if (recursive && (strcmp(de->d_name, ".") != 0) &&
+            (strcmp(de->d_name, "..") != 0)) {
+          ret += calculate_used_space(utils::path::combine(path, {de->d_name}),
+                                      recursive);
         }
       } else {
         std::uint64_t file_size{};
-        if (get_file_size(utils::path::combine(path, {de->d_name}), file_size)) {
+        if (get_file_size(utils::path::combine(path, {de->d_name}),
+                          file_size)) {
           ret += file_size;
         }
       }
@@ -88,7 +82,8 @@ void change_to_process_directory() {
 #ifdef _WIN32
   std::string file_name;
   file_name.resize(MAX_PATH);
-  ::GetModuleFileNameA(nullptr, &file_name[0u], static_cast<DWORD>(file_name.size()));
+  ::GetModuleFileNameA(nullptr, &file_name[0u],
+                       static_cast<DWORD>(file_name.size()));
 
   std::string path = file_name.c_str();
   ::PathRemoveFileSpecA(&path[0u]);
@@ -106,19 +101,18 @@ void change_to_process_directory() {
 #endif
 }
 
-bool copy_file(std::string from_path, std::string to_path) {
+auto copy_file(std::string from_path, std::string to_path) -> bool {
   from_path = utils::path::absolute(from_path);
   to_path = utils::path::absolute(to_path);
   if (is_file(from_path) && not is_directory(to_path)) {
-    boost::system::error_code ec{};
-    boost::filesystem::copy_file(from_path, to_path, ec);
-    return not ec.failed();
+    return std::filesystem::copy_file(from_path, to_path);
   }
 
   return false;
 }
 
-bool copy_directory_recursively(std::string from_path, std::string to_path) {
+auto copy_directory_recursively(std::string from_path, std::string to_path)
+    -> bool {
   from_path = utils::path::absolute(from_path);
   to_path = utils::path::absolute(to_path);
   auto ret = create_full_directory_path(to_path);
@@ -131,9 +125,11 @@ bool copy_directory_recursively(std::string from_path, std::string to_path) {
       ret = true;
       do {
         if (fd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
-          if ((std::string(fd.cFileName) != ".") && (std::string(fd.cFileName) != "..")) {
-            ret = copy_directory_recursively(utils::path::combine(from_path, {fd.cFileName}),
-                                             utils::path::combine(to_path, {fd.cFileName}));
+          if ((std::string(fd.cFileName) != ".") &&
+              (std::string(fd.cFileName) != "..")) {
+            ret = copy_directory_recursively(
+                utils::path::combine(from_path, {fd.cFileName}),
+                utils::path::combine(to_path, {fd.cFileName}));
           }
         } else {
           ret = copy_file(utils::path::combine(from_path, {fd.cFileName}),
@@ -149,9 +145,11 @@ bool copy_directory_recursively(std::string from_path, std::string to_path) {
       struct dirent *de{};
       while (ret && (de = readdir(root))) {
         if (de->d_type == DT_DIR) {
-          if ((strcmp(de->d_name, ".") != 0) && (strcmp(de->d_name, "..") != 0)) {
-            ret = copy_directory_recursively(utils::path::combine(from_path, {de->d_name}),
-                                             utils::path::combine(to_path, {de->d_name}));
+          if ((strcmp(de->d_name, ".") != 0) &&
+              (strcmp(de->d_name, "..") != 0)) {
+            ret = copy_directory_recursively(
+                utils::path::combine(from_path, {de->d_name}),
+                utils::path::combine(to_path, {de->d_name}));
           }
         } else {
           ret = copy_file(utils::path::combine(from_path, {de->d_name}),
@@ -167,15 +165,16 @@ bool copy_directory_recursively(std::string from_path, std::string to_path) {
   return ret;
 }
 
-bool create_full_directory_path(std::string path) {
+auto create_full_directory_path(std::string path) -> bool {
 #ifdef _WIN32
-  const auto unicode_path = utils::string::from_utf8(utils::path::absolute(path));
+  const auto unicode_path =
+      utils::string::from_utf8(utils::path::absolute(path));
   return is_directory(path) ||
          (::SHCreateDirectory(nullptr, unicode_path.c_str()) == ERROR_SUCCESS);
 #else
   auto ret = true;
-  const auto paths =
-      utils::string::split(utils::path::absolute(path), utils::path::directory_seperator[0u]);
+  const auto paths = utils::string::split(utils::path::absolute(path),
+                                          utils::path::directory_seperator[0u]);
   std::string current_path;
   for (std::size_t i = 0u; ret && (i < paths.size()); i++) {
     if (paths[i].empty()) { // Skip root
@@ -191,21 +190,22 @@ bool create_full_directory_path(std::string path) {
 #endif
 }
 
-bool delete_directory(std::string path, const bool &recursive) {
+auto delete_directory(std::string path, bool recursive) -> bool {
   if (recursive) {
     return delete_directory_recursively(path);
   }
 
   path = utils::path::absolute(path);
 #ifdef _WIN32
-  return (not is_directory(path) ||
-          utils::retryable_action([&]() -> bool { return !!::RemoveDirectoryA(path.c_str()); }));
+  return (not is_directory(path) || utils::retryable_action([&]() -> bool {
+    return !!::RemoveDirectoryA(path.c_str());
+  }));
 #else
   return not is_directory(path) || (rmdir(path.c_str()) == 0);
 #endif
 }
 
-bool delete_directory_recursively(std::string path) {
+auto delete_directory_recursively(std::string path) -> bool {
   path = utils::path::absolute(path);
 #ifdef _WIN32
 
@@ -213,14 +213,16 @@ bool delete_directory_recursively(std::string path) {
   const auto search = utils::path::combine(path, {"*.*"});
   auto find = ::FindFirstFile(search.c_str(), &fd);
   if (find != INVALID_HANDLE_VALUE) {
-    auto res = false;
+    auto res = true;
     do {
       if (fd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
-        if ((std::string(fd.cFileName) != ".") && (std::string(fd.cFileName) != "..")) {
-          res = delete_directory_recursively(utils::path::combine(path, {fd.cFileName}));
+        if ((std::string(fd.cFileName) != ".") &&
+            (std::string(fd.cFileName) != "..")) {
+          res = delete_directory_recursively(
+              utils::path::combine(path, {fd.cFileName}));
         }
       } else {
-        res = delete_file(utils::path::combine(path, {fd.cFileName}));
+        res = retry_delete_file(utils::path::combine(path, {fd.cFileName}));
       }
     } while (res && (::FindNextFile(find, &fd) != 0));
 
@@ -234,10 +236,11 @@ bool delete_directory_recursively(std::string path) {
     while (res && (de = readdir(root))) {
       if (de->d_type == DT_DIR) {
         if ((strcmp(de->d_name, ".") != 0) && (strcmp(de->d_name, "..") != 0)) {
-          res = delete_directory_recursively(utils::path::combine(path, {de->d_name}));
+          res = delete_directory_recursively(
+              utils::path::combine(path, {de->d_name}));
         }
       } else {
-        res = delete_file(utils::path::combine(path, {de->d_name}));
+        res = retry_delete_file(utils::path::combine(path, {de->d_name}));
       }
     }
 
@@ -248,7 +251,7 @@ bool delete_directory_recursively(std::string path) {
   return delete_directory(path, false);
 }
 
-bool delete_file(std::string path) {
+auto delete_file(std::string path) -> bool {
   path = utils::path::absolute(path);
 #ifdef _WIN32
   return (not is_file(path) || utils::retryable_action([&]() -> bool {
@@ -264,18 +267,55 @@ bool delete_file(std::string path) {
 #endif
 }
 
-std::string generate_sha256(const std::string &file_path) {
-  std::string value;
-  CryptoPP::SHA256 hash;
-  CryptoPP::FileSource(
-      file_path.c_str(), true,
-      new CryptoPP::HashFilter(hash, new CryptoPP::HexEncoder(new CryptoPP::StringSink(value))));
-  return value;
+auto generate_sha256(const std::string &file_path) -> std::string {
+  crypto_hash_sha256_state state{};
+  auto res = crypto_hash_sha256_init(&state);
+  if (res != 0) {
+    throw std::runtime_error("failed to initialize sha256|" +
+                             std::to_string(res));
+  }
+
+  native_file_ptr nf;
+  if (native_file::open(file_path, nf) != api_error::success) {
+    throw std::runtime_error("failed to open file|" + file_path);
+  }
+
+  {
+    data_buffer buffer(1048576u);
+    std::uint64_t read_offset = 0u;
+    std::size_t bytes_read = 0u;
+    while (
+        nf->read_bytes(buffer.data(), buffer.size(), read_offset, bytes_read)) {
+      if (not bytes_read) {
+        break;
+      }
+
+      read_offset += bytes_read;
+      res = crypto_hash_sha256_update(
+          &state, reinterpret_cast<const unsigned char *>(buffer.data()),
+          bytes_read);
+      if (res != 0) {
+        nf->close();
+        throw std::runtime_error("failed to update sha256|" +
+                                 std::to_string(res));
+      }
+    }
+    nf->close();
+  }
+
+  std::array<unsigned char, crypto_hash_sha256_BYTES> out{};
+  res = crypto_hash_sha256_final(&state, out.data());
+  if (res != 0) {
+    throw std::runtime_error("failed to finalize sha256|" +
+                             std::to_string(res));
+  }
+
+  return utils::to_hex_string(out);
 }
 
-std::uint64_t get_available_drive_space(const std::string &path) {
+auto get_free_drive_space(const std::string &path) -> std::uint64_t {
 #ifdef _WIN32
-  ULARGE_INTEGER li = {0};
+  ULARGE_INTEGER li{};
   ::GetDiskFreeSpaceEx(path.c_str(), &li, nullptr, nullptr);
   return li.QuadPart;
 #endif
@@ -290,12 +330,33 @@ std::uint64_t get_available_drive_space(const std::string &path) {
 #if __APPLE__
   struct statvfs st {};
   statvfs(path.c_str(), &st);
-  return st.f_bavail * st.f_frsize;
+  return st.f_bfree * st.f_frsize;
 #endif
 }
 
-std::deque<std::string> get_directory_files(std::string path, const bool &oldest_first,
-                                            const bool &recursive) {
+auto get_total_drive_space(const std::string &path) -> std::uint64_t {
+#ifdef _WIN32
+  ULARGE_INTEGER li{};
+  ::GetDiskFreeSpaceEx(path.c_str(), nullptr, &li, nullptr);
+  return li.QuadPart;
+#endif
+#ifdef __linux__
+  std::uint64_t ret = 0;
+  struct statfs64 st {};
+  if (statfs64(path.c_str(), &st) == 0) {
+    ret = st.f_blocks * st.f_bsize;
+  }
+  return ret;
+#endif
+#if __APPLE__
+  struct statvfs st {};
+  statvfs(path.c_str(), &st);
+  return st.f_blocks * st.f_frsize;
+#endif
+}
+
+auto get_directory_files(std::string path, bool oldest_first, bool recursive)
+    -> std::deque<std::string> {
   path = utils::path::absolute(path);
   std::deque<std::string> ret;
   std::unordered_map<std::string, std::uint64_t> lookup;
@@ -305,20 +366,28 @@ std::deque<std::string> get_directory_files(std::string path, const bool &oldest
   auto find = ::FindFirstFile(search.c_str(), &fd);
   if (find != INVALID_HANDLE_VALUE) {
     do {
-      if ((fd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) != FILE_ATTRIBUTE_DIRECTORY) {
-        ULARGE_INTEGER li{};
-        li.HighPart = fd.ftLastWriteTime.dwHighDateTime;
-        li.LowPart = fd.ftLastWriteTime.dwLowDateTime;
-        const auto full_path = utils::path::combine(path, {fd.cFileName});
-        lookup[full_path] = li.QuadPart;
-        ret.emplace_back(full_path);
+      const auto full_path = utils::path::combine(path, {fd.cFileName});
+      if ((fd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) ==
+          FILE_ATTRIBUTE_DIRECTORY) {
+        if (recursive) {
+          const auto sub_files =
+              get_directory_files(full_path, oldest_first, recursive);
+          ret.insert(ret.end(), sub_files.begin(), sub_files.end());
+        } else {
+          ULARGE_INTEGER li{};
+          li.HighPart = fd.ftLastWriteTime.dwHighDateTime;
+          li.LowPart = fd.ftLastWriteTime.dwLowDateTime;
+          lookup[full_path] = li.QuadPart;
+          ret.emplace_back(full_path);
+        }
       }
     } while (::FindNextFile(find, &fd) != 0);
     ::FindClose(find);
 
-    std::sort(ret.begin(), ret.end(), [&](const auto &p1, const auto &p2) -> bool {
-      return (oldest_first != 0) == (lookup[p1] < lookup[p2]);
-    });
+    std::sort(ret.begin(), ret.end(),
+              [&](const auto &p1, const auto &p2) -> bool {
+                return (oldest_first != 0) == (lookup[p1] < lookup[p2]);
+              });
   }
 #else
   auto *root = opendir(path.c_str());
@@ -327,9 +396,10 @@ std::deque<std::string> get_directory_files(std::string path, const bool &oldest
     while ((de = readdir(root)) != nullptr) {
       if (de->d_type == DT_DIR) {
         if (recursive) {
-          const auto subFiles = get_directory_files(utils::path::combine(path, {de->d_name}),
-                                                    oldest_first, recursive);
-          ret.insert(ret.end(), subFiles.begin(), subFiles.end());
+          const auto sub_files =
+              get_directory_files(utils::path::combine(path, {de->d_name}),
+                                  oldest_first, recursive);
+          ret.insert(ret.end(), sub_files.begin(), sub_files.end());
         }
       } else {
         ret.emplace_back(utils::path::combine(path, {de->d_name}));
@@ -343,25 +413,28 @@ std::deque<std::string> get_directory_files(std::string path, const bool &oldest
         stat(lookup_path.c_str(), &st);
 #ifdef __APPLE__
         lookup[lookup_path] = static_cast<std::uint64_t>(
-            (st.st_mtimespec.tv_sec * NANOS_PER_SECOND) + st.st_mtimespec.tv_nsec);
+            (st.st_mtimespec.tv_sec * NANOS_PER_SECOND) +
+            st.st_mtimespec.tv_nsec);
 #else
-        lookup[lookup_path] =
-            static_cast<std::uint64_t>((st.st_mtim.tv_sec * NANOS_PER_SECOND) + st.st_mtim.tv_nsec);
+        lookup[lookup_path] = static_cast<std::uint64_t>(
+            (st.st_mtim.tv_sec * NANOS_PER_SECOND) + st.st_mtim.tv_nsec);
 #endif
       }
     };
 
-    std::sort(ret.begin(), ret.end(), [&](const auto &p1, const auto &p2) -> bool {
-      add_to_lookup(p1);
-      add_to_lookup(p2);
-      return (oldest_first != 0) == (lookup[p1] < lookup[p2]);
-    });
+    std::sort(ret.begin(), ret.end(),
+              [&](const auto &p1, const auto &p2) -> bool {
+                add_to_lookup(p1);
+                add_to_lookup(p2);
+                return (oldest_first != 0) == (lookup[p1] < lookup[p2]);
+              });
   }
 #endif
   return ret;
 }
 
-bool get_accessed_time(const std::string &path, std::uint64_t &accessed) {
+auto get_accessed_time(const std::string &path, std::uint64_t &accessed)
+    -> bool {
   auto ret = false;
   accessed = 0;
 #ifdef _WIN32
@@ -372,10 +445,11 @@ bool get_accessed_time(const std::string &path, std::uint64_t &accessed) {
   struct stat st {};
   if (stat(path.c_str(), &st) != -1) {
 #ifdef __APPLE__
-    accessed = static_cast<uint64_t>(st.st_atimespec.tv_nsec +
-                                     (st.st_atimespec.tv_sec * NANOS_PER_SECOND));
+    accessed = static_cast<uint64_t>(
+        st.st_atimespec.tv_nsec + (st.st_atimespec.tv_sec * NANOS_PER_SECOND));
 #else
-    accessed = static_cast<uint64_t>(st.st_atim.tv_nsec + (st.st_atim.tv_sec * NANOS_PER_SECOND));
+    accessed = static_cast<uint64_t>(st.st_atim.tv_nsec +
+                                     (st.st_atim.tv_sec * NANOS_PER_SECOND));
 #endif
 #endif
     ret = true;
@@ -384,7 +458,8 @@ bool get_accessed_time(const std::string &path, std::uint64_t &accessed) {
   return ret;
 }
 
-bool get_modified_time(const std::string &path, std::uint64_t &modified) {
+auto get_modified_time(const std::string &path, std::uint64_t &modified)
+    -> bool {
   auto ret = false;
   modified = 0u;
 #ifdef _WIN32
@@ -395,10 +470,11 @@ bool get_modified_time(const std::string &path, std::uint64_t &modified) {
   struct stat st {};
   if (stat(path.c_str(), &st) != -1) {
 #ifdef __APPLE__
-    modified = static_cast<uint64_t>(st.st_mtimespec.tv_nsec +
-                                     (st.st_mtimespec.tv_sec * NANOS_PER_SECOND));
+    modified = static_cast<uint64_t>(
+        st.st_mtimespec.tv_nsec + (st.st_mtimespec.tv_sec * NANOS_PER_SECOND));
 #else
-    modified = static_cast<uint64_t>(st.st_mtim.tv_nsec + (st.st_mtim.tv_sec * NANOS_PER_SECOND));
+    modified = static_cast<uint64_t>(st.st_mtim.tv_nsec +
+                                     (st.st_mtim.tv_sec * NANOS_PER_SECOND));
 #endif
 #endif
     ret = true;
@@ -407,7 +483,7 @@ bool get_modified_time(const std::string &path, std::uint64_t &modified) {
   return ret;
 }
 
-bool get_file_size(std::string path, std::uint64_t &file_size) {
+auto get_file_size(std::string path, std::uint64_t &file_size) -> bool {
   file_size = 0u;
   path = utils::path::finalize(path);
 
@@ -433,7 +509,7 @@ bool get_file_size(std::string path, std::uint64_t &file_size) {
   return (st.st_size >= 0);
 }
 
-bool is_directory(const std::string &path) {
+auto is_directory(const std::string &path) -> bool {
 #ifdef _WIN32
   return ::PathIsDirectory(path.c_str()) != 0;
 #else
@@ -442,36 +518,43 @@ bool is_directory(const std::string &path) {
 #endif
 }
 
-bool is_file(const std::string &path) {
+auto is_file(const std::string &path) -> bool {
 #ifdef _WIN32
-  return (::PathFileExists(path.c_str()) && not ::PathIsDirectory(path.c_str()));
+  return (::PathFileExists(path.c_str()) &&
+          not ::PathIsDirectory(path.c_str()));
 #else
   struct stat st {};
   return (not stat(path.c_str(), &st) && not S_ISDIR(st.st_mode));
 #endif
 }
 
-bool is_modified_date_older_than(const std::string &path, const std::chrono::hours &hours) {
+auto is_modified_date_older_than(const std::string &path,
+                                 const std::chrono::hours &hours) -> bool {
   auto ret = false;
   std::uint64_t modified = 0;
   if (get_modified_time(path, modified)) {
-    const auto seconds = std::chrono::duration_cast<std::chrono::seconds>(hours);
+    const auto seconds =
+        std::chrono::duration_cast<std::chrono::seconds>(hours);
 #ifdef _WIN32
     return (std::chrono::system_clock::from_time_t(modified) + seconds) <
            std::chrono::system_clock::now();
 #else
-    return (modified + (seconds.count() * NANOS_PER_SECOND)) < utils::get_time_now();
+    return (modified + (seconds.count() * NANOS_PER_SECOND)) <
+           utils::get_time_now();
 #endif
   }
   return ret;
 }
 
-bool move_file(std::string from, std::string to) {
+auto move_file(std::string from, std::string to) -> bool {
   from = utils::path::finalize(from);
   to = utils::path::finalize(to);
 
   const auto directory = utils::path::remove_file_name(to);
-  create_full_directory_path(directory);
+  if (not create_full_directory_path(directory)) {
+    return false;
+  }
+
 #ifdef _WIN32
   const bool ret = ::MoveFile(from.c_str(), to.c_str()) != 0;
 #else
@@ -481,24 +564,7 @@ bool move_file(std::string from, std::string to) {
   return ret;
 }
 
-api_error read_from_source(filesystem_item &fi, const std::size_t &read_size,
-                           const std::uint64_t &read_offset, std::vector<char> &data) {
-  native_file_ptr nf;
-  const auto res = assign_and_get_native_file(fi, nf);
-  if (res != api_error::success) {
-    return res;
-  }
-
-  data.resize(read_size);
-  std::size_t bytes_read = 0u;
-  if (not nf->read_bytes(&data[0u], data.size(), read_offset, bytes_read)) {
-    return api_error::os_error;
-  }
-
-  return api_error::success;
-}
-
-std::vector<std::string> read_file_lines(const std::string &path) {
+auto read_file_lines(const std::string &path) -> std::vector<std::string> {
   std::vector<std::string> ret;
   if (is_file(path)) {
     std::ifstream fs(path);
@@ -512,30 +578,39 @@ std::vector<std::string> read_file_lines(const std::string &path) {
   return ret;
 }
 
-bool read_json_file(const std::string &path, json &data) {
-  auto ret = false;
+auto read_json_file(const std::string &path, json &data) -> bool {
+  if (not utils::file::is_file(path)) {
+    return true;
+  }
 
   try {
     std::ifstream file_stream(path.c_str());
     if (file_stream.is_open()) {
-      std::stringstream ss;
-      ss << file_stream.rdbuf();
-      std::string json_text = ss.str();
-      if (json_text.empty()) {
+      try {
+        std::stringstream ss;
+        ss << file_stream.rdbuf();
+
+        std::string json_text = ss.str();
+        if (not json_text.empty()) {
+          data = json::parse(json_text.c_str());
+        }
+
         file_stream.close();
-      } else {
-        data = json::parse(json_text.c_str());
-        ret = true;
+        return true;
+      } catch (const std::exception &e) {
         file_stream.close();
+        throw e;
       }
     }
-  } catch (const std::exception &) {
+  } catch (const std::exception &e) {
+    utils::error::raise_error(__FUNCTION__, e, path,
+                              "failed to read json file");
   }
 
-  return ret;
+  return false;
 }
 
-bool reset_modified_time(const std::string &path) {
+auto reset_modified_time(const std::string &path) -> bool {
   auto ret = false;
 #ifdef _WIN32
   SYSTEMTIME st{};
@@ -543,9 +618,10 @@ bool reset_modified_time(const std::string &path) {
 
   FILETIME ft{};
   if ((ret = !!::SystemTimeToFileTime(&st, &ft))) {
-    auto handle = ::CreateFileA(path.c_str(), FILE_READ_ATTRIBUTES | FILE_WRITE_ATTRIBUTES,
-                                FILE_SHARE_DELETE | FILE_SHARE_READ | FILE_SHARE_WRITE, nullptr,
-                                OPEN_EXISTING, 0, nullptr);
+    auto handle = ::CreateFileA(
+        path.c_str(), FILE_READ_ATTRIBUTES | FILE_WRITE_ATTRIBUTES,
+        FILE_SHARE_DELETE | FILE_SHARE_READ | FILE_SHARE_WRITE, nullptr,
+        OPEN_EXISTING, 0, nullptr);
     if ((ret = (handle != INVALID_HANDLE_VALUE))) {
       ret = !!::SetFileTime(handle, nullptr, &ft, &ft);
       ::CloseHandle(handle);
@@ -561,21 +637,27 @@ bool reset_modified_time(const std::string &path) {
   return ret;
 }
 
-api_error truncate_source(filesystem_item &fi, const std::uint64_t &size) {
-  native_file_ptr nf;
-  auto res = assign_and_get_native_file(fi, nf);
-  if (res != api_error::success) {
-    return res;
+auto retry_delete_directory(const std::string &dir) -> bool {
+  auto deleted = false;
+  for (std::uint8_t i = 0u; not(deleted = delete_directory(dir)) && (i < 200u);
+       i++) {
+    std::this_thread::sleep_for(10ms);
   }
 
-  if (not nf->truncate(size)) {
-    return api_error::os_error;
-  }
-
-  return api_error::success;
+  return deleted;
 }
 
-bool write_json_file(const std::string &path, const json &j) {
+auto retry_delete_file(const std::string &file) -> bool {
+  auto deleted = false;
+  for (std::uint8_t i = 0u; not(deleted = delete_file(file)) && (i < 200u);
+       i++) {
+    std::this_thread::sleep_for(10ms);
+  }
+
+  return deleted;
+}
+
+auto write_json_file(const std::string &path, const json &j) -> bool {
   std::string data;
   {
     std::stringstream ss;
@@ -586,27 +668,11 @@ bool write_json_file(const std::string &path, const json &j) {
   auto ret = (native_file::create_or_open(path, nf) == api_error::success);
   if (ret) {
     std::size_t bytes_written = 0u;
-    ret = nf->truncate(0) && nf->write_bytes(&data[0u], data.size(), 0u, bytes_written);
+    ret = nf->truncate(0) &&
+          nf->write_bytes(&data[0u], data.size(), 0u, bytes_written);
     nf->close();
   }
 
   return ret;
-}
-
-api_error write_to_source(filesystem_item &fi, const std::uint64_t &write_offset,
-                          const std::vector<char> &data, std::size_t &bytes_written) {
-  bytes_written = 0u;
-
-  native_file_ptr nf;
-  auto res = assign_and_get_native_file(fi, nf);
-  if (res != api_error::success) {
-    return res;
-  }
-
-  if (not nf->write_bytes(&data[0u], data.size(), write_offset, bytes_written)) {
-    return api_error::os_error;
-  }
-
-  return api_error::success;
 }
 } // namespace repertory::utils::file
