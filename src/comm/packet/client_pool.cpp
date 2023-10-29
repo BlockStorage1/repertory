@@ -1,29 +1,35 @@
 /*
-  Copyright <2018-2022> <scott.e.graves@protonmail.com>
+  Copyright <2018-2023> <scott.e.graves@protonmail.com>
 
-  Permission is hereby granted, free of charge, to any person obtaining a copy of this software and
-  associated documentation files (the "Software"), to deal in the Software without restriction,
-  including without limitation the rights to use, copy, modify, merge, publish, distribute,
-  sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is
+  Permission is hereby granted, free of charge, to any person obtaining a copy
+  of this software and associated documentation files (the "Software"), to deal
+  in the Software without restriction, including without limitation the rights
+  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+  copies of the Software, and to permit persons to whom the Software is
   furnished to do so, subject to the following conditions:
 
-  The above copyright notice and this permission notice shall be included in all copies or
-  substantial portions of the Software.
+  The above copyright notice and this permission notice shall be included in all
+  copies or substantial portions of the Software.
 
-  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT
-  NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
-  NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
-  DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT
-  OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+  SOFTWARE.
 */
 #include "comm/packet/client_pool.hpp"
-#include "events/events.hpp"
+
 #include "events/event_system.hpp"
+#include "events/events.hpp"
+#include "utils/error_utils.hpp"
 
 namespace repertory {
-void client_pool::pool::execute(const std::uint64_t &thread_id, const worker_callback &worker,
-                                const worker_complete_callback &worker_complete) {
-  const auto index = static_cast<std::size_t>(thread_id % pool_queues_.size());
+void client_pool::pool::execute(
+    std::uint64_t thread_id, const worker_callback &worker,
+    const worker_complete_callback &worker_complete) {
+  const auto index = thread_id % pool_queues_.size();
   auto wi = std::make_shared<work_item>(worker, worker_complete);
   auto &pool_queue = pool_queues_[index];
 
@@ -33,14 +39,15 @@ void client_pool::pool::execute(const std::uint64_t &thread_id, const worker_cal
   queue_lock.unlock();
 }
 
-client_pool::pool::pool(const std::uint8_t &pool_size) {
+client_pool::pool::pool(std::uint8_t pool_size) {
+  event_system::instance().raise<service_started>("client_pool");
   thread_index_ = 0u;
   for (std::uint8_t i = 0u; i < pool_size; i++) {
     pool_queues_.emplace_back(std::make_unique<work_queue>());
   }
 
   for (std::size_t i = 0u; i < pool_queues_.size(); i++) {
-    pool_threads_.emplace_back(std::thread([this]() {
+    pool_threads_.emplace_back([this]() {
       const auto thread_index = thread_index_++;
 
       auto &pool_queue = pool_queues_[thread_index];
@@ -58,18 +65,18 @@ client_pool::pool::pool(const std::uint8_t &pool_size) {
         }
 
         while (not queue.empty()) {
-          auto workItem = queue.front();
+          auto item = queue.front();
           queue.pop_front();
           queue_notify.notify_all();
           queue_lock.unlock();
 
           try {
-            const auto result = workItem->work();
-            workItem->work_complete(result);
+            const auto result = item->work();
+            item->work_complete(result);
           } catch (const std::exception &e) {
-            workItem->work_complete(utils::translate_api_error(api_error::error));
-            event_system::instance().raise<repertory_exception>(__FUNCTION__,
-                                                              e.what() ? e.what() : "unknown");
+            item->work_complete(utils::from_api_error(api_error::error));
+            utils::error::raise_error(__FUNCTION__, e,
+                                      "exception occurred in work item");
           }
 
           queue_lock.lock();
@@ -86,14 +93,14 @@ client_pool::pool::pool(const std::uint8_t &pool_size) {
         queue_notify.notify_all();
         queue_lock.unlock();
 
-        wi->work_complete(utils::translate_api_error(api_error::download_stopped));
+        wi->work_complete(utils::from_api_error(api_error::download_stopped));
 
         queue_lock.lock();
       }
 
       queue_notify.notify_all();
       queue_lock.unlock();
-    }));
+    });
   }
 }
 
@@ -113,7 +120,7 @@ void client_pool::pool::shutdown() {
   pool_threads_.clear();
 }
 
-void client_pool::execute(const std::string &client_id, const std::uint64_t &thread_id,
+void client_pool::execute(const std::string &client_id, std::uint64_t thread_id,
                           const worker_callback &worker,
                           const worker_complete_callback &worker_complete) {
   unique_mutex_lock pool_lock(pool_mutex_);
@@ -136,15 +143,18 @@ void client_pool::remove_client(const std::string &client_id) {
 }
 
 void client_pool::shutdown() {
-  unique_mutex_lock pool_lock(pool_mutex_);
   if (not shutdown_) {
-    shutdown_ = true;
-    event_system::instance().raise<service_shutdown>("client_pool");
-    for (auto &kv : pool_lookup_) {
-      kv.second->shutdown();
+    event_system::instance().raise<service_shutdown_begin>("client_pool");
+    unique_mutex_lock pool_lock(pool_mutex_);
+    if (not shutdown_) {
+      shutdown_ = true;
+      for (auto &kv : pool_lookup_) {
+        kv.second->shutdown();
+      }
+      pool_lookup_.clear();
     }
-    pool_lookup_.clear();
+    pool_lock.unlock();
+    event_system::instance().raise<service_shutdown_end>("client_pool");
   }
-  pool_lock.unlock();
 }
 } // namespace repertory

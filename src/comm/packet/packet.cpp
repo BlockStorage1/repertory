@@ -1,27 +1,32 @@
 /*
-  Copyright <2018-2022> <scott.e.graves@protonmail.com>
+  Copyright <2018-2023> <scott.e.graves@protonmail.com>
 
-  Permission is hereby granted, free of charge, to any person obtaining a copy of this software and
-  associated documentation files (the "Software"), to deal in the Software without restriction,
-  including without limitation the rights to use, copy, modify, merge, publish, distribute,
-  sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is
+  Permission is hereby granted, free of charge, to any person obtaining a copy
+  of this software and associated documentation files (the "Software"), to deal
+  in the Software without restriction, including without limitation the rights
+  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+  copies of the Software, and to permit persons to whom the Software is
   furnished to do so, subject to the following conditions:
 
-  The above copyright notice and this permission notice shall be included in all copies or
-  substantial portions of the Software.
+  The above copyright notice and this permission notice shall be included in all
+  copies or substantial portions of the Software.
 
-  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT
-  NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
-  NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
-  DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT
-  OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+  SOFTWARE.
 */
 #include "comm/packet/packet.hpp"
-#include "events/events.hpp"
+
 #include "events/event_system.hpp"
+#include "events/events.hpp"
 #include "types/remote.hpp"
 #include "types/repertory.hpp"
 #include "utils/encryption.hpp"
+#include "utils/error_utils.hpp"
 #include "utils/utils.hpp"
 
 namespace repertory {
@@ -30,46 +35,47 @@ void packet::clear() {
   decode_offset_ = 0u;
 }
 
-packet::error_type packet::decode(std::string &data) {
+auto packet::decode(std::string &data) -> packet::error_type {
   const auto *str = &buffer_[decode_offset_];
   const auto length = strnlen(str, buffer_.size() - decode_offset_);
   data = std::string(str, length);
   decode_offset_ += (length + 1);
 
-  return utils::translate_api_error(api_error::success);
+  return utils::from_api_error(api_error::success);
 }
 
-packet::error_type packet::decode(std::wstring &data) {
+auto packet::decode(std::wstring &data) -> packet::error_type {
   std::string utf8_string;
   const auto ret = decode(utf8_string);
   if (ret == 0) {
     data = utils::string::from_utf8(utf8_string);
   }
 
-  return utils::translate_api_error(api_error::success);
+  return utils::from_api_error(api_error::success);
 }
 
-packet::error_type packet::decode(void *&ptr) {
+auto packet::decode(void *&ptr) -> packet::error_type {
   return decode(reinterpret_cast<std::uint64_t &>(ptr));
 }
 
-packet::error_type packet::decode(void *buffer, const size_t &size) {
+auto packet::decode(void *buffer, std::size_t size) -> packet::error_type {
   if (size) {
-    const auto read_size = utils::calculate_read_size(buffer_.size(), size, decode_offset_);
+    const auto read_size =
+        utils::calculate_read_size(buffer_.size(), size, decode_offset_);
     if (read_size == size) {
       memcpy(buffer, &buffer_[decode_offset_], size);
       decode_offset_ += size;
-      return utils::translate_api_error(api_error::success);
+      return utils::from_api_error(api_error::success);
     }
 
     return ((decode_offset_ + size) > buffer_.size())
-               ? utils::translate_api_error(api_error::buffer_overflow)
-               : utils::translate_api_error(api_error::buffer_too_small);
+               ? utils::from_api_error(api_error::buffer_overflow)
+               : utils::from_api_error(api_error::buffer_too_small);
   }
-  return utils::translate_api_error(api_error::success);
+  return utils::from_api_error(api_error::success);
 }
 
-packet::error_type packet::decode(std::int8_t &i) {
+auto packet::decode(std::int8_t &i) -> packet::error_type {
   const auto ret = decode(&i, sizeof(i));
   if (ret == 0) {
     boost::endian::big_to_native_inplace(i);
@@ -77,7 +83,7 @@ packet::error_type packet::decode(std::int8_t &i) {
   return ret;
 }
 
-packet::error_type packet::decode(std::uint8_t &i) {
+auto packet::decode(std::uint8_t &i) -> packet::error_type {
   const auto ret = decode(&i, sizeof(i));
   if (ret == 0) {
     boost::endian::big_to_native_inplace(i);
@@ -85,7 +91,7 @@ packet::error_type packet::decode(std::uint8_t &i) {
   return ret;
 }
 
-packet::error_type packet::decode(std::int16_t &i) {
+auto packet::decode(std::int16_t &i) -> packet::error_type {
   const auto ret = decode(&i, sizeof(i));
   if (ret == 0) {
     boost::endian::big_to_native_inplace(i);
@@ -93,7 +99,7 @@ packet::error_type packet::decode(std::int16_t &i) {
   return ret;
 }
 
-packet::error_type packet::decode(std::uint16_t &i) {
+auto packet::decode(std::uint16_t &i) -> packet::error_type {
   const auto ret = decode(&i, sizeof(i));
   if (ret == 0) {
     boost::endian::big_to_native_inplace(i);
@@ -101,7 +107,7 @@ packet::error_type packet::decode(std::uint16_t &i) {
   return ret;
 }
 
-packet::error_type packet::decode(std::int32_t &i) {
+auto packet::decode(std::int32_t &i) -> packet::error_type {
   const auto ret = decode(&i, sizeof(i));
   if (ret == 0) {
     boost::endian::big_to_native_inplace(i);
@@ -109,7 +115,7 @@ packet::error_type packet::decode(std::int32_t &i) {
   return ret;
 }
 
-packet::error_type packet::decode(std::uint32_t &i) {
+auto packet::decode(std::uint32_t &i) -> packet::error_type {
   const auto ret = decode(&i, sizeof(i));
   if (ret == 0) {
     boost::endian::big_to_native_inplace(i);
@@ -117,7 +123,7 @@ packet::error_type packet::decode(std::uint32_t &i) {
   return ret;
 }
 
-packet::error_type packet::decode(std::int64_t &i) {
+auto packet::decode(std::int64_t &i) -> packet::error_type {
   const auto ret = decode(&i, sizeof(i));
   if (ret == 0) {
     boost::endian::big_to_native_inplace(i);
@@ -125,7 +131,7 @@ packet::error_type packet::decode(std::int64_t &i) {
   return ret;
 }
 
-packet::error_type packet::decode(std::uint64_t &i) {
+auto packet::decode(std::uint64_t &i) -> packet::error_type {
   const auto ret = decode(&i, sizeof(i));
   if (ret == 0) {
     boost::endian::big_to_native_inplace(i);
@@ -133,7 +139,7 @@ packet::error_type packet::decode(std::uint64_t &i) {
   return ret;
 }
 
-packet::error_type packet::decode(remote::setattr_x &i) {
+auto packet::decode(remote::setattr_x &i) -> packet::error_type {
   const auto ret = decode(&i, sizeof(i));
   if (ret == 0) {
     boost::endian::big_to_native_inplace(i.acctime);
@@ -152,7 +158,7 @@ packet::error_type packet::decode(remote::setattr_x &i) {
   return ret;
 }
 
-packet::error_type packet::decode(remote::stat &i) {
+auto packet::decode(remote::stat &i) -> packet::error_type {
   const auto ret = decode(&i, sizeof(i));
   if (ret == 0) {
     boost::endian::big_to_native_inplace(i.st_mode);
@@ -172,7 +178,7 @@ packet::error_type packet::decode(remote::stat &i) {
   return ret;
 }
 
-packet::error_type packet::decode(remote::statfs &i) {
+auto packet::decode(remote::statfs &i) -> packet::error_type {
   const auto ret = decode(&i, sizeof(i));
   if (ret == 0) {
     boost::endian::big_to_native_inplace(i.f_bavail);
@@ -185,7 +191,7 @@ packet::error_type packet::decode(remote::statfs &i) {
   return ret;
 }
 
-packet::error_type packet::decode(remote::statfs_x &i) {
+auto packet::decode(remote::statfs_x &i) -> packet::error_type {
   auto ret = decode(*dynamic_cast<remote::statfs *>(&i));
   if (ret == 0) {
     ret = decode(&i.f_mntfromname[0], 1024);
@@ -193,7 +199,7 @@ packet::error_type packet::decode(remote::statfs_x &i) {
   return ret;
 }
 
-packet::error_type packet::decode(remote::file_info &i) {
+auto packet::decode(remote::file_info &i) -> packet::error_type {
   const auto ret = decode(&i, sizeof(i));
   if (ret == 0) {
     boost::endian::big_to_native_inplace(i.AllocationSize);
@@ -212,15 +218,14 @@ packet::error_type packet::decode(remote::file_info &i) {
   return ret;
 }
 
-int packet::decode_json(packet &response, json &json_data) {
+auto packet::decode_json(packet &response, json &json_data) -> int {
   int ret = 0;
   std::string data;
   if ((ret = response.decode(data)) == 0) {
     try {
       json_data = json::parse(data);
     } catch (const std::exception &e) {
-      event_system::instance().raise<repertory_exception>(
-          __FUNCTION__, e.what() ? e.what() : "Failed to parse JSON string");
+      utils::error::raise_error(__FUNCTION__, e, "failed to parse json string");
       ret = -EIO;
     }
   }
@@ -228,25 +233,26 @@ int packet::decode_json(packet &response, json &json_data) {
   return ret;
 }
 
-packet::error_type packet::decrypt(const std::string &token) {
-  auto ret = utils::translate_api_error(api_error::success);
+auto packet::decrypt(const std::string &token) -> packet::error_type {
+  auto ret = utils::from_api_error(api_error::success);
   try {
-    std::vector<char> result;
+    data_buffer result;
     if (not utils::encryption::decrypt_data(token, &buffer_[decode_offset_],
-                                            buffer_.size() - decode_offset_, result)) {
-      throw std::runtime_error("Decryption failed");
+                                            buffer_.size() - decode_offset_,
+                                            result)) {
+      throw std::runtime_error("decryption failed");
     }
     buffer_ = std::move(result);
     decode_offset_ = 0;
   } catch (const std::exception &e) {
-    event_system::instance().raise<repertory_exception>(__FUNCTION__, e.what());
-    ret = utils::translate_api_error(api_error::error);
+    utils::error::raise_error(__FUNCTION__, e, "exception occurred");
+    ret = utils::from_api_error(api_error::error);
   }
 
   return ret;
 }
 
-void packet::encode(const void *buffer, const std::size_t &size, bool should_reserve) {
+void packet::encode(const void *buffer, std::size_t size, bool should_reserve) {
   if (size) {
     if (should_reserve) {
       buffer_.reserve(buffer_.size() + size);
@@ -263,11 +269,17 @@ void packet::encode(const std::string &str) {
   buffer_.emplace_back(0);
 }
 
-void packet::encode(wchar_t *str) { encode(utils::string::to_utf8(str ? str : L"")); }
+void packet::encode(wchar_t *str) {
+  encode(utils::string::to_utf8(str ? str : L""));
+}
 
-void packet::encode(const wchar_t *str) { encode(utils::string::to_utf8(str ? str : L"")); }
+void packet::encode(const wchar_t *str) {
+  encode(utils::string::to_utf8(str ? str : L""));
+}
 
-void packet::encode(const std::wstring &str) { encode(utils::string::to_utf8(str)); }
+void packet::encode(const std::wstring &str) {
+  encode(utils::string::to_utf8(str));
+}
 
 void packet::encode(std::int8_t i) {
   boost::endian::native_to_big_inplace(i);
@@ -375,7 +387,8 @@ void packet::encode(remote::file_info i) {
   encode(&i, sizeof(i), true);
 }
 
-void packet::encode_top(const void *buffer, const std::size_t &size, bool should_reserve) {
+void packet::encode_top(const void *buffer, std::size_t size,
+                        bool should_reserve) {
   if (size) {
     if (should_reserve) {
       buffer_.reserve(buffer_.size() + size);
@@ -386,13 +399,15 @@ void packet::encode_top(const void *buffer, const std::size_t &size, bool should
 }
 
 void packet::encode_top(const std::string &str) {
-  const auto len = strnlen(&str[0], str.size());
-  buffer_.reserve(len + 1 + buffer_.size());
+  const auto len = strnlen(str.c_str(), str.size());
+  buffer_.reserve(len + 1U + buffer_.size());
   encode_top(&str[0], len, false);
-  buffer_.insert(buffer_.begin() + len, 0);
+  buffer_.insert(buffer_.begin() + static_cast<std::int32_t>(len), 0);
 }
 
-void packet::encode_top(const std::wstring &str) { encode_top(utils::string::to_utf8(str)); }
+void packet::encode_top(const std::wstring &str) {
+  encode_top(utils::string::to_utf8(str));
+}
 
 void packet::encode_top(std::int8_t i) {
   boost::endian::native_to_big_inplace(i);
@@ -502,22 +517,22 @@ void packet::encode_top(remote::file_info i) {
 
 void packet::encrypt(const std::string &token) {
   try {
-    std::vector<char> result;
+    data_buffer result;
     utils::encryption::encrypt_data(token, buffer_, result);
     buffer_ = std::move(result);
     encode_top(static_cast<std::uint32_t>(buffer_.size()));
   } catch (const std::exception &e) {
-    event_system::instance().raise<repertory_exception>(__FUNCTION__, e.what());
+    utils::error::raise_error(__FUNCTION__, e, "exception occurred");
   }
 }
 
-void packet::transfer_into(std::vector<char> &buffer) {
+void packet::transfer_into(data_buffer &buffer) {
   buffer = std::move(buffer_);
-  buffer_ = std::vector<char>();
+  buffer_ = data_buffer();
   decode_offset_ = 0;
 }
 
-packet &packet::operator=(const std::vector<char> &buffer) noexcept {
+auto packet::operator=(const data_buffer &buffer) noexcept -> packet & {
   if (&buffer_ != &buffer) {
     buffer_ = buffer;
     decode_offset_ = 0;
@@ -526,7 +541,7 @@ packet &packet::operator=(const std::vector<char> &buffer) noexcept {
   return *this;
 }
 
-packet &packet::operator=(std::vector<char> &&buffer) noexcept {
+auto packet::operator=(data_buffer &&buffer) noexcept -> packet & {
   if (&buffer_ != &buffer) {
     buffer_ = std::move(buffer);
     decode_offset_ = 0;
@@ -535,7 +550,7 @@ packet &packet::operator=(std::vector<char> &&buffer) noexcept {
   return *this;
 }
 
-packet &packet::operator=(const packet &p) noexcept {
+auto packet::operator=(const packet &p) noexcept -> packet & {
   if (this != &p) {
     buffer_ = p.buffer_;
     decode_offset_ = p.decode_offset_;
@@ -544,7 +559,7 @@ packet &packet::operator=(const packet &p) noexcept {
   return *this;
 }
 
-packet &packet::operator=(packet &&p) noexcept {
+auto packet::operator=(packet &&p) noexcept -> packet & {
   if (this != &p) {
     buffer_ = std::move(p.buffer_);
     decode_offset_ = p.decode_offset_;

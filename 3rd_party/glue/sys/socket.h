@@ -1,6 +1,0 @@
-#ifndef REPERTORY_SOCKET_H
-#define REPERTORY_SOCKET_H
-#ifdef _WIN32
-
-#endif // _WIN32
-#endif // REPERTORY_SOCKET_H

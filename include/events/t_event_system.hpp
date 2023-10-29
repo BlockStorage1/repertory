@@ -1,25 +1,27 @@
 /*
-  Copyright <2018-2022> <scott.e.graves@protonmail.com>
+  Copyright <2018-2023> <scott.e.graves@protonmail.com>
 
-  Permission is hereby granted, free of charge, to any person obtaining a copy of this software and
-  associated documentation files (the "Software"), to deal in the Software without restriction,
-  including without limitation the rights to use, copy, modify, merge, publish, distribute,
-  sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is
+  Permission is hereby granted, free of charge, to any person obtaining a copy
+  of this software and associated documentation files (the "Software"), to deal
+  in the Software without restriction, including without limitation the rights
+  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+  copies of the Software, and to permit persons to whom the Software is
   furnished to do so, subject to the following conditions:
 
-  The above copyright notice and this permission notice shall be included in all copies or
-  substantial portions of the Software.
+  The above copyright notice and this permission notice shall be included in all
+  copies or substantial portions of the Software.
 
-  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT
-  NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
-  NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
-  DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT
-  OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+  SOFTWARE.
 */
 #ifndef INCLUDE_EVENTS_T_EVENT_SYSTEM_HPP_
 #define INCLUDE_EVENTS_T_EVENT_SYSTEM_HPP_
 
-#include "common.hpp"
 #include "events/event.hpp"
 #include "utils/utils.hpp"
 
@@ -28,8 +30,8 @@ template <typename event_type> class t_event_system final {
 public:
   t_event_system(const t_event_system &) = delete;
   t_event_system(t_event_system &&) = delete;
-  t_event_system &operator=(const t_event_system &) = delete;
-  t_event_system &operator=(t_event_system &&) = delete;
+  auto operator=(const t_event_system &) -> t_event_system & = delete;
+  auto operator=(t_event_system &&) -> t_event_system & = delete;
 
 protected:
   t_event_system() = default;
@@ -44,7 +46,8 @@ public:
       t_event_system::instance().attach(this);
     }
 
-    event_consumer(const std::string &event_name, std::function<void(const event &)> callback)
+    event_consumer(const std::string &event_name,
+                   std::function<void(const event &)> callback)
         : callback_(std::move(callback)) {
       t_event_system::instance().attach(event_name, this);
     }
@@ -62,17 +65,18 @@ private:
   static t_event_system event_system_;
 
 public:
-  static t_event_system &instance();
+  static auto instance() -> t_event_system &;
 
 private:
-  std::unordered_map<std::string, std::deque<event_consumer *>> event_consumers_;
+  std::unordered_map<std::string, std::deque<event_consumer *>>
+      event_consumers_;
   std::recursive_mutex consumer_mutex_;
   std::vector<std::shared_ptr<event_type>> event_list_;
   std::condition_variable event_notify_;
   std::mutex event_mutex_;
   std::unique_ptr<std::thread> event_thread_;
   std::mutex run_mutex_;
-  bool stop_requested_ = false;
+  stop_type stop_requested_ = false;
 
 private:
   void process_events() {
@@ -80,7 +84,7 @@ private:
     {
       unique_mutex_lock l(event_mutex_);
       if (not stop_requested_ && event_list_.empty()) {
-        event_notify_.wait_for(l, 5s);
+        event_notify_.wait_for(l, 1s);
       }
 
       if (not event_list_.empty()) {
@@ -89,14 +93,16 @@ private:
       }
     }
 
-    const auto notify_events = [this](const std::string &name, const event_type &event) {
+    const auto notify_events = [this](const std::string &name,
+                                      const event_type &event) {
       std::deque<std::future<void>> futures;
       recur_mutex_lock l(consumer_mutex_);
       if (event_consumers_.find(name) != event_consumers_.end()) {
         for (auto *ec : event_consumers_[name]) {
           if (event.get_allow_async()) {
-            futures.emplace_back(
-                std::async(std::launch::async, [ec, &event]() { ec->notify_event(event); }));
+            futures.emplace_back(std::async(std::launch::async, [ec, &event]() {
+              ec->notify_event(event);
+            }));
           } else {
             ec->notify_event(event);
           }
@@ -138,10 +144,10 @@ public:
 
   void release(event_consumer *ec) {
     recur_mutex_lock l(consumer_mutex_);
-    auto it =
-        std::find_if(event_consumers_.begin(), event_consumers_.end(), [&](const auto &kv) -> bool {
-          return utils::collection_includes(kv.second, ec);
-        });
+    auto it = std::find_if(event_consumers_.begin(), event_consumers_.end(),
+                           [&](const auto &kv) -> bool {
+                             return utils::collection_includes(kv.second, ec);
+                           });
 
     if (it != event_consumers_.end()) {
       auto &q = (*it).second;
@@ -166,10 +172,11 @@ public:
     if (event_thread_) {
       stop_requested_ = true;
       event_notify_.notify_all();
+
       event_thread_->join();
       event_thread_.reset();
+
       process_events();
-      stop_requested_ = false;
     }
   }
 };

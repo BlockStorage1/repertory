@@ -1,25 +1,27 @@
 /*
-  Copyright <2018-2022> <scott.e.graves@protonmail.com>
+  Copyright <2018-2023> <scott.e.graves@protonmail.com>
 
-  Permission is hereby granted, free of charge, to any person obtaining a copy of this software and
-  associated documentation files (the "Software"), to deal in the Software without restriction,
-  including without limitation the rights to use, copy, modify, merge, publish, distribute,
-  sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is
+  Permission is hereby granted, free of charge, to any person obtaining a copy
+  of this software and associated documentation files (the "Software"), to deal
+  in the Software without restriction, including without limitation the rights
+  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+  copies of the Software, and to permit persons to whom the Software is
   furnished to do so, subject to the following conditions:
 
-  The above copyright notice and this permission notice shall be included in all copies or
-  substantial portions of the Software.
+  The above copyright notice and this permission notice shall be included in all
+  copies or substantial portions of the Software.
 
-  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT
-  NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
-  NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
-  DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT
-  OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+  SOFTWARE.
 */
 #ifndef INCLUDE_DB_DIRECTORY_DB_HPP_
 #define INCLUDE_DB_DIRECTORY_DB_HPP_
 
-#include "common.hpp"
 #include "app_config.hpp"
 #include "types/repertory.hpp"
 #include "utils/rocksdb_utils.hpp"
@@ -29,22 +31,25 @@ class directory_db final {
 private:
   class directory_tree final {
   private:
-    std::unordered_map<std::string, std::vector<std::string>> sub_directory_lookup_;
+    std::unordered_map<std::string, std::vector<std::string>>
+        sub_directory_lookup_;
 
   public:
-    void add_path(const std::string &api_path, const std::vector<std::string> &files,
-                  rocksdb::DB &db);
+    void add_path(const std::string &api_path,
+                  const std::vector<std::string> &files, rocksdb::DB &db);
 
-    std::size_t get_count(const std::string &api_path) const;
+    [[nodiscard]] auto get_count(const std::string &api_path) const
+        -> std::size_t;
 
-    std::vector<std::string> get_directories() const;
+    [[nodiscard]] auto get_directories() const -> std::vector<std::string>;
 
-    std::vector<std::string> get_sub_directories(const std::string &api_path) const;
+    [[nodiscard]] auto get_sub_directories(const std::string &api_path) const
+        -> std::vector<std::string>;
 
-    bool is_directory(const std::string &api_path) const;
+    [[nodiscard]] auto is_directory(const std::string &api_path) const -> bool;
 
-    bool remove_directory(const std::string &api_path, rocksdb::DB &db,
-                          const bool &allow_remove_root = false);
+    void remove_directory(const std::string &api_path, rocksdb::DB &db,
+                          bool allow_remove_root = false);
   };
 
 public:
@@ -60,41 +65,52 @@ private:
   const std::string DIRDB_NAME = "directory_db";
 
 private:
-  json get_directory_data(const std::string &api_path) const;
+  [[nodiscard]] auto get_directory_data(const std::string &api_path) const
+      -> json;
 
 public:
-  api_error create_directory(const std::string &api_path, const bool &create_always = false);
+  [[nodiscard]] auto create_directory(const std::string &api_path,
+                                      bool create_always = false) -> api_error;
 
-  api_error create_file(const std::string &api_path);
+  [[nodiscard]] auto create_file(const std::string &api_path) -> api_error;
 
-  std::uint64_t get_directory_item_count(const std::string &api_path) const;
+  [[nodiscard]] auto get_directory_item_count(const std::string &api_path) const
+      -> std::uint64_t;
 
-  api_error get_file(const std::string &api_path, api_file &file,
-                     api_file_provider_callback api_file_provider) const;
+  [[nodiscard]] auto
+  get_file(const std::string &api_path, api_file &file,
+           api_file_provider_callback api_file_provider) const -> api_error;
 
-  api_error get_file_list(api_file_list &list, api_file_provider_callback api_file_provider) const;
+  [[nodiscard]] auto
+  get_file_list(api_file_list &list,
+                api_file_provider_callback api_file_provider) const
+      -> api_error;
 
-  std::size_t get_sub_directory_count(const std::string &api_path) const;
+  [[nodiscard]] auto get_sub_directory_count(const std::string &api_path) const
+      -> std::size_t;
 
-  std::uint64_t get_total_item_count() const;
+  [[nodiscard]] auto get_total_item_count() const -> std::uint64_t;
 
-  bool is_directory(const std::string &api_path) const;
+  [[nodiscard]] auto is_directory(const std::string &api_path) const -> bool;
 
-  bool is_file(const std::string &api_path) const;
+  [[nodiscard]] auto is_file(const std::string &api_path) const -> bool;
 
   void populate_directory_files(const std::string &api_path,
-                                const meta_provider_callback &meta_provider,
+                                meta_provider_callback meta_provider,
                                 directory_item_list &list) const;
 
   void populate_sub_directories(const std::string &api_path,
-                                const meta_provider_callback &meta_provider,
+                                meta_provider_callback meta_provider,
                                 directory_item_list &list) const;
 
-  api_error remove_directory(const std::string &api_path, const bool &allow_remove_root = false);
+  [[nodiscard]] auto remove_directory(const std::string &api_path,
+                                      bool allow_remove_root = false)
+      -> api_error;
 
-  bool remove_file(const std::string &api_path);
+  [[nodiscard]] auto remove_file(const std::string &api_path) -> bool;
 
-  api_error rename_file(const std::string &from_api_path, const std::string &to_api_path);
+  [[nodiscard]] auto rename_file(const std::string &from_api_path,
+                                 const std::string &to_api_path) -> api_error;
 };
 } // namespace repertory
 

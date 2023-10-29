@@ -1,52 +1,258 @@
 /*
-  Copyright <2018-2022> <scott.e.graves@protonmail.com>
+  Copyright <2018-2023> <scott.e.graves@protonmail.com>
 
-  Permission is hereby granted, free of charge, to any person obtaining a copy of this software and
-  associated documentation files (the "Software"), to deal in the Software without restriction,
-  including without limitation the rights to use, copy, modify, merge, publish, distribute,
-  sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is
+  Permission is hereby granted, free of charge, to any person obtaining a copy
+  of this software and associated documentation files (the "Software"), to deal
+  in the Software without restriction, including without limitation the rights
+  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+  copies of the Software, and to permit persons to whom the Software is
   furnished to do so, subject to the following conditions:
 
-  The above copyright notice and this permission notice shall be included in all copies or
-  substantial portions of the Software.
+  The above copyright notice and this permission notice shall be included in all
+  copies or substantial portions of the Software.
 
-  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT
-  NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
-  NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
-  DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT
-  OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+  SOFTWARE.
 */
 #ifndef _WIN32
 
 #include "drives/fuse/remotefuse/remote_fuse_drive.hpp"
+
 #include "app_config.hpp"
 #include "drives/fuse/events.hpp"
 #include "events/consumers/console_consumer.hpp"
 #include "events/consumers/logging_consumer.hpp"
-#include "events/events.hpp"
 #include "events/event_system.hpp"
+#include "events/events.hpp"
 #include "platform/platform.hpp"
 #include "rpc/server/server.hpp"
 #include "types/remote.hpp"
+#include "utils/error_utils.hpp"
 #include "utils/file_utils.hpp"
 #include "utils/path_utils.hpp"
+#include "utils/utils.hpp"
 
 namespace repertory::remote_fuse {
-app_config *remote_fuse_drive::remote_fuse_impl::config_ = nullptr;
-lock_data *remote_fuse_drive::remote_fuse_impl::lock_ = nullptr;
-std::string *remote_fuse_drive::remote_fuse_impl::mount_location_ = nullptr;
-bool remote_fuse_drive::remote_fuse_impl::console_enabled_ = false;
-bool remote_fuse_drive::remote_fuse_impl::was_mounted_ = false;
-std::optional<gid_t> remote_fuse_drive::remote_fuse_impl::forced_gid_;
-std::optional<uid_t> remote_fuse_drive::remote_fuse_impl::forced_uid_;
-std::optional<mode_t> remote_fuse_drive::remote_fuse_impl::forced_umask_;
-remote_instance_factory *remote_fuse_drive::remote_fuse_impl::factory_ = nullptr;
-std::unique_ptr<logging_consumer> remote_fuse_drive::remote_fuse_impl::logging_consumer_;
-std::unique_ptr<console_consumer> remote_fuse_drive::remote_fuse_impl::console_consumer_;
-std::unique_ptr<i_remote_instance> remote_fuse_drive::remote_fuse_impl::remote_instance_;
-std::unique_ptr<server> remote_fuse_drive::remote_fuse_impl::server_;
+auto remote_fuse_drive::access_impl(std::string api_path, int mask)
+    -> api_error {
+  return utils::to_api_error(
+      remote_instance_->fuse_access(api_path.c_str(), mask));
+}
 
-void remote_fuse_drive::remote_fuse_impl::tear_down(const int &ret) {
+#ifdef __APPLE__
+api_error remote_fuse_drive::chflags_impl(std::string api_path,
+                                          uint32_t flags) {
+  return utils::to_api_error(
+      remote_instance_->fuse_chflags(api_path.c_str(), flags));
+}
+#endif // __APPLE__
+
+#if FUSE_USE_VERSION >= 30
+auto remote_fuse_drive::chmod_impl(std::string api_path, mode_t mode,
+                                   struct fuse_file_info * /*fi*/)
+    -> api_error {
+#else
+auto remote_fuse_drive::chmod_impl(std::string api_path, mode_t mode)
+    -> api_error {
+#endif
+  return utils::to_api_error(
+      remote_instance_->fuse_chmod(api_path.c_str(), mode));
+}
+
+#if FUSE_USE_VERSION >= 30
+auto remote_fuse_drive::chown_impl(std::string api_path, uid_t uid, gid_t gid,
+                                   struct fuse_file_info * /*fi*/)
+    -> api_error {
+#else
+auto remote_fuse_drive::chown_impl(std::string api_path, uid_t uid, gid_t gid)
+    -> api_error {
+#endif
+  return utils::to_api_error(
+      remote_instance_->fuse_chown(api_path.c_str(), uid, gid));
+}
+
+auto remote_fuse_drive::create_impl(std::string api_path, mode_t mode,
+                                    struct fuse_file_info *fi) -> api_error {
+  return utils::to_api_error(remote_instance_->fuse_create(
+      api_path.c_str(), mode, remote::create_open_flags(fi->flags), fi->fh));
+}
+
+void remote_fuse_drive::destroy_impl(void * /*ptr*/) {
+  event_system::instance().raise<drive_unmount_pending>(get_mount_location());
+
+  if (server_) {
+    server_->stop();
+    server_.reset();
+  }
+
+  if (remote_instance_) {
+    const auto res = remote_instance_->fuse_destroy();
+    if (res != 0) {
+      utils::error::raise_error(__FUNCTION__,
+                                "remote fuse_destroy() failed|err|" +
+                                    std::to_string(res));
+    }
+    remote_instance_.reset();
+  }
+
+  if (not lock_data_.set_mount_state(false, "", -1)) {
+    utils::error::raise_error(__FUNCTION__, "failed to set mount state");
+  }
+
+  event_system::instance().raise<drive_unmounted>(get_mount_location());
+}
+
+auto remote_fuse_drive::fgetattr_impl(std::string api_path, struct stat *st,
+                                      struct fuse_file_info *fi) -> api_error {
+  remote::stat r{};
+  auto directory = false;
+
+  const auto res =
+      remote_instance_->fuse_fgetattr(api_path.c_str(), r, directory, fi->fh);
+  if (res == 0) {
+    populate_stat(r, directory, *st);
+  }
+
+  return utils::to_api_error(res);
+}
+
+#ifdef __APPLE__
+api_error remote_fuse_drive::fsetattr_x_impl(std::string api_path,
+                                             struct setattr_x *attr,
+                                             struct fuse_file_info *fi) {
+  remote::setattr_x attributes{};
+  attributes.valid = attr->valid;
+  attributes.mode = attr->mode;
+  attributes.uid = attr->uid;
+  attributes.gid = attr->gid;
+  attributes.size = attr->size;
+  attributes.acctime =
+      ((attr->acctime.tv_sec * NANOS_PER_SECOND) + attr->acctime.tv_nsec);
+  attributes.modtime =
+      ((attr->modtime.tv_sec * NANOS_PER_SECOND) + attr->modtime.tv_nsec);
+  attributes.crtime =
+      ((attr->crtime.tv_sec * NANOS_PER_SECOND) + attr->crtime.tv_nsec);
+  attributes.chgtime =
+      ((attr->chgtime.tv_sec * NANOS_PER_SECOND) + attr->chgtime.tv_nsec);
+  attributes.bkuptime =
+      ((attr->bkuptime.tv_sec * NANOS_PER_SECOND) + attr->bkuptime.tv_nsec);
+  attributes.flags = attr->flags;
+  return utils::to_api_error(
+      remote_instance_->fuse_fsetattr_x(api_path.c_str(), attributes, fi->fh));
+}
+#endif
+
+auto remote_fuse_drive::fsync_impl(std::string api_path, int datasync,
+                                   struct fuse_file_info *fi) -> api_error {
+
+  return utils::to_api_error(
+      remote_instance_->fuse_fsync(api_path.c_str(), datasync, fi->fh));
+}
+
+#if FUSE_USE_VERSION < 30
+auto remote_fuse_drive::ftruncate_impl(std::string api_path, off_t size,
+                                       struct fuse_file_info *fi) -> api_error {
+  return utils::to_api_error(
+      remote_instance_->fuse_ftruncate(api_path.c_str(), size, fi->fh));
+}
+#endif
+
+#if FUSE_USE_VERSION >= 30
+auto remote_fuse_drive::getattr_impl(std::string api_path, struct stat *st,
+                                     struct fuse_file_info * /*fi*/)
+    -> api_error {
+#else
+auto remote_fuse_drive::getattr_impl(std::string api_path, struct stat *st)
+    -> api_error {
+#endif
+  bool directory = false;
+  remote::stat r{};
+
+  const auto res =
+      remote_instance_->fuse_getattr(api_path.c_str(), r, directory);
+  if (res == 0) {
+    populate_stat(r, directory, *st);
+  }
+
+  return utils::to_api_error(res);
+}
+
+#ifdef __APPLE__
+api_error remote_fuse_drive::getxtimes_impl(std::string api_path,
+                                            struct timespec *bkuptime,
+                                            struct timespec *crtime) {
+  if (not(bkuptime && crtime)) {
+    return utils::to_api_error(-EFAULT);
+  }
+
+  remote::file_time repertory_bkuptime = 0u;
+  remote::file_time repertory_crtime = 0u;
+  const auto res = remote_instance_->fuse_getxtimes(
+      api_path.c_str(), repertory_bkuptime, repertory_crtime);
+  if (res == 0) {
+    bkuptime->tv_nsec =
+        static_cast<long>(repertory_bkuptime % NANOS_PER_SECOND);
+    bkuptime->tv_sec = repertory_bkuptime / NANOS_PER_SECOND;
+    crtime->tv_nsec = static_cast<long>(repertory_crtime % NANOS_PER_SECOND);
+    crtime->tv_sec = repertory_crtime / NANOS_PER_SECOND;
+  }
+
+  return utils::to_api_error(res);
+}
+#endif // __APPLE__
+
+#if FUSE_USE_VERSION >= 30
+auto remote_fuse_drive::init_impl(struct fuse_conn_info *conn,
+                                  struct fuse_config *cfg) -> void * {
+#else
+auto remote_fuse_drive::init_impl(struct fuse_conn_info *conn) -> void * {
+#endif
+  utils::file::change_to_process_directory();
+  was_mounted_ = true;
+
+  if (console_enabled_) {
+    console_consumer_ = std::make_shared<console_consumer>();
+  }
+  logging_consumer_ = std::make_shared<logging_consumer>(
+      config_.get_log_directory(), config_.get_event_level());
+  event_system::instance().start();
+
+  if (not lock_data_.set_mount_state(true, get_mount_location(), getpid())) {
+    utils::error::raise_error(__FUNCTION__, "failed to set mount state");
+  }
+
+  remote_instance_ = factory_();
+  remote_instance_->set_fuse_uid_gid(getuid(), getgid());
+
+  if (remote_instance_->fuse_init() != 0) {
+    utils::error::raise_error(__FUNCTION__,
+                              "failed to connect to remote server");
+    event_system::instance().raise<unmount_requested>();
+  } else {
+    server_ = std::make_shared<server>(config_);
+    server_->start();
+    event_system::instance().raise<drive_mounted>(get_mount_location());
+  }
+
+#if FUSE_USE_VERSION >= 30
+  return fuse_base::init_impl(conn, cfg);
+#else
+  return fuse_base::init_impl(conn);
+#endif
+}
+
+auto remote_fuse_drive::mkdir_impl(std::string api_path, mode_t mode)
+    -> api_error {
+  return utils::to_api_error(
+      remote_instance_->fuse_mkdir(api_path.c_str(), mode));
+}
+
+void remote_fuse_drive::notify_fuse_main_exit(int &ret) {
   if (was_mounted_) {
     event_system::instance().raise<drive_mount_result>(std::to_string(ret));
     event_system::instance().stop();
@@ -55,8 +261,21 @@ void remote_fuse_drive::remote_fuse_impl::tear_down(const int &ret) {
   }
 }
 
-void remote_fuse_drive::remote_fuse_impl::populate_stat(const remote::stat &r,
-                                                        const bool &directory, struct stat &st) {
+auto remote_fuse_drive::open_impl(std::string api_path,
+                                  struct fuse_file_info *fi) -> api_error {
+  return utils::to_api_error(remote_instance_->fuse_open(
+      api_path.c_str(), remote::create_open_flags(fi->flags), fi->fh));
+}
+
+auto remote_fuse_drive::opendir_impl(std::string api_path,
+                                     struct fuse_file_info *fi) -> api_error {
+
+  return utils::to_api_error(
+      remote_instance_->fuse_opendir(api_path.c_str(), fi->fh));
+}
+
+void remote_fuse_drive::populate_stat(const remote::stat &r, bool directory,
+                                      struct stat &st) {
   memset(&st, 0, sizeof(struct stat));
 
 #ifdef __APPLE__
@@ -88,12 +307,13 @@ void remote_fuse_drive::remote_fuse_impl::populate_stat(const remote::stat &r,
   st.st_mtim.tv_sec = r.st_mtimespec / NANOS_PER_SECOND;
 #endif
   if (not directory) {
-    const auto blockSizeStat = static_cast<std::uint64_t>(512);
-    const auto blockSize = static_cast<std::uint64_t>(4096);
-    const auto size =
-        utils::divide_with_ceiling(static_cast<std::uint64_t>(st.st_size), blockSize) * blockSize;
-    st.st_blocks =
-        std::max(blockSize / blockSizeStat, utils::divide_with_ceiling(size, blockSizeStat));
+    const auto block_size_stat = static_cast<std::uint64_t>(512u);
+    const auto block_size = static_cast<std::uint64_t>(4096u);
+    const auto size = utils::divide_with_ceiling(
+                          static_cast<std::uint64_t>(st.st_size), block_size) *
+                      block_size;
+    st.st_blocks = std::max(block_size / block_size_stat,
+                            utils::divide_with_ceiling(size, block_size_stat));
   }
 
   st.st_gid = r.st_gid;
@@ -104,316 +324,168 @@ void remote_fuse_drive::remote_fuse_impl::populate_stat(const remote::stat &r,
   st.st_uid = r.st_uid;
 }
 
-int remote_fuse_drive::remote_fuse_impl::repertory_access(const char *path, int mask) {
-  return remote_instance_->fuse_access(path, mask);
+auto remote_fuse_drive::read_impl(std::string api_path, char *buffer,
+                                  size_t read_size, off_t read_offset,
+                                  struct fuse_file_info *fi,
+                                  std::size_t &bytes_read) -> api_error {
+  auto res = remote_instance_->fuse_read(api_path.c_str(), buffer, read_size,
+                                         read_offset, fi->fh);
+  if (res >= 0) {
+    bytes_read = res;
+    return api_error::success;
+  }
+
+  return utils::to_api_error(res);
 }
 
-#ifdef __APPLE__
-int remote_fuse_drive::remote_fuse_impl::repertory_chflags(const char *path, uint32_t flags) {
-  return remote_instance_->fuse_chflags(path, flags);
-}
+#if FUSE_USE_VERSION >= 30
+auto remote_fuse_drive::readdir_impl(std::string api_path, void *buf,
+                                     fuse_fill_dir_t fuse_fill_dir,
+                                     off_t offset, struct fuse_file_info *fi,
+                                     fuse_readdir_flags /*flags*/)
+    -> api_error {
+#else
+auto remote_fuse_drive::readdir_impl(std::string api_path, void *buf,
+                                     fuse_fill_dir_t fuse_fill_dir,
+                                     off_t offset, struct fuse_file_info *fi)
+    -> api_error {
 #endif
-
-int remote_fuse_drive::remote_fuse_impl::repertory_chmod(const char *path, mode_t mode) {
-  return remote_instance_->fuse_chmod(path, mode);
-}
-
-int remote_fuse_drive::remote_fuse_impl::repertory_chown(const char *path, uid_t uid, gid_t gid) {
-  return remote_instance_->fuse_chown(path, uid, gid);
-}
-
-int remote_fuse_drive::remote_fuse_impl::repertory_create(const char *path, mode_t mode,
-                                                          struct fuse_file_info *fi) {
-  return remote_instance_->fuse_create(path, mode, remote::open_flags(fi->flags), fi->fh);
-}
-
-void remote_fuse_drive::remote_fuse_impl::repertory_destroy(void * /*ptr*/) {
-  event_system::instance().raise<drive_unmount_pending>(*mount_location_);
-  if (server_) {
-    server_->stop();
-    server_.reset();
-  }
-
-  remote_instance_->fuse_destroy();
-  remote_instance_.reset();
-
-  lock_->set_mount_state(false, "", -1);
-  event_system::instance().raise<drive_mounted>(*mount_location_);
-}
-
-/*int remote_fuse_drive::remote_fuse_impl::repertory_fallocate(const char *path, int mode, off_t
-offset, off_t length, struct fuse_file_info *fi) { return remote_instance_->fuse_fallocate(path,
-mode, offset, length, fi->fh);
-}*/
-
-int remote_fuse_drive::remote_fuse_impl::repertory_fgetattr(const char *path, struct stat *st,
-                                                            struct fuse_file_info *fi) {
-  remote::stat r{};
-
-  bool directory = false;
-  auto ret = remote_instance_->fuse_fgetattr(path, r, directory, fi->fh);
-  if (ret == 0) {
-    populate_stat(r, directory, *st);
-  }
-  return ret;
-}
-
-#ifdef __APPLE__
-int remote_fuse_drive::remote_fuse_impl::repertory_fsetattr_x(const char *path,
-                                                              struct setattr_x *attr,
-                                                              struct fuse_file_info *fi) {
-  remote::setattr_x attrRepertory{};
-  attrRepertory.valid = attr->valid;
-  attrRepertory.mode = attr->mode;
-  attrRepertory.uid = attr->uid;
-  attrRepertory.gid = attr->gid;
-  attrRepertory.size = attr->size;
-  attrRepertory.acctime = ((attr->acctime.tv_sec * NANOS_PER_SECOND) + attr->acctime.tv_nsec);
-  attrRepertory.modtime = ((attr->modtime.tv_sec * NANOS_PER_SECOND) + attr->modtime.tv_nsec);
-  attrRepertory.crtime = ((attr->crtime.tv_sec * NANOS_PER_SECOND) + attr->crtime.tv_nsec);
-  attrRepertory.chgtime = ((attr->chgtime.tv_sec * NANOS_PER_SECOND) + attr->chgtime.tv_nsec);
-  attrRepertory.bkuptime = ((attr->bkuptime.tv_sec * NANOS_PER_SECOND) + attr->bkuptime.tv_nsec);
-  attrRepertory.flags = attr->flags;
-  return remote_instance_->fuse_fsetattr_x(path, attrRepertory, fi->fh);
-}
-#endif
-
-int remote_fuse_drive::remote_fuse_impl::repertory_fsync(const char *path, int datasync,
-                                                         struct fuse_file_info *fi) {
-  return remote_instance_->fuse_fsync(path, datasync, fi->fh);
-}
-
-int remote_fuse_drive::remote_fuse_impl::repertory_ftruncate(const char *path, off_t size,
-                                                             struct fuse_file_info *fi) {
-  return remote_instance_->fuse_ftruncate(path, size, fi->fh);
-}
-
-int remote_fuse_drive::remote_fuse_impl::repertory_getattr(const char *path, struct stat *st) {
-  bool directory = false;
-  remote::stat r{};
-  const auto ret = remote_instance_->fuse_getattr(path, r, directory);
-  if (ret == 0) {
-    populate_stat(r, directory, *st);
-  }
-  return ret;
-}
-
-#ifdef __APPLE__
-int remote_fuse_drive::remote_fuse_impl::repertory_getxtimes(const char *path,
-                                                             struct timespec *bkuptime,
-                                                             struct timespec *crtime) {
-  if (not(bkuptime && crtime)) {
-    return -EFAULT;
-  } else {
-    remote::file_time repertory_bkuptime = 0;
-    remote::file_time repertory_crtime = 0;
-    const auto ret = remote_instance_->fuse_getxtimes(path, repertory_bkuptime, repertory_crtime);
-    if (ret == 0) {
-      bkuptime->tv_nsec = static_cast<long>(repertory_bkuptime % NANOS_PER_SECOND);
-      bkuptime->tv_sec = repertory_bkuptime / NANOS_PER_SECOND;
-      crtime->tv_nsec = static_cast<long>(repertory_crtime % NANOS_PER_SECOND);
-      crtime->tv_sec = repertory_crtime / NANOS_PER_SECOND;
-    }
-
-    return ret;
-  }
-}
-#endif
-
-void *remote_fuse_drive::remote_fuse_impl::repertory_init(struct fuse_conn_info *conn) {
-  utils::file::change_to_process_directory();
-#ifdef __APPLE__
-  conn->want |= FUSE_CAP_VOL_RENAME;
-  conn->want |= FUSE_CAP_XTIMES;
-#endif
-  conn->want |= FUSE_CAP_BIG_WRITES;
-
-  if (console_enabled_) {
-    console_consumer_ = std::make_unique<console_consumer>();
-  }
-  logging_consumer_ =
-      std::make_unique<logging_consumer>(config_->get_log_directory(), config_->get_event_level());
-  event_system::instance().start();
-
-  was_mounted_ = true;
-  lock_->set_mount_state(true, *mount_location_, getpid());
-
-  remote_instance_ = (*factory_)();
-  remote_instance_->set_fuse_uid_gid(getuid(), getgid());
-
-  if (remote_instance_->fuse_init() != 0) {
-    event_system::instance().raise<repertory_exception>(__FUNCTION__,
-                                                        "Failed to connect to remote server");
-    event_system::instance().raise<unmount_requested>();
-  } else {
-    server_ = std::make_unique<server>(*config_);
-    server_->start();
-    event_system::instance().raise<drive_mounted>(*mount_location_);
-  }
-
-  return nullptr;
-}
-
-int remote_fuse_drive::remote_fuse_impl::repertory_mkdir(const char *path, mode_t mode) {
-  return remote_instance_->fuse_mkdir(path, mode);
-}
-
-int remote_fuse_drive::remote_fuse_impl::repertory_open(const char *path,
-                                                        struct fuse_file_info *fi) {
-  return remote_instance_->fuse_open(path, remote::open_flags(fi->flags), fi->fh);
-}
-
-int remote_fuse_drive::remote_fuse_impl::repertory_opendir(const char *path,
-                                                           struct fuse_file_info *fi) {
-  return remote_instance_->fuse_opendir(path, fi->fh);
-}
-
-int remote_fuse_drive::remote_fuse_impl::repertory_read(const char *path, char *buffer,
-                                                        size_t readSize, off_t readOffset,
-                                                        struct fuse_file_info *fi) {
-  return remote_instance_->fuse_read(path, buffer, readSize, readOffset, fi->fh);
-}
-
-int remote_fuse_drive::remote_fuse_impl::repertory_readdir(const char *path, void *buf,
-                                                           fuse_fill_dir_t fuseFillDir,
-                                                           off_t offset,
-                                                           struct fuse_file_info *fi) {
   std::string item_path;
-  int ret = 0;
-  while ((ret = remote_instance_->fuse_readdir(path, offset, fi->fh, item_path)) == 0) {
+  int res = 0;
+  while ((res = remote_instance_->fuse_readdir(api_path.c_str(), offset, fi->fh,
+                                               item_path)) == 0) {
     if ((item_path != ".") && (item_path != "..")) {
       item_path = utils::path::strip_to_file_name(item_path);
     }
-    if (fuseFillDir(buf, &item_path[0], nullptr, ++offset) != 0) {
+
+#if FUSE_USE_VERSION >= 30
+    if (fuse_fill_dir(buf, item_path.c_str(), nullptr, ++offset,
+                      static_cast<fuse_fill_dir_flags>(0)) != 0) {
+#else
+    if (fuse_fill_dir(buf, item_path.c_str(), nullptr, ++offset) != 0) {
+#endif
       break;
     }
   }
 
-  if (ret == -120) {
-    ret = 0;
+  if (res == -120) {
+    res = 0;
   }
 
-  return ret;
+  return utils::to_api_error(res);
 }
 
-int remote_fuse_drive::remote_fuse_impl::repertory_release(const char *path,
-                                                           struct fuse_file_info *fi) {
-  return remote_instance_->fuse_release(path, fi->fh);
+auto remote_fuse_drive::release_impl(std::string api_path,
+                                     struct fuse_file_info *fi) -> api_error {
+  return utils::to_api_error(
+      remote_instance_->fuse_release(api_path.c_str(), fi->fh));
 }
 
-int remote_fuse_drive::remote_fuse_impl::repertory_releasedir(const char *path,
-                                                              struct fuse_file_info *fi) {
-  return remote_instance_->fuse_releasedir(path, fi->fh);
+auto remote_fuse_drive::releasedir_impl(std::string api_path,
+                                        struct fuse_file_info *fi)
+    -> api_error {
+  return utils::to_api_error(
+      remote_instance_->fuse_releasedir(api_path.c_str(), fi->fh));
 }
 
-int remote_fuse_drive::remote_fuse_impl::repertory_rename(const char *from, const char *to) {
-  return remote_instance_->fuse_rename(from, to);
-}
-
-int remote_fuse_drive::remote_fuse_impl::repertory_rmdir(const char *path) {
-  return remote_instance_->fuse_rmdir(path);
-}
-/*
-#ifdef HAS_SETXATTR
-#ifdef __APPLE__
-    int remote_fuse_drive::remote_fuse_impl::repertory_getxattr(const char *path, const char *name,
-char *value, size_t size, uint32_t position) { return remote_instance_->fuse_getxattr_osx(path,
-name, value, size, position);
-    }
+#if FUSE_USE_VERSION >= 30
+auto remote_fuse_drive::rename_impl(std::string from_api_path,
+                                    std::string to_api_path,
+                                    unsigned int /*flags*/) -> api_error {
 #else
-    int remote_fuse_drive::remote_fuse_impl::repertory_getxattr(const char *path, const char *name,
-char *value, size_t size) { return remote_instance_->fuse_getxattr(path, name, value, size);
-    }
+auto remote_fuse_drive::rename_impl(std::string from_api_path,
+                                    std::string to_api_path) -> api_error {
+#endif
+  return utils::to_api_error(remote_instance_->fuse_rename(
+      from_api_path.c_str(), to_api_path.c_str()));
+}
 
-#endif
-    int remote_fuse_drive::remote_fuse_impl::repertory_listxattr(const char *path, char *buffer,
-size_t size) { return remote_instance_->fuse_listxattr(path, buffer, size);
-    }
+auto remote_fuse_drive::rmdir_impl(std::string api_path) -> api_error {
+  return utils::to_api_error(remote_instance_->fuse_rmdir(api_path.c_str()));
+}
 
-    remote_fuse_drive::remote_fuse_impl::int repertory_removexattr(const char *path, const char
-*name) { return remote_instance_->fuse_removexattr(path, name);
-    }
 #ifdef __APPLE__
-    int remote_fuse_drive::remote_fuse_impl::repertory_setxattr(const char *path, const char *name,
-const char *value, size_t size, int flags, uint32_t position) { return
-remote_instance_->fuse_setxattr_osx(path, name, value, size, flags, position);
-    }
-#else
-    int remote_fuse_drive::remote_fuse_impl::repertory_setxattr(const char *path, const char *name,
-const char *value, size_t size, int flags) { return remote_instance_->fuse_setxattr(path, name,
-value, size, flags);
-    }
-#endif
-#endif
- */
-#ifdef __APPLE__
-int remote_fuse_drive::remote_fuse_impl::repertory_setattr_x(const char *path,
-                                                             struct setattr_x *attr) {
+api_error remote_fuse_drive::setattr_x_impl(std::string api_path,
+                                            struct setattr_x *attr) {
   remote::setattr_x attributes{};
   attributes.valid = attr->valid;
   attributes.mode = attr->mode;
   attributes.uid = attr->uid;
   attributes.gid = attr->gid;
   attributes.size = attr->size;
-  attributes.acctime = ((attr->acctime.tv_sec * NANOS_PER_SECOND) + attr->acctime.tv_nsec);
-  attributes.modtime = ((attr->modtime.tv_sec * NANOS_PER_SECOND) + attr->modtime.tv_nsec);
-  attributes.crtime = ((attr->crtime.tv_sec * NANOS_PER_SECOND) + attr->crtime.tv_nsec);
-  attributes.chgtime = ((attr->chgtime.tv_sec * NANOS_PER_SECOND) + attr->chgtime.tv_nsec);
-  attributes.bkuptime = ((attr->bkuptime.tv_sec * NANOS_PER_SECOND) + attr->bkuptime.tv_nsec);
+  attributes.acctime =
+      ((attr->acctime.tv_sec * NANOS_PER_SECOND) + attr->acctime.tv_nsec);
+  attributes.modtime =
+      ((attr->modtime.tv_sec * NANOS_PER_SECOND) + attr->modtime.tv_nsec);
+  attributes.crtime =
+      ((attr->crtime.tv_sec * NANOS_PER_SECOND) + attr->crtime.tv_nsec);
+  attributes.chgtime =
+      ((attr->chgtime.tv_sec * NANOS_PER_SECOND) + attr->chgtime.tv_nsec);
+  attributes.bkuptime =
+      ((attr->bkuptime.tv_sec * NANOS_PER_SECOND) + attr->bkuptime.tv_nsec);
   attributes.flags = attr->flags;
-  return remote_instance_->fuse_setattr_x(path, attributes);
+  return utils::to_api_error(
+      remote_instance_->fuse_setattr_x(api_path.c_str(), attributes));
 }
 
-int remote_fuse_drive::remote_fuse_impl::repertory_setbkuptime(const char *path,
-                                                               const struct timespec *bkuptime) {
+api_error remote_fuse_drive::setbkuptime_impl(std::string api_path,
+                                              const struct timespec *bkuptime) {
   remote::file_time repertory_bkuptime =
       ((bkuptime->tv_sec * NANOS_PER_SECOND) + bkuptime->tv_nsec);
-  return remote_instance_->fuse_setbkuptime(path, repertory_bkuptime);
+  return utils::to_api_error(
+      remote_instance_->fuse_setbkuptime(api_path.c_str(), repertory_bkuptime));
 }
 
-int remote_fuse_drive::remote_fuse_impl::repertory_setchgtime(const char *path,
-                                                              const struct timespec *chgtime) {
-  remote::file_time repertory_chgtime = ((chgtime->tv_sec * NANOS_PER_SECOND) + chgtime->tv_nsec);
-  return remote_instance_->fuse_setchgtime(path, repertory_chgtime);
+api_error remote_fuse_drive::setchgtime_impl(std::string api_path,
+                                             const struct timespec *chgtime) {
+  remote::file_time repertory_chgtime =
+      ((chgtime->tv_sec * NANOS_PER_SECOND) + chgtime->tv_nsec);
+  return utils::to_api_error(
+      remote_instance_->fuse_setchgtime(api_path.c_str(), repertory_chgtime));
 }
 
-int remote_fuse_drive::remote_fuse_impl::repertory_setcrtime(const char *path,
-                                                             const struct timespec *crtime) {
-  remote::file_time repertory_crtime = ((crtime->tv_sec * NANOS_PER_SECOND) + crtime->tv_nsec);
-  return remote_instance_->fuse_setcrtime(path, repertory_crtime);
+api_error remote_fuse_drive::setcrtime_impl(std::string api_path,
+                                            const struct timespec *crtime) {
+  remote::file_time repertory_crtime =
+      ((crtime->tv_sec * NANOS_PER_SECOND) + crtime->tv_nsec);
+  return utils::to_api_error(
+      remote_instance_->fuse_setcrtime(api_path.c_str(), repertory_crtime));
 }
 
-int remote_fuse_drive::remote_fuse_impl::repertory_setvolname(const char *volname) {
-  return remote_instance_->fuse_setvolname(volname);
+api_error remote_fuse_drive::setvolname_impl(const char *volname) {
+  return utils::to_api_error(remote_instance_->fuse_setvolname(volname));
 }
 
-int remote_fuse_drive::remote_fuse_impl::repertory_statfs_x(const char *path,
-                                                            struct statfs *stbuf) {
-  auto ret = statfs(config_->get_data_directory().c_str(), stbuf);
-  if (ret == 0) {
+api_error remote_fuse_drive::statfs_x_impl(std::string api_path,
+                                           struct statfs *stbuf) {
+  auto res = statfs(config_.get_data_directory().c_str(), stbuf);
+  if (res == 0) {
     remote::statfs_x r{};
-    if ((ret = remote_instance_->fuse_statfs_x(path, stbuf->f_bsize, r)) == 0) {
+    if ((res = remote_instance_->fuse_statfs_x(api_path.c_str(), stbuf->f_bsize,
+                                               r)) == 0) {
       stbuf->f_blocks = r.f_blocks;
       stbuf->f_bavail = r.f_bavail;
       stbuf->f_bfree = r.f_bfree;
       stbuf->f_ffree = r.f_ffree;
       stbuf->f_files = r.f_files;
       stbuf->f_owner = getuid();
-      strncpy(&stbuf->f_mntonname[0], mount_location_->c_str(), MNAMELEN);
-      strncpy(&stbuf->f_mntfromname[0], &r.f_mntfromname[0], MNAMELEN);
+      strncpy(&stbuf->f_mntonname[0u], get_mount_location().c_str(), MNAMELEN);
+      strncpy(&stbuf->f_mntfromname[0u], &r.f_mntfromname[0], MNAMELEN);
     }
   } else {
-    ret = -errno;
+    res = -errno;
   }
-  return ret;
-}
-#else
 
-int remote_fuse_drive::remote_fuse_impl::repertory_statfs(const char *path, struct statvfs *stbuf) {
-  auto ret = statvfs(&config_->get_data_directory()[0], stbuf);
-  if (ret == 0) {
+  return utils::to_api_error(res);
+}
+#else  // __APPLE__
+auto remote_fuse_drive::statfs_impl(std::string api_path, struct statvfs *stbuf)
+    -> api_error {
+  auto res = statvfs(config_.get_data_directory().c_str(), stbuf);
+  if (res == 0) {
     remote::statfs r{};
-    if ((ret = remote_instance_->fuse_statfs(path, stbuf->f_frsize, r)) == 0) {
+    if ((res = remote_instance_->fuse_statfs(api_path.c_str(), stbuf->f_frsize,
+                                             r)) == 0) {
       stbuf->f_blocks = r.f_blocks;
       stbuf->f_bavail = r.f_bavail;
       stbuf->f_bfree = r.f_bfree;
@@ -422,195 +494,61 @@ int remote_fuse_drive::remote_fuse_impl::repertory_statfs(const char *path, stru
       stbuf->f_files = r.f_files;
     }
   } else {
-    ret = -errno;
-  }
-  return ret;
-}
-
-#endif
-
-int remote_fuse_drive::remote_fuse_impl::repertory_truncate(const char *path, off_t size) {
-  return remote_instance_->fuse_truncate(path, size);
-}
-
-int remote_fuse_drive::remote_fuse_impl::repertory_unlink(const char *path) {
-  return remote_instance_->fuse_unlink(path);
-}
-
-int remote_fuse_drive::remote_fuse_impl::repertory_utimens(const char *path,
-                                                           const struct timespec tv[2]) {
-  remote::file_time rtv[2] = {0};
-  if (tv) {
-    rtv[0] = tv[0].tv_nsec + (tv[0].tv_sec * NANOS_PER_SECOND);
-    rtv[1] = tv[1].tv_nsec + (tv[1].tv_sec * NANOS_PER_SECOND);
-  }
-  return remote_instance_->fuse_utimens(path, rtv, tv ? tv[0].tv_nsec : 0, tv ? tv[1].tv_nsec : 0);
-}
-
-int remote_fuse_drive::remote_fuse_impl::repertory_write(const char *path, const char *buffer,
-                                                         size_t writeSize, off_t writeOffset,
-                                                         struct fuse_file_info *fi) {
-  return remote_instance_->fuse_write(path, buffer, writeSize, writeOffset, fi->fh);
-}
-
-remote_fuse_drive::remote_fuse_drive(app_config &config, lock_data &lock,
-                                     remote_instance_factory factory)
-    : config_(config), lock_(lock), factory_(std::move(factory)) {
-  E_SUBSCRIBE_EXACT(unmount_requested, [this](const unmount_requested &) {
-    std::thread([this]() { remote_fuse_drive::shutdown(mount_location_); }).detach();
-  });
-}
-
-int remote_fuse_drive::mount(std::vector<std::string> drive_args) {
-  remote_fuse_impl::lock_ = &lock_;
-  remote_fuse_impl::config_ = &config_;
-  remote_fuse_impl::mount_location_ = &mount_location_;
-  remote_fuse_impl::factory_ = &factory_;
-
-#ifdef __APPLE__
-  fuse_ops_.chflags = remote_fuse_impl::repertory_chflags;
-  fuse_ops_.fsetattr_x = remote_fuse_impl::repertory_fsetattr_x;
-  fuse_ops_.getxtimes = remote_fuse_impl::repertory_getxtimes;
-  fuse_ops_.setattr_x = remote_fuse_impl::repertory_setattr_x;
-  fuse_ops_.setbkuptime = remote_fuse_impl::repertory_setbkuptime;
-  fuse_ops_.setchgtime = remote_fuse_impl::repertory_setchgtime;
-  fuse_ops_.setcrtime = remote_fuse_impl::repertory_setcrtime;
-  fuse_ops_.setvolname = remote_fuse_impl::repertory_setvolname;
-  fuse_ops_.statfs_x = remote_fuse_impl::repertory_statfs_x;
-#endif
-  auto force_no_console = false;
-  for (std::size_t i = 1u; !force_no_console && (i < drive_args.size()); i++) {
-    if (drive_args[i] == "-nc") {
-      force_no_console = true;
-    }
-  }
-  utils::remove_element_from(drive_args, "-nc");
-
-  for (std::size_t i = 1u; i < drive_args.size(); i++) {
-    if (drive_args[i] == "-f") {
-      remote_fuse_impl::console_enabled_ = not force_no_console;
-    } else if (drive_args[i].find("-o") == 0) {
-      std::string options;
-      if (drive_args[i].size() == 2u) {
-        if ((i + 1) < drive_args.size()) {
-          options = drive_args[++i];
-        }
-      } else {
-        options = drive_args[i].substr(2);
-      }
-
-      const auto option_list = utils::string::split(options, ',');
-      for (const auto &option : option_list) {
-        if (option.find("gid") == 0) {
-          const auto parts = utils::string::split(option, '=');
-          if (parts.size() == 2u) {
-            auto gid = getgrnam(parts[1u].c_str());
-            if (not gid) {
-              gid = getgrgid(utils::string::to_uint32(parts[1]));
-            }
-            if ((getgid() != 0) && (gid->gr_gid == 0)) {
-              std::cerr << "'gid=0' requires running as root" << std::endl;
-              return -1;
-            } else {
-              remote_fuse_impl::forced_gid_ = gid->gr_gid;
-            }
-          }
-        } else if (option.find("uid") == 0) {
-          const auto parts = utils::string::split(option, '=');
-          if (parts.size() == 2u) {
-            auto uid = getpwnam(parts[1u].c_str());
-            if (not uid) {
-              uid = getpwuid(utils::string::to_uint32(parts[1]));
-            }
-            if ((getuid() != 0) && (uid->pw_uid == 0)) {
-              std::cerr << "'uid=0' requires running as root" << std::endl;
-              return -1;
-            } else {
-              remote_fuse_impl::forced_uid_ = uid->pw_uid;
-            }
-          }
-        } else if (option.find("umask") == 0) {
-          const auto parts = utils::string::split(option, '=');
-          if (parts.size() == 2u) {
-            static const auto numeric_regex = std::regex("[0-9]+");
-            try {
-              if (not std::regex_match(parts[1u], numeric_regex)) {
-                throw std::runtime_error("invalid syntax");
-              } else {
-                remote_fuse_impl::forced_umask_ = utils::string::to_uint32(parts[1]);
-              }
-            } catch (...) {
-              std::cerr << ("'" + option + "' invalid syntax") << std::endl;
-              return -1;
-            }
-          }
-        }
-      }
-    }
+    res = -errno;
   }
 
-  std::vector<const char *> fuse_argv(drive_args.size());
-  for (std::size_t i = 0u; i < drive_args.size(); i++) {
-    fuse_argv[i] = drive_args[i].c_str();
-  }
-
-  struct fuse_args args =
-      FUSE_ARGS_INIT(static_cast<int>(fuse_argv.size()), (char **)&fuse_argv[0]);
-  char *mount_location = nullptr;
-  fuse_parse_cmdline(&args, &mount_location, nullptr, nullptr);
-  if (mount_location) {
-    mount_location_ = mount_location;
-    free(mount_location);
-  }
-
-  std::string args_string;
-  for (const auto *arg : fuse_argv) {
-    if (args_string.empty()) {
-      args_string += arg;
-    } else {
-      args_string += (" " + std::string(arg));
-    }
-  }
-
-  event_system::instance().raise<fuse_args_parsed>(args_string);
-
-  umask(0);
-  const auto ret = fuse_main(static_cast<int>(fuse_argv.size()), (char **)&fuse_argv[0], &fuse_ops_,
-                             &mount_location);
-  remote_fuse_impl::tear_down(ret);
-  return ret;
+  return utils::to_api_error(res);
 }
+#endif // __APPLE__
 
-void remote_fuse_drive::display_options(int argc, char *argv[]) {
-  struct fuse_operations fuse_ops {};
-  fuse_main(argc, argv, &fuse_ops, nullptr);
-  std::cout << std::endl;
-}
-
-void remote_fuse_drive::display_version_information(int argc, char *argv[]) {
-  struct fuse_operations fuse_ops {};
-  fuse_main(argc, argv, &fuse_ops, nullptr);
-}
-
-void remote_fuse_drive::shutdown(std::string mount_location) {
-#if __APPLE__
-  const auto unmount = "umount \"" + mount_location + "\" >/dev/null 2>&1";
+#if FUSE_USE_VERSION >= 30
+auto remote_fuse_drive::truncate_impl(std::string api_path, off_t size,
+                                      struct fuse_file_info * /*fi*/)
+    -> api_error {
 #else
-  const auto unmount = "fusermount -u \"" + mount_location + "\" >/dev/null 2>&1";
+auto remote_fuse_drive::truncate_impl(std::string api_path, off_t size)
+    -> api_error {
 #endif
-  int ret;
-  for (std::uint8_t i = 0u; ((ret = system(unmount.c_str())) != 0) && (i < 10u); i++) {
-    event_system::instance().raise<unmount_result>(mount_location, std::to_string(ret));
-    if (i != 9u) {
-      std::this_thread::sleep_for(1s);
-    }
+  return utils::to_api_error(
+      remote_instance_->fuse_truncate(api_path.c_str(), size));
+}
+
+auto remote_fuse_drive::unlink_impl(std::string api_path) -> api_error {
+  return utils::to_api_error(remote_instance_->fuse_unlink(api_path.c_str()));
+}
+
+#if FUSE_USE_VERSION >= 30
+auto remote_fuse_drive::utimens_impl(std::string api_path,
+                                     const struct timespec tv[2],
+                                     struct fuse_file_info * /*fi*/)
+    -> api_error {
+#else
+auto remote_fuse_drive::utimens_impl(std::string api_path,
+                                     const struct timespec tv[2]) -> api_error {
+#endif
+  remote::file_time rtv[2u] = {0};
+  if (tv) {
+    rtv[0u] = tv[0u].tv_nsec + (tv[0u].tv_sec * NANOS_PER_SECOND);
+    rtv[1u] = tv[1u].tv_nsec + (tv[1u].tv_sec * NANOS_PER_SECOND);
   }
 
-  if (ret != 0) {
-    ret = kill(getpid(), SIGINT);
+  return utils::to_api_error(remote_instance_->fuse_utimens(
+      api_path.c_str(), rtv, tv ? tv[0u].tv_nsec : 0u,
+      tv ? tv[1u].tv_nsec : 0u));
+}
+
+auto remote_fuse_drive::write_impl(std::string api_path, const char *buffer,
+                                   size_t write_size, off_t write_offset,
+                                   struct fuse_file_info *fi,
+                                   std::size_t &bytes_written) -> api_error {
+  const auto res = remote_instance_->fuse_write(
+      api_path.c_str(), buffer, write_size, write_offset, fi->fh);
+  if (res >= 0) {
+    bytes_written = res;
+    return api_error::success;
   }
 
-  event_system::instance().raise<unmount_result>(mount_location, std::to_string(ret));
+  return utils::to_api_error(res);
 }
 } // namespace repertory::remote_fuse
 
