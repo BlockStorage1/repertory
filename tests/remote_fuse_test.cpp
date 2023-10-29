@@ -1,20 +1,23 @@
 /*
-  Copyright <2018-2022> <scott.e.graves@protonmail.com>
+  Copyright <2018-2023> <scott.e.graves@protonmail.com>
 
-  Permission is hereby granted, free of charge, to any person obtaining a copy of this software and
-  associated documentation files (the "Software"), to deal in the Software without restriction,
-  including without limitation the rights to use, copy, modify, merge, publish, distribute,
-  sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is
+  Permission is hereby granted, free of charge, to any person obtaining a copy
+  of this software and associated documentation files (the "Software"), to deal
+  in the Software without restriction, including without limitation the rights
+  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+  copies of the Software, and to permit persons to whom the Software is
   furnished to do so, subject to the following conditions:
 
-  The above copyright notice and this permission notice shall be included in all copies or
-  substantial portions of the Software.
+  The above copyright notice and this permission notice shall be included in all
+  copies or substantial portions of the Software.
 
-  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT
-  NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
-  NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
-  DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT
-  OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+  SOFTWARE.
 */
 #include "test_common.hpp"
 
@@ -30,6 +33,7 @@
 #include "mocks/mock_fuse_drive.hpp"
 #endif
 #include "drives/fuse/remotefuse/remote_client.hpp"
+#include "types/repertory.hpp"
 #include "utils/utils.hpp"
 
 using namespace repertory;
@@ -42,68 +46,57 @@ namespace fuse_test {
 static std::string mount_location_;
 
 static void access_test(repertory::remote_fuse::remote_client &client) {
-  const auto test_file = utils::path::absolute("./fuse_remote/fuse_remote_access.txt");
+  const auto test_file =
+      utils::path::absolute("./fuse_remote/fuse_remote_access.txt");
   const auto api_path = test_file.substr(mount_location_.size());
-  utils::file::delete_file(test_file);
+  EXPECT_TRUE(utils::file::retry_delete_file(test_file));
 
   remote::file_handle handle;
   const auto ret = client.fuse_create(
-      api_path.c_str(), 0, remote::open_flags::create | remote::open_flags::read_write, handle);
+      api_path.c_str(), 0,
+      remote::open_flags::create | remote::open_flags::read_write, handle);
   EXPECT_EQ(0, ret);
   if (ret == 0) {
     EXPECT_EQ(0, client.fuse_release(api_path.c_str(), handle));
     EXPECT_EQ(0, client.fuse_access(api_path.c_str(), 0));
   }
 
-  utils::file::delete_file(test_file);
-}
-
-static void create_and_release_test(repertory::remote_fuse::remote_client &client) {
-  const auto test_file = utils::path::absolute("./fuse_remote/fuse_remote_create_release.txt");
-  const auto api_path = test_file.substr(mount_location_.size());
-  utils::file::delete_file(test_file);
-
-  remote::file_handle handle;
-  const auto ret = client.fuse_create(
-      api_path.c_str(), 0, remote::open_flags::create | remote::open_flags::read_write, handle);
-  EXPECT_EQ(0, ret);
-  if (ret == 0) {
-    EXPECT_EQ(0, client.fuse_release(api_path.c_str(), handle));
-  }
-
-  utils::file::delete_file(test_file);
+  EXPECT_TRUE(utils::file::retry_delete_file(test_file));
 }
 
 static void chflags_test(repertory::remote_fuse::remote_client &client) {
-  const auto test_file = utils::path::absolute("./fuse_remote/fuse_remote_chflags.txt");
+  const auto test_file =
+      utils::path::absolute("./fuse_remote/fuse_remote_chflags.txt");
   const auto api_path = test_file.substr(mount_location_.size());
-  utils::file::delete_file(test_file);
+  EXPECT_TRUE(utils::file::retry_delete_file(test_file));
 
   remote::file_handle handle;
   const auto ret = client.fuse_create(
-      api_path.c_str(), 0, remote::open_flags::create | remote::open_flags::read_write, handle);
+      api_path.c_str(), 0,
+      remote::open_flags::create | remote::open_flags::read_write, handle);
   EXPECT_EQ(0, ret);
   if (ret == 0) {
     EXPECT_EQ(0, client.fuse_release(api_path.c_str(), handle));
-#ifdef __APPLE__
-    EXPECT_EQ(0, client.fuse_chflags(api_path.c_str(), 0));
-
-#else
+#ifdef _WIN32
     EXPECT_EQ(NOT_IMPLEMENTED, client.fuse_chflags(api_path.c_str(), 0));
+#else
+    EXPECT_EQ(0, client.fuse_chflags(api_path.c_str(), 0));
 #endif
   }
 
-  utils::file::delete_file(test_file);
+  EXPECT_TRUE(utils::file::retry_delete_file(test_file));
 }
 
 static void chmod_test(repertory::remote_fuse::remote_client &client) {
-  const auto test_file = utils::path::absolute("./fuse_remote/fuse_remote_chmod.txt");
+  const auto test_file =
+      utils::path::absolute("./fuse_remote/fuse_remote_chmod.txt");
   const auto api_path = test_file.substr(mount_location_.size());
-  utils::file::delete_file(test_file);
+  EXPECT_TRUE(utils::file::retry_delete_file(test_file));
 
   remote::file_handle handle;
   const auto ret = client.fuse_create(
-      api_path.c_str(), 0, remote::open_flags::create | remote::open_flags::read_write, handle);
+      api_path.c_str(), 0,
+      remote::open_flags::create | remote::open_flags::read_write, handle);
   EXPECT_EQ(0, ret);
   if (ret == 0) {
     EXPECT_EQ(0, client.fuse_release(api_path.c_str(), handle));
@@ -114,17 +107,19 @@ static void chmod_test(repertory::remote_fuse::remote_client &client) {
 #endif
   }
 
-  utils::file::delete_file(test_file);
+  EXPECT_TRUE(utils::file::retry_delete_file(test_file));
 }
 
 static void chown_test(repertory::remote_fuse::remote_client &client) {
-  const auto test_file = utils::path::absolute("./fuse_remote/fuse_remote_chown.txt");
+  const auto test_file =
+      utils::path::absolute("./fuse_remote/fuse_remote_chown.txt");
   const auto api_path = test_file.substr(mount_location_.size());
-  utils::file::delete_file(test_file);
+  EXPECT_TRUE(utils::file::retry_delete_file(test_file));
 
   remote::file_handle handle;
   const auto ret = client.fuse_create(
-      api_path.c_str(), 0, remote::open_flags::create | remote::open_flags::read_write, handle);
+      api_path.c_str(), 0,
+      remote::open_flags::create | remote::open_flags::read_write, handle);
   EXPECT_EQ(0, ret);
   if (ret == 0) {
     EXPECT_EQ(0, client.fuse_release(api_path.c_str(), handle));
@@ -139,7 +134,29 @@ static void chown_test(repertory::remote_fuse::remote_client &client) {
 #endif
   }
 
-  utils::file::delete_file(test_file);
+  EXPECT_TRUE(utils::file::retry_delete_file(test_file));
+}
+
+static void
+create_and_release_test(repertory::remote_fuse::remote_client &client,
+                        remote_server &server) {
+  const auto test_file =
+      utils::path::absolute("./fuse_remote/fuse_remote_create_release.txt");
+  const auto api_path = test_file.substr(mount_location_.size());
+  EXPECT_TRUE(utils::file::retry_delete_file(test_file));
+
+  remote::file_handle handle;
+  const auto ret = client.fuse_create(
+      api_path.c_str(), 0,
+      remote::open_flags::create | remote::open_flags::read_write, handle);
+  EXPECT_EQ(0, ret);
+  if (ret == 0) {
+    EXPECT_EQ(1u, server.get_open_file_count(test_file));
+    EXPECT_EQ(0, client.fuse_release(api_path.c_str(), handle));
+    EXPECT_EQ(0u, server.get_open_file_count(test_file));
+  }
+
+  EXPECT_TRUE(utils::file::retry_delete_file(test_file));
 }
 
 static void destroy_test(repertory::remote_fuse::remote_client &client) {
@@ -147,15 +164,15 @@ static void destroy_test(repertory::remote_fuse::remote_client &client) {
 }
 
 /*static void fallocate_test(repertory::remote_fuse::remote_client &client) {
-  const auto test_file = utils::path::absolute("./fuse_remote/fuse_remote_fallocate.txt");
-  const auto api_path = test_file.substr(mountLocation_.size());
-  utils::file::delete_file(test_file);
+  const auto test_file =
+utils::path::absolute("./fuse_remote/fuse_remote_fallocate.txt"); const auto
+api_path = test_file.substr(mount_location_.size());
+  utils::file::retry_delete_file(test_file);
 
   remote::file_handle handle;
   const auto ret = client.fuse_create(
-      api_path.c_str(), 0, remote::open_flags::Create | remote::open_flags::ReadWrite, handle);
-  EXPECT_EQ(0, ret);
-  if (ret == 0) {
+      api_path.c_str(), 0, remote::open_flags::Create |
+remote::open_flags::ReadWrite, handle); EXPECT_EQ(0, ret); if (ret == 0) {
     EXPECT_EQ(0, client.fuse_fallocate(api_path.c_str(), 0, 0, 100, handle));
     EXPECT_EQ(0, client.fuse_release(api_path.c_str(), handle));
 
@@ -164,17 +181,19 @@ static void destroy_test(repertory::remote_fuse::remote_client &client) {
     EXPECT_EQ(100, file_size);
   }
 
-  utils::file::delete_file(test_file);
+  utils::file::retry_delete_file(test_file);
 }*/
 
 static void fgetattr_test(repertory::remote_fuse::remote_client &client) {
-  const auto test_file = utils::path::absolute("./fuse_remote/fuse_remote_fgetattr.txt");
+  const auto test_file =
+      utils::path::absolute("./fuse_remote/fuse_remote_fgetattr.txt");
   const auto api_path = test_file.substr(mount_location_.size());
-  utils::file::delete_file(test_file);
+  EXPECT_TRUE(utils::file::retry_delete_file(test_file));
 
   remote::file_handle handle;
   const auto ret = client.fuse_create(
-      api_path.c_str(), 0, remote::open_flags::create | remote::open_flags::read_write, handle);
+      api_path.c_str(), 0,
+      remote::open_flags::create | remote::open_flags::read_write, handle);
   EXPECT_EQ(0, ret);
   if (ret == 0) {
     EXPECT_EQ(0, client.fuse_ftruncate(api_path.c_str(), 100, handle));
@@ -194,67 +213,78 @@ static void fgetattr_test(repertory::remote_fuse::remote_client &client) {
     stat(&test_file[0], &st1);
 #endif
 
-    EXPECT_EQ(11, st.st_gid);
-    EXPECT_EQ(10, st.st_uid);
-    EXPECT_EQ(st1.st_size, st.st_size);
+    EXPECT_EQ(11u, st.st_gid);
+    EXPECT_EQ(10u, st.st_uid);
+    EXPECT_EQ(static_cast<std::uint64_t>(st1.st_size), st.st_size);
     EXPECT_EQ(st1.st_nlink, st.st_nlink);
     EXPECT_EQ(st1.st_mode, st.st_mode);
-    EXPECT_LE(static_cast<remote::file_time>(st1.st_atime), st.st_atimespec / NANOS_PER_SECOND);
-    EXPECT_EQ(static_cast<remote::file_time>(st1.st_mtime), st.st_mtimespec / NANOS_PER_SECOND);
-    EXPECT_EQ(static_cast<remote::file_time>(st1.st_ctime), st.st_ctimespec / NANOS_PER_SECOND);
-    EXPECT_EQ(static_cast<remote::file_time>(st1.st_ctime), st.st_birthtimespec / NANOS_PER_SECOND);
+    EXPECT_LE(static_cast<remote::file_time>(st1.st_atime),
+              st.st_atimespec / NANOS_PER_SECOND);
+    EXPECT_EQ(static_cast<remote::file_time>(st1.st_mtime),
+              st.st_mtimespec / NANOS_PER_SECOND);
+    EXPECT_EQ(static_cast<remote::file_time>(st1.st_ctime),
+              st.st_ctimespec / NANOS_PER_SECOND);
+    EXPECT_EQ(static_cast<remote::file_time>(st1.st_ctime),
+              st.st_birthtimespec / NANOS_PER_SECOND);
   }
 
-  utils::file::delete_file(test_file);
+  EXPECT_TRUE(utils::file::retry_delete_file(test_file));
 }
 
 static void fsetattr_x_test(repertory::remote_fuse::remote_client &client) {
-  const auto test_file = utils::path::absolute("./fuse_remote/fuse_remote_fsetattr_x.txt");
+  const auto test_file =
+      utils::path::absolute("./fuse_remote/fuse_remote_fsetattr_x.txt");
   const auto api_path = test_file.substr(mount_location_.size());
-  utils::file::delete_file(test_file);
+  EXPECT_TRUE(utils::file::retry_delete_file(test_file));
 
   remote::file_handle handle;
   const auto ret = client.fuse_create(
-      api_path.c_str(), 0, remote::open_flags::create | remote::open_flags::read_write, handle);
+      api_path.c_str(), 0,
+      remote::open_flags::create | remote::open_flags::read_write, handle);
   EXPECT_EQ(0, ret);
   if (ret == 0) {
     remote::setattr_x attr{};
-#ifdef __APPLE__
-    EXPECT_EQ(0, client.fuse_fsetattr_x(api_path.c_str(), attr, handle));
+#ifdef _WIN32
+    EXPECT_EQ(NOT_IMPLEMENTED,
+              client.fuse_fsetattr_x(api_path.c_str(), attr, handle));
 #else
-    EXPECT_EQ(NOT_IMPLEMENTED, client.fuse_fsetattr_x(api_path.c_str(), attr, handle));
+    EXPECT_EQ(0, client.fuse_fsetattr_x(api_path.c_str(), attr, handle));
 #endif
     EXPECT_EQ(0, client.fuse_release(api_path.c_str(), handle));
   }
 
-  utils::file::delete_file(test_file);
+  EXPECT_TRUE(utils::file::retry_delete_file(test_file));
 }
 
 static void fsync_test(repertory::remote_fuse::remote_client &client) {
-  const auto test_file = utils::path::absolute("./fuse_remote/fuse_remote_fsync.txt");
+  const auto test_file =
+      utils::path::absolute("./fuse_remote/fuse_remote_fsync.txt");
   const auto api_path = test_file.substr(mount_location_.size());
-  utils::file::delete_file(test_file);
+  EXPECT_TRUE(utils::file::retry_delete_file(test_file));
 
   remote::file_handle handle;
   const auto ret = client.fuse_create(
-      api_path.c_str(), 0, remote::open_flags::create | remote::open_flags::read_write, handle);
+      api_path.c_str(), 0,
+      remote::open_flags::create | remote::open_flags::read_write, handle);
   EXPECT_EQ(0, ret);
   if (ret == 0) {
     EXPECT_EQ(0, client.fuse_fsync(api_path.c_str(), 0, handle));
     EXPECT_EQ(0, client.fuse_release(api_path.c_str(), handle));
   }
 
-  utils::file::delete_file(test_file);
+  EXPECT_TRUE(utils::file::retry_delete_file(test_file));
 }
 
 static void ftruncate_test(repertory::remote_fuse::remote_client &client) {
-  const auto test_file = utils::path::absolute("./fuse_remote/fuse_remote_ftruncate.txt");
+  const auto test_file =
+      utils::path::absolute("./fuse_remote/fuse_remote_ftruncate.txt");
   const auto api_path = test_file.substr(mount_location_.size());
-  utils::file::delete_file(test_file);
+  EXPECT_TRUE(utils::file::retry_delete_file(test_file));
 
   remote::file_handle handle;
   const auto ret = client.fuse_create(
-      api_path.c_str(), 0, remote::open_flags::create | remote::open_flags::read_write, handle);
+      api_path.c_str(), 0,
+      remote::open_flags::create | remote::open_flags::read_write, handle);
   EXPECT_EQ(0, ret);
   if (ret == 0) {
     EXPECT_EQ(0, client.fuse_ftruncate(api_path.c_str(), 100, handle));
@@ -262,20 +292,22 @@ static void ftruncate_test(repertory::remote_fuse::remote_client &client) {
 
     std::uint64_t file_size;
     EXPECT_TRUE(utils::file::get_file_size(test_file, file_size));
-    EXPECT_EQ(100, file_size);
+    EXPECT_EQ(100u, file_size);
   }
 
-  utils::file::delete_file(test_file);
+  EXPECT_TRUE(utils::file::retry_delete_file(test_file));
 }
 
 static void getattr_test(repertory::remote_fuse::remote_client &client) {
-  const auto test_file = utils::path::absolute("./fuse_remote/fuse_remote_getattr.txt");
+  const auto test_file =
+      utils::path::absolute("./fuse_remote/fuse_remote_getattr.txt");
   const auto api_path = test_file.substr(mount_location_.size());
-  utils::file::delete_file(test_file);
+  EXPECT_TRUE(utils::file::retry_delete_file(test_file));
 
   remote::file_handle handle;
   const auto ret = client.fuse_create(
-      api_path.c_str(), 0, remote::open_flags::create | remote::open_flags::read_write, handle);
+      api_path.c_str(), 0,
+      remote::open_flags::create | remote::open_flags::read_write, handle);
   EXPECT_EQ(0, ret);
   if (ret == 0) {
     EXPECT_EQ(0, client.fuse_ftruncate(api_path.c_str(), 100, handle));
@@ -294,80 +326,86 @@ static void getattr_test(repertory::remote_fuse::remote_client &client) {
     struct stat st1 {};
     stat(&test_file[0], &st1);
 #endif
-    EXPECT_EQ(11, st.st_gid);
-    EXPECT_EQ(10, st.st_uid);
-    EXPECT_EQ(st1.st_size, st.st_size);
+    EXPECT_EQ(11u, st.st_gid);
+    EXPECT_EQ(10u, st.st_uid);
+    EXPECT_EQ(static_cast<remote::file_size>(st1.st_size), st.st_size);
     EXPECT_EQ(st1.st_nlink, st.st_nlink);
     EXPECT_EQ(st1.st_mode, st.st_mode);
-    EXPECT_LE(static_cast<remote::file_time>(st1.st_atime), st.st_atimespec / NANOS_PER_SECOND);
-    EXPECT_EQ(static_cast<remote::file_time>(st1.st_mtime), st.st_mtimespec / NANOS_PER_SECOND);
-    EXPECT_EQ(static_cast<remote::file_time>(st1.st_ctime), st.st_ctimespec / NANOS_PER_SECOND);
-    EXPECT_EQ(static_cast<remote::file_time>(st1.st_ctime), st.st_birthtimespec / NANOS_PER_SECOND);
+    EXPECT_LE(static_cast<remote::file_time>(st1.st_atime),
+              st.st_atimespec / NANOS_PER_SECOND);
+    EXPECT_EQ(static_cast<remote::file_time>(st1.st_mtime),
+              st.st_mtimespec / NANOS_PER_SECOND);
+    EXPECT_EQ(static_cast<remote::file_time>(st1.st_ctime),
+              st.st_ctimespec / NANOS_PER_SECOND);
+    EXPECT_EQ(static_cast<remote::file_time>(st1.st_ctime),
+              st.st_birthtimespec / NANOS_PER_SECOND);
   }
 
-  utils::file::delete_file(test_file);
+  EXPECT_TRUE(utils::file::retry_delete_file(test_file));
 }
 
 /*static void getxattr_test(repertory::remote_fuse::remote_client &client) {
-  const auto test_file = utils::path::absolute("./fuse_remote/fuse_remote_getxattr.txt");
-  const auto api_path = test_file.substr(mountLocation_.size());
-  utils::file::delete_file(test_file);
+  const auto test_file =
+utils::path::absolute("./fuse_remote/fuse_remote_getxattr.txt"); const auto
+api_path = test_file.substr(mount_location_.size());
+  utils::file::retry_delete_file(test_file);
 
   remote::file_handle handle;
   const auto ret = client.fuse_create(
-      api_path.c_str(), 0, remote::open_flags::Create | remote::open_flags::ReadWrite, handle);
-  EXPECT_EQ(0, ret);
-  if (ret == 0) {
+      api_path.c_str(), 0, remote::open_flags::Create |
+remote::open_flags::ReadWrite, handle); EXPECT_EQ(0, ret); if (ret == 0) {
     EXPECT_EQ(0, client.fuse_release(api_path.c_str(), handle));
 #if _WIN32 || !HAS_SETXATTR || __APPLE__
-    EXPECT_EQ(NOT_IMPLEMENTED, client.fuse_getxattr(api_path.c_str(), "test", nullptr, 0));
-#else
-    EXPECT_EQ(-EACCES, client.fuse_getxattr(api_path.c_str(), "test", nullptr, 0));
-#endif
+    EXPECT_EQ(NOT_IMPLEMENTED, client.fuse_getxattr(api_path.c_str(), "test",
+nullptr, 0)); #else EXPECT_EQ(-EACCES, client.fuse_getxattr(api_path.c_str(),
+"test", nullptr, 0)); #endif
   }
 
-  utils::file::delete_file(test_file);
+  utils::file::retry_delete_file(test_file);
 }
 
 static void getxattr_osx_test(repertory::remote_fuse::remote_client &client) {
-  const auto test_file = utils::path::absolute("./fuse_remote/fuse_remote_getxattr_osx.txt");
-  const auto api_path = test_file.substr(mountLocation_.size());
-  utils::file::delete_file(test_file);
+  const auto test_file =
+utils::path::absolute("./fuse_remote/fuse_remote_getxattr_osx.txt"); const auto
+api_path = test_file.substr(mount_location_.size());
+  utils::file::retry_delete_file(test_file);
 
   remote::file_handle handle;
   const auto ret = client.fuse_create(
-      api_path.c_str(), 0, remote::open_flags::Create | remote::open_flags::ReadWrite, handle);
-  EXPECT_EQ(0, ret);
-  if (ret == 0) {
+      api_path.c_str(), 0, remote::open_flags::Create |
+remote::open_flags::ReadWrite, handle); EXPECT_EQ(0, ret); if (ret == 0) {
     EXPECT_EQ(0, client.fuse_release(api_path.c_str(), handle));
     EXPECT_EQ(NOT_IMPLEMENTED,
               client.fuse_getxattrOSX(api_path.c_str(), "test", nullptr, 0, 0));
   }
 
-  utils::file::delete_file(test_file);
+  utils::file::retry_delete_file(test_file);
 }*/
 
 static void getxtimes_test(repertory::remote_fuse::remote_client &client) {
-  const auto test_file = utils::path::absolute("./fuse_remote/fuse_remote_getxtimes.txt");
+  const auto test_file =
+      utils::path::absolute("./fuse_remote/fuse_remote_getxtimes.txt");
   const auto api_path = test_file.substr(mount_location_.size());
-  utils::file::delete_file(test_file);
+  EXPECT_TRUE(utils::file::retry_delete_file(test_file));
 
   remote::file_handle handle;
   const auto ret = client.fuse_create(
-      api_path.c_str(), 0, remote::open_flags::create | remote::open_flags::read_write, handle);
+      api_path.c_str(), 0,
+      remote::open_flags::create | remote::open_flags::read_write, handle);
   EXPECT_EQ(0, ret);
   if (ret == 0) {
     remote::file_time bkuptime = 0;
     remote::file_time crtime = 0;
-#ifdef __APPLE__
-    EXPECT_EQ(0, client.fuse_getxtimes(api_path.c_str(), bkuptime, crtime));
+#ifdef _WIN32
+    EXPECT_EQ(NOT_IMPLEMENTED,
+              client.fuse_getxtimes(api_path.c_str(), bkuptime, crtime));
 #else
-    EXPECT_EQ(NOT_IMPLEMENTED, client.fuse_getxtimes(api_path.c_str(), bkuptime, crtime));
+    EXPECT_EQ(0, client.fuse_getxtimes(api_path.c_str(), bkuptime, crtime));
 #endif
     EXPECT_EQ(0, client.fuse_release(api_path.c_str(), handle));
   }
 
-  utils::file::delete_file(test_file);
+  EXPECT_TRUE(utils::file::retry_delete_file(test_file));
 }
 
 static void init_test(repertory::remote_fuse::remote_client &client) {
@@ -375,30 +413,30 @@ static void init_test(repertory::remote_fuse::remote_client &client) {
 }
 
 /*static void listxattr_test(repertory::remote_fuse::remote_client &client) {
-  const auto test_file = utils::path::absolute("./fuse_remote/fuse_remote_listxattr.txt");
-  const auto api_path = test_file.substr(mountLocation_.size());
-  utils::file::delete_file(test_file);
+  const auto test_file =
+utils::path::absolute("./fuse_remote/fuse_remote_listxattr.txt"); const auto
+api_path = test_file.substr(mount_location_.size());
+  utils::file::retry_delete_file(test_file);
 
   remote::file_handle handle;
   const auto ret = client.fuse_create(
-      api_path.c_str(), 0, remote::open_flags::Create | remote::open_flags::ReadWrite, handle);
-  EXPECT_EQ(0, ret);
-  if (ret == 0) {
+      api_path.c_str(), 0, remote::open_flags::Create |
+remote::open_flags::ReadWrite, handle); EXPECT_EQ(0, ret); if (ret == 0) {
     EXPECT_EQ(0, client.fuse_release(api_path.c_str(), handle));
 #if _WIN32 || !HAS_SETXATTR
-    EXPECT_EQ(NOT_IMPLEMENTED, client.fuse_listxattr(api_path.c_str(), nullptr, 0));
-#else
-    EXPECT_EQ(-EIO, client.fuse_listxattr(api_path.c_str(), nullptr, 0));
+    EXPECT_EQ(NOT_IMPLEMENTED, client.fuse_listxattr(api_path.c_str(), nullptr,
+0)); #else EXPECT_EQ(-EIO, client.fuse_listxattr(api_path.c_str(), nullptr, 0));
 #endif
   }
 
-  utils::file::delete_file(test_file);
+  utils::file::retry_delete_file(test_file);
 }*/
 
 static void mkdir_test(repertory::remote_fuse::remote_client &client) {
-  const auto test_directory = utils::path::absolute("./fuse_remote/fuse_remote_mkdir");
+  const auto test_directory =
+      utils::path::absolute("./fuse_remote/fuse_remote_mkdir");
   const auto api_path = test_directory.substr(mount_location_.size());
-  utils::file::delete_directory(test_directory);
+  EXPECT_TRUE(utils::file::delete_directory(test_directory));
 
 #ifdef _WIN32
   EXPECT_EQ(0, client.fuse_mkdir(api_path.c_str(), 0));
@@ -407,39 +445,44 @@ static void mkdir_test(repertory::remote_fuse::remote_client &client) {
 #endif
   EXPECT_TRUE(utils::file::is_directory(test_directory));
 
-  utils::file::delete_directory(test_directory);
+  EXPECT_TRUE(utils::file::delete_directory(test_directory));
 }
 
 static void open_test(repertory::remote_fuse::remote_client &client) {
-  const auto test_file = utils::path::absolute("./fuse_remote/fuse_remote_open.txt");
+  const auto test_file =
+      utils::path::absolute("./fuse_remote/fuse_remote_open.txt");
   const auto api_path = test_file.substr(mount_location_.size());
-  utils::file::delete_file(test_file);
+  EXPECT_TRUE(utils::file::retry_delete_file(test_file));
 
   remote::file_handle handle;
 #ifdef _WIN32
   const auto ret = client.fuse_create(
-      api_path.c_str(), 0, remote::open_flags::create | remote::open_flags::read_write, handle);
+      api_path.c_str(), 0,
+      remote::open_flags::create | remote::open_flags::read_write, handle);
 #else
-  const auto ret =
-      client.fuse_create(api_path.c_str(), S_IRWXU,
-                         remote::open_flags::create | remote::open_flags::read_write, handle);
+  const auto ret = client.fuse_create(
+      api_path.c_str(), S_IRWXU,
+      remote::open_flags::create | remote::open_flags::read_write, handle);
 #endif
   EXPECT_EQ(0, ret);
   if (ret == 0) {
     remote::file_handle handle2;
-    EXPECT_EQ(0, client.fuse_open(api_path.c_str(), remote::open_flags::read_write, handle2));
+    EXPECT_EQ(0, client.fuse_open(api_path.c_str(),
+                                  remote::open_flags::read_write, handle2));
     EXPECT_NE(handle, handle2);
     EXPECT_EQ(0, client.fuse_release(api_path.c_str(), handle));
     EXPECT_EQ(0, client.fuse_release(api_path.c_str(), handle2));
   }
 
-  utils::file::delete_file(test_file);
+  EXPECT_TRUE(utils::file::retry_delete_file(test_file));
 }
 
-static void opendir_and_releasedir_test(repertory::remote_fuse::remote_client &client) {
-  const auto test_directory = utils::path::absolute("./fuse_remote/fuse_remote_opendir");
+static void
+opendir_and_releasedir_test(repertory::remote_fuse::remote_client &client) {
+  const auto test_directory =
+      utils::path::absolute("./fuse_remote/fuse_remote_opendir");
   const auto api_path = test_directory.substr(mount_location_.size());
-  utils::file::delete_directory(test_directory);
+  EXPECT_TRUE(utils::file::delete_directory(test_directory));
 
 #ifdef _WIN32
   EXPECT_EQ(0, client.fuse_mkdir(api_path.c_str(), 0));
@@ -452,54 +495,64 @@ static void opendir_and_releasedir_test(repertory::remote_fuse::remote_client &c
   EXPECT_EQ(0, client.fuse_opendir(api_path.c_str(), handle));
   EXPECT_EQ(0, client.fuse_releasedir(api_path.c_str(), handle));
 
-  utils::file::delete_directory(test_directory);
+  EXPECT_TRUE(utils::file::delete_directory(test_directory));
 }
 
 static void read_and_write_test(repertory::remote_fuse::remote_client &client) {
-  const auto test_file = utils::path::absolute("./fuse_remote/fuse_remote_read_write.txt");
+  const auto test_file =
+      utils::path::absolute("./fuse_remote/fuse_remote_read_write.txt");
   const auto api_path = test_file.substr(mount_location_.size());
-  utils::file::delete_file(test_file);
+  EXPECT_TRUE(utils::file::retry_delete_file(test_file));
 
   remote::file_handle handle;
   const auto ret = client.fuse_create(
-      api_path.c_str(), 0, remote::open_flags::create | remote::open_flags::read_write, handle);
+      api_path.c_str(), 0,
+      remote::open_flags::create | remote::open_flags::read_write, handle);
   EXPECT_EQ(0, ret);
   if (ret == 0) {
-    EXPECT_EQ(10, client.fuse_write(api_path.c_str(), "1234567890", 10, 0, handle));
-    std::vector<char> buffer(10);
-    EXPECT_EQ(10, client.fuse_read(api_path.c_str(), &buffer[0], 10, 0, handle));
+    EXPECT_EQ(10,
+              client.fuse_write(api_path.c_str(), "1234567890", 10, 0, handle));
+    data_buffer buffer(10);
+    EXPECT_EQ(10,
+              client.fuse_read(api_path.c_str(), &buffer[0], 10, 0, handle));
     EXPECT_EQ(0, memcmp("1234567890", &buffer[0], 10));
     EXPECT_EQ(0, client.fuse_release(api_path.c_str(), handle));
   }
 
-  utils::file::delete_file(test_file);
+  EXPECT_TRUE(utils::file::retry_delete_file(test_file));
 }
 
-static void read_and_write_base64_test(repertory::remote_fuse::remote_client &client) {
-  const auto test_file = utils::path::absolute("./fuse_remote/fuse_remote_read_write_base64.txt");
+static void
+read_and_write_base64_test(repertory::remote_fuse::remote_client &client) {
+  const auto test_file =
+      utils::path::absolute("./fuse_remote/fuse_remote_read_write_base64.txt");
   const auto api_path = test_file.substr(mount_location_.size());
-  utils::file::delete_file(test_file);
+  EXPECT_TRUE(utils::file::retry_delete_file(test_file));
 
   remote::file_handle handle;
   const auto ret = client.fuse_create(
-      api_path.c_str(), 0, remote::open_flags::create | remote::open_flags::read_write, handle);
+      api_path.c_str(), 0,
+      remote::open_flags::create | remote::open_flags::read_write, handle);
   EXPECT_EQ(0, ret);
   if (ret == 0) {
     const auto data = macaron::Base64::Encode("1234567890");
-    EXPECT_EQ(10, client.fuse_write_base64(api_path.c_str(), &data[0], data.size(), 0, handle));
-    std::vector<char> buffer(10);
-    EXPECT_EQ(10, client.fuse_read(api_path.c_str(), &buffer[0], 10, 0, handle));
+    EXPECT_EQ(10, client.fuse_write_base64(api_path.c_str(), &data[0],
+                                           data.size(), 0, handle));
+    data_buffer buffer(10);
+    EXPECT_EQ(10,
+              client.fuse_read(api_path.c_str(), &buffer[0], 10, 0, handle));
     EXPECT_EQ(0, memcmp("1234567890", &buffer[0], 10));
     EXPECT_EQ(0, client.fuse_release(api_path.c_str(), handle));
   }
 
-  utils::file::delete_file(test_file);
+  EXPECT_TRUE(utils::file::retry_delete_file(test_file));
 }
 
 static void readdir_test(repertory::remote_fuse::remote_client &client) {
-  const auto test_directory = utils::path::absolute("./fuse_remote/fuse_remote_readdir");
+  const auto test_directory =
+      utils::path::absolute("./fuse_remote/fuse_remote_readdir");
   const auto api_path = test_directory.substr(mount_location_.size());
-  utils::file::delete_directory(test_directory);
+  EXPECT_TRUE(utils::file::delete_directory(test_directory));
 
 #ifdef _WIN32
   EXPECT_EQ(0, client.fuse_mkdir(api_path.c_str(), 0));
@@ -520,64 +573,69 @@ static void readdir_test(repertory::remote_fuse::remote_client &client) {
 
   EXPECT_EQ(0, client.fuse_releasedir(api_path.c_str(), handle));
 
-  utils::file::delete_directory(test_directory);
+  EXPECT_TRUE(utils::file::delete_directory(test_directory));
 }
 
 /*static void removexattr_test(repertory::remote_fuse::remote_client &client) {
-  const auto test_file = utils::path::absolute("./fuse_remote/fuse_remote_removexattr.txt");
-  const auto api_path = test_file.substr(mountLocation_.size());
-  utils::file::delete_file(test_file);
+  const auto test_file =
+utils::path::absolute("./fuse_remote/fuse_remote_removexattr.txt"); const auto
+api_path = test_file.substr(mount_location_.size());
+  utils::file::retry_delete_file(test_file);
 
   remote::file_handle handle;
   const auto ret = client.fuse_create(
-      api_path.c_str(), 0, remote::open_flags::Create | remote::open_flags::ReadWrite, handle);
-  EXPECT_EQ(0, ret);
-  if (ret == 0) {
+      api_path.c_str(), 0, remote::open_flags::Create |
+remote::open_flags::ReadWrite, handle); EXPECT_EQ(0, ret); if (ret == 0) {
     EXPECT_EQ(0, client.fuse_release(api_path.c_str(), handle));
 #if _WIN32 || !HAS_SETXATTR
-    EXPECT_EQ(NOT_IMPLEMENTED, client.fuse_removexattr(api_path.c_str(), "test"));
-#else
-    EXPECT_EQ(-EACCES, client.fuse_removexattr(api_path.c_str(), "test"));
-#endif
+    EXPECT_EQ(NOT_IMPLEMENTED, client.fuse_removexattr(api_path.c_str(),
+"test")); #else EXPECT_EQ(-EACCES, client.fuse_removexattr(api_path.c_str(),
+"test")); #endif
   }
 
-  utils::file::delete_file(test_file);
+  utils::file::retry_delete_file(test_file);
 }*/
 
 static void rename_test(repertory::remote_fuse::remote_client &client) {
-  const auto test_file = utils::path::absolute("./fuse_remote/fuse_remote_rename.txt");
-  const auto renamed_test_file = utils::path::absolute("./fuse_remote/fuse_remote_rename2.txt");
+  const auto test_file =
+      utils::path::absolute("./fuse_remote/fuse_remote_rename.txt");
+  const auto renamed_test_file =
+      utils::path::absolute("./fuse_remote/fuse_remote_rename2.txt");
   const auto api_path = test_file.substr(mount_location_.size());
-  const auto renamed_api_path = renamed_test_file.substr(mount_location_.size());
-  utils::file::delete_file(test_file);
-  utils::file::delete_file(renamed_test_file);
+  const auto renamed_api_path =
+      renamed_test_file.substr(mount_location_.size());
+  EXPECT_TRUE(utils::file::retry_delete_file(test_file));
+  EXPECT_TRUE(utils::file::retry_delete_file(renamed_test_file));
 
   remote::file_handle handle;
 #ifdef _WIN32
   const auto ret = client.fuse_create(
-      api_path.c_str(), 0, remote::open_flags::create | remote::open_flags::read_write, handle);
+      api_path.c_str(), 0,
+      remote::open_flags::create | remote::open_flags::read_write, handle);
 #else
-  const auto ret =
-      client.fuse_create(api_path.c_str(), S_IRWXU,
-                         remote::open_flags::create | remote::open_flags::read_write, handle);
+  const auto ret = client.fuse_create(
+      api_path.c_str(), S_IRWXU,
+      remote::open_flags::create | remote::open_flags::read_write, handle);
 #endif
 
   EXPECT_EQ(0, ret);
   if (ret == 0) {
     EXPECT_EQ(0, client.fuse_release(api_path.c_str(), handle));
-    EXPECT_EQ(0, client.fuse_rename(api_path.c_str(), renamed_api_path.c_str()));
+    EXPECT_EQ(0,
+              client.fuse_rename(api_path.c_str(), renamed_api_path.c_str()));
     EXPECT_FALSE(utils::file::is_file(test_file));
     EXPECT_TRUE(utils::file::is_file(renamed_test_file));
   }
 
-  utils::file::delete_file(test_file);
-  utils::file::delete_file(renamed_test_file);
+  EXPECT_TRUE(utils::file::retry_delete_file(test_file));
+  EXPECT_TRUE(utils::file::retry_delete_file(renamed_test_file));
 }
 
 static void rmdir_test(repertory::remote_fuse::remote_client &client) {
-  const auto test_directory = utils::path::absolute("./fuse_remote/fuse_remote_rmdir");
+  const auto test_directory =
+      utils::path::absolute("./fuse_remote/fuse_remote_rmdir");
   const auto api_path = test_directory.substr(mount_location_.size());
-  utils::file::delete_directory(test_directory);
+  EXPECT_TRUE(utils::file::delete_directory(test_directory));
 
 #ifdef _WIN32
   EXPECT_EQ(0, client.fuse_mkdir(api_path.c_str(), 0));
@@ -589,99 +647,107 @@ static void rmdir_test(repertory::remote_fuse::remote_client &client) {
   EXPECT_EQ(0, client.fuse_rmdir(api_path.c_str()));
   EXPECT_FALSE(utils::file::is_directory(test_directory));
 
-  utils::file::delete_directory(test_directory);
+  EXPECT_TRUE(utils::file::delete_directory(test_directory));
 }
 
 static void setattr_x_test(repertory::remote_fuse::remote_client &client) {
-  const auto test_file = utils::path::absolute("./fuse_remote/fuse_remote_setattr_x.txt");
+  const auto test_file =
+      utils::path::absolute("./fuse_remote/fuse_remote_setattr_x.txt");
   const auto api_path = test_file.substr(mount_location_.size());
-  utils::file::delete_file(test_file);
+  EXPECT_TRUE(utils::file::retry_delete_file(test_file));
 
   remote::file_handle handle;
   const auto ret = client.fuse_create(
-      api_path.c_str(), 0, remote::open_flags::create | remote::open_flags::read_write, handle);
+      api_path.c_str(), 0,
+      remote::open_flags::create | remote::open_flags::read_write, handle);
   EXPECT_EQ(0, ret);
   if (ret == 0) {
     EXPECT_EQ(0, client.fuse_release(api_path.c_str(), handle));
 
     remote::setattr_x attr{};
-#ifdef __APPLE__
-    EXPECT_EQ(0, client.fuse_setattr_x(api_path.c_str(), attr));
-#else
+#ifdef _WIN32
     EXPECT_EQ(NOT_IMPLEMENTED, client.fuse_setattr_x(api_path.c_str(), attr));
+#else
+    EXPECT_EQ(0, client.fuse_setattr_x(api_path.c_str(), attr));
 #endif
   }
 
-  utils::file::delete_file(test_file);
+  EXPECT_TRUE(utils::file::retry_delete_file(test_file));
 }
 
 static void setbkuptime_test(repertory::remote_fuse::remote_client &client) {
-  const auto test_file = utils::path::absolute("./fuse_remote/fuse_remote_setbkuptime.txt");
+  const auto test_file =
+      utils::path::absolute("./fuse_remote/fuse_remote_setbkuptime.txt");
   const auto api_path = test_file.substr(mount_location_.size());
-  utils::file::delete_file(test_file);
+  EXPECT_TRUE(utils::file::retry_delete_file(test_file));
 
   remote::file_handle handle;
   const auto ret = client.fuse_create(
-      api_path.c_str(), 0, remote::open_flags::create | remote::open_flags::read_write, handle);
+      api_path.c_str(), 0,
+      remote::open_flags::create | remote::open_flags::read_write, handle);
   EXPECT_EQ(0, ret);
   if (ret == 0) {
     EXPECT_EQ(0, client.fuse_release(api_path.c_str(), handle));
 
-    remote::file_time ts = 0;
-#ifdef __APPLE__
-    EXPECT_EQ(0, client.fuse_setbkuptime(api_path.c_str(), ts));
-#else
+    remote::file_time ts = utils::get_file_time_now();
+#ifdef _WIN32
     EXPECT_EQ(NOT_IMPLEMENTED, client.fuse_setbkuptime(api_path.c_str(), ts));
+#else
+    EXPECT_EQ(0, client.fuse_setbkuptime(api_path.c_str(), ts));
 #endif
   }
 
-  utils::file::delete_file(test_file);
+  EXPECT_TRUE(utils::file::retry_delete_file(test_file));
 }
 
 static void setchgtime_test(repertory::remote_fuse::remote_client &client) {
-  const auto test_file = utils::path::absolute("./fuse_remote/fuse_remote_setchgtime.txt");
+  const auto test_file =
+      utils::path::absolute("./fuse_remote/fuse_remote_setchgtime.txt");
   const auto api_path = test_file.substr(mount_location_.size());
-  utils::file::delete_file(test_file);
+  EXPECT_TRUE(utils::file::retry_delete_file(test_file));
 
   remote::file_handle handle;
   const auto ret = client.fuse_create(
-      api_path.c_str(), 0, remote::open_flags::create | remote::open_flags::read_write, handle);
+      api_path.c_str(), 0,
+      remote::open_flags::create | remote::open_flags::read_write, handle);
   EXPECT_EQ(0, ret);
   if (ret == 0) {
     EXPECT_EQ(0, client.fuse_release(api_path.c_str(), handle));
 
-    remote::file_time ts = 0;
-#ifdef __APPLE__
-    EXPECT_EQ(0, client.fuse_setchgtime(api_path.c_str(), ts));
-#else
+    remote::file_time ts = utils::get_file_time_now();
+#ifdef _WIN32
     EXPECT_EQ(NOT_IMPLEMENTED, client.fuse_setchgtime(api_path.c_str(), ts));
+#else
+    EXPECT_EQ(0, client.fuse_setchgtime(api_path.c_str(), ts));
 #endif
   }
 
-  utils::file::delete_file(test_file);
+  EXPECT_TRUE(utils::file::retry_delete_file(test_file));
 }
 
 static void setcrtime_test(repertory::remote_fuse::remote_client &client) {
-  const auto test_file = utils::path::absolute("./fuse_remote/fuse_remote_setcrtime.txt");
+  const auto test_file =
+      utils::path::absolute("./fuse_remote/fuse_remote_setcrtime.txt");
   const auto api_path = test_file.substr(mount_location_.size());
-  utils::file::delete_file(test_file);
+  EXPECT_TRUE(utils::file::retry_delete_file(test_file));
 
   remote::file_handle handle;
   const auto ret = client.fuse_create(
-      api_path.c_str(), 0, remote::open_flags::create | remote::open_flags::read_write, handle);
+      api_path.c_str(), 0,
+      remote::open_flags::create | remote::open_flags::read_write, handle);
   EXPECT_EQ(0, ret);
   if (ret == 0) {
     EXPECT_EQ(0, client.fuse_release(api_path.c_str(), handle));
 
-    remote::file_time ts = 0;
-#ifdef __APPLE__
-    EXPECT_EQ(0, client.fuse_setcrtime(api_path.c_str(), ts));
-#else
+    remote::file_time ts = utils::get_file_time_now();
+#ifdef _WIN32
     EXPECT_EQ(NOT_IMPLEMENTED, client.fuse_setcrtime(api_path.c_str(), ts));
+#else
+    EXPECT_EQ(0, client.fuse_setcrtime(api_path.c_str(), ts));
 #endif
   }
 
-  utils::file::delete_file(test_file);
+  EXPECT_TRUE(utils::file::retry_delete_file(test_file));
 }
 
 static void setvolname_test(repertory::remote_fuse::remote_client &client) {
@@ -689,51 +755,53 @@ static void setvolname_test(repertory::remote_fuse::remote_client &client) {
 }
 
 /*static void setxattr_test(repertory::remote_fuse::remote_client &client) {
-  const auto test_file = utils::path::absolute("./fuse_remote/fuse_remote_setxattr.txt");
-  const auto api_path = test_file.substr(mountLocation_.size());
-  utils::file::delete_file(test_file);
+  const auto test_file =
+utils::path::absolute("./fuse_remote/fuse_remote_setxattr.txt"); const auto
+api_path = test_file.substr(mount_location_.size());
+  utils::file::retry_delete_file(test_file);
 
   remote::file_handle handle;
   const auto ret = client.fuse_create(
-      api_path.c_str(), 0, remote::open_flags::Create | remote::open_flags::ReadWrite, handle);
-  EXPECT_EQ(0, ret);
-  if (ret == 0) {
+      api_path.c_str(), 0, remote::open_flags::Create |
+remote::open_flags::ReadWrite, handle); EXPECT_EQ(0, ret); if (ret == 0) {
     EXPECT_EQ(0, client.fuse_release(api_path.c_str(), handle));
 #if _WIN32 || !HAS_SETXATTR
     EXPECT_EQ(NOT_IMPLEMENTED,
               client.fuse_setxattr(api_path.c_str(), "test", "moose", 5, 0));
 #else
-    EXPECT_EQ(-EACCES, client.fuse_setxattr(api_path.c_str(), "test", "moose", 5, 0));
-#endif
+    EXPECT_EQ(-EACCES, client.fuse_setxattr(api_path.c_str(), "test", "moose",
+5, 0)); #endif
   }
 
-  utils::file::delete_file(test_file);
+  utils::file::retry_delete_file(test_file);
 }
 
 static void setxattr_osx_test(repertory::remote_fuse::remote_client &client) {
-  const auto test_file = utils::path::absolute("./fuse_remote/fuse_remote_setxattr_osx.txt");
-  const auto api_path = test_file.substr(mountLocation_.size());
-  utils::file::delete_file(test_file);
+  const auto test_file =
+utils::path::absolute("./fuse_remote/fuse_remote_setxattr_osx.txt"); const auto
+api_path = test_file.substr(mount_location_.size());
+  utils::file::retry_delete_file(test_file);
 
   remote::file_handle handle;
   const auto ret = client.fuse_create(
-      api_path.c_str(), 0, remote::open_flags::Create | remote::open_flags::ReadWrite, handle);
-  EXPECT_EQ(0, ret);
-  if (ret == 0) {
+      api_path.c_str(), 0, remote::open_flags::Create |
+remote::open_flags::ReadWrite, handle); EXPECT_EQ(0, ret); if (ret == 0) {
 
     EXPECT_EQ(0, client.fuse_release(api_path.c_str(), handle));
     EXPECT_EQ(NOT_IMPLEMENTED,
-              client.fuse_setxattr_osx(api_path.c_str(), "test", "moose", 5, 0, 0));
+              client.fuse_setxattr_osx(api_path.c_str(), "test", "moose", 5, 0,
+0));
   }
 
-  utils::file::delete_file(test_file);
+  utils::file::retry_delete_file(test_file);
 }*/
 
 #ifdef _WIN32
 static void test_statfs(repertory::remote_fuse::remote_client &client,
                         const i_winfsp_drive &drive) {
 #else
-static void test_statfs(repertory::remote_fuse::remote_client &client, const i_fuse_drive &drive) {
+static void test_statfs(repertory::remote_fuse::remote_client &client,
+                        const i_fuse_drive &drive) {
 #endif
   const auto test_file = utils::path::absolute("./fuse_remote/");
   const auto api_path = test_file.substr(mount_location_.size());
@@ -743,12 +811,15 @@ static void test_statfs(repertory::remote_fuse::remote_client &client, const i_f
 
   const auto total_bytes = drive.get_total_drive_space();
   const auto total_used = drive.get_used_drive_space();
-  const auto used_blocks = utils::divide_with_ceiling(total_used, static_cast<std::uint64_t>(4096));
-  EXPECT_EQ(utils::divide_with_ceiling(total_bytes, static_cast<std::uint64_t>(4096)), st.f_blocks);
+  const auto used_blocks =
+      utils::divide_with_ceiling(total_used, static_cast<std::uint64_t>(4096));
+  EXPECT_EQ(
+      utils::divide_with_ceiling(total_bytes, static_cast<std::uint64_t>(4096)),
+      st.f_blocks);
   EXPECT_EQ(st.f_blocks ? (st.f_blocks - used_blocks) : 0, st.f_bavail);
   EXPECT_EQ(st.f_bavail, st.f_bfree);
-  EXPECT_EQ(4294967295, st.f_files);
-  EXPECT_EQ(4294967295 - drive.get_total_item_count(), st.f_favail);
+  EXPECT_EQ(4294967295U, st.f_files);
+  EXPECT_EQ(4294967295U - drive.get_total_item_count(), st.f_favail);
   EXPECT_EQ(st.f_favail, st.f_ffree);
 }
 
@@ -765,32 +836,38 @@ static void statfs_x_test(repertory::remote_fuse::remote_client &client,
 
   remote::statfs_x st{};
   EXPECT_EQ(0, client.fuse_statfs_x(api_path.c_str(), 4096, st));
-  EXPECT_STREQ(&st.f_mntfromname[0], utils::create_volume_label(provider_type::remote).c_str());
+  EXPECT_STREQ(&st.f_mntfromname[0],
+               utils::create_volume_label(provider_type::remote).c_str());
 
   const auto total_bytes = drive.get_total_drive_space();
   const auto total_used = drive.get_used_drive_space();
-  const auto used_blocks = utils::divide_with_ceiling(total_used, static_cast<std::uint64_t>(4096));
-  EXPECT_EQ(utils::divide_with_ceiling(total_bytes, static_cast<std::uint64_t>(4096)), st.f_blocks);
+  const auto used_blocks =
+      utils::divide_with_ceiling(total_used, static_cast<std::uint64_t>(4096));
+  EXPECT_EQ(
+      utils::divide_with_ceiling(total_bytes, static_cast<std::uint64_t>(4096)),
+      st.f_blocks);
   EXPECT_EQ(st.f_blocks ? (st.f_blocks - used_blocks) : 0, st.f_bavail);
   EXPECT_EQ(st.f_bavail, st.f_bfree);
-  EXPECT_EQ(4294967295, st.f_files);
-  EXPECT_EQ(4294967295 - drive.get_total_item_count(), st.f_favail);
+  EXPECT_EQ(4294967295U, st.f_files);
+  EXPECT_EQ(4294967295U - drive.get_total_item_count(), st.f_favail);
   EXPECT_EQ(st.f_favail, st.f_ffree);
 }
 
 static void truncate_test(repertory::remote_fuse::remote_client &client) {
-  const auto test_file = utils::path::absolute("./fuse_remote/fuse_remote_truncate.txt");
+  const auto test_file =
+      utils::path::absolute("./fuse_remote/fuse_remote_truncate.txt");
   const auto api_path = test_file.substr(mount_location_.size());
-  utils::file::delete_file(test_file);
+  EXPECT_TRUE(utils::file::retry_delete_file(test_file));
 
   remote::file_handle handle;
 #ifdef _WIN32
   const auto ret = client.fuse_create(
-      api_path.c_str(), 0, remote::open_flags::create | remote::open_flags::read_write, handle);
+      api_path.c_str(), 0,
+      remote::open_flags::create | remote::open_flags::read_write, handle);
 #else
-  const auto ret =
-      client.fuse_create(api_path.c_str(), S_IRWXU,
-                         remote::open_flags::create | remote::open_flags::read_write, handle);
+  const auto ret = client.fuse_create(
+      api_path.c_str(), S_IRWXU,
+      remote::open_flags::create | remote::open_flags::read_write, handle);
 #endif
   EXPECT_EQ(0, ret);
   if (ret == 0) {
@@ -800,20 +877,22 @@ static void truncate_test(repertory::remote_fuse::remote_client &client) {
 
     std::uint64_t file_size;
     EXPECT_TRUE(utils::file::get_file_size(test_file, file_size));
-    EXPECT_EQ(100, file_size);
+    EXPECT_EQ(100u, file_size);
   }
 
-  utils::file::delete_file(test_file);
+  EXPECT_TRUE(utils::file::retry_delete_file(test_file));
 }
 
 static void unlink_test(repertory::remote_fuse::remote_client &client) {
-  const auto test_file = utils::path::absolute("./fuse_remote/fuse_remote_unlink.txt");
+  const auto test_file =
+      utils::path::absolute("./fuse_remote/fuse_remote_unlink.txt");
   const auto api_path = test_file.substr(mount_location_.size());
-  utils::file::delete_file(test_file);
+  EXPECT_TRUE(utils::file::retry_delete_file(test_file));
 
   remote::file_handle handle;
   const auto ret = client.fuse_create(
-      api_path.c_str(), 0, remote::open_flags::create | remote::open_flags::read_write, handle);
+      api_path.c_str(), 0,
+      remote::open_flags::create | remote::open_flags::read_write, handle);
   EXPECT_EQ(0, ret);
   if (ret == 0) {
     EXPECT_EQ(0, client.fuse_release(api_path.c_str(), handle));
@@ -821,17 +900,19 @@ static void unlink_test(repertory::remote_fuse::remote_client &client) {
     EXPECT_FALSE(utils::file::is_file(test_file));
   }
 
-  utils::file::delete_file(test_file);
+  EXPECT_TRUE(utils::file::retry_delete_file(test_file));
 }
 
 static void utimens_test(repertory::remote_fuse::remote_client &client) {
-  const auto test_file = utils::path::absolute("./fuse_remote/fuse_remote_utimens.txt");
+  const auto test_file =
+      utils::path::absolute("./fuse_remote/fuse_remote_utimens.txt");
   const auto api_path = test_file.substr(mount_location_.size());
-  utils::file::delete_file(test_file);
+  EXPECT_TRUE(utils::file::retry_delete_file(test_file));
 
   remote::file_handle handle;
   const auto ret = client.fuse_create(
-      api_path.c_str(), 0, remote::open_flags::create | remote::open_flags::read_write, handle);
+      api_path.c_str(), 0,
+      remote::open_flags::create | remote::open_flags::read_write, handle);
   EXPECT_EQ(0, ret);
   if (ret == 0) {
     EXPECT_EQ(0, client.fuse_release(api_path.c_str(), handle));
@@ -840,7 +921,7 @@ static void utimens_test(repertory::remote_fuse::remote_client &client) {
     EXPECT_EQ(0, client.fuse_utimens(api_path.c_str(), tv, 0, 0));
   }
 
-  utils::file::delete_file(test_file);
+  EXPECT_TRUE(utils::file::retry_delete_file(test_file));
 }
 
 TEST(remote_fuse, all_tests) {
@@ -867,10 +948,13 @@ TEST(remote_fuse, all_tests) {
     mock_fuse_drive drive(mount_location_);
     remote_server server(config, drive, mount_location_);
 #endif
+
+    std::this_thread::sleep_for(2s);
+
     std::thread([&]() {
       repertory::remote_fuse::remote_client client(config);
 
-      create_and_release_test(client);
+      create_and_release_test(client, server);
       access_test(client);
       chflags_test(client);
       chmod_test(client);
@@ -912,6 +996,6 @@ TEST(remote_fuse, all_tests) {
   }
 
   event_system::instance().stop();
-  utils::file::delete_directory_recursively("./fuse_remote");
+  EXPECT_TRUE(utils::file::delete_directory_recursively("./fuse_remote"));
 }
 } // namespace fuse_test

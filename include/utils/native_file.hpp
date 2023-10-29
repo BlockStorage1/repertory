@@ -1,89 +1,111 @@
 /*
-  Copyright <2018-2022> <scott.e.graves@protonmail.com>
+  Copyright <2018-2023> <scott.e.graves@protonmail.com>
 
-  Permission is hereby granted, free of charge, to any person obtaining a copy of this software and
-  associated documentation files (the "Software"), to deal in the Software without restriction,
-  including without limitation the rights to use, copy, modify, merge, publish, distribute,
-  sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is
+  Permission is hereby granted, free of charge, to any person obtaining a copy
+  of this software and associated documentation files (the "Software"), to deal
+  in the Software without restriction, including without limitation the rights
+  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+  copies of the Software, and to permit persons to whom the Software is
   furnished to do so, subject to the following conditions:
 
-  The above copyright notice and this permission notice shall be included in all copies or
-  substantial portions of the Software.
+  The above copyright notice and this permission notice shall be included in all
+  copies or substantial portions of the Software.
 
-  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT
-  NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
-  NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
-  DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT
-  OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+  SOFTWARE.
 */
 #ifndef INCLUDE_UTILS_NATIVEFILE_HPP_
 #define INCLUDE_UTILS_NATIVEFILE_HPP_
 
-#include "common.hpp"
 #include "types/repertory.hpp"
 
 namespace repertory {
 class native_file final {
 public:
-  typedef std::shared_ptr<native_file> native_file_ptr;
+  using native_file_ptr = std::shared_ptr<native_file>;
 
 public:
-  static native_file_ptr attach(OSHandle handle) {
-    return native_file_ptr(new native_file(handle));
+  [[nodiscard]] static auto attach(native_handle handle) -> native_file_ptr {
+    return std::shared_ptr<native_file>(new native_file(handle));
   }
 
-  static native_file_ptr clone(const native_file_ptr &nativeFile);
+  [[nodiscard]] static auto clone(const native_file_ptr &nativeFile)
+      -> native_file_ptr;
 
-  static api_error create_or_open(const std::string &source_path, native_file_ptr &nf);
+  [[nodiscard]] static auto create_or_open(const std::string &source_path,
+                                           bool should_chmod,
+                                           native_file_ptr &nf) -> api_error;
 
-  static api_error open(const std::string &source_path, native_file_ptr &nf);
+  [[nodiscard]] static auto create_or_open(const std::string &source_path,
+                                           native_file_ptr &nf) -> api_error;
+
+  [[nodiscard]] static auto open(const std::string &source_path,
+                                 native_file_ptr &nf) -> api_error;
+
+  [[nodiscard]] static auto open(const std::string &source_path,
+                                 bool should_chmod, native_file_ptr &nf)
+      -> api_error;
 
 private:
-  explicit native_file(const OSHandle &handle) : handle_(handle) {}
+  explicit native_file(const native_handle &handle) : handle_(handle) {}
 
 public:
-  ~native_file() = default;
+  ~native_file();
 
 private:
-  OSHandle handle_;
+  native_handle handle_;
+
+private:
+  bool auto_close{false};
 #ifdef _WIN32
   std::recursive_mutex read_write_mutex_;
 #endif
 
 public:
-  bool allocate(const std::uint64_t &file_size);
+  [[nodiscard]] auto allocate(std::uint64_t file_size) -> bool;
 
   void close();
 
-  bool copy_from(const native_file_ptr &source);
+  [[nodiscard]] auto copy_from(const native_file_ptr &source) -> bool;
 
-  bool copy_from(const std::string &path);
+  [[nodiscard]] auto copy_from(const std::string &path) -> bool;
 
   void flush();
 
-  bool get_file_size(std::uint64_t &file_size);
+  [[nodiscard]] auto get_file_size(std::uint64_t &file_size) -> bool;
 
-  OSHandle get_handle() { return handle_; }
+  [[nodiscard]] auto get_handle() -> native_handle;
 
 #ifdef _WIN32
-  bool read_bytes(char *buffer, const std::size_t &read_size, const std::uint64_t &read_offset,
-                  std::size_t &bytes_read);
+  [[nodiscard]] auto read_bytes(char *buffer, std::size_t read_size,
+                                std::uint64_t read_offset,
+                                std::size_t &bytes_read) -> bool;
 #else
-  bool read_bytes(char *buffer, const std::size_t &read_size, const std::uint64_t &read_offset,
-                  std::size_t &bytes_read);
+  [[nodiscard]] auto read_bytes(char *buffer, std::size_t read_size,
+                                std::uint64_t read_offset,
+                                std::size_t &bytes_read) -> bool;
 #endif
-  bool truncate(const std::uint64_t &file_size);
+  void set_auto_close(bool b) { auto_close = b; }
+
+  [[nodiscard]] auto truncate(std::uint64_t file_size) -> bool;
 
 #ifdef _WIN32
-  bool write_bytes(const char *buffer, const std::size_t &write_size,
-                   const std::uint64_t &write_offset, std::size_t &bytes_written);
+  [[nodiscard]] auto write_bytes(const char *buffer, std::size_t write_size,
+                                 std::uint64_t write_offset,
+                                 std::size_t &bytes_written) -> bool;
 #else
-  bool write_bytes(const char *buffer, const std::size_t &write_size,
-                   const std::uint64_t &write_offset, std::size_t &bytes_written);
+  [[nodiscard]] auto write_bytes(const char *buffer, std::size_t write_size,
+                                 std::uint64_t write_offset,
+                                 std::size_t &bytes_written) -> bool;
 #endif
 };
 
-typedef native_file::native_file_ptr native_file_ptr;
+using native_file_ptr = native_file::native_file_ptr;
 } // namespace repertory
 
 #endif // INCLUDE_UTILS_NATIVEFILE_HPP_

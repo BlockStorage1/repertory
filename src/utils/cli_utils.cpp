@@ -1,22 +1,26 @@
 /*
-  Copyright <2018-2022> <scott.e.graves@protonmail.com>
+  Copyright <2018-2023> <scott.e.graves@protonmail.com>
 
-  Permission is hereby granted, free of charge, to any person obtaining a copy of this software and
-  associated documentation files (the "Software"), to deal in the Software without restriction,
-  including without limitation the rights to use, copy, modify, merge, publish, distribute,
-  sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is
+  Permission is hereby granted, free of charge, to any person obtaining a copy
+  of this software and associated documentation files (the "Software"), to deal
+  in the Software without restriction, including without limitation the rights
+  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+  copies of the Software, and to permit persons to whom the Software is
   furnished to do so, subject to the following conditions:
 
-  The above copyright notice and this permission notice shall be included in all copies or
-  substantial portions of the Software.
+  The above copyright notice and this permission notice shall be included in all
+  copies or substantial portions of the Software.
 
-  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT
-  NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
-  NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
-  DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT
-  OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+  SOFTWARE.
 */
 #include "utils/cli_utils.hpp"
+
 #include "app_config.hpp"
 #include "utils/file_utils.hpp"
 #include "utils/path_utils.hpp"
@@ -24,18 +28,18 @@
 #include "utils/utils.hpp"
 
 namespace repertory::utils::cli {
-void get_api_authentication_data(std::string &user, std::string &password, std::uint16_t &port,
-                                 const provider_type &pt, const std::string &data_directory) {
+void get_api_authentication_data(std::string &user, std::string &password,
+                                 std::uint16_t &port, const provider_type &pt,
+                                 const std::string &data_directory) {
   const auto cfg_file_path = utils::path::combine(
-      data_directory.empty() ? app_config::default_data_directory(pt) : data_directory,
+      data_directory.empty() ? app_config::default_data_directory(pt)
+                             : data_directory,
       {"config.json"});
 
   json data;
-  auto success = false;
-  for (auto i = 0; not(success = utils::file::read_json_file(cfg_file_path, data)) && (i < 20);
-       i++) {
-    std::this_thread::sleep_for(100ms);
-  }
+  const auto success = utils::retryable_action([&]() -> bool {
+    return utils::file::read_json_file(cfg_file_path, data);
+  });
 
   if (success) {
     if (user.empty() && password.empty()) {
@@ -46,29 +50,24 @@ void get_api_authentication_data(std::string &user, std::string &password, std::
   }
 }
 
-provider_type get_provider_type_from_args(const int &argc, char *argv[]) {
-  auto pt = provider_type::unknown;
+auto get_provider_type_from_args(int argc, char *argv[]) -> provider_type {
 #if defined(REPERTORY_ENABLE_S3)
-  if ((pt == provider_type::unknown) && (has_option(argc, argv, options::s3_option))) {
-    pt = provider_type::s3;
+  if (has_option(argc, argv, options::s3_option)) {
+    return provider_type::s3;
   }
 #endif // defined(REPERTORY_ENABLE_S3)
-#if defined(REPERTORY_ENABLE_SKYNET)
-  if ((pt == provider_type::unknown) && (has_option(argc, argv, options::skynet_option))) {
-    pt = provider_type::skynet;
+  if (has_option(argc, argv, options::remote_mount_option)) {
+    return provider_type::remote;
   }
-#endif // defined(REPERTORY_ENABLE_SKYNET)
-  if ((pt == provider_type::unknown) && (has_option(argc, argv, options::remote_mount_option))) {
-    pt = provider_type::remote;
+  if (has_option(argc, argv, options::encrypt_option)) {
+    return provider_type::encrypt;
   }
 
-  if (pt == provider_type::unknown) {
-    pt = provider_type::sia;
-  }
-
-  return pt;
+  return provider_type::sia;
 }
-bool has_option(const int &argc, char *argv[], const std::string &option_name) {
+
+auto has_option(int argc, char *argv[], const std::string &option_name)
+    -> bool {
   auto ret = false;
   for (int i = 0; not ret && (i < argc); i++) {
     ret = (option_name == argv[i]);
@@ -76,12 +75,12 @@ bool has_option(const int &argc, char *argv[], const std::string &option_name) {
   return ret;
 }
 
-bool has_option(const int &argc, char *argv[], const option &opt) {
+auto has_option(int argc, char *argv[], const option &opt) -> bool {
   return has_option(argc, argv, opt[0u]) || has_option(argc, argv, opt[1u]);
 }
 
-std::vector<std::string> parse_option(const int &argc, char *argv[], const std::string &option_name,
-                                      std::uint8_t count) {
+auto parse_option(int argc, char *argv[], const std::string &option_name,
+                  std::uint8_t count) -> std::vector<std::string> {
   std::vector<std::string> ret;
   auto found = false;
   for (auto i = 0; not found && (i < argc); i++) {
@@ -97,14 +96,16 @@ std::vector<std::string> parse_option(const int &argc, char *argv[], const std::
   return ret;
 }
 
-exit_code parse_string_option(const int &argc, char **argv, const option &opt, std::string &value) {
+auto parse_string_option(int argc, char **argv, const option &opt,
+                         std::string &value) -> exit_code {
   auto ret = exit_code::success;
   if (has_option(argc, argv, opt[0u]) || has_option(argc, argv, opt[1u])) {
     auto data = parse_option(argc, argv, opt[0u], 1u);
     if (data.empty()) {
       data = parse_option(argc, argv, opt[1u], 1u);
       if (data.empty()) {
-        std::cerr << "Invalid syntax for '" << opt[0u] << "," << opt[1u] << '\'' << std::endl;
+        std::cerr << "Invalid syntax for '" << opt[0u] << "," << opt[1u] << '\''
+                  << std::endl;
         ret = exit_code::invalid_syntax;
       }
     }
@@ -117,16 +118,19 @@ exit_code parse_string_option(const int &argc, char **argv, const option &opt, s
   return ret;
 }
 
-std::vector<std::string> parse_drive_options(const int &argc, char **argv, provider_type &pt,
-                                             std::string &data_directory) {
+auto parse_drive_options(int argc, char **argv,
+                         [[maybe_unused]] provider_type &pt,
+                         [[maybe_unused]] std::string &data_directory)
+    -> std::vector<std::string> {
   // Strip out options from command line
   const auto &option_list = options::option_list;
   std::vector<std::string> drive_args;
   for (int i = 0; i < argc; i++) {
     const auto &a = argv[i];
-    if (std::find_if(option_list.begin(), option_list.end(), [&a](const auto &pair) -> bool {
-          return ((pair[0] == a) || (pair[1] == a));
-        }) == option_list.end()) {
+    if (std::find_if(option_list.begin(), option_list.end(),
+                     [&a](const auto &pair) -> bool {
+                       return ((pair[0] == a) || (pair[1] == a));
+                     }) == option_list.end()) {
       drive_args.emplace_back(argv[i]);
     } else if ((std::string(argv[i]) == options::remote_mount_option[0]) ||
                (std::string(argv[i]) == options::remote_mount_option[1])) {
@@ -160,17 +164,14 @@ std::vector<std::string> parse_drive_options(const int &argc, char **argv, provi
           pt = provider_type::s3;
         }
 #endif // defined(REPERTORY_ENABLE_S3)
-#if defined(REPERTORY_ENABLE_SKYNET)
-        if ((fuse_option.find("sk") == 0) || (fuse_option.find("skynet") == 0)) {
-          pt = provider_type::skynet;
-        }
-#endif // defined(REPERTORY_ENABLE_SKYNET)
-        if ((fuse_option.find("dd") == 0) || (fuse_option.find("data_directory") == 0)) {
+        if ((fuse_option.find("dd") == 0) ||
+            (fuse_option.find("data_directory") == 0)) {
           const auto data = utils::string::split(fuse_option, '=');
           if (data.size() == 2) {
             data_directory = data[1];
           } else {
-            std::cerr << "Invalid syntax for '-dd,--data_directory'" << std::endl;
+            std::cerr << "Invalid syntax for '-dd,--data_directory'"
+                      << std::endl;
             exit(3);
           }
         } else {
@@ -197,25 +198,44 @@ std::vector<std::string> parse_drive_options(const int &argc, char **argv, provi
       }
     }
 
+#if FUSE_USE_VERSION < 30
+    {
+      auto it = std::remove_if(
+          fuse_flags_list.begin(), fuse_flags_list.end(),
+          [](const auto &opt) -> bool { return opt.find("hard_remove") == 0; });
+      if (it == fuse_flags_list.end()) {
+        fuse_flags_list.emplace_back("hard_remove");
+      }
+    }
+#endif
+
 #ifdef __APPLE__
-    auto it = std::remove_if(fuse_flags_list.begin(), fuse_flags_list.end(),
-                             [](const auto &opt) -> bool { return opt.find("volname") == 0; });
-    if (it != fuse_flags_list.end()) {
-      fuse_flags_list.erase(it, fuse_flags_list.end());
-    }
-    fuse_flags_list.emplace_back("volname=Repertory" + app_config::get_provider_display_name(pt));
+    {
+      auto it = std::remove_if(
+          fuse_flags_list.begin(), fuse_flags_list.end(),
+          [](const auto &opt) -> bool { return opt.find("volname") == 0; });
+      if (it != fuse_flags_list.end()) {
+        fuse_flags_list.erase(it, fuse_flags_list.end());
+      }
+      fuse_flags_list.emplace_back("volname=Repertory" +
+                                   app_config::get_provider_display_name(pt));
 
-    it = std::remove_if(fuse_flags_list.begin(), fuse_flags_list.end(),
-                        [](const auto &opt) -> bool { return opt.find("daemon_timeout") == 0; });
-    if (it != fuse_flags_list.end()) {
-      fuse_flags_list.erase(it, fuse_flags_list.end());
-    }
-    fuse_flags_list.emplace_back("daemon_timeout=300");
+      it = std::remove_if(fuse_flags_list.begin(), fuse_flags_list.end(),
+                          [](const auto &opt) -> bool {
+                            return opt.find("daemon_timeout") == 0;
+                          });
+      if (it != fuse_flags_list.end()) {
+        fuse_flags_list.erase(it, fuse_flags_list.end());
+      }
+      fuse_flags_list.emplace_back("daemon_timeout=300");
 
-    it = std::remove_if(fuse_flags_list.begin(), fuse_flags_list.end(),
-                        [](const auto &opt) -> bool { return opt.find("noappledouble") == 0; });
-    if (it == fuse_flags_list.end()) {
-      fuse_flags_list.emplace_back("noappledouble");
+      it = std::remove_if(fuse_flags_list.begin(), fuse_flags_list.end(),
+                          [](const auto &opt) -> bool {
+                            return opt.find("noappledouble") == 0;
+                          });
+      if (it == fuse_flags_list.end()) {
+        fuse_flags_list.emplace_back("noappledouble");
+      }
     }
 #endif // __APPLE__
 

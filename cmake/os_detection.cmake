@@ -1,0 +1,13 @@
+if(UNIX AND NOT APPLE)
+  if(${CMAKE_SYSTEM_NAME} MATCHES "FreeBSD")
+    set(FREEBSD TRUE)
+  else()
+    set(LINUX TRUE)
+  endif()
+elseif(UNIX AND APPLE)
+  set(MACOS TRUE)
+endif()
+
+if (LINUX)
+  find_file(ALPINE_FOUND alpine-release PATHS /etc)
+endif()

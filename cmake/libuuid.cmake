@@ -9,9 +9,9 @@ if (LINUX)
     BUILD_IN_SOURCE 1
     CONFIGURE_COMMAND cp ${CMAKE_CURRENT_SOURCE_DIR}/3rd_party/config.guess ./config.guess && 
       cp ${CMAKE_CURRENT_SOURCE_DIR}/3rd_party/config.sub ./config.sub && 
-      CC=${CMAKE_C_COMPILER} CXX=${CMAKE_CXX_COMPILER};./configure --enable-static --prefix=${EXTERNAL_BUILD_ROOT}
+      CC=${CMAKE_C_COMPILER} CXX=${CMAKE_CXX_COMPILER};./configure --disable-shared --enable-static --prefix=${EXTERNAL_BUILD_ROOT}
     BUILD_COMMAND CC=${CMAKE_C_COMPILER} CXX=${CMAKE_CXX_COMPILER};make
     INSTALL_COMMAND make install
   )
-  set(LIBUUID_LIBRARIES ${EXTERNAL_BUILD_ROOT}/lib/libuuid.a)
+  set(LIBUUID_LIBRARIES libuuid.a)
 endif()

@@ -1,26 +1,29 @@
 /*
-  Copyright <2018-2022> <scott.e.graves@protonmail.com>
+  Copyright <2018-2023> <scott.e.graves@protonmail.com>
 
-  Permission is hereby granted, free of charge, to any person obtaining a copy of this software and
-  associated documentation files (the "Software"), to deal in the Software without restriction,
-  including without limitation the rights to use, copy, modify, merge, publish, distribute,
-  sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is
+  Permission is hereby granted, free of charge, to any person obtaining a copy
+  of this software and associated documentation files (the "Software"), to deal
+  in the Software without restriction, including without limitation the rights
+  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+  copies of the Software, and to permit persons to whom the Software is
   furnished to do so, subject to the following conditions:
 
-  The above copyright notice and this permission notice shall be included in all copies or
-  substantial portions of the Software.
+  The above copyright notice and this permission notice shall be included in all
+  copies or substantial portions of the Software.
 
-  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT
-  NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
-  NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
-  DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT
-  OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+  SOFTWARE.
 */
 #ifndef INCLUDE_DRIVES_FUSE_REMOTEFUSE_REMOTE_FUSE_DRIVE_HPP_
 #define INCLUDE_DRIVES_FUSE_REMOTEFUSE_REMOTE_FUSE_DRIVE_HPP_
 #ifndef _WIN32
 
-#include "common.hpp"
+#include "drives/fuse/fuse_base.hpp"
 #include "drives/fuse/remotefuse/i_remote_instance.hpp"
 #include "events/event_system.hpp"
 
@@ -32,223 +35,206 @@ class lock_data;
 class server;
 
 namespace remote_fuse {
-class remote_fuse_drive final {
-  E_CONSUMER();
-
+class remote_fuse_drive final : public fuse_base {
 public:
-  remote_fuse_drive(app_config &config, lock_data &lock, remote_instance_factory factory);
+  remote_fuse_drive(app_config &config, remote_instance_factory factory,
+                    lock_data &lock)
+      : fuse_base(config), factory_(std::move(factory)), lock_data_(lock) {}
 
-  ~remote_fuse_drive() { E_CONSUMER_RELEASE(); }
+  ~remote_fuse_drive() override = default;
 
 private:
-  app_config &config_;
-  lock_data &lock_;
   remote_instance_factory factory_;
-  std::string mount_location_;
+  lock_data &lock_data_;
+  std::shared_ptr<console_consumer> console_consumer_;
+  std::shared_ptr<logging_consumer> logging_consumer_;
+  std::shared_ptr<i_remote_instance> remote_instance_;
+  std::shared_ptr<server> server_;
+  bool was_mounted_ = false;
 
 private:
-  static void shutdown(std::string mount_location);
+  void populate_stat(const remote::stat &r, bool directory, struct stat &st);
 
-private:
-  class remote_fuse_impl final {
-  public:
-    static app_config *config_;
-    static lock_data *lock_;
-    static std::string *mount_location_;
-    static remote_instance_factory *factory_;
-    static std::unique_ptr<console_consumer> console_consumer_;
-    static std::unique_ptr<logging_consumer> logging_consumer_;
-    static std::unique_ptr<i_remote_instance> remote_instance_;
-    static std::unique_ptr<server> server_;
-    static std::optional<gid_t> forced_gid_;
-    static std::optional<uid_t> forced_uid_;
-    static std::optional<mode_t> forced_umask_;
-    static bool console_enabled_;
-    static bool was_mounted_;
-
-  public:
-    static void tear_down(const int &ret);
-
-  private:
-    static void populate_stat(const remote::stat &r, const bool &directory, struct stat &st);
-
-  public:
-    static int repertory_access(const char *path, int mask);
+protected:
+  [[nodiscard]] auto access_impl(std::string api_path, int mask)
+      -> api_error override;
 
 #ifdef __APPLE__
-    static int repertory_chflags(const char *path, uint32_t flags);
-#endif
+  [[nodiscard]] auto chflags_impl(std::string api_path, uint32_t flags)
+      -> api_error override;
+#endif // __APPLE__
 
-    static int repertory_chmod(const char *path, mode_t mode);
-
-    static int repertory_chown(const char *path, uid_t uid, gid_t gid);
-
-    static int repertory_create(const char *path, mode_t mode, struct fuse_file_info *fi);
-
-    static void repertory_destroy(void * /*ptr*/);
-
-    /*static int repertory_fallocate(const char *path, int mode, off_t offset, off_t length,
-                                   struct fuse_file_info *fi) ;*/
-
-    static int repertory_fgetattr(const char *path, struct stat *st, struct fuse_file_info *fi);
-
-#ifdef __APPLE__
-    static int repertory_fsetattr_x(const char *path, struct setattr_x *attr,
-                                    struct fuse_file_info *fi);
-#endif
-
-    static int repertory_fsync(const char *path, int datasync, struct fuse_file_info *fi);
-
-    static int repertory_ftruncate(const char *path, off_t size, struct fuse_file_info *fi);
-
-    static int repertory_getattr(const char *path, struct stat *st);
-
-#ifdef __APPLE__
-    static int repertory_getxtimes(const char *path, struct timespec *bkuptime,
-                                   struct timespec *crtime);
-#endif
-
-    static void *repertory_init(struct fuse_conn_info *conn);
-
-    static int repertory_mkdir(const char *path, mode_t mode);
-
-    static int repertory_open(const char *path, struct fuse_file_info *fi);
-
-    static int repertory_opendir(const char *path, struct fuse_file_info *fi);
-
-    static int repertory_read(const char *path, char *buffer, size_t readSize, off_t readOffset,
-                              struct fuse_file_info *fi);
-
-    static int repertory_readdir(const char *path, void *buf, fuse_fill_dir_t fuseFillDir,
-                                 off_t offset, struct fuse_file_info *fi);
-
-    static int repertory_release(const char *path, struct fuse_file_info *fi);
-
-    static int repertory_releasedir(const char *path, struct fuse_file_info *fi);
-
-    static int repertory_rename(const char *from, const char *to);
-
-    static int repertory_rmdir(const char *path);
-/*
-#ifdef HAS_SETXATTR
-#ifdef __APPLE__
-    static int repertory_getxattr(const char *path, const char *name, char *value, size_t size,
-                                  uint32_t position) ;
+#if FUSE_USE_VERSION >= 30
+  [[nodiscard]] auto chmod_impl(std::string api_path, mode_t mode,
+                                struct fuse_file_info *fi)
+      -> api_error override;
 #else
-    static int repertory_getxattr(const char *path, const char *name, char *value, size_t size) ;
-
+  [[nodiscard]] auto chmod_impl(std::string api_path, mode_t mode)
+      -> api_error override;
 #endif
-    static int repertory_listxattr(const char *path, char *buffer, size_t size) ;
 
-    static int repertory_removexattr(const char *path, const char *name) ;
+#if FUSE_USE_VERSION >= 30
+  [[nodiscard]] auto chown_impl(std::string api_path, uid_t uid, gid_t gid,
+                                struct fuse_file_info *fi)
+      -> api_error override;
+#else
+  [[nodiscard]] auto chown_impl(std::string api_path, uid_t uid, gid_t gid)
+      -> api_error override;
+#endif
+
+  [[nodiscard]] auto create_impl(std::string api_path, mode_t mode,
+                                 struct fuse_file_info *fi)
+      -> api_error override;
+  void destroy_impl(void * /*ptr*/) override;
+
+  [[nodiscard]] auto fgetattr_impl(std::string api_path, struct stat *st,
+                                   struct fuse_file_info *fi)
+      -> api_error override;
+
 #ifdef __APPLE__
-    static int repertory_setxattr(const char *path, const char *name, const char *value,
-                                  size_t size, int flags, uint32_t position) ;
+  [[nodiscard]] auto fsetattr_x_impl(std::string api_path,
+                                     struct setattr_x *attr,
+                                     struct fuse_file_info *fi)
+      -> api_error override;
+#endif // __APPLE__
+
+  [[nodiscard]] auto fsync_impl(std::string api_path, int datasync,
+                                struct fuse_file_info *fi)
+      -> api_error override;
+
+#if FUSE_USE_VERSION < 30
+  [[nodiscard]] auto ftruncate_impl(std::string api_path, off_t size,
+                                    struct fuse_file_info *fi)
+      -> api_error override;
+#endif
+
+#if FUSE_USE_VERSION >= 30
+  [[nodiscard]] auto getattr_impl(std::string api_path, struct stat *st,
+                                  struct fuse_file_info *fi)
+      -> api_error override;
 #else
-    static int repertory_setxattr(const char *path, const char *name, const char *value,
-                                  size_t size, int flags) ;
+  [[nodiscard]] auto getattr_impl(std::string api_path, struct stat *st)
+      -> api_error override;
 #endif
-#endif
- */
+
 #ifdef __APPLE__
-    static int repertory_setattr_x(const char *path, struct setattr_x *attr);
+  [[nodiscard]] auto getxtimes_impl(std::string api_path,
+                                    struct timespec *bkuptime,
+                                    struct timespec *crtime)
+      -> api_error override;
+#endif // __APPLE__
 
-    static int repertory_setbkuptime(const char *path, const struct timespec *bkuptime);
-
-    static int repertory_setchgtime(const char *path, const struct timespec *chgtime);
-
-    static int repertory_setcrtime(const char *path, const struct timespec *crtime);
-
-    static int repertory_setvolname(const char *volname);
-
-    static int repertory_statfs_x(const char *path, struct statfs *stbuf);
+#if FUSE_USE_VERSION >= 30
+  auto init_impl(struct fuse_conn_info *conn, struct fuse_config *cfg)
+      -> void * override;
 #else
-
-    static int repertory_statfs(const char *path, struct statvfs *stbuf);
-
+  auto init_impl(struct fuse_conn_info *conn) -> void * override;
 #endif
 
-    static int repertory_truncate(const char *path, off_t size);
+  [[nodiscard]] auto mkdir_impl(std::string api_path, mode_t mode)
+      -> api_error override;
 
-    static int repertory_unlink(const char *path);
+  void notify_fuse_main_exit(int &ret) override;
 
-    static int repertory_utimens(const char *path, const struct timespec tv[2]);
+  [[nodiscard]] auto open_impl(std::string api_path, struct fuse_file_info *fi)
+      -> api_error override;
 
-    static int repertory_write(const char *path, const char *buffer, size_t writeSize,
-                               off_t writeOffset, struct fuse_file_info *fi);
-  };
+  [[nodiscard]] auto opendir_impl(std::string api_path,
+                                  struct fuse_file_info *fi)
+      -> api_error override;
 
-private:
-  // clang-format off
-  struct fuse_operations fuse_ops_ {
-    .getattr = remote_fuse_impl::repertory_getattr,
-    .readlink = nullptr,   // int (*readlink) (const char *, char *, size_t);
-    .getdir = nullptr, // int (*getdir) (const char *, fuse_dirh_t, fuse_dirfil_t);
-    .mknod = nullptr,  // int (*mknod) (const char *, mode_t, dev_t);
-    .mkdir = remote_fuse_impl::repertory_mkdir,
-    .unlink = remote_fuse_impl::repertory_unlink,
-    .rmdir = remote_fuse_impl::repertory_rmdir,
-    .symlink = nullptr, // int (*symlink) (const char *, const char *);
-    .rename = remote_fuse_impl::repertory_rename,
-    .link = nullptr, // int (*link) (const char *, const char *);
-    .chmod = remote_fuse_impl::repertory_chmod,
-    .chown = remote_fuse_impl::repertory_chown,
-    .truncate = remote_fuse_impl::repertory_truncate,
-    .utime = nullptr, // int (*utime) (const char *, struct utimbuf *);
-    .open = remote_fuse_impl::repertory_open,
-    .read = remote_fuse_impl::repertory_read,
-    .write = remote_fuse_impl::repertory_write,
+  [[nodiscard]] auto read_impl(std::string api_path, char *buffer,
+                               size_t read_size, off_t read_offset,
+                               struct fuse_file_info *fi,
+                               std::size_t &bytes_read) -> api_error override;
+
+#if FUSE_USE_VERSION >= 30
+  [[nodiscard]] auto readdir_impl(std::string api_path, void *buf,
+                                  fuse_fill_dir_t fuse_fill_dir, off_t offset,
+                                  struct fuse_file_info *fi,
+                                  fuse_readdir_flags flags)
+      -> api_error override;
+#else
+  [[nodiscard]] auto readdir_impl(std::string api_path, void *buf,
+                                  fuse_fill_dir_t fuse_fill_dir, off_t offset,
+                                  struct fuse_file_info *fi)
+      -> api_error override;
+#endif
+
+  [[nodiscard]] auto release_impl(std::string api_path,
+                                  struct fuse_file_info *fi)
+      -> api_error override;
+
+  [[nodiscard]] auto releasedir_impl(std::string api_path,
+                                     struct fuse_file_info *fi)
+      -> api_error override;
+
+#if FUSE_USE_VERSION >= 30
+  [[nodiscard]] auto rename_impl(std::string from_api_path,
+                                 std::string to_api_path, unsigned int flags)
+      -> api_error override;
+#else
+  [[nodiscard]] auto rename_impl(std::string from_api_path,
+                                 std::string to_api_path) -> api_error override;
+#endif
+
+  [[nodiscard]] auto rmdir_impl(std::string api_path) -> api_error override;
+
 #ifdef __APPLE__
-    .statfs = nullptr,
+  [[nodiscard]] auto setattr_x_impl(std::string api_path,
+                                    struct setattr_x *attr)
+      -> api_error override;
+
+  [[nodiscard]] auto setbkuptime_impl(std::string api_path,
+                                      const struct timespec *bkuptime)
+      -> api_error override;
+
+  [[nodiscard]] auto setchgtime_impl(std::string api_path,
+                                     const struct timespec *chgtime)
+      -> api_error override;
+
+  [[nodiscard]] auto setcrtime_impl(std::string api_path,
+                                    const struct timespec *crtime)
+      -> api_error override;
+
+  [[nodiscard]] virtual auto setvolname_impl(const char *volname)
+      -> api_error override;
+
+  [[nodiscard]] auto statfs_x_impl(std::string api_path, struct statfs *stbuf)
+      -> api_error override;
+
+#else  // __APPLE__
+  [[nodiscard]] auto statfs_impl(std::string api_path, struct statvfs *stbuf)
+      -> api_error override;
+#endif // __APPLE__
+
+#if FUSE_USE_VERSION >= 30
+  [[nodiscard]] auto truncate_impl(std::string api_path, off_t size,
+                                   struct fuse_file_info *fi)
+      -> api_error override;
 #else
-    .statfs = remote_fuse_impl::repertory_statfs,
+  [[nodiscard]] auto truncate_impl(std::string api_path, off_t size)
+      -> api_error override;
 #endif
-    .flush = nullptr, // int (*flush) (const char *, struct fuse_file_info *);
-    .release = remote_fuse_impl::repertory_release,
-    .fsync = remote_fuse_impl::repertory_fsync,
-#if HAS_SETXATTR
-    .setxattr = nullptr,     // remote_fuse_impl::repertory_setxattr,
-    .getxattr = nullptr,    // remote_fuse_impl::repertory_getxattr,
-    .listxattr = nullptr,   // remote_fuse_impl::repertory_listxattr,
-    .removexattr = nullptr, // remote_fuse_impl::repertory_removexattr,
+
+  [[nodiscard]] auto unlink_impl(std::string api_path) -> api_error override;
+
+#if FUSE_USE_VERSION >= 30
+  [[nodiscard]] auto utimens_impl(std::string api_path,
+                                  const struct timespec tv[2],
+                                  struct fuse_file_info *fi)
+      -> api_error override;
 #else
-    .setxattr = nullptr,
-    .getxattr = nullptr,
-    .listxattr = nullptr,
-    .removexattr = nullptr,
+  [[nodiscard]] auto utimens_impl(std::string api_path,
+                                  const struct timespec tv[2])
+      -> api_error override;
 #endif
-    .opendir = remote_fuse_impl::repertory_opendir,
-    .readdir = remote_fuse_impl::repertory_readdir,
-    .releasedir = remote_fuse_impl::repertory_releasedir,
-    .fsyncdir = nullptr, // int (*fsyncdir) (const char *, int, struct fuse_file_info *);
-    .init = remote_fuse_impl::repertory_init,
-    .destroy = remote_fuse_impl::repertory_destroy,
-    .access = remote_fuse_impl::repertory_access,
-    .create = remote_fuse_impl::repertory_create,
-    .ftruncate = remote_fuse_impl::repertory_ftruncate,
-    .fgetattr = remote_fuse_impl::repertory_fgetattr,
-    .lock = nullptr, // int (*lock) (const char *, struct fuse_file_info *, int cmd, struct flock *);
-    .utimens = remote_fuse_impl::repertory_utimens,
-    .bmap = nullptr, // int (*bmap) (const char *, size_t blocksize, uint64_t *idx);
-    .flag_nullpath_ok = 0,
-    .flag_nopath = 0,
-    .flag_utime_omit_ok = 1,
-    .flag_reserved = 0,
-    .ioctl = nullptr,     // int (*ioctl) (const char *, int cmd, void *arg, struct fuse_file_info *, unsigned int flags, void *data);
-    .poll = nullptr,      // int (*poll) (const char *, struct fuse_file_info *, struct fuse_pollhandle *ph, unsigned *reventsp);
-    .write_buf = nullptr, // int (*write_buf) (const char *, struct fuse_bufvec *buf, off_t off, struct fuse_file_info *);
-    .read_buf = nullptr,  // int (*read_buf) (const char *, struct fuse_bufvec **bufp, size_t size, off_t off, struct fuse_file_info *);
-    .flock = nullptr,     // int (*flock) (const char *, struct fuse_file_info *, int op);
-    .fallocate = nullptr  // remote_fuse_impl::repertory_fallocate,
-  };
-  // clang-format on
 
-public:
-  int mount(std::vector<std::string> drive_args);
-
-  static void display_options(int argc, char *argv[]);
-
-  static void display_version_information(int argc, char *argv[]);
+  [[nodiscard]] auto write_impl(std::string api_path, const char *buffer,
+                                size_t write_size, off_t write_offset,
+                                struct fuse_file_info *fi,
+                                std::size_t &bytes_written)
+      -> api_error override;
 };
 } // namespace remote_fuse
 } // namespace repertory

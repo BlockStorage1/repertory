@@ -1,36 +1,39 @@
 /*
-  Copyright <2018-2022> <scott.e.graves@protonmail.com>
+  Copyright <2018-2023> <scott.e.graves@protonmail.com>
 
-  Permission is hereby granted, free of charge, to any person obtaining a copy of this software and
-  associated documentation files (the "Software"), to deal in the Software without restriction,
-  including without limitation the rights to use, copy, modify, merge, publish, distribute,
-  sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is
+  Permission is hereby granted, free of charge, to any person obtaining a copy
+  of this software and associated documentation files (the "Software"), to deal
+  in the Software without restriction, including without limitation the rights
+  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+  copies of the Software, and to permit persons to whom the Software is
   furnished to do so, subject to the following conditions:
 
-  The above copyright notice and this permission notice shall be included in all copies or
-  substantial portions of the Software.
+  The above copyright notice and this permission notice shall be included in all
+  copies or substantial portions of the Software.
 
-  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT
-  NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
-  NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
-  DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT
-  OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+  SOFTWARE.
 */
 #ifndef INCLUDE_COMMON_HPP_
 #define INCLUDE_COMMON_HPP_
 
 #ifdef _WIN32
-#include <WinSock2.h>
+#include <winsock2.h>
 #include <ws2tcpip.h>
-#include <Windows.h>
-#include <Shlwapi.h>
-#include <ShlObj.h>
+#include <windows.h>
+#include <shlwapi.h>
+#include <shlobj.h>
 #include <ciso646>
 #include <direct.h>
 #include <fcntl.h>
 #include <io.h>
+#include <time.h>
 #else
-#define FUSE_USE_VERSION 29
 #include <climits>
 #include <dirent.h>
 #include <fcntl.h>
@@ -62,8 +65,31 @@
 #include <uuid/uuid.h>
 #endif
 #endif
+
 #include <algorithm>
 #include <atomic>
+#include <chrono>
+#include <codecvt>
+#include <condition_variable>
+#include <deque>
+#include <filesystem>
+#include <fstream>
+#include <future>
+#include <iomanip>
+#include <iostream>
+#include <limits>
+#include <mutex>
+#include <optional>
+#include <random>
+#include <sstream>
+#include <sstream>
+#include <string>
+#include <string_view>
+#include <thread>
+#include <type_traits>
+#include <unordered_map>
+#include <vector>
+
 #include <boost/archive/text_iarchive.hpp>
 #include <boost/archive/text_oarchive.hpp>
 #include <boost/asio.hpp>
@@ -71,110 +97,133 @@
 #include <boost/dynamic_bitset.hpp>
 #include <boost/dynamic_bitset/serialization.hpp>
 #include <boost/endian/conversion.hpp>
-#include <boost/filesystem.hpp>
 #include <boost/serialization/vector.hpp>
-#include <chacha.h>
-#include <chachapoly.h>
-#include <chrono>
-#include <codecvt>
-#include <condition_variable>
 #include <curl/curl.h>
 #include <curl/multi.h>
-#include <deque>
-#include <fstream>
-#include <future>
-#include <iostream>
-#include <jsonrp.hpp>
-#include <limits>
-#include <microhttpd.h>
-#include <httpserver.hpp>
-#include <mutex>
-
-#if !IS_DEBIAN9_DISTRO && HAS_STD_OPTIONAL
-#include <optional>
-#else
-#include <utils/optional.h>
-#endif
-#include <files.h>
-#include <hex.h>
 #include <json.hpp>
-#include <osrng.h>
-#include <random>
-#include <regex>
 #include <rocksdb/db.h>
-#include <sha.h>
-#include <sstream>
-#include <string>
-#include <thread>
-#include <ttmath.h>
-#include <type_traits>
-#include <unordered_map>
-#include <vector>
 
 #ifdef _WIN32
 #include <sddl.h>
 #include <winfsp/winfsp.hpp>
 #else
+#if FUSE_USE_VERSION >= 30
+#include <fuse.h>
+#include <fuse_lowlevel.h>
+#else
 #include <fuse/fuse.h>
 #endif
-
-#if defined(REPERTORY_ENABLE_S3)
-#include <aws/core/Aws.h>
-#include <aws/core/auth/AWSCredentials.h>
-#include <aws/core/utils/logging/AWSLogging.h>
-#include <aws/core/utils/logging/DefaultLogSystem.h>
-#include <aws/s3/S3Client.h>
-#include <aws/s3/model/CopyObjectRequest.h>
-#include <aws/s3/model/CreateBucketRequest.h>
-#include <aws/s3/model/DeleteBucketRequest.h>
-#include <aws/s3/model/DeleteObjectRequest.h>
-#include <aws/s3/model/GetObjectRequest.h>
-#include <aws/s3/model/HeadObjectRequest.h>
-#include <aws/s3/model/ListObjectsRequest.h>
-#include <aws/s3/model/Object.h>
-#include <aws/s3/model/PutObjectRequest.h>
 #endif
+
+#include <pugixml.hpp>
+#include <sodium.h>
+
+#define CPPHTTPLIB_TCP_NODELAY true
+#define CPPHTTPLIB_OPENSSL_SUPPORT
+#include <httplib.h>
 
 using namespace std::chrono_literals;
 using json = nlohmann::json;
 
-const std::string &get_repertory_git_revision();
-const std::string &get_repertory_version();
+#define REPERTORY "repertory"
+#define REPERTORY_CONFIG_VERSION 0ull
+#define REPERTORY_DATA_NAME "repertory2"
+#define REPERTORY_MIN_REMOTE_VERSION "2.0.0"
+#define REPERTORY_W L"repertory"
+
+#ifdef _WIN32
+#define REPERTORY_INVALID_HANDLE INVALID_HANDLE_VALUE
+#define REPERTORY_API_INVALID_HANDLE static_cast<std::uint64_t>(-1)
+using native_handle = HANDLE;
+#else
+#define REPERTORY_INVALID_HANDLE -1
+#define REPERTORY_API_INVALID_HANDLE REPERTORY_INVALID_HANDLE
+using native_handle = int;
+#endif
+
+#define NANOS_PER_SECOND 1000000000L
 
 #ifdef _WIN32
 #ifdef CreateDirectory
 #undef CreateDirectory
 #endif
+
 #ifdef CreateFile
 #undef CreateFile
 #endif
+
 #ifdef DeleteFile
 #undef DeleteFile
 #endif
+
 #ifdef RemoveDirectory
 #undef RemoveDirectory
 #endif
+
+#ifndef _SH_DENYRW
+#define _SH_DENYRW 0x10 // deny read/write mode
 #endif
 
-#define MIN_REMOTE_VERSION "2.0.0"
-#define MIN_SIA_VERSION "1.4.1"
-#define MIN_SP_VERSION "1.4.1.2"
-#define REPERTORY_CONFIG_VERSION 0ull
-#define REPERTORY "repertory"
-#define REPERTORY_DATA_NAME "repertory2"
-#define REPERTORY_W L"repertory"
-
-#define NANOS_PER_SECOND 1000000000L
-
-#ifdef _WIN32
-#define REPERTORY_INVALID_HANDLE INVALID_HANDLE_VALUE
-#define REPERTORY_API_INVALID_HANDLE static_cast<std::uint64_t>(-1)
-#define OSHandle HANDLE
-#else
-#define REPERTORY_INVALID_HANDLE -1
-#define REPERTORY_API_INVALID_HANDLE REPERTORY_INVALID_HANDLE
-#define OSHandle int
+#ifndef _SH_DENYWR
+#define _SH_DENYWR 0x20 // deny write mode
 #endif
+
+#ifndef _SH_DENYRD
+#define _SH_DENYRD 0x30 // deny read mode
+#endif
+
+#ifndef _SH_DENYNO
+#define _SH_DENYNO 0x40 // deny none mode
+#endif
+
+#ifndef _SH_SECURE
+#define _SH_SECURE 0x80 // secure mode
+#endif
+#endif
+
+#ifndef ENETDOWN
+#define ENETDOWN 100
+#endif
+
+#ifndef SETATTR_WANTS_MODE
+#define SETATTR_WANTS_MODE(attr) ((attr)->valid & (1 << 0))
+#endif // SETATTR_WANTS_MODE
+
+#ifndef SETATTR_WANTS_UID
+#define SETATTR_WANTS_UID(attr) ((attr)->valid & (1 << 1))
+#endif // SETATTR_WANTS_UID
+
+#ifndef SETATTR_WANTS_GID
+#define SETATTR_WANTS_GID(attr) ((attr)->valid & (1 << 2))
+#endif // SETATTR_WANTS_GID
+
+#ifndef SETATTR_WANTS_SIZE
+#define SETATTR_WANTS_SIZE(attr) ((attr)->valid & (1 << 3))
+#endif // SETATTR_WANTS_SIZE
+
+#ifndef SETATTR_WANTS_ACCTIME
+#define SETATTR_WANTS_ACCTIME(attr) ((attr)->valid & (1 << 4))
+#endif // SETATTR_WANTS_ACCTIME
+
+#ifndef SETATTR_WANTS_MODTIME
+#define SETATTR_WANTS_MODTIME(attr) ((attr)->valid & (1 << 5))
+#endif // SETATTR_WANTS_MODTIME
+
+#ifndef SETATTR_WANTS_CRTIME
+#define SETATTR_WANTS_CRTIME(attr) ((attr)->valid & (1 << 28))
+#endif // SETATTR_WANTS_CRTIME
+
+#ifndef SETATTR_WANTS_CHGTIME
+#define SETATTR_WANTS_CHGTIME(attr) ((attr)->valid & (1 << 29))
+#endif // SETATTR_WANTS_CHGTIME
+
+#ifndef SETATTR_WANTS_BKUPTIME
+#define SETATTR_WANTS_BKUPTIME(attr) ((attr)->valid & (1 << 30))
+#endif // SETATTR_WANTS_BKUPTIME
+
+#ifndef SETATTR_WANTS_FLAGS
+#define SETATTR_WANTS_FLAGS(attr) ((attr)->valid & (1 << 31))
+#endif // SETATTR_WANTS_FLAGS
 
 #ifndef _WIN32
 #ifdef __APPLE__
@@ -194,9 +243,24 @@ const std::string &get_repertory_version();
 #endif
 #endif
 
-#if __APPLE__
+#ifndef fstat64
+#define fstat64 fstat
+#endif
+
+#ifndef pread64
 #define pread64 pread
+#endif
+
+#ifndef pwrite64
 #define pwrite64 pwrite
+#endif
+
+#ifndef stat64
+#define stat64 stat
+#endif
+
+#ifndef statfs64
+#define statfs64 statfs
 #endif
 
 #define WINFSP_ALLOCATION_UNIT UINT64(4096U)
@@ -206,18 +270,18 @@ const std::string &get_repertory_version();
 #define UTIME_OMIT ((1l << 30) - 2l)
 #define CONVERT_STATUS_NOT_IMPLEMENTED(e) e
 #else
-#define VOID void
-#define PVOID VOID *
-typedef PVOID HANDLE;
-#define WCHAR wchar_t
-#define PWSTR WCHAR *
-#define BOOLEAN std::uint8_t
-#define UINT16 std::uint16_t
-#define UINT32 std::uint32_t
-#define PUINT32 UINT32 *
-#define UINT64 std::uint64_t
-#define SIZE_T std::uint64_t
-#define DWORD std::uint32_t
+using BOOLEAN = std::uint8_t;
+using DWORD = std::uint32_t;
+using HANDLE = void *;
+using PUINT32 = std::uint32_t *;
+using PVOID = void *;
+using PWSTR = wchar_t *;
+using SIZE_T = std::uint64_t;
+using UINT16 = std::uint16_t;
+using UINT32 = std::uint32_t;
+using UINT64 = std::uint64_t;
+using VOID = void;
+using WCHAR = wchar_t;
 
 #define FILE_ATTRIBUTE_READONLY 0x00000001
 #define FILE_ATTRIBUTE_HIDDEN 0x00000002
@@ -275,7 +339,7 @@ typedef PVOID HANDLE;
 #define STATUS_OBJECT_NAME_NOT_FOUND std::int32_t(0xC0000034L)
 #define STATUS_OBJECT_PATH_INVALID std::int32_t(0xC0000039L)
 #define STATUS_UNEXPECTED_IO_ERROR std::int32_t(0xC00000E9L)
-#define CONVERT_STATUS_NOT_IMPLEMENTED(e)                                                          \
+#define CONVERT_STATUS_NOT_IMPLEMENTED(e)                                      \
   ((std::int32_t(e) == STATUS_NOT_IMPLEMENTED) ? -ENOTSUP : e)
 
 namespace Fsp::FileSystemBase {
@@ -302,23 +366,30 @@ struct FSP_FSCTL_FILE_INFO {
   UINT32 EaSize;
 };
 
-typedef FSP_FSCTL_FILE_INFO FileInfo;
+using FileInfo = FSP_FSCTL_FILE_INFO;
 } // namespace Fsp::FileSystemBase
 #endif
 
 using namespace Fsp;
 
-#define INTERFACE_SETUP(name)                                                                      \
-public:                                                                                            \
-  name(const name &) noexcept = delete;                                                            \
-  name(name &&) noexcept = delete;                                                                 \
-  name &operator=(const name &) noexcept = delete;                                                 \
-  name &operator=(name &&) noexcept = delete;                                                      \
-                                                                                                   \
-protected:                                                                                         \
-  name() = default;                                                                                \
-                                                                                                   \
-public:                                                                                            \
+namespace repertory {
+auto get_repertory_git_revision() -> const std::string &;
+auto get_repertory_version() -> const std::string &;
+void repertory_init();
+void repertory_shutdown();
+} // namespace repertory
+
+#define INTERFACE_SETUP(name)                                                  \
+public:                                                                        \
+  name(const name &) noexcept = delete;                                        \
+  name &operator=(const name &) noexcept = delete;                             \
+  name &operator=(name &&) noexcept = delete;                                  \
+                                                                               \
+protected:                                                                     \
+  name() = default;                                                            \
+  name(name &&) noexcept = default;                                            \
+                                                                               \
+public:                                                                        \
   virtual ~name() = default
 
 #endif // INCLUDE_COMMON_HPP_

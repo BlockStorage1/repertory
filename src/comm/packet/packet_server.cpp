@@ -1,37 +1,49 @@
 /*
-  Copyright <2018-2022> <scott.e.graves@protonmail.com>
+  Copyright <2018-2023> <scott.e.graves@protonmail.com>
 
-  Permission is hereby granted, free of charge, to any person obtaining a copy of this software and
-  associated documentation files (the "Software"), to deal in the Software without restriction,
-  including without limitation the rights to use, copy, modify, merge, publish, distribute,
-  sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is
+  Permission is hereby granted, free of charge, to any person obtaining a copy
+  of this software and associated documentation files (the "Software"), to deal
+  in the Software without restriction, including without limitation the rights
+  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+  copies of the Software, and to permit persons to whom the Software is
   furnished to do so, subject to the following conditions:
 
-  The above copyright notice and this permission notice shall be included in all copies or
-  substantial portions of the Software.
+  The above copyright notice and this permission notice shall be included in all
+  copies or substantial portions of the Software.
 
-  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT
-  NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
-  NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
-  DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT
-  OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+  SOFTWARE.
 */
 #include "comm/packet/packet_server.hpp"
-#include "events/events.hpp"
-#include "events/event_system.hpp"
+
 #include "comm/packet/packet.hpp"
+#include "events/event_system.hpp"
+#include "events/events.hpp"
 #include "types/repertory.hpp"
+#include "utils/error_utils.hpp"
+#include "utils/string_utils.hpp"
 #include "utils/utils.hpp"
 
 namespace repertory {
-packet_server::packet_server(const std::uint16_t &port, std::string token, std::uint8_t pool_size,
-                             closed_callback closed, message_handler_callback message_handler)
-    : encryption_token_(std::move(token)), closed_(closed), message_handler_(message_handler) {
+using std::thread;
+
+packet_server::packet_server(std::uint16_t port, std::string token,
+                             std::uint8_t pool_size, closed_callback closed,
+                             message_handler_callback message_handler)
+    : encryption_token_(std::move(token)),
+      closed_(std::move(closed)),
+      message_handler_(std::move(message_handler)) {
   initialize(port, pool_size);
+  event_system::instance().raise<service_started>("packet_server");
 }
 
 packet_server::~packet_server() {
-  event_system::instance().raise<service_shutdown>("packet_server");
+  event_system::instance().raise<service_shutdown_begin>("packet_server");
   std::thread([this]() {
     for (std::size_t i = 0u; i < service_threads_.size(); i++) {
       io_context_.stop();
@@ -40,6 +52,7 @@ packet_server::~packet_server() {
 
   server_thread_->join();
   server_thread_.reset();
+  event_system::instance().raise<service_shutdown_end>("packet_server");
 }
 
 void packet_server::add_client(connection &c, const std::string &client_id) {
@@ -64,12 +77,13 @@ void packet_server::initialize(const uint16_t &port, uint8_t pool_size) {
       acceptor.bind(endpoint);
       acceptor.listen();
     } catch (const std::exception &e) {
-      event_system::instance().raise<repertory_exception>(__FUNCTION__, e.what());
+      repertory::utils::error::raise_error(__FUNCTION__, e,
+                                           "exception occurred");
     }
     listen_for_connection(acceptor);
 
     for (std::uint8_t i = 0u; i < pool_size; i++) {
-      service_threads_.emplace_back(std::thread([this]() { io_context_.run(); }));
+      service_threads_.emplace_back([this]() { io_context_.run(); });
     }
 
     for (auto &th : service_threads_) {
@@ -80,14 +94,16 @@ void packet_server::initialize(const uint16_t &port, uint8_t pool_size) {
 
 void packet_server::listen_for_connection(tcp::acceptor &acceptor) {
   auto c = std::make_shared<packet_server::connection>(io_context_, acceptor);
-  acceptor.async_accept(
-      c->socket, boost::bind(&packet_server::on_accept, this, c, boost::asio::placeholders::error));
+  acceptor.async_accept(c->socket,
+                        boost::bind(&packet_server::on_accept, this, c,
+                                    boost::asio::placeholders::error));
 }
 
-void packet_server::on_accept(std::shared_ptr<connection> c, boost::system::error_code ec) {
+void packet_server::on_accept(std::shared_ptr<connection> c,
+                              boost::system::error_code ec) {
   listen_for_connection(c->acceptor);
   if (ec) {
-    event_system::instance().raise<repertory_exception>(__FUNCTION__, ec.message());
+    utils::error::raise_error(__FUNCTION__, ec.message());
     std::this_thread::sleep_for(1s);
   } else {
     c->socket.set_option(boost::asio::ip::tcp::no_delay(true));
@@ -101,30 +117,34 @@ void packet_server::on_accept(std::shared_ptr<connection> c, boost::system::erro
 }
 
 void packet_server::read_header(std::shared_ptr<connection> c) {
+  static const std::string function_name = __FUNCTION__;
+
   c->buffer.resize(sizeof(std::uint32_t));
-  boost::asio::async_read(c->socket, boost::asio::buffer(&c->buffer[0u], c->buffer.size()),
-                          [this, c](boost::system::error_code ec, std::size_t) {
-                            if (ec) {
-                              remove_client(*c);
-                              event_system::instance().raise<repertory_exception>(__FUNCTION__,
-                                                                                ec.message());
-                            } else {
-                              auto to_read = *reinterpret_cast<std::uint32_t *>(&c->buffer[0u]);
-                              boost::endian::big_to_native_inplace(to_read);
-                              read_packet(c, to_read);
-                            }
-                          });
+  boost::asio::async_read(
+      c->socket, boost::asio::buffer(&c->buffer[0u], c->buffer.size()),
+      [this, c](boost::system::error_code ec, std::size_t) {
+        if (ec) {
+          remove_client(*c);
+          repertory::utils::error::raise_error(function_name, ec.message());
+        } else {
+          auto to_read = *reinterpret_cast<std::uint32_t *>(&c->buffer[0u]);
+          boost::endian::big_to_native_inplace(to_read);
+          read_packet(c, to_read);
+        }
+      });
 }
 
-void packet_server::read_packet(std::shared_ptr<connection> c, const std::uint32_t &data_size) {
+void packet_server::read_packet(std::shared_ptr<connection> c,
+                                std::uint32_t data_size) {
   try {
     const auto read_buffer = [&]() {
       std::uint32_t offset = 0u;
       while (offset < c->buffer.size()) {
         const auto bytes_read = boost::asio::read(
-            c->socket, boost::asio::buffer(&c->buffer[offset], c->buffer.size() - offset));
+            c->socket,
+            boost::asio::buffer(&c->buffer[offset], c->buffer.size() - offset));
         if (bytes_read <= 0) {
-          throw std::runtime_error("read failed: " + std::to_string(bytes_read));
+          throw std::runtime_error("read failed|" + std::to_string(bytes_read));
         }
         offset += static_cast<std::uint32_t>(bytes_read);
       }
@@ -147,7 +167,8 @@ void packet_server::read_packet(std::shared_ptr<connection> c, const std::uint32
 
         std::string version;
         if ((ret = request->decode(version)) == 0) {
-          if (utils::compare_version_strings(version, MIN_REMOTE_VERSION) >= 0) {
+          if (utils::compare_version_strings(
+                  version, REPERTORY_MIN_REMOTE_VERSION) >= 0) {
             std::uint32_t service_flags = 0u;
             DECODE_OR_IGNORE(request, service_flags);
 
@@ -166,17 +187,18 @@ void packet_server::read_packet(std::shared_ptr<connection> c, const std::uint32
               }
 
               should_send_response = false;
-              message_handler_(service_flags, client_id, thread_id, method, request.get(),
-                               *response,
-                               [this, c, request, response](const packet::error_type &result) {
+              message_handler_(service_flags, client_id, thread_id, method,
+                               request.get(), *response,
+                               [this, c, request,
+                                response](const packet::error_type &result) {
                                  this->send_response(c, result, *response);
                                });
             }
           } else {
-            ret = utils::translate_api_error(api_error::incompatible_version);
+            ret = utils::from_api_error(api_error::incompatible_version);
           }
         } else {
-          ret = utils::translate_api_error(api_error::invalid_version);
+          ret = utils::from_api_error(api_error::invalid_version);
         }
       } else {
         throw std::runtime_error("invalid nonce");
@@ -189,7 +211,7 @@ void packet_server::read_packet(std::shared_ptr<connection> c, const std::uint32
     }
   } catch (const std::exception &e) {
     remove_client(*c);
-    event_system::instance().raise<repertory_exception>(__FUNCTION__, e.what());
+    utils::error::raise_error(__FUNCTION__, e, "exception occurred");
   }
 }
 
@@ -203,23 +225,26 @@ void packet_server::remove_client(connection &c) {
   }
 }
 
-void packet_server::send_response(std::shared_ptr<connection> c, const packet::error_type &result,
+void packet_server::send_response(std::shared_ptr<connection> c,
+                                  const packet::error_type &result,
                                   packet &response) {
+  static const std::string function_name = __FUNCTION__;
+
   response.encode_top(result);
   response.encode_top(PACKET_SERVICE_FLAGS);
   response.encode_top(c->nonce);
   response.encrypt(encryption_token_);
   response.transfer_into(c->buffer);
 
-  boost::asio::async_write(c->socket, boost::asio::buffer(c->buffer),
-                           [this, c](boost::system::error_code ec, std::size_t /*length*/) {
-                             if (ec) {
-                               remove_client(*c);
-                               event_system::instance().raise<repertory_exception>(__FUNCTION__,
-                                                                                 ec.message());
-                             } else {
-                               read_header(c);
-                             }
-                           });
+  boost::asio::async_write(
+      c->socket, boost::asio::buffer(c->buffer),
+      [this, c](boost::system::error_code ec, std::size_t /*length*/) {
+        if (ec) {
+          remove_client(*c);
+          utils::error::raise_error(function_name, ec.message());
+        } else {
+          read_header(c);
+        }
+      });
 }
 } // namespace repertory

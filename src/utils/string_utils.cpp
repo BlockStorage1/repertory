@@ -1,121 +1,129 @@
 /*
-  Copyright <2018-2022> <scott.e.graves@protonmail.com>
+  Copyright <2018-2023> <scott.e.graves@protonmail.com>
 
-  Permission is hereby granted, free of charge, to any person obtaining a copy of this software and
-  associated documentation files (the "Software"), to deal in the Software without restriction,
-  including without limitation the rights to use, copy, modify, merge, publish, distribute,
-  sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is
+  Permission is hereby granted, free of charge, to any person obtaining a copy
+  of this software and associated documentation files (the "Software"), to deal
+  in the Software without restriction, including without limitation the rights
+  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+  copies of the Software, and to permit persons to whom the Software is
   furnished to do so, subject to the following conditions:
 
-  The above copyright notice and this permission notice shall be included in all copies or
-  substantial portions of the Software.
+  The above copyright notice and this permission notice shall be included in all
+  copies or substantial portions of the Software.
 
-  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT
-  NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
-  NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
-  DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT
-  OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+  SOFTWARE.
 */
 #include "utils/string_utils.hpp"
-#include "common.hpp"
 
 namespace repertory::utils::string {
-bool begins_with(const std::string &str, const std::string &val) { return (str.find(val) == 0); }
-
-bool contains(const std::string &str, const std::string &search) {
-  return (str.find(search) != std::string::npos);
-}
-
-bool ends_with(const std::string &str, const std::string &val) {
+/* constexpr c++20 */ auto ends_with(std::string_view str, std::string_view val)
+    -> bool {
   if (val.size() > str.size()) {
     return false;
   }
   return std::equal(val.rbegin(), val.rend(), str.rbegin());
 }
 
-std::string from_bool(const bool &val) { return std::to_string(val); }
+auto from_bool(bool val) -> std::string { return std::to_string(val); }
 
-std::string from_double(const double &value) { return std::to_string(value); }
-
-std::string from_dynamic_bitset(const boost::dynamic_bitset<> &bitset) {
+auto from_dynamic_bitset(const boost::dynamic_bitset<> &bitset) -> std::string {
   std::stringstream ss;
   boost::archive::text_oarchive archive(ss);
   archive << bitset;
   return ss.str();
 }
 
-std::string from_int32(const std::int32_t &val) { return std::to_string(val); }
-
-std::string from_int64(const std::int64_t &val) { return std::to_string(val); }
-
-std::string from_uint8(const std::uint8_t &val) { return std::to_string(val); }
-
-std::string from_uint16(const std::uint16_t &val) { return std::to_string(val); }
-
-std::string from_uint32(const std::uint32_t &val) { return std::to_string(val); }
-
-std::string from_uint64(const std::uint64_t &val) { return std::to_string(val); }
-
-std::wstring from_utf8(const std::string &str) {
-  return str.empty() ? L""
-                     : std::wstring_convert<std::codecvt_utf8<wchar_t>, wchar_t>().from_bytes(str);
+auto from_utf8(const std::string &str) -> std::wstring {
+  return str.empty()
+             ? L""
+             : std::wstring_convert<std::codecvt_utf8<wchar_t>, wchar_t>()
+                   .from_bytes(str);
 }
 
-bool is_numeric(const std::string &s) {
-  static const auto r = std::regex(R"(^(\+|\-)?(([0-9]*)|(([0-9]*)\.([0-9]*)))$)");
-  return std::regex_match(s, r);
+/* constexpr c++20 */ auto is_numeric(std::string_view s) -> bool {
+  if ((s.length() > 1u) && (s[0u] == '+' || s[0u] == '-')) {
+    s = s.substr(1u);
+  }
+
+  if (s.empty()) {
+    return false;
+  }
+
+  auto has_decimal = false;
+  return std::find_if(
+             s.begin(), s.end(),
+             [&has_decimal](const std::string_view::value_type &c) -> bool {
+               if (has_decimal && c == '.') {
+                 return true;
+               }
+               if ((has_decimal = has_decimal || c == '.')) {
+                 return false;
+               }
+               return not std::isdigit(c);
+             }) == s.end();
 }
 
-std::string join(const std::vector<std::string> &arr, const char &delim) {
+auto join(const std::vector<std::string> &arr, const char &delim)
+    -> std::string {
   if (arr.empty()) {
     return "";
   }
 
-  return std::accumulate(std::next(arr.begin()), arr.end(), arr[0u],
-                         [&delim](auto s, const auto &v) { return s + delim + v; });
+  return std::accumulate(
+      std::next(arr.begin()), arr.end(), arr[0u],
+      [&delim](auto s, const auto &v) { return s + delim + v; });
 }
 
-std::string &left_trim(std::string &s) { return left_trim(s, ' '); }
+auto left_trim(std::string &s) -> std::string & { return left_trim(s, ' '); }
 
-std::string &left_trim(std::string &s, const char &c) {
+auto left_trim(std::string &s, const char &c) -> std::string & {
   s.erase(0, s.find_first_not_of(c));
   return s;
 }
 
-std::string &replace(std::string &src, const char &character, const char &with) {
+auto replace(std::string &src, const char &character, const char &with)
+    -> std::string & {
   std::replace(src.begin(), src.end(), character, with);
   return src;
 }
 
-std::string &replace(std::string &src, const std::string &find, const std::string &with,
-                     size_t startPos) {
-  if (!src.empty() && (startPos < src.size())) {
-    while ((startPos = src.find(find, startPos)) != std::string::npos) {
-      src.replace(startPos, find.size(), with);
-      startPos += with.size();
+auto replace(std::string &src, const std::string &find, const std::string &with,
+             size_t start_pos) -> std::string & {
+  if (!src.empty() && (start_pos < src.size())) {
+    while ((start_pos = src.find(find, start_pos)) != std::string::npos) {
+      src.replace(start_pos, find.size(), with);
+      start_pos += with.size();
     }
   }
   return src;
 }
 
-std::string replace_copy(std::string src, const char &character, const char &with) {
+auto replace_copy(std::string src, const char &character, const char &with)
+    -> std::string {
   std::replace(src.begin(), src.end(), character, with);
   return src;
 }
 
-std::string replace_copy(std::string src, const std::string &find, const std::string &with,
-                         size_t startPos) {
-  return replace(src, find, with, startPos);
+auto replace_copy(std::string src, const std::string &find,
+                  const std::string &with, size_t start_pos) -> std::string {
+  return replace(src, find, with, start_pos);
 }
 
-std::string &right_trim(std::string &s) { return right_trim(s, ' '); }
+auto right_trim(std::string &s) -> std::string & { return right_trim(s, ' '); }
 
-std::string &right_trim(std::string &s, const char &c) {
+auto right_trim(std::string &s, const char &c) -> std::string & {
   s.erase(s.find_last_not_of(c) + 1);
   return s;
 }
 
-std::vector<std::string> split(const std::string &str, const char &delim, const bool &should_trim) {
+auto split(const std::string &str, const char &delim, bool should_trim)
+    -> std::vector<std::string> {
   std::vector<std::string> ret;
   std::stringstream ss(str);
   std::string item;
@@ -125,7 +133,7 @@ std::vector<std::string> split(const std::string &str, const char &delim, const 
   return ret;
 }
 
-bool to_bool(std::string val) {
+auto to_bool(std::string val) -> bool {
   auto b = false;
 
   trim(val);
@@ -142,9 +150,9 @@ bool to_bool(std::string val) {
   return b;
 }
 
-double to_double(const std::string &str) { return std::stod(str); }
+auto to_double(const std::string &str) -> double { return std::stod(str); }
 
-boost::dynamic_bitset<> to_dynamic_bitset(const std::string &val) {
+auto to_dynamic_bitset(const std::string &val) -> boost::dynamic_bitset<> {
   std::stringstream ss(val);
   boost::dynamic_bitset<> bitset;
   boost::archive::text_iarchive archive(ss);
@@ -152,44 +160,64 @@ boost::dynamic_bitset<> to_dynamic_bitset(const std::string &val) {
   return bitset;
 }
 
-std::int32_t to_int32(const std::string &val) { return std::stoi(val); }
+auto to_int32(const std::string &val) -> std::int32_t { return std::stoi(val); }
 
-std::int64_t to_int64(const std::string &val) { return std::stoll(val); }
+auto to_int64(const std::string &val) -> std::int64_t {
+  return std::stoll(val);
+}
 
-std::string to_lower(std::string str) {
+auto to_lower(std::string str) -> std::string {
   std::transform(str.begin(), str.end(), str.begin(), ::tolower);
   return str;
 }
 
-std::uint8_t to_uint8(const std::string &val) { return static_cast<std::uint8_t>(std::stoul(val)); }
+auto to_size_t(const std::string &val) -> std::size_t {
+  return static_cast<std::size_t>(std::stoull(val));
+}
 
-std::uint16_t to_uint16(const std::string &val) {
+auto to_uint8(const std::string &val) -> std::uint8_t {
+  return static_cast<std::uint8_t>(std::stoul(val));
+}
+
+auto to_uint16(const std::string &val) -> std::uint16_t {
   return static_cast<std::uint16_t>(std::stoul(val));
 }
 
-std::uint32_t to_uint32(const std::string &val) {
+auto to_uint32(const std::string &val) -> std::uint32_t {
   return static_cast<std::uint32_t>(std::stoul(val));
 }
 
-std::uint64_t to_uint64(const std::string &val) { return std::stoull(val); }
+auto to_uint64(const std::string &val) -> std::uint64_t {
+  return std::stoull(val);
+}
 
-std::string to_upper(std::string str) {
+auto to_upper(std::string str) -> std::string {
   std::transform(str.begin(), str.end(), str.begin(), ::toupper);
   return str;
 }
 
-const std::string &to_utf8(const std::string &str) { return str; }
+auto to_utf8(std::string str) -> std::string { return str; }
 
-std::string to_utf8(const std::wstring &str) {
-  return str.empty() ? ""
-                     : std::wstring_convert<std::codecvt_utf8<wchar_t>, wchar_t>().to_bytes(str);
+auto to_utf8(const std::wstring &str) -> std::string {
+  return str.empty()
+             ? ""
+             : std::wstring_convert<std::codecvt_utf8<wchar_t>, wchar_t>()
+                   .to_bytes(str);
 }
 
-std::string &trim(std::string &str) { return right_trim(left_trim(str)); }
+auto trim(std::string &str) -> std::string & {
+  return right_trim(left_trim(str));
+}
 
-std::string &trim(std::string &str, const char &c) { return right_trim(left_trim(str, c), c); }
+auto trim(std::string &str, const char &c) -> std::string & {
+  return right_trim(left_trim(str, c), c);
+}
 
-std::string trim_copy(std::string str) { return right_trim(left_trim(str)); }
+auto trim_copy(std::string str) -> std::string {
+  return right_trim(left_trim(str));
+}
 
-std::string trim_copy(std::string str, const char &c) { return right_trim(left_trim(str, c), c); }
+auto trim_copy(std::string str, const char &c) -> std::string {
+  return right_trim(left_trim(str, c), c);
+}
 } // namespace repertory::utils::string

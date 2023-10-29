@@ -1,163 +1,181 @@
 /*
-  Copyright <2018-2022> <scott.e.graves@protonmail.com>
+  Copyright <2018-2023> <scott.e.graves@protonmail.com>
 
-  Permission is hereby granted, free of charge, to any person obtaining a copy of this software and
-  associated documentation files (the "Software"), to deal in the Software without restriction,
-  including without limitation the rights to use, copy, modify, merge, publish, distribute,
-  sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is
+  Permission is hereby granted, free of charge, to any person obtaining a copy
+  of this software and associated documentation files (the "Software"), to deal
+  in the Software without restriction, including without limitation the rights
+  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+  copies of the Software, and to permit persons to whom the Software is
   furnished to do so, subject to the following conditions:
 
-  The above copyright notice and this permission notice shall be included in all copies or
-  substantial portions of the Software.
+  The above copyright notice and this permission notice shall be included in all
+  copies or substantial portions of the Software.
 
-  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT
-  NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
-  NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
-  DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT
-  OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+  SOFTWARE.
 */
 #include "rpc/server/server.hpp"
+
 #include "app_config.hpp"
 #include "utils/Base64.hpp"
+#include "utils/error_utils.hpp"
 
 namespace repertory {
-server::rpc_resource::rpc_resource(server &owner) : httpserver::http_resource(), owner_(owner) {
-  disallow_all();
-  set_allowing("POST", true);
-}
+server::server(app_config &config) : config_(config) {}
 
-const std::shared_ptr<httpserver::http_response>
-server::rpc_resource::render(const httpserver::http_request &request) {
-  std::shared_ptr<json_response> ret;
-
-  try {
-    if (owner_.check_authorization(request)) {
-      std::unique_ptr<jsonrpcpp::Response> response;
-      auto entity = jsonrpcpp::Parser::do_parse(utils::string::to_utf8(request.get_content()));
-      if (entity->is_request()) {
-        auto request = std::dynamic_pointer_cast<jsonrpcpp::Request>(entity);
-        if (not owner_.handle_request(request, response)) {
-          throw jsonrpcpp::MethodNotFoundException(*request);
-        }
-        ret = std::make_shared<json_response>(response->to_json());
-      }
-    } else {
-      ret = std::make_shared<json_response>(json({{"error", "unauthorized"}}),
-                                            httpserver::http::http_utils::http_unauthorized);
-    }
-  } catch (const jsonrpcpp::RequestException &e) {
-    ret = std::make_shared<json_response>(e.to_json(),
-                                          httpserver::http::http_utils::http_bad_request);
-    event_system::instance().raise<rpc_server_exception>(e.to_json().dump());
-  } catch (const std::exception &e2) {
-    ret = std::make_shared<json_response>(json({{"exception", e2.what()}}),
-                                          httpserver::http::http_utils::http_internal_server_error);
-    event_system::instance().raise<rpc_server_exception>(e2.what());
+auto server::check_authorization(const httplib::Request &req) -> bool {
+  if (config_.get_api_auth().empty() || config_.get_api_user().empty()) {
+    utils::error::raise_error(__FUNCTION__,
+                              "authorization user or password is not set");
+    return false;
   }
 
-  return ret;
-}
-
-server::server(app_config &config) : config_(config), resource_(*this) {}
-
-bool server::check_authorization(const httpserver::http_request &request) {
-  auto ret = (config_.get_api_auth().empty() && config_.get_api_user().empty());
-  if (not ret) {
-    const auto authorization = request.get_header("Authorization");
-    if (not authorization.empty()) {
-      const auto auth_parts = utils::string::split(authorization, ' ');
-      if (not auth_parts.empty()) {
-        const auto auth_type = auth_parts[0];
-        if (auth_type == "Basic") {
-          const auto data = macaron::Base64::Decode(authorization.substr(6));
-          const auto auth = utils::string::split(std::string(data.begin(), data.end()), ':');
-          if (auth.size() == 2) {
-            const auto &user = auth[0];
-            const auto &pwd = auth[1];
-            ret = (user == config_.get_api_user()) && (pwd == config_.get_api_auth());
-          }
-        }
-      }
-    }
+  const auto authorization = req.get_header_value("Authorization");
+  if (authorization.empty()) {
+    return false;
   }
 
-  return ret;
+  const auto auth_parts = utils::string::split(authorization, ' ');
+  if (auth_parts.empty()) {
+    return false;
+  }
+
+  const auto auth_type = auth_parts[0U];
+  if (auth_type != "Basic") {
+    return false;
+  }
+
+  const auto data = macaron::Base64::Decode(authorization.substr(6U));
+  const auto auth =
+      utils::string::split(std::string(data.begin(), data.end()), ':');
+  if (auth.size() != 2U) {
+    return false;
+  }
+
+  const auto &user = auth[0U];
+  const auto &pwd = auth[1U];
+  return (user == config_.get_api_user()) && (pwd == config_.get_api_auth());
 }
 
-bool server::handle_request(jsonrpcpp::request_ptr &request,
-                            std::unique_ptr<jsonrpcpp::Response> &response) {
-  auto handled = true;
-  if (request->method == rpc_method::get_config) {
-    if (request->params.param_array.empty()) {
-      response = std::make_unique<jsonrpcpp::Response>(*request, config_.get_json());
-    } else {
-      throw jsonrpcpp::InvalidParamsException(*request);
-    }
-  } else if (request->method == rpc_method::get_config_value_by_name) {
-    if (request->params.param_array.size() == 1) {
-      response = std::make_unique<jsonrpcpp::Response>(
-          *request, json({{"value", config_.get_value_by_name(request->params.param_array[0])}}));
-    } else {
-      throw jsonrpcpp::InvalidParamsException(*request);
-    }
-  } else if (request->method == rpc_method::set_config_value_by_name) {
-    if (request->params.param_array.size() == 2) {
-      response = std::make_unique<jsonrpcpp::Response>(
-          *request, json({{"value", config_.set_value_by_name(request->params.param_array[0],
-                                                              request->params.param_array[1])}}));
-    } else {
-      throw jsonrpcpp::InvalidParamsException(*request);
-    }
-  } else if (request->method == rpc_method::unmount) {
-    if (request->params.param_array.empty()) {
-      event_system::instance().raise<unmount_requested>();
-      response = std::make_unique<jsonrpcpp::Response>(*request, json({{"success", true}}));
-    } else {
-      throw jsonrpcpp::InvalidParamsException(*request);
-    }
-  } else {
-    handled = false;
-  }
-  return handled;
+void server::handle_get_config(const httplib::Request & /*req*/,
+                               httplib::Response &res) {
+  auto data = config_.get_json();
+  res.set_content(data.dump(), "application/json");
+  res.status = 200;
 }
 
-/*void server::Start() {
-  mutex_lock l(startStopMutex_);
-  if (not started_) {
-    struct sockaddr_in localHost{};
-    inet_pton(AF_INET, "127.0.0.1", &localHost.sin_addr);
+void server::handle_get_config_value_by_name(const httplib::Request &req,
+                                             httplib::Response &res) {
+  auto name = req.get_param_value("name");
+  auto data = json({{"value", config_.get_value_by_name(name)}});
+  res.set_content(data.dump(), "application/json");
+  res.status = 200;
+}
 
-    ws_ = std::make_unique<httpserver::webserver>(
-        httpserver::create_webserver(config_.GetAPIPort())
-            .bind_address((sockaddr*)&localHost)
-            .default_policy(httpserver::http::http_utils::REJECT));
-    ws_->allow_ip("127.0.0.1");
-    ws_->register_resource("/api", &rpcResource_);
-    ws_->start(false);
-    started_ = true;
-  }
-}*/
+void server::handle_set_config_value_by_name(const httplib::Request &req,
+                                             httplib::Response &res) {
+  auto name = req.get_param_value("name");
+  auto value = req.get_param_value("value");
+
+  json data = {{"value", config_.set_value_by_name(name, value)}};
+  res.set_content(data.dump(), "application/json");
+  res.status = 200;
+}
+
+void server::handle_unmount(const httplib::Request & /*req*/,
+                            httplib::Response &res) {
+  event_system::instance().raise<unmount_requested>();
+  res.status = 200;
+}
+
+void server::initialize(httplib::Server &inst) {
+  inst.Get("/api/v1/" + rpc_method::get_config, [this](auto &&req, auto &&res) {
+    handle_get_config(std::forward<decltype(req)>(req),
+                      std::forward<decltype(res)>(res));
+  });
+
+  inst.Get("/api/v1/" + rpc_method::get_config_value_by_name,
+           [this](auto &&req, auto &&res) {
+             handle_get_config_value_by_name(std::forward<decltype(req)>(req),
+                                             std::forward<decltype(res)>(res));
+           });
+
+  inst.Post("/api/v1/" + rpc_method::set_config_value_by_name,
+            [this](auto &&req, auto &&res) {
+              handle_set_config_value_by_name(std::forward<decltype(req)>(req),
+                                              std::forward<decltype(res)>(res));
+            });
+
+  inst.Post("/api/v1/" + rpc_method::unmount, [this](auto &&req, auto &&res) {
+    handle_unmount(std::forward<decltype(req)>(req),
+                   std::forward<decltype(res)>(res));
+  });
+}
 
 void server::start() {
   mutex_lock l(start_stop_mutex_);
   if (not started_) {
-    ws_ = std::make_unique<httpserver::webserver>(
-        httpserver::create_webserver(config_.get_api_port())
-            .default_policy(httpserver::http::http_utils::REJECT));
-    ws_->allow_ip("127.0.0.1");
-    ws_->register_resource("/api", &resource_);
-    ws_->start(false);
+    event_system::instance().raise<service_started>("server");
+    server_ = std::make_unique<httplib::Server>();
+
+    server_->set_exception_handler([](const httplib::Request &req,
+                                      httplib::Response &res,
+                                      std::exception_ptr ep) {
+      json data = {{"path", req.path}};
+
+      try {
+        std::rethrow_exception(ep);
+      } catch (std::exception &e) {
+        data["error"] = e.what() ? e.what() : "unknown error";
+        utils::error::raise_error(__FUNCTION__, e,
+                                  "failed request: " + req.path);
+      } catch (...) {
+        data["error"] = "unknown error";
+        utils::error::raise_error(__FUNCTION__, "unknown error",
+                                  "failed request: " + req.path);
+      }
+
+      res.set_content(data.dump(), "application/json");
+      res.status = 500;
+    });
+
+    server_->set_pre_routing_handler(
+        [this](auto &&req, auto &&res) -> httplib::Server::HandlerResponse {
+          if (check_authorization(req)) {
+            return httplib::Server::HandlerResponse::Unhandled;
+          }
+
+          res.status = 401;
+          return httplib::Server::HandlerResponse::Handled;
+        });
+
+    initialize(*server_);
+
+    server_thread_ = std::make_unique<std::thread>(
+        [this]() { server_->listen("127.0.0.1", config_.get_api_port()); });
+
     started_ = true;
   }
 }
 
 void server::stop() {
-  mutex_lock l(start_stop_mutex_);
   if (started_) {
-    event_system::instance().raise<service_shutdown>("server");
-    ws_->stop();
-    ws_.reset();
-    started_ = false;
+    mutex_lock l(start_stop_mutex_);
+    if (started_) {
+      event_system::instance().raise<service_shutdown_begin>("server");
+
+      server_->stop();
+      server_thread_->join();
+      server_thread_.reset();
+
+      started_ = false;
+      event_system::instance().raise<service_shutdown_end>("server");
+    }
   }
 }
 } // namespace repertory

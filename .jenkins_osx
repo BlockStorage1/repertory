@@ -3,11 +3,25 @@
 pipeline {
   agent any
 
+  environment {
+    REPERTORY_TEST_DIR = "${HOME}/.ci/cfg"
+  }
+
   options {
     disableConcurrentBuilds()
+    retry(2)
   }
 
   stages {
+    stage('clean') {
+      steps {
+        sh 'mkdir -p build/'
+        sh 'rm -f build/librepertory.a'
+        sh 'rm -f build/repertory'
+        sh 'rm -f build/unittests'
+      }
+    }
+
     stage('configure') {
       steps {
         cmake arguments: '.. -DCMAKE_BUILD_TYPE=Release -DREPERTORY_ENABLE_S3=ON', installation: 'InSearchPath', workingDir: 'build'
@@ -20,7 +34,20 @@ pipeline {
       }
 
       steps {
-        cmake arguments: '--build . -j 8', installation: 'InSearchPath', workingDir: 'build'
+        retry(2) {
+          sleep time: 5, unit: 'SECONDS'
+          cmake arguments: '--build . -j 4', installation: 'InSearchPath', workingDir: 'build'
+        }
+      }
+    }
+
+    stage('deliver') {
+      environment {
+        PATH = "/usr/local/bin:${env.PATH}"
+      }
+
+      steps {
+        sh 'scripts/make_package.sh darwin /Users/sgraves/cert build . /Users/sgraves/mnt/filebase'
       }
     }
   }

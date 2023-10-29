@@ -3,11 +3,24 @@
 pipeline {
   agent any
 
+  environment {
+    REPERTORY_TEST_DIR = "C:\\.ci\\cfg"
+  }
+
   options {
     disableConcurrentBuilds()
+    retry(2)
   }
 
   stages {
+    stage('clean') {
+      steps {
+        bat 'del /q build\\Release\\librepertory.lib || exit 0'
+        bat 'del /q build\\Release\\unittests.exe || exit 0'
+        bat 'del /q build\\Release\\repertory.exe || exit 0'
+      }
+    }
+
     stage('configure') {
       steps {
         cmake arguments: '.. -DCMAKE_BUILD_TYPE=Release -DREPERTORY_ENABLE_S3=ON', installation: 'InSearchPath', workingDir: 'build'
@@ -16,7 +29,10 @@ pipeline {
 
     stage('build') {
       steps {
-        cmake arguments: '--build . --target ALL_BUILD --config Release -j 4', installation: 'InSearchPath', workingDir: 'build'
+        retry(2) {
+          sleep time: 5, unit: 'SECONDS'
+          cmake arguments: '--build . --target ALL_BUILD --config Release -j 4', installation: 'InSearchPath', workingDir: 'build'
+        }
       }
     }
   }

@@ -1,37 +1,44 @@
 /*
-  Copyright <2018-2022> <scott.e.graves@protonmail.com>
+  Copyright <2018-2023> <scott.e.graves@protonmail.com>
 
-  Permission is hereby granted, free of charge, to any person obtaining a copy of this software and
-  associated documentation files (the "Software"), to deal in the Software without restriction,
-  including without limitation the rights to use, copy, modify, merge, publish, distribute,
-  sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is
+  Permission is hereby granted, free of charge, to any person obtaining a copy
+  of this software and associated documentation files (the "Software"), to deal
+  in the Software without restriction, including without limitation the rights
+  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+  copies of the Software, and to permit persons to whom the Software is
   furnished to do so, subject to the following conditions:
 
-  The above copyright notice and this permission notice shall be included in all copies or
-  substantial portions of the Software.
+  The above copyright notice and this permission notice shall be included in all
+  copies or substantial portions of the Software.
 
-  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT
-  NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
-  NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
-  DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT
-  OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+  SOFTWARE.
 */
 #include "comm/packet/packet_client.hpp"
+
 #include "events/events.hpp"
 #include "types/repertory.hpp"
+#include "utils/error_utils.hpp"
 #include "utils/timeout.hpp"
 
 namespace repertory {
 // clang-format off
-E_SIMPLE2(packet_client_timeout, error, true, 
-  std::string, event_name, en, E_STRING, 
+E_SIMPLE2(packet_client_timeout, error, true,
+  std::string, event_name, en, E_STRING,
   std::string, message, msg, E_STRING
 );
 // clang-format on
 
-packet_client::packet_client(std::string host_name_or_ip, const std::uint8_t &max_connections,
-                             const std::uint16_t &port, const std::uint16_t &receive_timeout,
-                             const std::uint16_t &send_timeout, std::string encryption_token)
+packet_client::packet_client(std::string host_name_or_ip,
+                             std::uint8_t max_connections, std::uint16_t port,
+                             std::uint16_t receive_timeout,
+                             std::uint16_t send_timeout,
+                             std::string encryption_token)
     : io_context_(),
       host_name_or_ip_(std::move(host_name_or_ip)),
       max_connections_(max_connections ? max_connections : 20u),
@@ -47,10 +54,10 @@ packet_client::~packet_client() {
   io_context_.stop();
 }
 
-void packet_client::close(client &client) const {
+void packet_client::close(client &cli) const {
   try {
     boost::system::error_code ec;
-    client.socket.close(ec);
+    cli.socket.close(ec);
   } catch (...) {
   }
 }
@@ -65,8 +72,7 @@ void packet_client::close_all() {
   unique_id_ = utils::create_uuid_string();
 }
 
-bool packet_client::connect(client &c) {
-  auto ret = false;
+void packet_client::connect(client &c) {
   try {
     resolve();
     boost::asio::connect(c.socket, resolve_results_);
@@ -74,16 +80,16 @@ bool packet_client::connect(client &c) {
     c.socket.set_option(boost::asio::socket_base::linger(false, 0));
 
     packet response;
-    read_packet(c, response);
-
-    ret = true;
+    const auto res = read_packet(c, response);
+    if (res != 0) {
+      throw std::runtime_error(std::to_string(res));
+    }
   } catch (const std::exception &e) {
-    event_system::instance().raise<repertory_exception>(__FUNCTION__, e.what());
+    utils::error::raise_error(__FUNCTION__, e, "connection handshake failed");
   }
-  return ret;
 }
 
-std::shared_ptr<packet_client::client> packet_client::get_client() {
+auto packet_client::get_client() -> std::shared_ptr<packet_client::client> {
   std::shared_ptr<client> ret;
 
   unique_mutex_lock clients_lock(clients_mutex_);
@@ -109,22 +115,25 @@ void packet_client::put_client(std::shared_ptr<client> &c) {
   }
 }
 
-packet::error_type packet_client::read_packet(client &c, packet &response) {
-  std::vector<char> buffer(sizeof(std::uint32_t));
+auto packet_client::read_packet(client &c, packet &response)
+    -> packet::error_type {
+  data_buffer buffer(sizeof(std::uint32_t));
   const auto read_buffer = [&]() {
     std::uint32_t offset = 0u;
     while (offset < buffer.size()) {
-      const auto bytes_read =
-          boost::asio::read(c.socket, boost::asio::buffer(&buffer[offset], buffer.size() - offset));
+      const auto bytes_read = boost::asio::read(
+          c.socket,
+          boost::asio::buffer(&buffer[offset], buffer.size() - offset));
       if (bytes_read <= 0) {
-        throw std::runtime_error("Read failed: " + std::to_string(bytes_read));
+        throw std::runtime_error("read failed|" + std::to_string(bytes_read));
       }
       offset += static_cast<std::uint32_t>(bytes_read);
     }
   };
   read_buffer();
 
-  const auto size = boost::endian::big_to_native(*reinterpret_cast<std::uint32_t *>(&buffer[0u]));
+  const auto size = boost::endian::big_to_native(
+      *reinterpret_cast<std::uint32_t *>(&buffer[0u]));
   buffer.resize(size);
 
   read_buffer();
@@ -140,34 +149,37 @@ packet::error_type packet_client::read_packet(client &c, packet &response) {
 
 void packet_client::resolve() {
   if (resolve_results_.empty()) {
-    resolve_results_ =
-        tcp::resolver(io_context_).resolve({host_name_or_ip_, std::to_string(port_)});
+    resolve_results_ = tcp::resolver(io_context_)
+                           .resolve({host_name_or_ip_, std::to_string(port_)});
   }
 }
 
-packet::error_type packet_client::send(const std::string &method, std::uint32_t &service_flags) {
+auto packet_client::send(const std::string &method,
+                         std::uint32_t &service_flags) -> packet::error_type {
   packet request;
   return send(method, request, service_flags);
 }
 
-packet::error_type packet_client::send(const std::string &method, packet &request,
-                                       std::uint32_t &service_flags) {
+auto packet_client::send(const std::string &method, packet &request,
+                         std::uint32_t &service_flags) -> packet::error_type {
   packet response;
   return send(method, request, response, service_flags);
 }
 
-packet::error_type packet_client::send(const std::string &method, packet &request, packet &response,
-                                       std::uint32_t &service_flags) {
+auto packet_client::send(const std::string &method, packet &request,
+                         packet &response, std::uint32_t &service_flags)
+    -> packet::error_type {
   auto success = false;
-  packet::error_type ret = utils::translate_api_error(api_error::error);
+  packet::error_type ret = utils::from_api_error(api_error::error);
   request.encode_top(method);
   request.encode_top(utils::get_thread_id());
   request.encode_top(unique_id_);
   request.encode_top(PACKET_SERVICE_FLAGS);
   request.encode_top(get_repertory_version());
 
-  static const auto max_attempts = 2;
-  for (auto i = 1; allow_connections_ && not success && (i <= max_attempts); i++) {
+  static const std::uint8_t max_attempts = 5u;
+  for (std::uint8_t i = 1u;
+       allow_connections_ && not success && (i <= max_attempts); i++) {
     auto c = get_client();
     if (c) {
       try {
@@ -176,7 +188,8 @@ packet::error_type packet_client::send(const std::string &method, packet &reques
 
         timeout request_timeout(
             [this, method, c]() {
-              event_system::instance().raise<packet_client_timeout>("Request", method);
+              event_system::instance().raise<packet_client_timeout>("request",
+                                                                    method);
               close(*c.get());
             },
             std::chrono::seconds(send_timeout_));
@@ -184,9 +197,11 @@ packet::error_type packet_client::send(const std::string &method, packet &reques
         std::uint32_t offset = 0u;
         while (offset < request.get_size()) {
           const auto bytes_written = boost::asio::write(
-              c->socket, boost::asio::buffer(&request[offset], request.get_size() - offset));
+              c->socket, boost::asio::buffer(&request[offset],
+                                             request.get_size() - offset));
           if (bytes_written <= 0) {
-            throw std::runtime_error("Write failed: " + std::to_string(bytes_written));
+            throw std::runtime_error("write failed|" +
+                                     std::to_string(bytes_written));
           }
           offset += static_cast<std::uint32_t>(bytes_written);
         }
@@ -194,7 +209,8 @@ packet::error_type packet_client::send(const std::string &method, packet &reques
 
         timeout response_timeout(
             [this, method, c]() {
-              event_system::instance().raise<packet_client_timeout>("Response", method);
+              event_system::instance().raise<packet_client_timeout>("response",
+                                                                    method);
               close(*c.get());
             },
             std::chrono::seconds(receive_timeout_));
@@ -202,13 +218,17 @@ packet::error_type packet_client::send(const std::string &method, packet &reques
         ret = read_packet(*c, response);
         response_timeout.disable();
         if (ret == 0) {
-          response.decode(service_flags);
-          response.decode(ret);
-          success = true;
-          put_client(c);
+          if ((ret = response.decode(service_flags)) == 0) {
+            packet::error_type res{};
+            if ((ret = response.decode(res)) == 0) {
+              ret = res;
+              success = true;
+              put_client(c);
+            }
+          }
         }
       } catch (const std::exception &e) {
-        event_system::instance().raise<repertory_exception>(__FUNCTION__, e.what());
+        utils::error::raise_error(__FUNCTION__, e, "send failed");
         close_all();
         if (allow_connections_ && (i < max_attempts)) {
           std::this_thread::sleep_for(1s);
@@ -217,7 +237,7 @@ packet::error_type packet_client::send(const std::string &method, packet &reques
     }
 
     if (not allow_connections_) {
-      ret = utils::translate_api_error(api_error::error);
+      ret = utils::from_api_error(api_error::error);
       success = true;
     }
   }

@@ -1,700 +1,1328 @@
 /*
-  Copyright <2018-2022> <scott.e.graves@protonmail.com>
+  Copyright <2018-2023> <scott.e.graves@protonmail.com>
 
-  Permission is hereby granted, free of charge, to any person obtaining a copy of this software and
-  associated documentation files (the "Software"), to deal in the Software without restriction,
-  including without limitation the rights to use, copy, modify, merge, publish, distribute,
-  sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is
+  Permission is hereby granted, free of charge, to any person obtaining a copy
+  of this software and associated documentation files (the "Software"), to deal
+  in the Software without restriction, including without limitation the rights
+  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+  copies of the Software, and to permit persons to whom the Software is
   furnished to do so, subject to the following conditions:
 
-  The above copyright notice and this permission notice shall be included in all copies or
-  substantial portions of the Software.
+  The above copyright notice and this permission notice shall be included in all
+  copies or substantial portions of the Software.
 
-  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT
-  NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
-  NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
-  DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT
-  OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+  SOFTWARE.
 */
 #include "providers/sia/sia_provider.hpp"
-#include "comm/i_comm.hpp"
+
 #include "app_config.hpp"
+#include "comm/i_http_comm.hpp"
 #include "db/meta_db.hpp"
-#include "drives/i_open_file_table.hpp"
 #include "events/events.hpp"
+#include "file_manager/i_file_manager.hpp"
 #include "types/repertory.hpp"
-#include "types/startup_exception.hpp"
+#include "utils/error_utils.hpp"
 #include "utils/file_utils.hpp"
-#include "utils/global_data.hpp"
 #include "utils/path_utils.hpp"
 #include "utils/polling.hpp"
+#include "utils/string_utils.hpp"
+#include "utils/utils.hpp"
 
 namespace repertory {
-sia_provider::sia_provider(app_config &config, i_comm &comm) : base_provider(config), comm_(comm) {}
+sia_provider::sia_provider(app_config &config, i_http_comm &comm)
+    : config_(config), comm_(comm) {}
 
-void sia_provider::calculate_total_drive_space() {
-  std::uint64_t ret = 0u;
-  json result, error;
-  auto storage_cost = get_config().get_storage_byte_month();
-  const auto success = (get_comm().get("/renter/prices", result, error) == api_error::success);
-  if (success || (storage_cost > 0)) {
-    if (success) {
-      storage_cost = result["storageterabytemonth"].get<std::string>();
-      get_config().set_storage_byte_month(storage_cost);
-    }
-    if (get_comm().get("/renter", result, error) == api_error::success) {
-      const auto funds = utils::hastings_string_to_api_currency(
-          result["settings"]["allowance"]["funds"].get<std::string>());
-      if ((storage_cost > 0) && (funds > 0)) {
-        const auto funds_in_hastings = utils::api_currency_to_hastings(funds);
-        ttmath::Parser<api_currency> parser;
-        parser.Parse(funds_in_hastings.ToString() + " / " + storage_cost.ToString() + " * 1e12");
-        ret = not parser.stack.empty() ? parser.stack[0u].value.ToUInt() : 0u;
+auto sia_provider::get_object_info(const std::string &api_path,
+                                   json &object_info) const -> api_error {
+  try {
+    curl::requests::http_get get{};
+    get.allow_timeout = true;
+    get.path = "/api/bus/objects" + api_path;
+
+    get.response_handler = [&object_info](const data_buffer &data,
+                                          long response_code) {
+      if (response_code == 200) {
+        object_info = nlohmann::json::parse(data.begin(), data.end());
       }
+    };
+
+    long response_code{};
+    stop_type stop_requested{};
+    if (not comm_.make_request(get, response_code, stop_requested)) {
+      return api_error::comm_error;
     }
+
+    if (response_code == 404) {
+      return api_error::item_not_found;
+    }
+
+    if (response_code != 200) {
+      utils::error::raise_api_path_error(__FUNCTION__, api_path, response_code,
+                                         "failed to get object info");
+      return api_error::comm_error;
+    }
+
+    return api_error::success;
+  } catch (const std::exception &e) {
+    utils::error::raise_api_path_error(__FUNCTION__, api_path, e,
+                                       "failed to get object info");
   }
 
-  total_drive_space_ = ret;
+  return api_error::error;
 }
 
-api_error sia_provider::calculate_used_drive_space(std::uint64_t &used_space) {
-  api_file_list list;
-  const auto ret = get_file_list(list);
-  used_space = std::accumulate(
-      list.begin(), list.end(), std::uint64_t(0), [this](std::uint64_t a, const auto &v) {
-        if (not meta_db_.get_item_meta_exists(v.api_path)) {
-          this->notify_file_added(v.api_path, utils::path::get_parent_api_path(v.api_path), 0);
-        }
-        return a + v.file_size;
-      });
-  return ret;
-}
+auto sia_provider::get_object_list(const std::string api_path,
+                                   nlohmann::json &object_list) const -> bool {
+  curl::requests::http_get get{};
+  get.allow_timeout = true;
+  get.path = "/api/bus/objects" + api_path + "/";
 
-api_error sia_provider::check_file_exists(const std::string &api_path) const {
-  json data, error;
-  auto ret = get_comm().get("/renter/file" + api_path, data, error);
-  if ((ret != api_error::success) && check_not_found(error)) {
-    ret = api_error::item_not_found;
+  get.response_handler = [&object_list](const data_buffer &data,
+                                        long response_code) {
+    if (response_code == 200) {
+      object_list = nlohmann::json::parse(data.begin(), data.end());
+    }
+  };
+
+  long response_code{};
+  stop_type stop_requested{};
+  if (not comm_.make_request(get, response_code, stop_requested)) {
+    utils::error::raise_api_path_error(__FUNCTION__, api_path,
+                                       api_error::comm_error,
+                                       "failed to get object list");
+    return false;
   }
 
-  return ret;
+  if (response_code != 200) {
+    utils::error::raise_api_path_error(__FUNCTION__, api_path, response_code,
+                                       "failed to get object list");
+    return false;
+  }
+
+  return true;
 }
 
-bool sia_provider::check_directory_found(const json &error) const {
-  return ((error.find("message") != error.end()) &&
-          (utils::string::contains(error["message"].get<std::string>(),
-                                   "a siadir already exists at that location")));
-}
-
-bool sia_provider::check_not_found(const json &error) const {
-  return (
-      (error.find("message") != error.end()) &&
-      (utils::string::contains(error["message"].get<std::string>(), "no file known") ||
-       utils::string::contains(error["message"].get<std::string>(), "path does not exist") ||
-       utils::string::contains(error["message"].get<std::string>(), "no such file or directory") ||
-       utils::string::contains(error["message"].get<std::string>(), "cannot find the file") ||
-       utils::string::contains(error["message"].get<std::string>(),
-                               "no siadir known with that path") ||
-       utils::string::contains(error["message"].get<std::string>(), "cannot find the path")));
-}
-
-void sia_provider::cleanup() {
-  remove_deleted_files();
-  remove_unknown_source_files();
-  remove_expired_orphaned_files();
-}
-
-void sia_provider::create_api_file(const json &json_file, const std::string &path_name,
-                                   api_file &file) const {
-  file.api_path = utils::path::create_api_path(json_file[path_name].get<std::string>());
+auto sia_provider::create_api_file(std::string path, std::uint64_t size)
+    -> api_file {
+  api_file file{};
+  file.api_path = utils::path::create_api_path(path);
   file.api_parent = utils::path::get_parent_api_path(file.api_path);
-  file.file_size = json_file["filesize"].get<std::uint64_t>();
-  file.recoverable = json_file["recoverable"].get<bool>();
-  file.redundancy = json_file["redundancy"].get<double>();
-  file.source_path = json_file["localpath"].get<std::string>();
-
-  set_api_file_dates(json_file, file);
+  file.accessed_date = utils::get_file_time_now();
+  file.changed_date = utils::get_file_time_now();
+  file.creation_date = utils::get_file_time_now();
+  file.modified_date = utils::get_file_time_now();
+  file.file_size = size;
+  return file;
 }
 
-api_error sia_provider::create_directory(const std::string &api_path, const api_meta_map &meta) {
-#ifdef _WIN32
-  auto ret = is_directory(api_path) ? api_error::directory_exists
-             : is_file(api_path)    ? api_error::file_exists
-                                    : api_error::success;
-#else
-  auto ret = api_error::success;
-#endif
-  if (ret == api_error::success) {
-    json result, error;
-    ret = get_comm().post("/renter/dir" + api_path, {{"action", "create"}}, result, error);
-    if (ret == api_error::success) {
-      ret = set_item_meta(api_path, meta);
-    } else if (check_directory_found(error)) {
-      ret = api_error::directory_exists;
-    } else {
-      event_system::instance().raise<repertory_exception>(__FUNCTION__, error.dump(2));
+auto sia_provider::create_api_file(std::string path, std::uint64_t size,
+                                   api_meta_map &meta) -> api_file {
+  auto current_size = utils::string::to_uint64(meta[META_SIZE]);
+  if (current_size == 0U) {
+    current_size = size;
+  }
+
+  api_file file{};
+  file.api_path = utils::path::create_api_path(path);
+  file.api_parent = utils::path::get_parent_api_path(file.api_path);
+  file.accessed_date = utils::string::to_uint64(meta[META_ACCESSED]);
+  file.changed_date = utils::string::to_uint64(meta[META_CHANGED]);
+  file.creation_date = utils::string::to_uint64(meta[META_CREATION]);
+  file.file_size = current_size;
+  file.modified_date = utils::string::to_uint64(meta[META_MODIFIED]);
+  return file;
+}
+
+auto sia_provider::create_directory(const std::string &api_path,
+                                    api_meta_map &meta) -> api_error {
+  bool exists{};
+  auto res = is_directory(api_path, exists);
+  if (res != api_error::success) {
+    return res;
+  }
+  if (exists) {
+    utils::error::raise_api_path_error(__FUNCTION__, api_path,
+                                       api_error::directory_exists,
+                                       "failed to create directory");
+    return api_error::directory_exists;
+  }
+
+  res = is_file(api_path, exists);
+  if (res != api_error::success) {
+    return res;
+  }
+  if (exists) {
+    utils::error::raise_api_path_error(__FUNCTION__, api_path,
+                                       api_error::item_exists,
+                                       "failed to create directory");
+    return api_error::item_exists;
+  }
+
+  try {
+    curl::requests::http_put_file put_file{};
+    put_file.file_name =
+        *(utils::string::split(api_path, '/', false).end() - 1u);
+    put_file.path = "/api/worker/objects" + api_path + "/";
+
+    long response_code{};
+    stop_type stop_requested{};
+    if (not comm_.make_request(put_file, response_code, stop_requested)) {
+      utils::error::raise_api_path_error(__FUNCTION__, api_path,
+                                         api_error::comm_error,
+                                         "failed to create directory");
+      return api_error::comm_error;
+    }
+
+    if (response_code != 200) {
+      utils::error::raise_api_path_error(__FUNCTION__, api_path, response_code,
+                                         "failed to create directory");
+      return api_error::comm_error;
+    }
+  } catch (const std::exception &e) {
+    utils::error::raise_api_path_error(__FUNCTION__, api_path, e,
+                                       "failed to create directory");
+    return api_error::error;
+  }
+
+  meta[META_DIRECTORY] = utils::string::from_bool(true);
+  return set_item_meta(api_path, meta);
+}
+
+auto sia_provider::create_directory_clone_source_meta(
+    const std::string &source_api_path, const std::string &api_path)
+    -> api_error {
+  bool exists{};
+  auto res = is_file(source_api_path, exists);
+  if (res != api_error::success) {
+    return res;
+  }
+  if (exists) {
+    utils::error::raise_api_path_error(__FUNCTION__, api_path,
+                                       api_error::item_exists,
+                                       "failed to create directory");
+    return api_error::item_exists;
+  }
+
+  res = is_directory(api_path, exists);
+  if (res != api_error::success) {
+    return res;
+  }
+  if (exists) {
+    utils::error::raise_api_path_error(__FUNCTION__, api_path,
+                                       api_error::directory_exists,
+                                       "failed to create directory");
+    return api_error::directory_exists;
+  }
+
+  res = is_file(api_path, exists);
+  if (res != api_error::success) {
+    return res;
+  }
+  if (exists) {
+    utils::error::raise_api_path_error(__FUNCTION__, api_path,
+                                       api_error::item_exists,
+                                       "failed to create directory");
+    return api_error::item_exists;
+  }
+
+  api_meta_map meta{};
+  res = get_item_meta(source_api_path, meta);
+  if (res != api_error::success) {
+    if (res == api_error::item_not_found) {
+      res = api_error::directory_not_found;
+    }
+    utils::error::raise_api_path_error(__FUNCTION__, api_path, res,
+                                       "failed to create directory");
+    return res;
+  }
+
+  return create_directory(api_path, meta);
+}
+
+auto sia_provider::create_file(const std::string &api_path, api_meta_map &meta)
+    -> api_error {
+  bool exists{};
+  auto res = is_directory(api_path, exists);
+  if (res != api_error::success && res != api_error::item_not_found) {
+    return res;
+  }
+  if (exists) {
+    utils::error::raise_api_path_error(__FUNCTION__, api_path,
+                                       api_error::directory_exists,
+                                       "failed to create file");
+    return api_error::directory_exists;
+  }
+
+  res = is_file(api_path, exists);
+  if (res != api_error::success && res != api_error::item_not_found) {
+    return res;
+  }
+  if (exists) {
+    utils::error::raise_api_path_error(__FUNCTION__, api_path,
+                                       api_error::item_exists,
+                                       "failed to create file");
+    return api_error::item_exists;
+  }
+
+  try {
+    curl::requests::http_put_file put_file{};
+    put_file.file_name =
+        *(utils::string::split(api_path, '/', false).end() - 1u);
+    put_file.path = "/api/worker/objects" + api_path;
+
+    long response_code{};
+    stop_type stop_requested{};
+    if (not comm_.make_request(put_file, response_code, stop_requested)) {
+      utils::error::raise_api_path_error(__FUNCTION__, api_path,
+                                         api_error::comm_error,
+                                         "failed to create file");
+      return api_error::comm_error;
+    }
+
+    if (response_code != 200) {
+      utils::error::raise_api_path_error(__FUNCTION__, api_path, response_code,
+                                         "failed to create file");
+      return api_error::comm_error;
+    }
+  } catch (const std::exception &e) {
+    utils::error::raise_api_path_error(__FUNCTION__, api_path, e,
+                                       "failed to create file");
+    return api_error::error;
+  }
+
+  meta[META_DIRECTORY] = utils::string::from_bool(false);
+  return set_item_meta(api_path, meta);
+}
+
+auto sia_provider::get_api_path_from_source(const std::string &source_path,
+                                            std::string &api_path) const
+    -> api_error {
+  if (source_path.empty()) {
+    utils::error::raise_api_path_error(__FUNCTION__, api_path,
+                                       api_error::item_not_found,
+                                       "failed to source path from api path");
+    return api_error::item_not_found;
+  }
+
+  auto iterator = std::unique_ptr<rocksdb::Iterator>(
+      db_->NewIterator(rocksdb::ReadOptions()));
+  for (iterator->SeekToFirst(); iterator->Valid(); iterator->Next()) {
+    std::string current_source_path{};
+    if (get_item_meta(iterator->key().ToString(), META_SOURCE,
+                      current_source_path) != api_error::success) {
+      continue;
+    }
+
+    if (current_source_path.empty()) {
+      continue;
+    }
+
+    if (current_source_path == source_path) {
+      api_path = iterator->key().ToString();
+      return api_error::success;
     }
   }
 
-  return ret;
+  return api_error::item_not_found;
 }
 
-void sia_provider::drive_space_thread() {
-  while (not stop_requested_) {
-    unique_mutex_lock l(start_stop_mutex_);
-    if (not stop_requested_) {
-      start_stop_notify_.wait_for(l, 5s);
+auto sia_provider::get_directory_item_count(const std::string &api_path) const
+    -> std::uint64_t {
+  try {
+    json object_list{};
+    if (not get_object_list(api_path, object_list)) {
+      return 0U;
     }
-    l.unlock();
 
-    if (not stop_requested_) {
-      calculate_total_drive_space();
-    }
-  }
-}
-
-api_error sia_provider::get_directory(const std::string &api_path, json &result,
-                                      json &error) const {
-  return get_comm().get("/renter/dir" + api_path, result, error);
-}
-
-std::uint64_t sia_provider::get_directory_item_count(const std::string &api_path) const {
-  std::uint64_t ret = 0u;
-
-  json result, error;
-  const auto res = get_directory(api_path, result, error);
-  if (res == api_error::success) {
-    const auto directory_count = result["directories"].size() - 1;
-    const auto file_count = result["files"].size();
-    ret = file_count + directory_count;
-  }
-
-  return ret;
-}
-
-api_error sia_provider::get_directory_items(const std::string &api_path,
-                                            directory_item_list &list) const {
-  list.clear();
-
-  json result, error;
-  auto ret = get_directory(api_path, result, error);
-  if (ret == api_error::success) {
-    const auto create_directory_item = [this](const std::string &item_path, const bool &directory,
-                                              const json &item, directory_item &di) {
-      di.api_path = item_path;
-      di.api_parent = utils::path::get_parent_api_path(di.api_path);
-      di.directory = directory;
-      if (directory) {
-        const auto directory_count = item["numsubdirs"].get<std::uint64_t>();
-        const auto file_count = item["numfiles"].get<std::uint64_t>();
-        di.size = (directory_count + file_count);
-      } else {
-        di.size = item["filesize"].get<std::uint64_t>();
-      }
-      this->get_item_meta(di.api_path, di.meta);
-      this->oft_->update_directory_item(di);
-    };
-
-    const auto process_item = [&](const bool &directory, const json &item) {
-      const auto item_path = utils::path::create_api_path(
-          item[app_config::get_provider_path_name(get_config().get_provider_type())]
-              .get<std::string>());
-      const auto is_root_path = (item_path == api_path);
-
-      directory_item di{};
-      create_directory_item(item_path, directory, item, di);
-      if (is_root_path) {
-        di.api_path = ".";
-      }
-      list.emplace_back(di);
-      if (is_root_path) {
-        if (item_path == "/") {
-          di.api_path = "..";
-          list.emplace_back(di);
-        } else {
-          directory_item dot_dot_di{};
-          json result, error;
-          const auto res = get_directory(di.api_parent, result, error);
-          if (res == api_error::success) {
-            create_directory_item(di.api_parent, true, result["directories"][0u], dot_dot_di);
+    std::uint64_t item_count{};
+    if (object_list.contains("entries")) {
+      for (const auto &entry : object_list.at("entries")) {
+        try {
+          auto name = entry.at("name").get<std::string>();
+          auto entry_api_path = utils::path::create_api_path(name);
+          if (utils::string::ends_with(name, "/") &&
+              (entry_api_path == api_path)) {
+            continue;
           }
-          dot_dot_di.api_path = "..";
-          list.emplace_back(dot_dot_di);
+          ++item_count;
+        } catch (const std::exception &e) {
+          utils::error::raise_api_path_error(__FUNCTION__, api_path, e,
+                                             "failed to process entry|" +
+                                                 entry.dump());
         }
       }
-    };
-
-    for (const auto &dir : result["directories"]) {
-      process_item(true, dir);
     }
 
-    for (const auto &file : result["files"]) {
-      process_item(false, file);
+    return item_count;
+  } catch (const std::exception &e) {
+    utils::error::raise_api_path_error(__FUNCTION__, api_path, e,
+                                       "failed to get directory item count");
+  }
+
+  return 0U;
+}
+
+auto sia_provider::get_directory_items(const std::string &api_path,
+                                       directory_item_list &list) const
+    -> api_error {
+  bool exists{};
+  auto res = is_directory(api_path, exists);
+  if (res != api_error::success) {
+    return res;
+  }
+  if (not exists) {
+    return api_error::directory_not_found;
+  }
+
+  try {
+    json object_list{};
+    if (not get_object_list(api_path, object_list)) {
+      return api_error::comm_error;
     }
 
-    ret = api_error::success;
-  }
+    if (object_list.contains("entries")) {
+      for (const auto &entry : object_list.at("entries")) {
+        try {
+          auto name = entry.at("name").get<std::string>();
+          auto entry_api_path = utils::path::create_api_path(name);
 
-  return ret;
-}
+          auto directory = utils::string::ends_with(name, "/");
+          if (directory && (entry_api_path == api_path)) {
+            continue;
+          }
 
-api_error sia_provider::get_file(const std::string &api_path, api_file &file) const {
-  json data, error;
-  const auto ret = get_comm().get("/renter/file" + api_path, data, error);
-  if (ret == api_error::success) {
-    const std::string path_name =
-        app_config::get_provider_path_name(get_config().get_provider_type());
-    create_api_file(data["file"], path_name, file);
-  } else {
-    event_system::instance().raise<file_get_failed>(api_path, error.dump(2));
-  }
+          api_file file{};
 
-  return ret;
-}
+          api_meta_map meta{};
+          if (get_item_meta(entry_api_path, meta) ==
+              api_error::item_not_found) {
+            file = create_api_file(
+                entry_api_path,
+                directory ? 0U : entry["size"].get<std::uint64_t>());
+            api_item_added_(directory, file);
+            res = get_item_meta(entry_api_path, meta);
+            if (res != api_error::success) {
+              utils::error::raise_error(__FUNCTION__, res,
+                                        "failed to get item meta");
+              continue;
+            }
+          } else {
+            file = create_api_file(
+                entry_api_path,
+                directory ? 0U : entry["size"].get<std::uint64_t>(), meta);
+          }
 
-api_error sia_provider::get_file_list(api_file_list &list) const {
-  auto ret = api_error::success;
-  json data;
-  json error;
-  if ((ret = get_comm().get("/renter/files", data, error)) == api_error::success) {
-    for (const auto &file_data : data["files"]) {
-      const std::string path_name =
-          app_config::get_provider_path_name(get_config().get_provider_type());
-      api_file file{};
-      create_api_file(file_data, path_name, file);
-
-      list.emplace_back(file);
-    }
-  } else {
-    event_system::instance().raise<file_get_api_list_failed>(error.dump(2));
-  }
-
-  return ret;
-}
-
-api_error sia_provider::get_file_size(const std::string &api_path, std::uint64_t &file_size) const {
-  file_size = 0u;
-
-  json data, error;
-  const auto ret = get_comm().get("/renter/file" + api_path, data, error);
-  if (ret == api_error::success) {
-    file_size = data["file"]["filesize"].get<std::uint64_t>();
-  } else {
-    event_system::instance().raise<file_get_size_failed>(api_path, error.dump(2));
-  }
-
-  return ret;
-}
-
-api_error sia_provider::get_filesystem_item(const std::string &api_path, const bool &directory,
-                                            filesystem_item &fsi) const {
-  auto ret = api_error::error;
-  if (directory) {
-    json result, error;
-    ret = get_directory(api_path, result, error);
-    if (ret != api_error::success) {
-      if (check_not_found(error)) {
-        ret = api_error::item_not_found;
-      } else {
-        event_system::instance().raise<filesystem_item_get_failed>(api_path, error.dump(2));
+          directory_item di{};
+          di.api_parent = file.api_parent;
+          di.api_path = file.api_path;
+          di.directory = directory;
+          di.meta = meta;
+          di.resolved = true;
+          di.size = file.file_size;
+          list.emplace_back(std::move(di));
+        } catch (const std::exception &e) {
+          utils::error::raise_api_path_error(__FUNCTION__, api_path, e,
+                                             "failed to process entry|" +
+                                                 entry.dump());
+        }
       }
     }
+  } catch (const std::exception &e) {
+    utils::error::raise_api_path_error(__FUNCTION__, api_path, e,
+                                       "failed to get directory items");
+    return api_error::error;
+  }
 
-    update_filesystem_item(true, ret, api_path, fsi);
+  std::sort(list.begin(), list.end(), [](const auto &a, const auto &b) -> bool {
+    return (a.directory && not b.directory) ||
+           (not(b.directory && not a.directory) &&
+            (a.api_path.compare(b.api_path) < 0));
+  });
+
+  list.insert(list.begin(), directory_item{
+                                "..",
+                                "",
+                                true,
+                            });
+  list.insert(list.begin(), directory_item{
+                                ".",
+                                "",
+                                true,
+                            });
+  return api_error::success;
+}
+
+auto sia_provider::get_file(const std::string &api_path, api_file &file) const
+    -> api_error {
+  json file_data{};
+  auto res = get_object_info(api_path, file_data);
+  if (res != api_error::success) {
+    return res;
+  }
+
+  auto slabs = file_data["object"]["Slabs"];
+  auto size =
+      std::accumulate(slabs.begin(), slabs.end(), std::uint64_t(0U),
+                      [](std::uint64_t total_size,
+                         const nlohmann::json &slab) -> std::uint64_t {
+                        return total_size + slab["Length"].get<std::uint64_t>();
+                      });
+
+  api_meta_map meta{};
+  if (get_item_meta(api_path, meta) == api_error::item_not_found) {
+    file = create_api_file(api_path, size);
+    api_item_added_(false, file);
   } else {
-    api_file file{};
-    ret = get_filesystem_item_and_file(api_path, file, fsi);
+    file = create_api_file(api_path, size, meta);
   }
 
-  return ret;
+  return api_error::success;
 }
 
-api_error sia_provider::get_filesystem_item_and_file(const std::string &api_path, api_file &file,
-                                                     filesystem_item &fsi) const {
-  auto ret = get_item_meta(api_path, META_SOURCE, fsi.source_path);
-  if (ret == api_error::success) {
-    json data, error;
-    ret = get_comm().get("/renter/file" + api_path, data, error);
-    if (ret == api_error::success) {
-      create_api_file(data["file"],
-                      app_config::get_provider_path_name(get_config().get_provider_type()), file);
-      fsi.size = file.file_size;
-    } else if (check_not_found(error)) {
-      ret = api_error::item_not_found;
-    } else {
-      event_system::instance().raise<filesystem_item_get_failed>(api_path, error.dump(2));
+auto sia_provider::get_file_list(api_file_list &list) const -> api_error {
+  using dir_func = std::function<api_error(std::string api_path)>;
+  const dir_func get_files_in_dir = [&](std::string api_path) -> api_error {
+    try {
+      nlohmann::json object_list{};
+      if (not get_object_list(api_path, object_list)) {
+        return api_error::comm_error;
+      }
+
+      if (object_list.contains("entries")) {
+        for (const auto &entry : object_list.at("entries")) {
+          auto name = entry.at("name").get<std::string>();
+          auto entry_api_path = utils::path::create_api_path(name);
+
+          if (utils::string::ends_with(name, "/")) {
+            if (entry_api_path == utils::path::create_api_path(api_path)) {
+              continue;
+            }
+
+            api_meta_map meta{};
+            if (get_item_meta(entry_api_path, meta) ==
+                api_error::item_not_found) {
+              auto dir = create_api_file(entry_api_path, 0U);
+              api_item_added_(true, dir);
+            }
+
+            auto res = get_files_in_dir(entry_api_path);
+            if (res != api_error::success) {
+              return res;
+            }
+            continue;
+          }
+
+          api_file file{};
+          api_meta_map meta{};
+          if (get_item_meta(entry_api_path, meta) ==
+              api_error::item_not_found) {
+            file = create_api_file(entry_api_path,
+                                   entry["size"].get<std::uint64_t>());
+            api_item_added_(false, file);
+          } else {
+            file = create_api_file(entry_api_path,
+                                   entry["size"].get<std::uint64_t>(), meta);
+          }
+
+          list.emplace_back(std::move(file));
+        }
+      }
+
+      return api_error::success;
+    } catch (const std::exception &e) {
+      utils::error::raise_error(__FUNCTION__, e,
+                                "failed to process directory|" + api_path);
     }
+
+    return api_error::error;
+  };
+
+  return get_files_in_dir("");
+}
+
+auto sia_provider::get_file_size(const std::string &api_path,
+                                 std::uint64_t &file_size) const -> api_error {
+  bool exists{};
+  auto res = is_directory(api_path, exists);
+  if (res != api_error::success) {
+    return res;
+  }
+  if (exists) {
+    return api_error::directory_exists;
   }
 
-  update_filesystem_item(false, ret, api_path, fsi);
-  return ret;
-}
-
-std::uint64_t sia_provider::get_total_item_count() const {
-  std::uint64_t ret = 0u;
-
-  json result, error;
-  const auto res = get_directory("/", result, error);
-  if (res == api_error::success) {
-    ret = result["directories"][0u]["aggregatenumfiles"].get<std::uint64_t>();
+  api_file file{};
+  res = get_file(api_path, file);
+  if (res != api_error::success) {
+    return res;
   }
 
-  return ret;
+  file_size = file.file_size;
+  return api_error::success;
 }
 
-bool sia_provider::is_directory(const std::string &api_path) const {
-  auto ret = false;
-
-  json result, error;
-  const auto res = (api_path == "/") ? api_error::success : get_directory(api_path, result, error);
-  if (res == api_error::success) {
-    ret = true;
-  } else if (not check_not_found(error)) {
-    event_system::instance().raise<repertory_exception>(__FUNCTION__, error.dump(2));
+auto sia_provider::get_filesystem_item(const std::string &api_path,
+                                       bool directory,
+                                       filesystem_item &fsi) const
+    -> api_error {
+  bool exists{};
+  auto res = is_directory(api_path, exists);
+  if (res != api_error::success) {
+    return res;
+  }
+  if (directory && not exists) {
+    return api_error::directory_not_found;
   }
 
-  return ret;
+  res = is_file(api_path, exists);
+  if (res != api_error::success) {
+    return res;
+  }
+  if (not directory && not exists) {
+    return api_error::item_not_found;
+  }
+
+  api_meta_map meta{};
+  res = get_item_meta(api_path, meta);
+  if (res != api_error::success) {
+    return res;
+  }
+
+  fsi.api_parent = utils::path::get_parent_api_path(api_path);
+  fsi.api_path = api_path;
+  fsi.directory = directory;
+  fsi.size = fsi.directory ? 0U : utils::string::to_uint64(meta[META_SIZE]);
+  fsi.source_path = meta[META_SOURCE];
+
+  return api_error::success;
 }
 
-bool sia_provider::is_file(const std::string &api_path) const {
-  return (api_path != "/") && (check_file_exists(api_path) == api_error::success);
+auto sia_provider::get_filesystem_item_and_file(const std::string &api_path,
+                                                api_file &file,
+                                                filesystem_item &fsi) const
+    -> api_error {
+  auto res = get_file(api_path, file);
+  if (res != api_error::success) {
+    return res;
+  }
+
+  api_meta_map meta{};
+  res = get_item_meta(api_path, meta);
+  if (res != api_error::success) {
+    return res;
+  }
+
+  fsi.api_parent = utils::path::get_parent_api_path(api_path);
+  fsi.api_path = api_path;
+  fsi.directory = false;
+  fsi.size = utils::string::to_uint64(meta[META_SIZE]);
+  fsi.source_path = meta[META_SOURCE];
+
+  return api_error::success;
 }
 
-bool sia_provider::is_online() const {
-  // TODO Expand here for true online detection (i.e. wallet unlocked)
-  // TODO Return error string for display
-  json data, error;
-  return (get_comm().get("/wallet", data, error) == api_error::success);
+auto sia_provider::get_filesystem_item_from_source_path(
+    const std::string &source_path, filesystem_item &fsi) const -> api_error {
+  std::string api_path{};
+  auto res = get_api_path_from_source(source_path, api_path);
+  if (res != api_error::success) {
+    return res;
+  }
+
+  bool exists{};
+  res = is_directory(api_path, exists);
+  if (res != api_error::success) {
+    return res;
+  }
+  if (exists) {
+    return api_error::directory_exists;
+  }
+
+  return get_filesystem_item(api_path, false, fsi);
 }
 
-api_error sia_provider::notify_file_added(const std::string &api_path,
-                                          const std::string &api_parent,
-                                          const std::uint64_t &size) {
-  recur_mutex_lock l(notify_added_mutex_);
+auto sia_provider::get_item_meta(const std::string &api_path,
+                                 api_meta_map &meta) const -> api_error {
+  std::string meta_value{};
+  db_->Get(rocksdb::ReadOptions(), api_path, &meta_value);
+  if (meta_value.empty()) {
+    return api_error::item_not_found;
+  }
 
-  json data;
-  json error;
-  auto ret = get_comm().get("/renter/file" + api_path, data, error);
-  if (ret == api_error::success) {
-    api_file file{};
-    create_api_file(data["file"],
-                    app_config::get_provider_path_name(get_config().get_provider_type()), file);
+  try {
+    meta = json::parse(meta_value).get<api_meta_map>();
 
-    get_api_item_added()(api_path, api_parent, file.source_path, false, file.created_date,
-                         file.accessed_date, file.modified_date, file.changed_date);
+    return api_error::success;
+  } catch (const std::exception &e) {
+    utils::error::raise_api_path_error(__FUNCTION__, api_path, e,
+                                       "failed to get item meta");
+  }
 
-    if (size) {
-      global_data::instance().increment_used_drive_space(size);
+  return api_error::error;
+}
+
+auto sia_provider::get_item_meta(const std::string &api_path,
+                                 const std::string &key,
+                                 std::string &value) const -> api_error {
+  std::string meta_value{};
+  db_->Get(rocksdb::ReadOptions(), api_path, &meta_value);
+  if (meta_value.empty()) {
+    return api_error::item_not_found;
+  }
+
+  try {
+    value = json::parse(meta_value)[key];
+    return api_error::success;
+  } catch (const std::exception &e) {
+    utils::error::raise_api_path_error(__FUNCTION__, api_path, e,
+                                       "failed to get item meta");
+  }
+
+  return api_error::error;
+}
+
+auto sia_provider::get_pinned_files() const -> std::vector<std::string> {
+  std::vector<std::string> ret{};
+
+  auto iterator = std::unique_ptr<rocksdb::Iterator>(
+      db_->NewIterator(rocksdb::ReadOptions()));
+  for (iterator->SeekToFirst(); iterator->Valid(); iterator->Next()) {
+    std::string pinned{};
+    if (get_item_meta(iterator->key().ToString(), META_PINNED, pinned) !=
+        api_error::success) {
+      continue;
     }
-  } else {
-    event_system::instance().raise<repertory_exception>(__FUNCTION__, error.dump(2));
-  }
-
-  return ret;
-}
-
-bool sia_provider::processed_orphaned_file(const std::string &source_path,
-                                           const std::string &api_path) const {
-  auto ret = false;
-  if (not oft_->contains_restore(api_path)) {
-    const auto orphaned_directory =
-        utils::path::combine(get_config().get_data_directory(), {"orphaned"});
-
-    event_system::instance().raise<orphaned_file_detected>(source_path);
-    const auto orphaned_file = utils::path::combine(
-        orphaned_directory,
-        {utils::path::strip_to_file_name(api_path.empty() ? source_path : api_path)});
-
-    if (utils::file::reset_modified_time(source_path) &&
-        utils::file::move_file(source_path, orphaned_file)) {
-      event_system::instance().raise<orphaned_file_processed>(source_path, orphaned_file);
-      ret = true;
-    } else {
-      event_system::instance().raise<orphaned_file_processing_failed>(
-          source_path, orphaned_file, std::to_string(utils::get_last_error_code()));
+    if (pinned.empty() || not utils::string::to_bool(pinned)) {
+      continue;
     }
+    ret.emplace_back(iterator->key().ToString());
   }
 
   return ret;
 }
 
-api_error sia_provider::read_file_bytes(const std::string &api_path, const std::size_t &size,
-                                        const std::uint64_t &offset, std::vector<char> &buffer,
-                                        const bool &stop_requested) {
-  auto ret = api_error::download_failed;
-  const auto retry_count = get_config().get_retry_read_count();
-  for (std::uint16_t i = 0u; not stop_requested && (ret != api_error::success) && (i < retry_count);
+auto sia_provider::get_total_drive_space() const -> std::uint64_t {
+  try {
+    curl::requests::http_get get{};
+    get.allow_timeout = true;
+    get.path = "/api/autopilot/config";
+
+    json config_data{};
+    get.response_handler = [&config_data](const data_buffer &data,
+                                          long response_code) {
+      if (response_code == 200) {
+        config_data = nlohmann::json::parse(data.begin(), data.end());
+      }
+    };
+
+    long response_code{};
+    stop_type stop_requested{};
+    if (not comm_.make_request(get, response_code, stop_requested)) {
+      return 0U;
+    }
+
+    if (response_code != 200) {
+      utils::error::raise_error(__FUNCTION__, response_code,
+                                "failed to get total drive space");
+      return 0U;
+    }
+
+    return config_data["contracts"]["storage"].get<std::uint64_t>();
+  } catch (const std::exception &e) {
+    utils::error::raise_error(__FUNCTION__, e,
+                              "failed to get total drive space");
+  }
+
+  return 0U;
+}
+
+auto sia_provider::get_total_item_count() const -> std::uint64_t {
+  std::uint64_t ret{};
+  auto iterator = std::unique_ptr<rocksdb::Iterator>(
+      db_->NewIterator(rocksdb::ReadOptions()));
+  for (iterator->SeekToFirst(); iterator->Valid(); iterator->Next()) {
+    ret++;
+  }
+  return ret;
+}
+
+auto sia_provider::get_used_drive_space() const -> std::uint64_t {
+  // TODO adjust size based on open files
+  try {
+    curl::requests::http_get get{};
+    get.allow_timeout = true;
+    get.path = "/api/bus/stats/objects";
+
+    json object_data{};
+    get.response_handler = [&object_data](const data_buffer &data,
+                                          long response_code) {
+      if (response_code == 200) {
+        object_data = nlohmann::json::parse(data.begin(), data.end());
+      }
+    };
+
+    long response_code{};
+    stop_type stop_requested{};
+    if (not comm_.make_request(get, response_code, stop_requested)) {
+      return 0U;
+    }
+
+    if (response_code != 200) {
+      utils::error::raise_error(__FUNCTION__, response_code,
+                                "failed to get used drive space");
+      return 0U;
+    }
+
+    auto used_space = object_data["totalObjectsSize"].get<std::uint64_t>();
+    fm_->update_used_space(used_space);
+    return used_space;
+  } catch (const std::exception &ex) {
+    utils::error::raise_error(__FUNCTION__, ex,
+                              "failed to get used drive space");
+  }
+
+  return 0U;
+}
+
+auto sia_provider::is_directory(const std::string &api_path, bool &exists) const
+    -> api_error {
+  if (api_path == "/") {
+    exists = true;
+    return api_error::success;
+  }
+
+  try {
+    json object_list{};
+    if (not get_object_list(utils::path::get_parent_api_path(api_path),
+                            object_list)) {
+      return api_error::comm_error;
+    }
+
+    exists = object_list.contains("entries") &&
+             std::find_if(object_list.at("entries").begin(),
+                          object_list.at("entries").end(),
+                          [&api_path](const auto &entry) -> bool {
+                            return entry.at("name") == (api_path + "/");
+                          }) != object_list.at("entries").end();
+    return api_error::success;
+  } catch (const std::exception &e) {
+    utils::error::raise_api_path_error(__FUNCTION__, api_path, e,
+                                       "failed to determine path is directory");
+  }
+
+  return api_error::error;
+}
+
+auto sia_provider::is_file(const std::string &api_path, bool &exists) const
+    -> api_error {
+  exists = false;
+
+  if (api_path == "/") {
+    return api_error::success;
+  }
+
+  json file_data{};
+  auto res = get_object_info(api_path, file_data);
+  if (res == api_error::item_not_found) {
+    return api_error::success;
+  }
+
+  if (res != api_error::success) {
+    return res;
+  }
+
+  exists = not file_data.contains("entries");
+  return api_error::success;
+}
+
+auto sia_provider::is_file_writeable(const std::string &api_path) const
+    -> bool {
+  bool exists{};
+  auto res = is_directory(api_path, exists);
+  if (res != api_error::success) {
+    return false;
+  }
+
+  return not exists;
+}
+
+auto sia_provider::is_online() const -> bool {
+  try {
+    curl::requests::http_get get{};
+    get.allow_timeout = true;
+    get.path = "/api/bus/consensus/state";
+
+    json state_data{};
+    get.response_handler = [&state_data](const data_buffer &data,
+                                         long response_code) {
+      if (response_code == 200) {
+        state_data = nlohmann::json::parse(data.begin(), data.end());
+      }
+    };
+
+    long response_code{};
+    stop_type stop_requested{};
+    if (not comm_.make_request(get, response_code, stop_requested)) {
+      utils::error::raise_error(__FUNCTION__, api_error::comm_error,
+                                "failed to determine if provider is online");
+      return false;
+    }
+
+    if (response_code != 200) {
+      utils::error::raise_error(__FUNCTION__, response_code,
+                                "failed to determine if provider is online");
+      return false;
+    }
+
+    event_system::instance().raise<debug_log>(__FUNCTION__, "",
+                                              state_data.dump());
+    return true;
+  } catch (const std::exception &e) {
+    utils::error::raise_error(__FUNCTION__, e,
+                              "failed to determine if provider is online");
+  }
+
+  return false;
+}
+
+auto sia_provider::read_file_bytes(const std::string &api_path,
+                                   std::size_t size, std::uint64_t offset,
+                                   data_buffer &buffer,
+                                   stop_type &stop_requested) -> api_error {
+  curl::requests::http_get get{};
+  get.path = "/api/worker/objects" + api_path;
+  get.range = {{offset, offset + size - 1U}};
+  get.response_handler = [&buffer](const data_buffer &data,
+                                   long /*response_code*/) { buffer = data; };
+
+  auto res = api_error::comm_error;
+  for (std::uint32_t i = 0U; not stop_requested && res != api_error::success &&
+                             i < config_.get_retry_read_count() + 1U;
        i++) {
-    json error;
-    ret = get_comm().get_raw("/renter/download" + api_path,
-                             {{"httpresp", "true"},
-                              {"async", "false"},
-                              {"offset", utils::string::from_int64(offset)},
-                              {"length", utils::string::from_int64(size)}},
-                             buffer, error, stop_requested);
-    if (ret != api_error::success) {
-      event_system::instance().raise<file_read_bytes_failed>(api_path, error.dump(2), i + 1u);
-      if (not stop_requested && ((i + 1) < retry_count)) {
+    long response_code{};
+    const auto notify_retry = [&]() {
+      if (response_code) {
+        utils::error::raise_api_path_error(
+            __FUNCTION__, api_path, response_code,
+            "read file bytes failed|offset|" + std::to_string(offset) +
+                "|size|" + std::to_string(size) + "|retry|" +
+                std::to_string(i + 1U));
+      } else {
+        utils::error::raise_api_path_error(
+            __FUNCTION__, api_path, api_error::comm_error,
+            "read file bytes failed|offset|" + std::to_string(offset) +
+                "|size|" + std::to_string(size) + "|retry|" +
+                std::to_string(i + 1U));
+      }
+      std::this_thread::sleep_for(1s);
+    };
+
+    if (not comm_.make_request(get, response_code, stop_requested)) {
+      notify_retry();
+      continue;
+    }
+
+    if (response_code < 200 || response_code >= 300) {
+      notify_retry();
+      continue;
+    }
+
+    res = api_error::success;
+  }
+
+  return res;
+}
+
+void sia_provider::remove_deleted_files() {
+  struct removed_item {
+    std::string api_path{};
+    bool directory{};
+    std::string source_path{};
+  };
+
+  api_file_list list{};
+  auto res = get_file_list(list);
+  if (res != api_error::success) {
+    utils::error::raise_error(__FUNCTION__, res, "failed to get file list");
+    return;
+  }
+
+  std::vector<removed_item> removed_list{};
+  auto iterator = std::unique_ptr<rocksdb::Iterator>(
+      db_->NewIterator(rocksdb::ReadOptions()));
+  for (iterator->SeekToFirst(); iterator->Valid(); iterator->Next()) {
+    api_meta_map meta{};
+    if (get_item_meta(iterator->key().ToString(), meta) == api_error::success) {
+      if (utils::string::to_bool(meta[META_DIRECTORY])) {
+        bool exists{};
+        auto res = is_directory(iterator->key().ToString(), exists);
+        if (res != api_error::success) {
+          continue;
+        }
+        if (not exists) {
+          removed_list.emplace_back(
+              removed_item{iterator->key().ToString(), true, ""});
+        }
+        continue;
+      }
+
+      bool exists{};
+      auto res = is_file(iterator->key().ToString(), exists);
+      if (res != api_error::success) {
+        continue;
+      }
+      if (not exists) {
+        removed_list.emplace_back(
+            removed_item{iterator->key().ToString(), false, meta[META_SOURCE]});
+      }
+    }
+  }
+
+  for (const auto &item : removed_list) {
+    if (not item.directory) {
+      if (utils::file::is_file(item.source_path)) {
+        const auto orphaned_directory =
+            utils::path::combine(config_.get_data_directory(), {"orphaned"});
+        if (utils::file::create_full_directory_path(orphaned_directory)) {
+          const auto parts = utils::string::split(item.api_path, '/', false);
+          const auto orphaned_file = utils::path::combine(
+              orphaned_directory,
+              {utils::path::strip_to_file_name(item.source_path) + '_' +
+               parts[parts.size() - 1U]});
+
+          event_system::instance().raise<orphaned_file_detected>(
+              item.source_path);
+          if (utils::file::reset_modified_time(item.source_path) &&
+              utils::file::copy_file(item.source_path, orphaned_file)) {
+            event_system::instance().raise<orphaned_file_processed>(
+                item.source_path, orphaned_file);
+          } else {
+            event_system::instance().raise<orphaned_file_processing_failed>(
+                item.source_path, orphaned_file,
+                std::to_string(utils::get_last_error_code()));
+          }
+        } else {
+          utils::error::raise_error(
+              __FUNCTION__, std::to_string(utils::get_last_error_code()),
+              "failed to create orphaned director|sp|" + orphaned_directory);
+          continue;
+        }
+      }
+
+      if (fm_->evict_file(item.api_path)) {
+        db_->Delete(rocksdb::WriteOptions(), item.api_path);
+        event_system::instance().raise<file_removed_externally>(
+            item.api_path, item.source_path);
+      }
+    }
+  }
+
+  for (const auto &item : removed_list) {
+    if (item.directory) {
+      db_->Delete(rocksdb::WriteOptions(), item.api_path);
+      event_system::instance().raise<directory_removed_externally>(
+          item.api_path, item.source_path);
+    }
+  }
+}
+
+auto sia_provider::remove_directory(const std::string &api_path) -> api_error {
+  const auto notify_end = [&api_path](api_error error) -> api_error {
+    if (error == api_error::success) {
+      event_system::instance().raise<directory_removed>(api_path);
+    } else {
+      event_system::instance().raise<directory_remove_failed>(
+          api_path, api_error_to_string(error));
+    }
+    return error;
+  };
+
+  bool exists{};
+  auto res = is_directory(api_path, exists);
+  if (res != api_error::success) {
+    return res;
+  }
+  if (not exists) {
+    return notify_end(api_error::item_not_found);
+  }
+
+  curl::requests::http_delete del{};
+  del.allow_timeout = true;
+  del.path = "/api/bus/objects" + api_path + "/";
+
+  long response_code{};
+  stop_type stop_requested{};
+  if (not comm_.make_request(del, response_code, stop_requested)) {
+    utils::error::raise_api_path_error(__FUNCTION__, api_path,
+                                       api_error::comm_error,
+                                       "failed to remove directory");
+    return notify_end(api_error::comm_error);
+  }
+
+  if (response_code != 200) {
+    utils::error::raise_api_path_error(__FUNCTION__, api_path, response_code,
+                                       "failed to remove directory");
+    return notify_end(api_error::comm_error);
+  }
+
+  auto res2 = db_->Delete(rocksdb::WriteOptions(), api_path);
+  if (not res2.ok()) {
+    utils::error::raise_api_path_error(__FUNCTION__, api_path, res2.code(),
+                                       "failed to remove directory");
+    return notify_end(api_error::error);
+  }
+
+  return notify_end(api_error::success);
+}
+
+auto sia_provider::remove_file(const std::string &api_path) -> api_error {
+  const auto notify_end = [&api_path](api_error error) -> api_error {
+    if (error == api_error::success) {
+      event_system::instance().raise<file_removed>(api_path);
+    } else {
+      event_system::instance().raise<file_remove_failed>(
+          api_path, api_error_to_string(error));
+    }
+
+    return error;
+  };
+
+  const auto remove_file_meta = [this, &api_path, &notify_end]() -> api_error {
+    api_meta_map meta{};
+    auto res = get_item_meta(api_path, meta);
+
+    auto res2 = db_->Delete(rocksdb::WriteOptions(), api_path);
+    if (not res2.ok()) {
+      utils::error::raise_api_path_error(__FUNCTION__, api_path, res2.code(),
+                                         "failed to remove file");
+      return notify_end(api_error::error);
+    }
+
+    return notify_end(res);
+  };
+
+  bool exists{};
+  auto res = is_directory(api_path, exists);
+  if (res != api_error::success) {
+    return notify_end(res);
+  }
+  if (exists) {
+    exists = false;
+    return notify_end(api_error::directory_exists);
+  }
+
+  res = is_file(api_path, exists);
+  if (res != api_error::success) {
+    return notify_end(res);
+  }
+  if (not exists) {
+    event_system::instance().raise<file_remove_failed>(
+        api_path, api_error_to_string(api_error::item_not_found));
+    return remove_file_meta();
+  }
+
+  curl::requests::http_delete del{};
+  del.allow_timeout = true;
+  del.path = "/api/bus/objects" + api_path;
+
+  long response_code{};
+  stop_type stop_requested{};
+  if (not comm_.make_request(del, response_code, stop_requested)) {
+    utils::error::raise_api_path_error(
+        __FUNCTION__, api_path, api_error::comm_error, "failed to remove file");
+    return notify_end(api_error::comm_error);
+  }
+
+  if (response_code != 200 && response_code != 404) {
+    utils::error::raise_api_path_error(__FUNCTION__, api_path, response_code,
+                                       "failed to remove file");
+    return notify_end(api_error::comm_error);
+  }
+
+  return remove_file_meta();
+}
+
+auto sia_provider::remove_item_meta(const std::string &api_path,
+                                    const std::string &key) -> api_error {
+  api_meta_map meta{};
+  auto res = get_item_meta(api_path, meta);
+  if (res != api_error::success) {
+    return res;
+  }
+
+  meta.erase(key);
+
+  auto res2 = db_->Put(rocksdb::WriteOptions(), api_path, json(meta).dump());
+  if (not res2.ok()) {
+    utils::error::raise_api_path_error(__FUNCTION__, api_path, res2.code(),
+                                       "failed to remove item meta");
+    return api_error::error;
+  }
+
+  return api_error::success;
+}
+
+auto sia_provider::rename_file(const std::string & /*from_api_path*/,
+                               const std::string & /*to_api_path*/)
+    -> api_error {
+  return api_error::not_implemented;
+}
+
+auto sia_provider::set_item_meta(const std::string &api_path,
+                                 const std::string &key,
+                                 const std::string &value) -> api_error {
+  json meta_json{};
+  std::string meta_value{};
+  db_->Get(rocksdb::ReadOptions(), api_path, &meta_value);
+  if (not meta_value.empty()) {
+    try {
+      meta_json = json::parse(meta_value);
+    } catch (const std::exception &e) {
+      utils::error::raise_api_path_error(__FUNCTION__, api_path, e,
+                                         "failed to set item meta");
+      return api_error::error;
+    }
+  }
+
+  meta_json[key] = value;
+
+  const auto res =
+      db_->Put(rocksdb::WriteOptions(), api_path, meta_json.dump());
+  if (not res.ok()) {
+    utils::error::raise_api_path_error(__FUNCTION__, api_path, res.code(),
+                                       "failed to set item meta");
+    return api_error::error;
+  }
+
+  return api_error::success;
+}
+
+auto sia_provider::set_item_meta(const std::string &api_path,
+                                 const api_meta_map &meta) -> api_error {
+  json meta_json{};
+  std::string meta_value{};
+  db_->Get(rocksdb::ReadOptions(), api_path, &meta_value);
+  if (not meta_value.empty()) {
+    try {
+      meta_json = json::parse(meta_value);
+    } catch (const std::exception &e) {
+      utils::error::raise_api_path_error(__FUNCTION__, api_path, e,
+                                         "failed to set item meta");
+      return api_error::error;
+    }
+  }
+
+  for (const auto &kv : meta) {
+    meta_json[kv.first] = kv.second;
+  }
+
+  const auto res =
+      db_->Put(rocksdb::WriteOptions(), api_path, meta_json.dump());
+  if (not res.ok()) {
+    utils::error::raise_api_path_error(__FUNCTION__, api_path, res.code(),
+                                       "failed to set item meta");
+    return api_error::error;
+  }
+
+  return api_error::success;
+}
+
+auto sia_provider::start(api_item_added_callback api_item_added,
+                         i_file_manager *fm) -> bool {
+  event_system::instance().raise<service_started>("sia_provider");
+  utils::db::create_rocksdb(config_, DB_NAME, db_);
+
+  api_item_added_ = api_item_added;
+  fm_ = fm;
+
+  api_meta_map meta{};
+  if (get_item_meta("/", meta) == api_error::item_not_found) {
+    auto dir = create_api_file("/", 0U);
+    api_item_added_(true, dir);
+  }
+
+  auto online = false;
+  auto unmount_requested = false;
+  {
+    repertory::event_consumer ec(
+        "unmount_requested",
+        [&unmount_requested](const event &) { unmount_requested = true; });
+    for (std::uint16_t i = 0u; not online && not unmount_requested &&
+                               (i < config_.get_online_check_retry_secs());
+         i++) {
+      online = is_online();
+      if (not online) {
+        event_system::instance().raise<provider_offline>(
+            config_.get_host_config().host_name_or_ip,
+            config_.get_host_config().api_port);
         std::this_thread::sleep_for(1s);
       }
     }
   }
 
-  return ret;
-}
-
-void sia_provider::remove_deleted_files() {
-  std::vector<std::string> removed_files{};
-
-  api_file_list list{};
-  if (get_file_list(list) == api_error::success) {
-    if (not list.empty()) {
-      auto iterator = meta_db_.create_iterator(false);
-      for (iterator->SeekToFirst(); not stop_requested_ && iterator->Valid(); iterator->Next()) {
-        const auto api_path = iterator->key().ToString();
-        if (api_path.empty()) {
-          meta_db_.remove_item_meta(api_path);
-        } else {
-          auto it = std::find_if(list.begin(), list.end(), [&api_path](const auto &file) -> bool {
-            return file.api_path == api_path;
-          });
-          if (it == list.end()) {
-            removed_files.emplace_back(api_path);
-          }
-        }
-      }
-    }
+  if (online && not unmount_requested) {
+    polling::instance().set_callback({"check_deleted", polling::frequency::low,
+                                      [this]() { remove_deleted_files(); }});
+    return true;
   }
 
-  while (not stop_requested_ && not removed_files.empty()) {
-    const auto api_path = removed_files.back();
-    removed_files.pop_back();
-
-    std::string source_path;
-    if (not is_directory(api_path) && (check_file_exists(api_path) == api_error::item_not_found) &&
-        (meta_db_.get_item_meta(api_path, META_SOURCE, source_path) == api_error::success)) {
-      if (not source_path.empty()) {
-        oft_->perform_locked_operation(
-            [this, &api_path, &source_path](i_open_file_table &, i_provider &) -> bool {
-              if (oft_->has_no_open_file_handles()) {
-                std::uint64_t used_space = 0u;
-                if (calculate_used_drive_space(used_space) == api_error::success) {
-                  meta_db_.remove_item_meta(api_path);
-                  event_system::instance().raise<file_removed_externally>(api_path, source_path);
-
-                  std::uint64_t fileSize = 0u;
-                  if (utils::file::get_file_size(source_path, fileSize) &&
-                      processed_orphaned_file(source_path, api_path)) {
-                    global_data::instance().update_used_space(fileSize, 0u, true);
-                  }
-
-                  global_data::instance().initialize_used_drive_space(used_space);
-                }
-              }
-
-              return true;
-            });
-      }
-    }
-  }
-}
-
-api_error sia_provider::remove_directory(const std::string &api_path) {
-  auto ret = api_error::directory_not_empty;
-  if (get_directory_item_count(api_path) == 0u) {
-    json result, error;
-    ret = get_comm().post("/renter/dir" + api_path, {{"action", "delete"}}, result, error);
-    if (ret == api_error::success) {
-      meta_db_.remove_item_meta(api_path);
-      event_system::instance().raise<directory_removed>(api_path);
-      ret = api_error::success;
-    } else if (check_not_found(error)) {
-      meta_db_.remove_item_meta(api_path);
-      ret = api_error::directory_not_found;
-    } else {
-      event_system::instance().raise<directory_remove_failed>(api_path, error.dump(2));
-    }
-  }
-
-  return ret;
-}
-
-void sia_provider::remove_expired_orphaned_files() {
-  const auto orphaned_directory =
-      utils::path::combine(get_config().get_data_directory(), {"orphaned"});
-  const auto files = utils::file::get_directory_files(orphaned_directory, true);
-  for (const auto &file : files) {
-    if (utils::file::is_modified_date_older_than(
-            file, std::chrono::hours(get_config().get_orphaned_file_retention_days() * 24))) {
-      if (utils::file::delete_file(file)) {
-        event_system::instance().raise<orphaned_file_deleted>(file);
-      }
-    }
-    if (stop_requested_) {
-      break;
-    }
-  }
-}
-
-api_error sia_provider::remove_file(const std::string &api_path) {
-  json result, error;
-  auto ret = get_comm().post("/renter/delete" + api_path, {{"root", "false"}}, result, error);
-  auto not_found = false;
-  if ((ret == api_error::success) || (not_found = check_not_found(error))) {
-    if (not not_found) {
-      event_system::instance().raise<file_removed>(api_path);
-    }
-    ret = not_found ? api_error::item_not_found : api_error::success;
-
-    meta_db_.remove_item_meta(api_path);
-  } else {
-    event_system::instance().raise<file_remove_failed>(api_path, error.dump(2));
-  }
-
-  return ret;
-}
-
-void sia_provider::remove_unknown_source_files() {
-  auto files = utils::file::get_directory_files(get_config().get_cache_directory(), true);
-  while (not stop_requested_ && not files.empty()) {
-    const auto file = files.front();
-    files.pop_front();
-
-    std::string api_path;
-    if (not meta_db_.get_source_path_exists(file)) {
-      processed_orphaned_file(file);
-    }
-  }
-}
-
-api_error sia_provider::rename_file(const std::string &from_api_path,
-                                    const std::string &to_api_path) {
-  std::string current_source;
-  auto ret = get_item_meta(from_api_path, META_SOURCE, current_source);
-  if (ret == api_error::success) {
-    json result, error;
-    const auto propertyName =
-        "new" + app_config::get_provider_path_name(get_config().get_provider_type());
-    const auto dest_api_path = to_api_path.substr(1);
-    ret = get_comm().post("/renter/rename" + from_api_path, {{propertyName, dest_api_path}}, result,
-                          error);
-    if (ret == api_error::success) {
-      meta_db_.rename_item_meta(current_source, from_api_path, to_api_path);
-    } else if (check_not_found(error)) {
-      ret = api_error::item_not_found;
-    } else {
-      event_system::instance().raise<file_rename_failed>(from_api_path, to_api_path, error.dump(2));
-    }
-  }
-
-  return ret;
-}
-
-void sia_provider::set_api_file_dates(const json &file_data, api_file &file) const {
-  file.accessed_date = utils::convert_api_date(file_data["accesstime"].get<std::string>());
-  file.changed_date = utils::convert_api_date(file_data["changetime"].get<std::string>());
-  file.created_date = utils::convert_api_date(file_data["createtime"].get<std::string>());
-  file.modified_date = utils::convert_api_date(file_data["modtime"].get<std::string>());
-}
-
-bool sia_provider::start(api_item_added_callback api_item_added, i_open_file_table *oft) {
-  const auto unmount_requested = base_provider::start(api_item_added, oft);
-  if (not unmount_requested && is_online()) {
-    {
-      json data, error;
-      const auto res = comm_.get("/daemon/version", data, error);
-      if (res == api_error::success) {
-        if (utils::compare_version_strings(
-                data["version"].get<std::string>(),
-                app_config::get_provider_minimum_version(get_config().get_provider_type())) < 0) {
-          throw startup_exception("incompatible daemon version: " +
-                                  data["version"].get<std::string>());
-        }
-      } else {
-        throw startup_exception("failed to get version from daemon");
-      }
-    }
-
-    mutex_lock l(start_stop_mutex_);
-    if (not drive_space_thread_) {
-      stop_requested_ = false;
-
-      calculate_total_drive_space();
-
-      std::uint64_t used_space = 0u;
-      if (calculate_used_drive_space(used_space) != api_error::success) {
-        throw startup_exception("failed to determine used space");
-      }
-      global_data::instance().initialize_used_drive_space(used_space);
-
-      drive_space_thread_ = std::make_unique<std::thread>([this] {
-        cleanup();
-        if (not stop_requested_) {
-          polling::instance().set_callback({"check_deleted", true, [this]() {
-                                              remove_deleted_files();
-                                              remove_expired_orphaned_files();
-                                            }});
-          drive_space_thread();
-          polling::instance().remove_callback("check_deleted");
-        }
-      });
-    }
-  } else {
-    throw startup_exception("failed to connect to api");
-  }
-  return unmount_requested;
+  return false;
 }
 
 void sia_provider::stop() {
-  unique_mutex_lock l(start_stop_mutex_);
-  if (drive_space_thread_) {
-    event_system::instance().raise<service_shutdown>("sia_provider");
-    stop_requested_ = true;
-
-    start_stop_notify_.notify_all();
-    l.unlock();
-
-    drive_space_thread_->join();
-    drive_space_thread_.reset();
-  }
+  event_system::instance().raise<service_shutdown_begin>("sia_provider");
+  polling::instance().remove_callback("check_deleted");
+  db_.reset();
+  event_system::instance().raise<service_shutdown_end>("sia_provider");
 }
 
-api_error sia_provider::upload_file(const std::string &api_path, const std::string &source_path,
-                                    const std::string &) {
-  event_system::instance().raise<file_upload_begin>(api_path, source_path);
+auto sia_provider::upload_file(const std::string &api_path,
+                               const std::string &source_path,
+                               const std::string & /* encryption_token */,
+                               stop_type &stop_requested) -> api_error {
+  event_system::instance().raise<provider_upload_begin>(api_path, source_path);
 
-  auto ret = set_source_path(api_path, source_path);
-  if (ret == api_error::success) {
-    std::uint64_t fileSize;
-    if (utils::file::get_file_size(source_path, fileSize)) {
-      json result, error;
-      ret = (get_comm().post("/renter/upload" + api_path,
-                             {{"source", &source_path[0]}, {"force", "true"}}, result,
-                             error) == api_error::success)
-                ? api_error::success
-                : api_error::upload_failed;
-      if (ret != api_error::success) {
-        if (check_not_found(error)) {
-          ret = (get_comm().post("/renter/upload" + api_path, {{"source", &source_path[0]}}, result,
-                                 error) == api_error::success)
-                    ? api_error::success
-                    : api_error::upload_failed;
-        }
-        if (ret != api_error::success) {
-          event_system::instance().raise<file_upload_failed>(api_path, source_path, error.dump(2));
-        }
-      }
-    } else {
-      ret = api_error::os_error;
-      event_system::instance().raise<file_upload_failed>(api_path, source_path,
-                                                         "Failed to get source file size");
+  const auto notify_end = [&api_path,
+                           &source_path](api_error error) -> api_error {
+    event_system::instance().raise<provider_upload_end>(api_path, source_path,
+                                                        error);
+    return error;
+  };
+
+  try {
+    curl::requests::http_put_file put_file{};
+    put_file.file_name =
+        *(utils::string::split(api_path, '/', false).end() - 1u);
+    put_file.path = "/api/worker/objects" + api_path;
+    put_file.source_path = source_path;
+
+    long response_code{};
+    if (not comm_.make_request(put_file, response_code, stop_requested)) {
+      utils::error::raise_api_path_error(__FUNCTION__, api_path, source_path,
+                                         api_error::comm_error,
+                                         "failed to upload file");
+      return notify_end(api_error::comm_error);
     }
-  } else {
-    event_system::instance().raise<file_upload_failed>(api_path, source_path,
-                                                       "Failed to set source path");
+
+    if (response_code != 200) {
+      utils::error::raise_api_path_error(__FUNCTION__, api_path, source_path,
+                                         response_code,
+                                         "failed to upload file");
+      return notify_end(api_error::comm_error);
+    }
+
+    return notify_end(api_error::success);
+  } catch (const std::exception &e) {
+    utils::error::raise_api_path_error(__FUNCTION__, api_path, source_path, e,
+                                       "failed to upload file");
   }
 
-  event_system::instance().raise<file_upload_end>(api_path, source_path, ret);
-  return ret;
+  return notify_end(api_error::error);
 }
 } // namespace repertory

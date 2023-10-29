@@ -1,114 +1,118 @@
 /*
-  Copyright <2018-2022> <scott.e.graves@protonmail.com>
+  Copyright <2018-2023> <scott.e.graves@protonmail.com>
 
-  Permission is hereby granted, free of charge, to any person obtaining a copy of this software and
-  associated documentation files (the "Software"), to deal in the Software without restriction,
-  including without limitation the rights to use, copy, modify, merge, publish, distribute,
-  sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is
+  Permission is hereby granted, free of charge, to any person obtaining a copy
+  of this software and associated documentation files (the "Software"), to deal
+  in the Software without restriction, including without limitation the rights
+  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+  copies of the Software, and to permit persons to whom the Software is
   furnished to do so, subject to the following conditions:
 
-  The above copyright notice and this permission notice shall be included in all copies or
-  substantial portions of the Software.
+  The above copyright notice and this permission notice shall be included in all
+  copies or substantial portions of the Software.
 
-  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT
-  NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
-  NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
-  DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT
-  OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+  SOFTWARE.
 */
 #ifndef INCLUDE_UTILS_STRING_UTILS_HPP_
 #define INCLUDE_UTILS_STRING_UTILS_HPP_
 
-#include <string>
-#include <vector>
 #include <boost/dynamic_bitset.hpp>
+#include <string>
+#include <string_view>
+#include <vector>
 
 namespace repertory::utils::string {
 // Prototypes
-bool begins_with(const std::string &str, const std::string &val);
+constexpr auto begins_with(std::string_view str, std::string_view val) -> bool {
+  return (str.find(val) == 0u);
+}
 
-bool contains(const std::string &str, const std::string &search);
+constexpr auto contains(std::string_view str, std::string_view search) -> bool {
+  return (str.find(search) != std::string_view::npos);
+}
 
-bool ends_with(const std::string &str, const std::string &val);
+[[nodiscard]] /* constexpr c++20 */ auto ends_with(std::string_view str,
+                                                   std::string_view val)
+    -> bool;
 
-std::string from_bool(const bool &val);
+[[nodiscard]] auto from_bool(bool val) -> std::string;
 
-std::string from_double(const double &value);
+[[nodiscard]] auto from_dynamic_bitset(const boost::dynamic_bitset<> &bitset)
+    -> std::string;
 
-std::string from_dynamic_bitset(const boost::dynamic_bitset<> &bitset);
+[[nodiscard]] auto from_utf8(const std::string &str) -> std::wstring;
 
-std::string from_int32(const std::int32_t &val);
+[[nodiscard]] /* constexpr c++20 */ auto is_numeric(std::string_view s) -> bool;
 
-std::string from_int64(const std::int64_t &val);
+[[nodiscard]] auto join(const std::vector<std::string> &arr, const char &delim)
+    -> std::string;
 
-std::string from_uint8(const std::uint8_t &val);
+auto left_trim(std::string &s) -> std::string &;
 
-std::string from_uint16(const std::uint16_t &val);
+auto left_trim(std::string &s, const char &c) -> std::string &;
 
-std::string from_uint32(const std::uint32_t &val);
+auto replace(std::string &src, const char &character, const char &with)
+    -> std::string &;
 
-std::string from_uint64(const std::uint64_t &val);
+auto replace(std::string &src, const std::string &find, const std::string &with,
+             size_t start_pos = 0) -> std::string &;
 
-std::wstring from_utf8(const std::string &str);
+[[nodiscard]] auto replace_copy(std::string src, const char &character,
+                                const char &with) -> std::string;
 
-bool is_numeric(const std::string &s);
+[[nodiscard]] auto replace_copy(std::string src, const std::string &find,
+                                const std::string &with, size_t start_pos = 0)
+    -> std::string;
 
-std::string join(const std::vector<std::string> &arr, const char &delim);
+auto right_trim(std::string &s) -> std::string &;
 
-std::string &left_trim(std::string &s);
+auto right_trim(std::string &s, const char &c) -> std::string &;
 
-std::string &left_trim(std::string &s, const char &c);
+[[nodiscard]] auto split(const std::string &str, const char &delim,
+                         bool should_trim = true) -> std::vector<std::string>;
 
-std::string &replace(std::string &src, const char &character, const char &with);
+[[nodiscard]] auto to_bool(std::string val) -> bool;
 
-std::string &replace(std::string &src, const std::string &find, const std::string &with,
-                     size_t startPos = 0);
+[[nodiscard]] auto to_double(const std::string &str) -> double;
 
-std::string replace_copy(std::string src, const char &character, const char &with);
+[[nodiscard]] auto to_dynamic_bitset(const std::string &val)
+    -> boost::dynamic_bitset<>;
 
-std::string replace_copy(std::string src, const std::string &find, const std::string &with,
-                         size_t startPos = 0);
+[[nodiscard]] auto to_lower(std::string str) -> std::string;
 
-std::string &right_trim(std::string &s);
+[[nodiscard]] auto to_int32(const std::string &val) -> std::int32_t;
 
-std::string &right_trim(std::string &s, const char &c);
+[[nodiscard]] auto to_int64(const std::string &val) -> std::int64_t;
 
-std::vector<std::string> split(const std::string &str, const char &delim,
-                               const bool &should_trim = true);
+[[nodiscard]] auto to_size_t(const std::string &val) -> std::size_t;
 
-bool to_bool(std::string val);
+[[nodiscard]] auto to_uint8(const std::string &val) -> std::uint8_t;
 
-double to_double(const std::string &str);
+[[nodiscard]] auto to_uint16(const std::string &val) -> std::uint16_t;
 
-boost::dynamic_bitset<> to_dynamic_bitset(const std::string &val);
+[[nodiscard]] auto to_uint32(const std::string &val) -> std::uint32_t;
 
-std::string to_lower(std::string str);
+[[nodiscard]] auto to_uint64(const std::string &val) -> std::uint64_t;
 
-std::int32_t to_int32(const std::string &val);
+[[nodiscard]] auto to_upper(std::string str) -> std::string;
 
-std::int64_t to_int64(const std::string &val);
+[[nodiscard]] auto to_utf8(std::string str) -> std::string;
 
-std::uint8_t to_uint8(const std::string &val);
+[[nodiscard]] auto to_utf8(const std::wstring &str) -> std::string;
 
-std::uint16_t to_uint16(const std::string &val);
+auto trim(std::string &str) -> std::string &;
 
-std::uint32_t to_uint32(const std::string &val);
+auto trim(std::string &str, const char &c) -> std::string &;
 
-std::uint64_t to_uint64(const std::string &val);
+[[nodiscard]] auto trim_copy(std::string str) -> std::string;
 
-std::string to_upper(std::string str);
-
-const std::string &to_utf8(const std::string &str);
-
-std::string to_utf8(const std::wstring &str);
-
-std::string &trim(std::string &str);
-
-std::string &trim(std::string &str, const char &c);
-
-std::string trim_copy(std::string str);
-
-std::string trim_copy(std::string str, const char &c);
+[[nodiscard]] auto trim_copy(std::string str, const char &c) -> std::string;
 } // namespace repertory::utils::string
 
 #endif // INCLUDE_UTILS_STRING_UTILS_HPP_

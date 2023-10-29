@@ -253,15 +253,18 @@ public:
   /* regular method */
   void import(const std::vector<void *> &bin) {
     uuid_rc_t rc;
-    if ((rc = uuid_import(ctx, UUID_FMT_BIN, &bin[0], UUID_LEN_BIN)) != UUID_RC_OK)
+    if ((rc = uuid_import(ctx, UUID_FMT_BIN, &bin[0], UUID_LEN_BIN)) !=
+        UUID_RC_OK)
       throw uuid_error_t(rc);
   }
 
   /* regular method */
   void import(const std::string &str) {
     uuid_rc_t rc;
-    if ((rc = uuid_import(ctx, UUID_FMT_STR, &str[0], UUID_LEN_STR)) != UUID_RC_OK)
-      if ((rc = uuid_import(ctx, UUID_FMT_SIV, &str[0], UUID_LEN_SIV)) != UUID_RC_OK)
+    if ((rc = uuid_import(ctx, UUID_FMT_STR, &str[0], UUID_LEN_STR)) !=
+        UUID_RC_OK)
+      if ((rc = uuid_import(ctx, UUID_FMT_SIV, &str[0], UUID_LEN_SIV)) !=
+          UUID_RC_OK)
         throw uuid_error_t(rc);
   }
 
@@ -283,7 +286,8 @@ public:
   std::string string() {
     uuid_rc_t rc;
     char *str = nullptr;
-    if ((rc = uuid_export(ctx, UUID_FMT_STR, (void **)&str, nullptr)) != UUID_RC_OK)
+    if ((rc = uuid_export(ctx, UUID_FMT_STR, (void **)&str, nullptr)) !=
+        UUID_RC_OK)
       throw uuid_error_t(rc);
     std::string data;
     data.resize(UUID_LEN_STR + 1);
@@ -296,7 +300,8 @@ public:
   std::string integer() {
     uuid_rc_t rc;
     char *str = nullptr;
-    if ((rc = uuid_export(ctx, UUID_FMT_SIV, (void **)&str, nullptr)) != UUID_RC_OK)
+    if ((rc = uuid_export(ctx, UUID_FMT_SIV, (void **)&str, nullptr)) !=
+        UUID_RC_OK)
       throw uuid_error_t(rc);
     std::string data;
     data.resize(UUID_LEN_SIV + 1);
@@ -309,7 +314,8 @@ public:
   std::string summary() {
     uuid_rc_t rc;
     char *txt = nullptr;
-    if ((rc = uuid_export(ctx, UUID_FMT_TXT, (void **)&txt, nullptr)) != UUID_RC_OK)
+    if ((rc = uuid_export(ctx, UUID_FMT_TXT, (void **)&txt, nullptr)) !=
+        UUID_RC_OK)
       throw uuid_error_t(rc);
     std::string data(txt, strlen(txt));
     free(txt);

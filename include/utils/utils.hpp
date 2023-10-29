@@ -1,112 +1,138 @@
 /*
-  Copyright <2018-2022> <scott.e.graves@protonmail.com>
+  Copyright <2018-2023> <scott.e.graves@protonmail.com>
 
-  Permission is hereby granted, free of charge, to any person obtaining a copy of this software and
-  associated documentation files (the "Software"), to deal in the Software without restriction,
-  including without limitation the rights to use, copy, modify, merge, publish, distribute,
-  sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is
+  Permission is hereby granted, free of charge, to any person obtaining a copy
+  of this software and associated documentation files (the "Software"), to deal
+  in the Software without restriction, including without limitation the rights
+  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+  copies of the Software, and to permit persons to whom the Software is
   furnished to do so, subject to the following conditions:
 
-  The above copyright notice and this permission notice shall be included in all copies or
-  substantial portions of the Software.
+  The above copyright notice and this permission notice shall be included in all
+  copies or substantial portions of the Software.
 
-  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT
-  NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
-  NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
-  DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT
-  OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+  SOFTWARE.
 */
 #ifndef INCLUDE_UTILS_UTILS_HPP_
 #define INCLUDE_UTILS_UTILS_HPP_
 
-#include "common.hpp"
 #include "types/remote.hpp"
 #include "types/repertory.hpp"
 #include "utils/unix/unix_utils.hpp"
 #include "utils/windows/windows_utils.hpp"
 
 namespace repertory::utils {
-hastings api_currency_to_hastings(const api_currency &currency);
+void calculate_allocation_size(bool directory, std::uint64_t file_size,
+                               UINT64 allocation_size,
+                               std::string &allocation_meta_size);
 
-void calculate_allocation_size(const bool &directory, const std::uint64_t &file_size,
-                               UINT64 allocation_size, std::string &allocation_meta_size);
+[[nodiscard]] auto calculate_read_size(const uint64_t &total_size,
+                                       std::size_t read_size,
+                                       const uint64_t &offset) -> std::size_t;
 
-std::size_t calculate_read_size(const uint64_t &total_size, const std::size_t &read_size,
-                                const uint64_t &offset);
+template <typename t>
+[[nodiscard]] auto collection_excludes(t collection,
+                                       const typename t::value_type &v) -> bool;
 
-template <typename t> bool collection_excludes(t collection, const typename t::value_type &v);
+template <typename t>
+[[nodiscard]] auto collection_includes(t collection,
+                                       const typename t::value_type &v) -> bool;
 
-template <typename t> bool collection_includes(t collection, const typename t::value_type &v);
+[[nodiscard]] auto compare_version_strings(std::string version1,
+                                           std::string version2) -> int;
 
-int compare_version_strings(std::string version1, std::string version2);
+[[nodiscard]] auto convert_api_date(const std::string &date) -> std::uint64_t;
 
-std::uint64_t convert_api_date(const std::string &date);
+[[nodiscard]] auto create_curl() -> CURL *;
 
-CURL *create_curl();
+[[nodiscard]] auto create_uuid_string() -> std::string;
 
-std::string create_uuid_string();
+[[nodiscard]] auto create_volume_label(const provider_type &pt) -> std::string;
 
-std::string create_volume_label(const provider_type &pt);
+template <typename t>
+[[nodiscard]] auto divide_with_ceiling(const t &n, const t &d) -> t;
 
-template <typename t> t divide_with_ceiling(const t &n, const t &d);
+[[nodiscard]] auto download_type_from_string(std::string type,
+                                             const download_type &default_type)
+    -> download_type;
 
-download_type download_type_from_string(std::string type, const download_type &default_type);
+[[nodiscard]] auto download_type_to_string(const download_type &type)
+    -> std::string;
 
-std::string download_type_to_string(const download_type &type);
+template <typename t>
+[[nodiscard]] auto from_hex_string(const std::string &str, t &v) -> bool;
 
-template <typename t> bool from_hex_string(const std::string &str, t &v);
+[[nodiscard]] auto generate_random_string(std::uint16_t length) -> std::string;
 
-std::string generate_random_string(const std::uint16_t &length);
+[[nodiscard]] auto get_attributes_from_meta(const api_meta_map &meta) -> DWORD;
 
-std::string get_environment_variable(const std::string &variable);
+[[nodiscard]] auto get_environment_variable(const std::string &variable)
+    -> std::string;
 
-std::uint64_t get_file_time_now();
+[[nodiscard]] auto get_file_time_now() -> std::uint64_t;
 
 void get_local_time_now(struct tm &localTime);
 
-bool get_next_available_port(std::uint16_t first_port, std::uint16_t &available_port);
+[[nodiscard]] auto get_next_available_port(std::uint16_t first_port,
+                                           std::uint16_t &available_port)
+    -> bool;
 
-std::uint64_t get_time_now();
+[[nodiscard]] auto get_time_now() -> std::uint64_t;
 
-api_currency hastings_string_to_api_currency(const std::string &amount);
+template <typename t>
+[[nodiscard]] auto random_between(const t &begin, const t &end) -> t;
 
-// bool parse_url(const std::string &url, HostConfig &hc);
+template <typename t>
+void remove_element_from(t &v, const typename t::value_type &value);
 
-template <typename t> t random_between(const t &begin, const t &end);
+[[nodiscard]] auto reset_curl(CURL *curl_handle) -> CURL *;
 
-template <typename t> void remove_element_from(t &v, const typename t::value_type &value);
+[[nodiscard]] auto retryable_action(const std::function<bool()> &action)
+    -> bool;
 
-CURL *reset_curl(CURL *curl_handle);
-
-bool retryable_action(const std::function<bool()> &action);
-
-void spin_wait_for_mutex(std::function<bool()> complete, std::condition_variable &cv,
-                         std::mutex &mtx, const std::string &txt = "");
-
-void spin_wait_for_mutex(bool &complete, std::condition_variable &cv, std::mutex &mtx,
+void spin_wait_for_mutex(std::function<bool()> complete,
+                         std::condition_variable &cv, std::mutex &mtx,
                          const std::string &txt = "");
 
-template <typename t> std::string to_hex_string(const t &v);
+void spin_wait_for_mutex(bool &complete, std::condition_variable &cv,
+                         std::mutex &mtx, const std::string &txt = "");
+
+template <typename t>
+[[nodiscard]] auto to_hex_string(const t &v) -> std::string;
 
 // template implementations
-template <typename t> bool collection_excludes(t collection, const typename t::value_type &v) {
+template <typename t>
+[[nodiscard]] auto collection_excludes(t collection,
+                                       const typename t::value_type &v)
+    -> bool {
   return std::find(collection.begin(), collection.end(), v) == collection.end();
 }
 
-template <typename t> bool collection_includes(t collection, const typename t::value_type &v) {
+template <typename t>
+[[nodiscard]] auto collection_includes(t collection,
+                                       const typename t::value_type &v)
+    -> bool {
   return std::find(collection.begin(), collection.end(), v) != collection.end();
 }
 
-template <typename t> t divide_with_ceiling(const t &n, const t &d) {
+template <typename t>
+[[nodiscard]] auto divide_with_ceiling(const t &n, const t &d) -> t {
   return n ? (n / d) + (n % d != 0) : 0;
 }
 
-template <typename t> bool from_hex_string(const std::string &str, t &v) {
+template <typename t>
+[[nodiscard]] auto from_hex_string(const std::string &str, t &v) -> bool {
   v.clear();
   if (not(str.length() % 2u)) {
     for (std::size_t i = 0u; i < str.length(); i += 2u) {
-      v.emplace_back(
-          static_cast<typename t::value_type>(strtol(str.substr(i, 2u).c_str(), nullptr, 16)));
+      v.emplace_back(static_cast<typename t::value_type>(
+          strtol(str.substr(i, 2u).c_str(), nullptr, 16)));
     }
     return true;
   }
@@ -114,26 +140,30 @@ template <typename t> bool from_hex_string(const std::string &str, t &v) {
   return false;
 }
 
-template <typename t> t random_between(const t &begin, const t &end) {
+template <typename t>
+[[nodiscard]] auto random_between(const t &begin, const t &end) -> t {
   srand(static_cast<unsigned int>(get_time_now()));
   return begin + rand() % ((end + 1) - begin);
 }
 
-template <typename t> void remove_element_from(t &v, const typename t::value_type &value) {
+template <typename t>
+void remove_element_from(t &v, const typename t::value_type &value) {
   v.erase(std::remove(v.begin(), v.end(), value), v.end());
 }
 
-template <typename t> std::string to_hex_string(const t &v) {
-  std::string ret;
+template <typename t>
+[[nodiscard]] auto to_hex_string(const t &value) -> std::string {
+  std::string ret{};
 
-  for (const auto &v : v) {
-    char h[3] = {0};
+  std::array<char, 3> h{};
+  for (const auto &num : value) {
 #ifdef _WIN32
-    sprintf_s(&h[0], sizeof(h), "%x", static_cast<std::uint8_t>(v));
+    sprintf_s(h.data(), h.size() - 1U, "%x", static_cast<std::uint8_t>(num));
 #else
-    sprintf(&h[0], "%x", static_cast<std::uint8_t>(v));
+    sprintf(h.data(), "%x", static_cast<std::uint8_t>(num));
 #endif
-    ret += ((strlen(h) == 1) ? std::string("0") + h : h);
+
+    ret += (strlen(h.data()) == 1) ? std::string("0") + h.data() : h.data();
   }
 
   return ret;

@@ -13,3 +13,5 @@ tags
 /arm64_debian*/
 .cache/
 src/common.cpp
+cspell.json
+dviml
