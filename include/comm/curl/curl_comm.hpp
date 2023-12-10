@@ -24,6 +24,8 @@
 
 #include "comm/curl/multi_request.hpp"
 #include "comm/i_http_comm.hpp"
+#include "events/event_system.hpp"
+#include "events/events.hpp"
 #include "utils/encryption.hpp"
 #include "utils/utils.hpp"
 
@@ -32,9 +34,9 @@ class curl_comm final : public i_http_comm {
 public:
   curl_comm() = delete;
 
-  explicit curl_comm(host_config hc);
+  explicit curl_comm(host_config cfg);
 
-  explicit curl_comm(s3_config s3);
+  explicit curl_comm(s3_config cfg);
 
 private:
   using write_callback = size_t (*)(char *, size_t, size_t, void *);
@@ -57,9 +59,10 @@ private:
 public:
   [[nodiscard]] static auto construct_url(CURL *curl,
                                           const std::string &relative_path,
-                                          const host_config &hc) -> std::string;
+                                          const host_config &cfg)
+      -> std::string;
 
-  [[nodiscard]] static auto create_host_config(const s3_config &config,
+  [[nodiscard]] static auto create_host_config(const s3_config &cfg,
                                                bool use_s3_path_style)
       -> host_config;
 
@@ -68,7 +71,7 @@ public:
 
   template <typename request_type>
   [[nodiscard]] static auto
-  make_encrypted_request(const host_config &hc, const request_type &request,
+  make_encrypted_request(const host_config &cfg, const request_type &request,
                          long &response_code, stop_type &stop_requested)
       -> bool {
     response_code = 0;
@@ -102,7 +105,7 @@ public:
           };
           encrypted_request.total_size = std::nullopt;
 
-          if (not make_request(hc, encrypted_request, response_code,
+          if (not make_request(cfg, encrypted_request, response_code,
                                stop_requested)) {
             return api_error::comm_error;
           }
@@ -127,11 +130,12 @@ public:
 
   template <typename request_type>
   [[nodiscard]] static auto
-  make_request(const host_config &hc, const request_type &request,
+  make_request(const host_config &cfg, const request_type &request,
                long &response_code, stop_type &stop_requested) -> bool {
     if (request.decryption_token.has_value() &&
         not request.decryption_token.value().empty()) {
-      return make_encrypted_request(hc, request, response_code, stop_requested);
+      return make_encrypted_request(cfg, request, response_code,
+                                    stop_requested);
     }
 
     response_code = 0;
@@ -141,12 +145,12 @@ public:
       return false;
     }
 
-    if (not hc.agent_string.empty()) {
-      curl_easy_setopt(curl, CURLOPT_USERAGENT, hc.agent_string.c_str());
+    if (not cfg.agent_string.empty()) {
+      curl_easy_setopt(curl, CURLOPT_USERAGENT, cfg.agent_string.c_str());
     }
 
-    if (request.allow_timeout && hc.timeout_ms) {
-      curl_easy_setopt(curl, CURLOPT_TIMEOUT_MS, hc.timeout_ms);
+    if (request.allow_timeout && cfg.timeout_ms) {
+      curl_easy_setopt(curl, CURLOPT_TIMEOUT_MS, cfg.timeout_ms);
     }
 
     std::string range_list{};
@@ -169,16 +173,16 @@ public:
     }
 
     std::string parameters{};
-    for (const auto &kv : request.query) {
-      parameters += (parameters.empty() ? '?' : '&') + kv.first + '=' +
-                    url_encode(curl, kv.second, false);
+    for (const auto &param : request.query) {
+      parameters += (parameters.empty() ? '?' : '&') + param.first + '=' +
+                    url_encode(curl, param.second, false);
     }
 
-    if (not hc.api_password.empty()) {
-      curl_easy_setopt(curl, CURLOPT_USERNAME, hc.api_user.c_str());
-      curl_easy_setopt(curl, CURLOPT_PASSWORD, hc.api_password.c_str());
-    } else if (not hc.api_user.empty()) {
-      curl_easy_setopt(curl, CURLOPT_USERNAME, hc.api_user.c_str());
+    if (not cfg.api_password.empty()) {
+      curl_easy_setopt(curl, CURLOPT_USERNAME, cfg.api_user.c_str());
+      curl_easy_setopt(curl, CURLOPT_PASSWORD, cfg.api_password.c_str());
+    } else if (not cfg.api_user.empty()) {
+      curl_easy_setopt(curl, CURLOPT_USERNAME, cfg.api_user.c_str());
     }
 
     if (request.aws_service.has_value()) {
@@ -186,7 +190,7 @@ public:
                        request.aws_service.value().c_str());
     }
 
-    auto url = construct_url(curl, request.get_path(), hc) + parameters;
+    auto url = construct_url(curl, request.get_path(), cfg) + parameters;
     curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
 
     multi_request curl_request(curl, stop_requested);
@@ -194,6 +198,7 @@ public:
     CURLcode curl_code{};
     curl_request.get_result(curl_code, response_code);
     if (curl_code != CURLE_OK) {
+      event_system::instance().raise<curl_error>(url, curl_code);
       return false;
     }
 
@@ -218,6 +223,11 @@ public:
       -> bool override;
 
   [[nodiscard]] auto make_request(const curl::requests::http_head &head,
+                                  long &response_code,
+                                  stop_type &stop_requested) const
+      -> bool override;
+
+  [[nodiscard]] auto make_request(const curl::requests::http_post &post_file,
                                   long &response_code,
                                   stop_type &stop_requested) const
       -> bool override;

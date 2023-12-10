@@ -37,9 +37,9 @@ file_manager::open_file_base::open_file_base(
       chunk_timeout_(chunk_timeout),
       fsi_(std::move(fsi)),
       last_chunk_size_(static_cast<std::size_t>(
-          fsi.size <= chunk_size  ? fsi.size
-          : fsi.size % chunk_size ? fsi.size % chunk_size
-                                  : chunk_size)),
+          fsi.size <= chunk_size          ? fsi.size
+          : (fsi.size % chunk_size) == 0U ? chunk_size
+                                          : fsi.size % chunk_size)),
       open_data_(std::move(open_data)),
       provider_(provider) {
   if (not fsi.directory) {
@@ -51,7 +51,7 @@ void file_manager::open_file_base::add(std::uint64_t handle,
                                        open_file_data ofd) {
   recur_mutex_lock file_lock(file_mtx_);
   open_data_[handle] = ofd;
-  if (open_data_.size() == 1u) {
+  if (open_data_.size() == 1U) {
     event_system::instance().raise<filesystem_item_opened>(
         fsi_.api_path, fsi_.source_path, fsi_.directory);
   }
@@ -157,8 +157,8 @@ auto file_manager::open_file_base::get_handles() const
     -> std::vector<std::uint64_t> {
   recur_mutex_lock file_lock(file_mtx_);
   std::vector<std::uint64_t> ret;
-  for (const auto &kv : open_data_) {
-    ret.emplace_back(kv.first);
+  for (const auto &item : open_data_) {
+    ret.emplace_back(item.first);
   }
 
   return ret;
@@ -201,14 +201,14 @@ void file_manager::open_file_base::reset_timeout() {
   last_access_ = std::chrono::system_clock::now();
 }
 
-auto file_manager::open_file_base::set_api_error(const api_error &e)
+auto file_manager::open_file_base::set_api_error(const api_error &err)
     -> api_error {
   mutex_lock error_lock(error_mtx_);
-  if (error_ != e) {
+  if (error_ != err) {
     return ((error_ = (error_ == api_error::success ||
                                error_ == api_error::download_incomplete ||
                                error_ == api_error::download_stopped
-                           ? e
+                           ? err
                            : error_)));
   }
 
@@ -233,6 +233,8 @@ auto file_manager::open_file_base::close() -> bool {
       io_thread_.reset();
       return true;
     }
+
+    return false;
   }
 
   io_thread_notify_.notify_all();

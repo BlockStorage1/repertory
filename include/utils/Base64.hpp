@@ -1,3 +1,4 @@
+// NOLINTBEGIN
 #ifndef _MACARON_BASE64_H_
 #define _MACARON_BASE64_H_
 
@@ -25,11 +26,22 @@
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
+#ifdef __clang__
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wunknown-warning-option"
+#endif
+
+#ifdef __GNUC__
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wconversion"
+#pragma GCC diagnostic ignored "-Wold-style-cast"
+#pragma GCC diagnostic ignored "-Wuseless-cast"
+#endif
+
 #include <string>
 #include <vector>
 
-namespace macaron {
-namespace Base64 {
+namespace macaron::Base64 {
 static std::string Encode(const char *data, const size_t &len) {
   static constexpr char sEncodingTable[] = {
       'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M',
@@ -135,7 +147,16 @@ static std::string Encode(const char *data, const size_t &len) {
 
   return out;
 }
-} // namespace Base64
-} // namespace macaron
+} // namespace macaron::Base64
+
+#ifdef __GNUC__
+#pragma GCC diagnostic pop
+#endif
+
+#ifdef __clang__
+#pragma clang diagnostic pop
+#endif
 
 #endif /* _MACARON_BASE64_H_ */
+
+// NOLINTEND

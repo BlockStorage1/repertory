@@ -26,34 +26,34 @@
 #include "utils/utils.hpp"
 
 namespace repertory {
-static std::vector<std::string> generated_files;
+std::vector<std::string> generated_files;
 
 void delete_generated_files() {
-  for (const auto &f : generated_files) {
-    EXPECT_TRUE(utils::file::retry_delete_file(f));
+  for (const auto &file : generated_files) {
+    EXPECT_TRUE(utils::file::retry_delete_file(file));
   }
 }
 
 auto create_random_file(std::string path, std::size_t size) -> native_file_ptr {
-  native_file_ptr nf;
-  if (native_file::create_or_open(path, nf) == api_error::success) {
+  native_file_ptr file;
+  if (native_file::create_or_open(path, file) == api_error::success) {
     generated_files.emplace_back(utils::path::absolute(path));
 
-    EXPECT_TRUE(nf->truncate(0u));
+    EXPECT_TRUE(file->truncate(0U));
 
     data_buffer buf(size);
     randombytes_buf(buf.data(), buf.size());
 
     std::size_t bytes_written{};
-    EXPECT_TRUE(nf->write_bytes(&buf[0u], buf.size(), 0u, bytes_written));
-    nf->flush();
+    EXPECT_TRUE(file->write_bytes(buf.data(), buf.size(), 0U, bytes_written));
+    file->flush();
 
-    std::uint64_t current_size;
+    std::uint64_t current_size{};
     EXPECT_TRUE(utils::file::get_file_size(path, current_size));
     EXPECT_EQ(size, current_size);
   }
 
-  return nf;
+  return file;
 }
 
 auto generate_test_file_name(const std::string &directory,
@@ -71,10 +71,6 @@ auto get_test_dir() -> std::string {
   if (not dir.empty()) {
     return utils::path::absolute(dir);
   }
-#ifdef _WIN32
-  return utils::path::absolute("..\\..\\..");
-#else
-  return utils::path::absolute("../..");
-#endif
+  return utils::path::absolute(utils::path::combine("..", {".."}));
 }
 } // namespace repertory

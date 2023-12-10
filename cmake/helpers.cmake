@@ -1,5 +1,5 @@
 function(copy_support_files target)
-  if (MSVC OR MINGW)
+  if (MINGW)
     add_custom_command(
       TARGET ${target}
       POST_BUILD

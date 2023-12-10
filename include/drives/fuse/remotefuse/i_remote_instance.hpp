@@ -112,14 +112,14 @@ public:
       -> packet::error_type = 0;
 
   [[nodiscard]] virtual auto fuse_read(const char *path, char *buffer,
-                                       const remote::file_size &readSize,
-                                       const remote::file_offset &readOffset,
+                                       const remote::file_size &read_size,
+                                       const remote::file_offset &read_offset,
                                        const remote::file_handle &handle)
       -> packet::error_type = 0;
 
   [[nodiscard]] virtual auto
   fuse_readdir(const char *path, const remote::file_offset &offset,
-               const remote::file_handle &handle, std::string &itemPath)
+               const remote::file_handle &handle, std::string &item_path)
       -> packet::error_type = 0;
 
   [[nodiscard]] virtual auto fuse_release(const char *path,

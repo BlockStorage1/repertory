@@ -22,7 +22,6 @@
 #include "test_common.hpp"
 
 #include "comm/curl/curl_comm.hpp"
-#include "comm/s3/s3_comm.hpp"
 #include "events/event_system.hpp"
 #include "file_manager/file_manager.hpp"
 #include "platform/platform.hpp"
@@ -38,18 +37,20 @@
 
 namespace {
 #ifdef _WIN32
-static constexpr auto getgid() -> std::uint32_t { return 0U; }
-static constexpr auto getuid() -> std::uint32_t { return 0U; }
+using gid_t = std::uint32_t;
+using uid_t = std::uint32_t;
+static constexpr auto getgid() -> gid_t { return 0U; }
+static constexpr auto getuid() -> uid_t { return 0U; }
 #endif
 
 const auto check_forced_dirs = [](const repertory::directory_item_list &list) {
   static auto forced_dirs = std::array<std::string, 2>{".", ".."};
   for (std::size_t i = 0U; i < forced_dirs.size(); ++i) {
-    const auto &di = list.at(i);
-    EXPECT_TRUE(di.directory);
-    EXPECT_STREQ(forced_dirs.at(i).c_str(), di.api_path.c_str());
-    EXPECT_STREQ("", di.api_parent.c_str());
-    EXPECT_EQ(std::size_t(0U), di.size);
+    const auto &item = list.at(i);
+    EXPECT_TRUE(item.directory);
+    EXPECT_STREQ(forced_dirs.at(i).c_str(), item.api_path.c_str());
+    EXPECT_STREQ("", item.api_parent.c_str());
+    EXPECT_EQ(std::size_t(0U), item.size);
   }
 };
 
@@ -57,8 +58,8 @@ const auto create_directory = [](repertory::i_provider &provider,
                                  const std::string &api_path) {
   auto date = repertory::utils::get_file_time_now();
   auto meta = repertory::create_meta_attributes(
-      date, 0U, date + 1U, date + 2U, true, "", getgid(), "", 0700, date + 3U,
-      1U, 2U, 0U, api_path + "_src", getuid(), date + 4U);
+      date, 1U, date + 1U, date + 2U, true, getgid(), "", 0700, date + 3U, 2U,
+      3U, 0U, api_path + "_src", getuid(), date + 4U);
   EXPECT_EQ(repertory::api_error::success,
             provider.create_directory(api_path, meta));
 
@@ -66,6 +67,41 @@ const auto create_directory = [](repertory::i_provider &provider,
   EXPECT_EQ(repertory::api_error::success,
             provider.is_directory(api_path, exists));
   EXPECT_TRUE(exists);
+
+  repertory::api_meta_map meta2{};
+  EXPECT_EQ(repertory::api_error::success,
+            provider.get_item_meta(api_path, meta2));
+
+  EXPECT_EQ(date, repertory::utils::string::to_uint64(
+                      meta2[repertory::META_ACCESSED]));
+  EXPECT_EQ(1U, repertory::utils::string::to_uint64(
+                    meta2[repertory::META_ATTRIBUTES]));
+  EXPECT_EQ(date + 1U, repertory::utils::string::to_uint64(
+                           meta2[repertory::META_CHANGED]));
+  EXPECT_EQ(date + 2U, repertory::utils::string::to_uint64(
+                           meta2[repertory::META_CREATION]));
+  EXPECT_TRUE(
+      repertory::utils::string::to_bool(meta2.at(repertory::META_DIRECTORY)));
+  EXPECT_EQ(getgid(), static_cast<gid_t>(repertory::utils::string::to_uint32(
+                          meta2[repertory::META_GID])));
+  EXPECT_EQ(std::uint32_t(0700),
+            repertory::utils::string::to_uint32(meta2[repertory::META_MODE]));
+  EXPECT_EQ(date + 3U, repertory::utils::string::to_uint64(
+                           meta2[repertory::META_MODIFIED]));
+  EXPECT_EQ(2U,
+            repertory::utils::string::to_uint64(meta2[repertory::META_BACKUP]));
+  EXPECT_EQ(
+      3U, repertory::utils::string::to_uint64(meta2[repertory::META_OSXFLAGS]));
+  EXPECT_FALSE(
+      repertory::utils::string::to_bool(meta2[repertory::META_PINNED]));
+  EXPECT_EQ(std::uint64_t(0U),
+            repertory::utils::string::to_uint64(meta2[repertory::META_SIZE]));
+  EXPECT_STREQ((api_path + "_src").c_str(),
+               meta2[repertory::META_SOURCE].c_str());
+  EXPECT_EQ(getuid(), static_cast<uid_t>(repertory::utils::string::to_uint32(
+                          meta2[repertory::META_UID])));
+  EXPECT_EQ(date + 4U, repertory::utils::string::to_uint64(
+                           meta2[repertory::META_WRITTEN]));
 };
 
 const auto create_file = [](repertory::i_provider &provider,
@@ -74,8 +110,8 @@ const auto create_file = [](repertory::i_provider &provider,
 
   auto date = repertory::utils::get_file_time_now();
   auto meta = repertory::create_meta_attributes(
-      date, 0U, date + 1U, date + 2U, false, "", getgid(), "", 0700, date + 3U,
-      1U, 2U, 0U, source_path, getuid(), date + 4U);
+      date, 1U, date + 1U, date + 2U, false, getgid(), "", 0700, date + 3U, 2U,
+      3U, 0U, source_path, getuid(), date + 4U);
   EXPECT_EQ(repertory::api_error::success,
             provider.create_file(api_path, meta));
 
@@ -84,6 +120,40 @@ const auto create_file = [](repertory::i_provider &provider,
   EXPECT_TRUE(exists);
 
   EXPECT_TRUE(repertory::utils::file::delete_file(source_path));
+
+  repertory::api_meta_map meta2{};
+  EXPECT_EQ(repertory::api_error::success,
+            provider.get_item_meta(api_path, meta2));
+
+  EXPECT_EQ(date, repertory::utils::string::to_uint64(
+                      meta2[repertory::META_ACCESSED]));
+  EXPECT_EQ(1U, repertory::utils::string::to_uint64(
+                    meta2[repertory::META_ATTRIBUTES]));
+  EXPECT_EQ(date + 1U, repertory::utils::string::to_uint64(
+                           meta2[repertory::META_CHANGED]));
+  EXPECT_EQ(date + 2U, repertory::utils::string::to_uint64(
+                           meta2[repertory::META_CREATION]));
+  EXPECT_FALSE(
+      repertory::utils::string::to_bool(meta2.at(repertory::META_DIRECTORY)));
+  EXPECT_EQ(getgid(), static_cast<gid_t>(repertory::utils::string::to_uint32(
+                          meta2[repertory::META_GID])));
+  EXPECT_EQ(std::uint32_t(0700),
+            repertory::utils::string::to_uint32(meta2[repertory::META_MODE]));
+  EXPECT_EQ(date + 3U, repertory::utils::string::to_uint64(
+                           meta2[repertory::META_MODIFIED]));
+  EXPECT_EQ(2U,
+            repertory::utils::string::to_uint64(meta2[repertory::META_BACKUP]));
+  EXPECT_EQ(
+      3U, repertory::utils::string::to_uint64(meta2[repertory::META_OSXFLAGS]));
+  EXPECT_FALSE(
+      repertory::utils::string::to_bool(meta2[repertory::META_PINNED]));
+  EXPECT_EQ(std::uint64_t(0U),
+            repertory::utils::string::to_uint64(meta2[repertory::META_SIZE]));
+  EXPECT_STREQ(source_path.c_str(), meta2[repertory::META_SOURCE].c_str());
+  EXPECT_EQ(getuid(), static_cast<uid_t>(repertory::utils::string::to_uint32(
+                          meta2[repertory::META_UID])));
+  EXPECT_EQ(date + 4U, repertory::utils::string::to_uint64(
+                           meta2[repertory::META_WRITTEN]));
 };
 
 const auto decrypt_parts = [](const repertory::app_config &cfg,
@@ -168,8 +238,15 @@ static void create_directory_clone_source_meta(i_provider &provider) {
   EXPECT_EQ(api_error::success, provider.get_item_meta("/clone2", meta_clone));
 
   EXPECT_EQ(meta_orig.size(), meta_clone.size());
-  for (const auto &kv : meta_orig) {
-    EXPECT_STREQ(kv.second.c_str(), meta_clone[kv.first].c_str());
+  for (const auto &item : meta_orig) {
+    if (item.first == META_KEY) {
+      if (item.second.empty() && meta_clone[item.first].empty()) {
+        continue;
+      }
+      EXPECT_STRNE(item.second.c_str(), meta_clone[item.first].c_str());
+      continue;
+    }
+    EXPECT_STREQ(item.second.c_str(), meta_clone[item.first].c_str());
   }
 
   EXPECT_EQ(api_error::success, provider.remove_directory("/clone"));
@@ -291,6 +368,7 @@ static void get_api_path_from_source(const app_config &cfg,
             provider.get_api_path_from_source(fsi.source_path, api_path));
 
   EXPECT_STREQ("/pt01.txt", api_path.c_str());
+  EXPECT_EQ(api_error::success, provider.remove_file("/pt01.txt"));
 }
 
 static void
@@ -336,22 +414,24 @@ static void get_directory_items(const app_config &cfg, i_provider &provider) {
     EXPECT_EQ(std::size_t(4U), list.size());
 
     directory_item_list list_decrypted{list.begin() + 2U, list.end()};
-    for (auto &di : list_decrypted) {
-      decrypt_parts(cfg, di.api_parent);
-      decrypt_parts(cfg, di.api_path);
+    for (auto &dir_item : list_decrypted) {
+      decrypt_parts(cfg, dir_item.api_parent);
+      decrypt_parts(cfg, dir_item.api_path);
     }
 
-    auto dir = std::find_if(
-        list_decrypted.begin(), list_decrypted.end(),
-        [](const directory_item &di) -> bool { return di.directory; });
+    auto dir = std::find_if(list_decrypted.begin(), list_decrypted.end(),
+                            [](const directory_item &dir_item) -> bool {
+                              return dir_item.directory;
+                            });
     EXPECT_LT(dir, list_decrypted.end());
     EXPECT_STREQ("/sub10", dir->api_path.c_str());
     EXPECT_STREQ("/", dir->api_parent.c_str());
     EXPECT_EQ(std::size_t(0U), dir->size);
 
-    auto file = std::find_if(
-        list_decrypted.begin(), list_decrypted.end(),
-        [](const directory_item &di) -> bool { return not di.directory; });
+    auto file = std::find_if(list_decrypted.begin(), list_decrypted.end(),
+                             [](const directory_item &dir_item) -> bool {
+                               return not dir_item.directory;
+                             });
     EXPECT_LT(file, list_decrypted.end());
     EXPECT_STREQ("/test.txt", file->api_path.c_str());
     EXPECT_STREQ("/", file->api_parent.c_str());
@@ -373,14 +453,15 @@ static void get_directory_items(const app_config &cfg, i_provider &provider) {
     EXPECT_EQ(std::size_t(3U), list.size());
 
     directory_item_list list_decrypted2{list.begin() + 2U, list.end()};
-    for (auto &di : list_decrypted2) {
-      decrypt_parts(cfg, di.api_parent);
-      decrypt_parts(cfg, di.api_path);
+    for (auto &dir_item : list_decrypted2) {
+      decrypt_parts(cfg, dir_item.api_parent);
+      decrypt_parts(cfg, dir_item.api_path);
     }
 
-    auto file2 = std::find_if(
-        list_decrypted2.begin(), list_decrypted2.end(),
-        [](const directory_item &di) -> bool { return not di.directory; });
+    auto file2 = std::find_if(list_decrypted2.begin(), list_decrypted2.end(),
+                              [](const directory_item &dir_item) -> bool {
+                                return not dir_item.directory;
+                              });
     EXPECT_LT(file2, list_decrypted2.end());
     EXPECT_STREQ("/sub10/moose.txt", file2->api_path.c_str());
     EXPECT_STREQ("/sub10", file2->api_parent.c_str());
@@ -438,7 +519,6 @@ static void get_file(const app_config &cfg, i_provider &provider) {
 #else
     EXPECT_EQ(std::size_t(46U), file.file_size);
 #endif
-    EXPECT_TRUE(file.encryption_token.empty());
     EXPECT_STREQ(source_path.c_str(), file.source_path.c_str());
   }
 }
@@ -511,22 +591,45 @@ static void run_tests(const app_config &cfg, i_provider &provider) {
   get_api_path_from_source_fails_if_file_not_found(cfg, provider);
 
   // TODO: continue here
-  get_directory_item_count(cfg, provider);
-
   get_directory_items(cfg, provider);
   get_directory_items_fails_if_directory_not_found(provider);
   get_directory_items_fails_if_item_is_file(cfg, provider);
 
+  get_directory_item_count(cfg, provider);
+
   get_file(cfg, provider);
   get_file_fails_if_file_not_found(provider);
   get_file_fails_if_item_is_directory(cfg, provider);
+
+  /* get_file_list(provider);
+  get_file_size(provider);
+  get_filesystem_item(provider);
+  get_filesystem_item_and_file(provider);
+  get_filesystem_item_from_source_path(provider);
+  get_item_meta(provider);
+  get_item_meta2(provider);
+  get_pinned_files(provider);
+  get_total_drive_space(provider);
+  get_total_item_count(provider);
+  get_used_drive_space(provider);
+  is_directory(provider);
+  is_file(provider);
+  is_file_writeable(provider);
+  read_file_bytes(provider);
+  remove_directory(provider);
+  remove_file(provider);
+  remove_item_meta(provider);
+  rename_file(provider);
+  set_item_meta(provider);
+  set_item_meta2(provider);
+  upload_file(provider); */
 }
 
 TEST(providers, encrypt_provider) {
   const auto config_path = utils::path::absolute("./providers_test_encrypt");
   ASSERT_TRUE(utils::file::delete_directory_recursively(config_path));
 
-  console_consumer cc{};
+  console_consumer consumer{};
   event_system::instance().start();
   {
     app_config cfg(provider_type::encrypt, config_path);
@@ -539,22 +642,21 @@ TEST(providers, encrypt_provider) {
 
     EXPECT_STREQ(
         encrypt_path.c_str(),
-        cfg.set_value_by_name("EncryptConfig.Path", encrypt_path.c_str())
-            .c_str());
+        cfg.set_value_by_name("EncryptConfig.Path", encrypt_path).c_str());
     EXPECT_STREQ(
         "test_token",
         cfg.set_value_by_name("EncryptConfig.EncryptionToken", "test_token")
             .c_str());
 
     encrypt_provider provider{cfg};
-    file_manager fm(cfg, provider);
-    fm.start();
+    file_manager mgr(cfg, provider);
+    mgr.start();
 
     EXPECT_TRUE(provider.start(
         [&provider](bool directory, api_file &file) -> api_error {
           return provider_meta_handler(provider, directory, file);
         },
-        &fm));
+        &mgr));
     EXPECT_EQ(provider_type::encrypt, provider.get_provider_type());
     EXPECT_TRUE(provider.is_direct_only());
     EXPECT_TRUE(provider.is_online());
@@ -563,7 +665,7 @@ TEST(providers, encrypt_provider) {
     run_tests(cfg, provider);
 
     provider.stop();
-    fm.stop();
+    mgr.stop();
   }
   event_system::instance().stop();
 
@@ -575,26 +677,26 @@ TEST(providers, s3_provider) {
   const auto config_path = utils::path::absolute("./providers_test_s3");
   ASSERT_TRUE(utils::file::delete_directory_recursively(config_path));
 
-  console_consumer cc{};
+  console_consumer consumer{};
   event_system::instance().start();
   {
     app_config cfg(provider_type::s3, config_path);
     {
       app_config src_cfg(provider_type::s3,
-                         utils::path::combine(get_test_dir(), {"filebase"}));
+                         utils::path::combine(get_test_dir(), {"storj"}));
       cfg.set_s3_config(src_cfg.get_s3_config());
     }
 
-    s3_comm comm{cfg};
+    curl_comm comm{cfg.get_s3_config()};
     s3_provider provider{cfg, comm};
-    file_manager fm(cfg, provider);
-    fm.start();
+    file_manager mgr(cfg, provider);
+    mgr.start();
 
     EXPECT_TRUE(provider.start(
         [&provider](bool directory, api_file &file) -> api_error {
           return provider_meta_handler(provider, directory, file);
         },
-        &fm));
+        &mgr));
     EXPECT_EQ(provider_type::s3, provider.get_provider_type());
     EXPECT_FALSE(provider.is_direct_only());
     EXPECT_TRUE(provider.is_online());
@@ -603,7 +705,7 @@ TEST(providers, s3_provider) {
     run_tests(cfg, provider);
 
     provider.stop();
-    fm.stop();
+    mgr.stop();
   }
   event_system::instance().stop();
 
@@ -615,7 +717,7 @@ TEST(providers, sia_provider) {
   const auto config_path = utils::path::absolute("./providers_test_sia");
   ASSERT_TRUE(utils::file::delete_directory_recursively(config_path));
 
-  console_consumer cc{};
+  console_consumer consumer{};
   event_system::instance().start();
   {
     app_config cfg(provider_type::sia, config_path);
@@ -627,23 +729,23 @@ TEST(providers, sia_provider) {
 
     curl_comm comm{cfg.get_host_config()};
     sia_provider provider{cfg, comm};
-    file_manager fm(cfg, provider);
-    fm.start();
+    file_manager mgr(cfg, provider);
+    mgr.start();
 
     EXPECT_TRUE(provider.start(
         [&provider](bool directory, api_file &file) -> api_error {
           return provider_meta_handler(provider, directory, file);
         },
-        &fm));
+        &mgr));
     EXPECT_EQ(provider_type::sia, provider.get_provider_type());
     EXPECT_FALSE(provider.is_direct_only());
     EXPECT_TRUE(provider.is_online());
-    EXPECT_FALSE(provider.is_rename_supported());
+    EXPECT_TRUE(provider.is_rename_supported());
 
     run_tests(cfg, provider);
 
     provider.stop();
-    fm.stop();
+    mgr.stop();
   }
   event_system::instance().stop();
 

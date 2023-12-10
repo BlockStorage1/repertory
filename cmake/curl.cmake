@@ -31,14 +31,20 @@ set(CURL_CMAKE_ARGS
   -DUSE_LIBIDN2=OFF
 )
 
-if (MINGW AND CMAKE_TOOLCHAIN_FILE)
+if (CMAKE_TOOLCHAIN_FILE)
   set(CURL_CMAKE_ARGS
     ${CURL_CMAKE_ARGS}
     -DCMAKE_TOOLCHAIN_FILE=${CMAKE_TOOLCHAIN_FILE} 
+  )
+endif()
+
+if (MINGW)
+  set(CURL_CMAKE_ARGS
+    ${CURL_CMAKE_ARGS}
     -DCURL_USE_OPENSSL=OFF
     -DUSE_WIN32_CRYPTO=ON
   )
-elseif(NOT MINGW)
+else()
   set(CURL_CMAKE_ARGS
     ${CURL_CMAKE_ARGS}
     -DCURL_USE_OPENSSL=ON
@@ -54,9 +60,8 @@ ExternalProject_Add(curl_project
 
 set(REPERTORY_DEFINITIONS ${REPERTORY_DEFINITIONS} -DCURL_STATICLIB=ON -DCURL_DISABLE_LDAP=ON)
 
-if (MSVC)
-  set(CURL_LIBRARIES ${EXTERNAL_BUILD_ROOT}/lib/libcurl${DEBUG_EXTRA2}${CMAKE_STATIC_LIBRARY_SUFFIX})
-else()
-  set(CURL_LIBRARIES libcurl${DEBUG_EXTRA2}${CMAKE_STATIC_LIBRARY_SUFFIX})
-  add_dependencies(curl_project openssl_project)
-endif()
+set(CURL_LIBRARIES libcurl${DEBUG_EXTRA2}${CMAKE_STATIC_LIBRARY_SUFFIX})
+add_dependencies(curl_project 
+  openssl_project
+  zlib_project
+)

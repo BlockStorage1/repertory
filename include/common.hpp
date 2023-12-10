@@ -22,6 +22,32 @@
 #ifndef INCLUDE_COMMON_HPP_
 #define INCLUDE_COMMON_HPP_
 
+#if defined(__GNUC__)
+// clang-format off
+#define REPERTORY_IGNORE_WARNINGS_ENABLE()                                            \
+  _Pragma("GCC diagnostic push")                                               \
+  _Pragma("GCC diagnostic ignored \"-Wconversion\"")                           \
+  _Pragma("GCC diagnostic ignored \"-Wdouble-promotion\"")                     \
+  _Pragma("GCC diagnostic ignored \"-Wduplicated-branches\"")                  \
+  _Pragma("GCC diagnostic ignored \"-Wfloat-conversion\"")                     \
+  _Pragma("GCC diagnostic ignored \"-Wimplicit-fallthrough\"")                 \
+  _Pragma("GCC diagnostic ignored \"-Wnull-dereference\"")                     \
+  _Pragma("GCC diagnostic ignored \"-Wsign-conversion\"")                      \
+  _Pragma("GCC diagnostic ignored \"-Wunused-but-set-variable\"")              \
+  _Pragma("GCC diagnostic ignored \"-Wunused-parameter\"")                     \
+  _Pragma("GCC diagnostic ignored \"-Wuseless-cast\"")
+
+#define REPERTORY_IGNORE_WARNINGS_DISABLE()                                    \
+  _Pragma("GCC diagnostic pop")
+#else
+#define REPERTORY_IGNORE_WARNINGS_ENABLE() 
+#define REPERTORY_IGNORE_WARNINGS_DISABLE()                                    
+#endif // defined(__GNUC__)
+// clang-format on
+
+#ifdef __cplusplus
+REPERTORY_IGNORE_WARNINGS_ENABLE()
+
 #ifdef _WIN32
 #include <winsock2.h>
 #include <ws2tcpip.h>
@@ -59,11 +85,6 @@
 #include <sys/mount.h>
 #include <sys/statvfs.h>
 #endif
-#if __linux__
-#include <utils/uuid++.hh>
-#else
-#include <uuid/uuid.h>
-#endif
 #endif
 
 #include <algorithm>
@@ -82,13 +103,20 @@
 #include <optional>
 #include <random>
 #include <sstream>
-#include <sstream>
 #include <string>
 #include <string_view>
 #include <thread>
 #include <type_traits>
 #include <unordered_map>
 #include <vector>
+
+#include <sodium.h>
+template <typename data_type>
+[[nodiscard]] inline auto repertory_rand() -> data_type {
+  data_type ret{};
+  randombytes_buf(&ret, sizeof(ret));
+  return ret;
+}
 
 #include <boost/archive/text_iarchive.hpp>
 #include <boost/archive/text_oarchive.hpp>
@@ -101,7 +129,8 @@
 #include <curl/curl.h>
 #include <curl/multi.h>
 #include <json.hpp>
-#include <rocksdb/db.h>
+#include <sqlite3.h>
+#include <stduuid.h>
 
 #ifdef _WIN32
 #include <sddl.h>
@@ -116,11 +145,32 @@
 #endif
 
 #include <pugixml.hpp>
-#include <sodium.h>
 
 #define CPPHTTPLIB_TCP_NODELAY true
 #define CPPHTTPLIB_OPENSSL_SUPPORT
 #include <httplib.h>
+
+REPERTORY_IGNORE_WARNINGS_DISABLE()
+
+struct sqlite3_deleter {
+  void operator()(sqlite3 *db3) {
+    if (db3 != nullptr) {
+      sqlite3_close_v2(db3);
+    }
+  }
+};
+
+using db3_t = std::unique_ptr<sqlite3, sqlite3_deleter>;
+
+struct sqlite3_statement_deleter {
+  void operator()(sqlite3_stmt *stmt) {
+    if (stmt != nullptr) {
+      sqlite3_finalize(stmt);
+    }
+  }
+};
+
+using db3_stmt_t = std::unique_ptr<sqlite3_stmt, sqlite3_statement_deleter>;
 
 using namespace std::chrono_literals;
 using json = nlohmann::json;
@@ -136,12 +186,12 @@ using json = nlohmann::json;
 #define REPERTORY_API_INVALID_HANDLE static_cast<std::uint64_t>(-1)
 using native_handle = HANDLE;
 #else
-#define REPERTORY_INVALID_HANDLE -1
+#define REPERTORY_INVALID_HANDLE (-1)
 #define REPERTORY_API_INVALID_HANDLE REPERTORY_INVALID_HANDLE
 using native_handle = int;
 #endif
 
-#define NANOS_PER_SECOND 1000000000L
+constexpr const auto NANOS_PER_SECOND = 1000000000L;
 
 #ifdef _WIN32
 #ifdef CreateDirectory
@@ -339,6 +389,7 @@ using WCHAR = wchar_t;
 #define STATUS_OBJECT_NAME_NOT_FOUND std::int32_t(0xC0000034L)
 #define STATUS_OBJECT_PATH_INVALID std::int32_t(0xC0000039L)
 #define STATUS_UNEXPECTED_IO_ERROR std::int32_t(0xC00000E9L)
+
 #define CONVERT_STATUS_NOT_IMPLEMENTED(e)                                      \
   ((std::int32_t(e) == STATUS_NOT_IMPLEMENTED) ? -ENOTSUP : e)
 
@@ -353,17 +404,17 @@ enum {
 };
 
 struct FSP_FSCTL_FILE_INFO {
-  UINT32 FileAttributes;
-  UINT32 ReparseTag;
-  UINT64 AllocationSize;
-  UINT64 FileSize;
-  UINT64 CreationTime;
-  UINT64 LastAccessTime;
-  UINT64 LastWriteTime;
-  UINT64 ChangeTime;
-  UINT64 IndexNumber;
-  UINT32 HardLinks;
-  UINT32 EaSize;
+  UINT32 FileAttributes{};
+  UINT32 ReparseTag{};
+  UINT64 AllocationSize{};
+  UINT64 FileSize{};
+  UINT64 CreationTime{};
+  UINT64 LastAccessTime{};
+  UINT64 LastWriteTime{};
+  UINT64 ChangeTime{};
+  UINT64 IndexNumber{};
+  UINT32 HardLinks{};
+  UINT32 EaSize{};
 };
 
 using FileInfo = FSP_FSCTL_FILE_INFO;
@@ -379,6 +430,13 @@ void repertory_init();
 void repertory_shutdown();
 } // namespace repertory
 
+namespace {
+template <class... Ts> struct overloaded : Ts... {
+  using Ts::operator()...;
+};
+template <class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
+} // namespace
+
 #define INTERFACE_SETUP(name)                                                  \
 public:                                                                        \
   name(const name &) noexcept = delete;                                        \
@@ -392,4 +450,5 @@ protected:                                                                     \
 public:                                                                        \
   virtual ~name() = default
 
+#endif // __cplusplus
 #endif // INCLUDE_COMMON_HPP_

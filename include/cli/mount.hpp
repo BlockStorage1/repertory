@@ -54,30 +54,30 @@ using remote_instance = repertory::remote_fuse::i_remote_instance;
 
 namespace repertory::cli::actions {
 [[nodiscard]] inline auto
-mount(int argc, char *argv[], std::string data_directory, int &mount_result,
-      provider_type pt, const std::string &remote_host,
+mount(std::vector<const char *> args, std::string data_directory,
+      int &mount_result, provider_type prov, const std::string &remote_host,
       std::uint16_t remote_port, const std::string &unique_id) -> exit_code {
   auto ret = exit_code::success;
 
-  lock_data lock(pt, unique_id);
+  lock_data lock(prov, unique_id);
   const auto res = lock.grab_lock();
   if (res == lock_result::locked) {
     ret = exit_code::mount_active;
-    std::cerr << app_config::get_provider_display_name(pt)
+    std::cerr << app_config::get_provider_display_name(prov)
               << " mount is already active" << std::endl;
   } else if (res == lock_result::success) {
     const auto generate_config = utils::cli::has_option(
-        argc, argv, utils::cli::options::generate_config_option);
+        args, utils::cli::options::generate_config_option);
     if (generate_config) {
-      app_config config(pt, data_directory);
-      if (pt == provider_type::remote) {
+      app_config config(prov, data_directory);
+      if (prov == provider_type::remote) {
         config.set_enable_remote_mount(false);
         config.set_is_remote_mount(true);
         config.set_remote_host_name_or_ip(remote_host);
         config.set_remote_port(remote_port);
         config.save();
       }
-      std::cout << "Generated " << app_config::get_provider_display_name(pt)
+      std::cout << "Generated " << app_config::get_provider_display_name(prov)
                 << " Configuration" << std::endl;
       std::cout << config.get_config_file_path() << std::endl;
       ret = utils::file::is_file(config.get_config_file_path())
@@ -85,14 +85,13 @@ mount(int argc, char *argv[], std::string data_directory, int &mount_result,
                 : exit_code::file_creation_failed;
     } else {
 #ifdef _WIN32
-      if (utils::cli::has_option(argc, argv,
-                                 utils::cli::options::hidden_option)) {
+      if (utils::cli::has_option(args, utils::cli::options::hidden_option)) {
         ::ShowWindow(::GetConsoleWindow(), SW_HIDE);
       }
 #endif
       const auto drive_args =
-          utils::cli::parse_drive_options(argc, argv, pt, data_directory);
-      app_config config(pt, data_directory);
+          utils::cli::parse_drive_options(args, prov, data_directory);
+      app_config config(prov, data_directory);
 #ifdef _WIN32
       if (config.get_enable_mount_manager() &&
           not utils::is_process_elevated()) {
@@ -102,8 +101,8 @@ mount(int argc, char *argv[], std::string data_directory, int &mount_result,
         }
         lock.release();
 
-        mount_result = utils::run_process_elevated(argc, argv);
-        lock_data lock2(pt, unique_id);
+        mount_result = utils::run_process_elevated(args);
+        lock_data lock2(prov, unique_id);
         if (lock2.grab_lock() == lock_result::success) {
           if (not lock2.set_mount_state(false, "", -1)) {
             std::cerr << "failed to set mount state" << std::endl;
@@ -114,15 +113,16 @@ mount(int argc, char *argv[], std::string data_directory, int &mount_result,
         return exit_code::mount_result;
       }
 #endif
-      std::cout << "Initializing " << app_config::get_provider_display_name(pt)
+      std::cout << "Initializing "
+                << app_config::get_provider_display_name(prov)
                 << (unique_id.empty() ? ""
-                    : (pt == provider_type::s3)
+                    : (prov == provider_type::s3)
                         ? " [" + unique_id + ']'
                         : " [" + remote_host + ':' +
                               std::to_string(remote_port) + ']')
                 << " Drive" << std::endl;
-      if (pt == provider_type::remote) {
-        std::uint16_t port = 0u;
+      if (prov == provider_type::remote) {
+        std::uint16_t port{0U};
         if (utils::get_next_available_port(config.get_api_port(), port)) {
           config.set_remote_host_name_or_ip(remote_host);
           config.set_remote_port(remote_port);
@@ -155,7 +155,7 @@ mount(int argc, char *argv[], std::string data_directory, int &mount_result,
         config.set_is_remote_mount(false);
 
         try {
-          auto provider = create_provider(pt, config);
+          auto provider = create_provider(prov, config);
           repertory_drive drive(config, lock, *provider);
           if (not lock.set_mount_state(true, "", -1)) {
             std::cerr << "failed to set mount state" << std::endl;

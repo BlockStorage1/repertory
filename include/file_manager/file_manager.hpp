@@ -72,13 +72,13 @@ public:
       auto operator=(const download &) noexcept -> download & = delete;
 
     private:
-      bool complete_ = false;
-      api_error error_ = api_error::success;
+      bool complete_{false};
+      api_error error_{api_error::success};
       std::mutex mtx_;
       std::condition_variable notify_;
 
     public:
-      void notify(const api_error &e);
+      void notify(const api_error &err);
 
       auto wait() -> api_error;
     };
@@ -117,22 +117,23 @@ public:
     i_provider &provider_;
 
   private:
-    api_error error_ = api_error::success;
+    api_error error_{api_error::success};
     mutable std::mutex error_mtx_;
-    stop_type io_stop_requested_ = false;
+    stop_type io_stop_requested_{false};
     std::unique_ptr<std::thread> io_thread_;
 
   protected:
     std::unordered_map<std::size_t, std::shared_ptr<download>>
         active_downloads_;
     mutable std::recursive_mutex file_mtx_;
-    std::atomic<std::chrono::system_clock::time_point> last_access_ =
-        std::chrono::system_clock::now();
-    bool modified_ = false;
+    std::atomic<std::chrono::system_clock::time_point> last_access_{
+        std::chrono::system_clock::now()};
+    bool modified_{false};
     native_file_ptr nf_;
     mutable std::mutex io_thread_mtx_;
     std::condition_variable io_thread_notify_;
     std::deque<std::shared_ptr<io_item>> io_thread_queue_;
+    bool removed_{false};
 
   private:
     void file_io_thread();
@@ -180,6 +181,10 @@ public:
       return fsi_.source_path;
     }
 
+    [[nodiscard]] auto has_handle(std::uint64_t handle) const -> bool override {
+      return open_data_.find(handle) != open_data_.end();
+    }
+
     [[nodiscard]] auto is_directory() const -> bool override {
       return fsi_.directory;
     }
@@ -194,17 +199,17 @@ public:
   class open_file final : public open_file_base {
   public:
     open_file(std::uint64_t chunk_size, std::uint8_t chunk_timeout,
-              filesystem_item fsi, i_provider &provider, i_upload_manager &um);
+              filesystem_item fsi, i_provider &provider, i_upload_manager &mgr);
 
     open_file(std::uint64_t chunk_size, std::uint8_t chunk_timeout,
               filesystem_item fsi,
               std::map<std::uint64_t, open_file_data> open_data,
-              i_provider &provider, i_upload_manager &um);
+              i_provider &provider, i_upload_manager &mgr);
 
     open_file(std::uint64_t chunk_size, std::uint8_t chunk_timeout,
               filesystem_item fsi, i_provider &provider,
               std::optional<boost::dynamic_bitset<>> read_state,
-              i_upload_manager &um);
+              i_upload_manager &mgr);
 
   private:
     open_file(std::uint64_t chunk_size, std::uint8_t chunk_timeout,
@@ -212,7 +217,7 @@ public:
               std::map<std::uint64_t, open_file_data> open_data,
               i_provider &provider,
               std::optional<boost::dynamic_bitset<>> read_state,
-              i_upload_manager &um);
+              i_upload_manager &mgr);
 
   public:
     open_file() = delete;
@@ -225,11 +230,11 @@ public:
     ~open_file() override;
 
   private:
-    i_upload_manager &um_;
+    i_upload_manager &mgr_;
 
   private:
     bool notified_ = false;
-    std::size_t read_chunk_index_ = 0u;
+    std::size_t read_chunk_index_{};
     boost::dynamic_bitset<> read_state_;
     std::unique_ptr<std::thread> reader_thread_;
     std::unique_ptr<std::thread> download_thread_;
@@ -242,7 +247,8 @@ public:
                         std::size_t end_chunk_index_inclusive,
                         bool should_reset);
 
-  private:
+    void set_modified();
+
     void update_background_reader(std::size_t read_chunk);
 
   protected:
@@ -262,11 +268,13 @@ public:
 
     auto is_write_supported() const -> bool override { return true; }
 
-    [[nodiscard]] auto native_operation(const native_operation_callback &cb)
+    [[nodiscard]] auto
+    native_operation(const native_operation_callback &callback)
         -> api_error override;
 
-    [[nodiscard]] auto native_operation(std::uint64_t new_file_size,
-                                        const native_operation_callback &cb)
+    [[nodiscard]] auto
+    native_operation(std::uint64_t new_file_size,
+                     const native_operation_callback &callback)
         -> api_error override;
 
     void remove(std::uint64_t handle) override;
@@ -313,8 +321,8 @@ public:
     std::unique_ptr<std::thread> chunk_reverse_thread_;
     std::condition_variable chunk_notify_;
     mutable std::mutex chunk_mtx_;
-    std::size_t current_chunk_ = 0u;
-    std::size_t first_chunk_ = 0u;
+    std::size_t current_chunk_{};
+    std::size_t first_chunk_{};
     std::size_t last_chunk_;
 
   private:
@@ -355,7 +363,8 @@ public:
 
     auto is_write_supported() const -> bool override { return false; }
 
-    [[nodiscard]] auto native_operation(const native_operation_callback &cb)
+    [[nodiscard]] auto
+    native_operation(const native_operation_callback &callback)
         -> api_error override;
 
     [[nodiscard]] auto native_operation(std::uint64_t,
@@ -442,19 +451,14 @@ public:
 private:
   app_config &config_;
   i_provider &provider_;
-  std::unique_ptr<rocksdb::DB> db_;
 
 private:
-  rocksdb::ColumnFamilyHandle *default_family_{};
-  std::uint64_t next_handle_ = 0u;
+  db3_t db_{nullptr};
+  std::uint64_t next_handle_{0U};
   mutable std::recursive_mutex open_file_mtx_;
   std::unordered_map<std::string, std::shared_ptr<i_closeable_open_file>>
       open_file_lookup_;
-  std::unordered_map<std::uint64_t, i_closeable_open_file *>
-      open_handle_lookup_;
-  stop_type stop_requested_ = false;
-  rocksdb::ColumnFamilyHandle *upload_family_{};
-  rocksdb::ColumnFamilyHandle *upload_active_family_{};
+  stop_type stop_requested_{false};
   std::unordered_map<std::string, std::unique_ptr<upload>> upload_lookup_;
   mutable std::mutex upload_mtx_;
   std::condition_variable upload_notify_;
@@ -463,12 +467,15 @@ private:
 private:
   void close_timed_out_files();
 
+  auto get_open_file_by_handle(std::uint64_t handle) const
+      -> std::shared_ptr<i_closeable_open_file>;
+
   auto get_open_file_count(const std::string &api_path) const -> std::size_t;
 
   auto open(const std::string &api_path, bool directory,
             const open_file_data &ofd, std::uint64_t &handle,
-            std::shared_ptr<i_open_file> &f,
-            std::shared_ptr<i_closeable_open_file> of) -> api_error;
+            std::shared_ptr<i_open_file> &file,
+            std::shared_ptr<i_closeable_open_file> closeable_file) -> api_error;
 
   void queue_upload(const std::string &api_path, const std::string &source_path,
                     bool no_lock);
@@ -477,7 +484,7 @@ private:
 
   void swap_renamed_items(std::string from_api_path, std::string to_api_path);
 
-  void upload_completed(const file_upload_completed &e);
+  void upload_completed(const file_upload_completed &evt);
 
   void upload_handler();
 
@@ -487,14 +494,14 @@ public:
   auto handle_file_rename(const std::string &from_api_path,
                           const std::string &to_api_path) -> api_error;
 
-  void queue_upload(const i_open_file &o) override;
+  void queue_upload(const i_open_file &file) override;
 
   void remove_resume(const std::string &api_path,
                      const std::string &source_path) override;
 
   void remove_upload(const std::string &api_path) override;
 
-  void store_resume(const i_open_file &o) override;
+  void store_resume(const i_open_file &file) override;
 
 public:
   void close(std::uint64_t handle);
@@ -503,7 +510,7 @@ public:
 
   [[nodiscard]] auto create(const std::string &api_path, api_meta_map &meta,
                             open_file_data ofd, std::uint64_t &handle,
-                            std::shared_ptr<i_open_file> &f) -> api_error;
+                            std::shared_ptr<i_open_file> &file) -> api_error;
 
   [[nodiscard]] auto evict_file(const std::string &api_path) -> bool override;
 
@@ -511,7 +518,7 @@ public:
       -> directory_item_list override;
 
   [[nodiscard]] auto get_open_file(std::uint64_t handle, bool write_supported,
-                                   std::shared_ptr<i_open_file> &f) -> bool;
+                                   std::shared_ptr<i_open_file> &file) -> bool;
 
   [[nodiscard]] auto get_open_file_count() const -> std::size_t;
 
@@ -530,14 +537,11 @@ public:
 #ifdef REPERTORY_TESTING
   [[nodiscard]] auto open(std::shared_ptr<i_closeable_open_file> of,
                           const open_file_data &ofd, std::uint64_t &handle,
-                          std::shared_ptr<i_open_file> &f) -> api_error;
+                          std::shared_ptr<i_open_file> &file) -> api_error;
 #endif
   [[nodiscard]] auto open(const std::string &api_path, bool directory,
                           const open_file_data &ofd, std::uint64_t &handle,
-                          std::shared_ptr<i_open_file> &f) -> api_error;
-
-  auto perform_locked_operation(locked_operation_callback locked_operation)
-      -> bool override;
+                          std::shared_ptr<i_open_file> &file) -> api_error;
 
   [[nodiscard]] auto remove_file(const std::string &api_path) -> api_error;
 

@@ -50,7 +50,7 @@ namespace repertory::utils {
 
 [[nodiscard]] auto is_process_elevated() -> bool;
 
-[[nodiscard]] auto run_process_elevated(int argc, char *argv[]) -> int;
+[[nodiscard]] auto run_process_elevated(std::vector<const char *> args) -> int;
 
 void set_last_error_code(DWORD errorCode);
 

@@ -26,160 +26,92 @@ namespace repertory::remote {
 auto create_open_flags(std::uint32_t flags) -> open_flags {
   open_flags ret{};
   {
-    const auto f = (flags & 3u);
-    ret |= (f == 1u)   ? open_flags::write_only
-           : (f == 2u) ? open_flags::read_write
-                       : open_flags::read_only;
-  }
-  if (flags & static_cast<std::uint32_t>(O_CREAT)) {
-    ret |= open_flags::create;
+    const auto val = (flags & 3U);
+    ret |= (val == 1U)   ? open_flags::write_only
+           : (val == 2U) ? open_flags::read_write
+                         : open_flags::read_only;
   }
 
-  if (flags & static_cast<std::uint32_t>(O_EXCL)) {
-    ret |= open_flags::excl;
-  }
+  const auto set_if_has_flag = [&flags, &ret](auto flag, open_flags o_flag) {
+    if ((flags & static_cast<std::uint32_t>(flag)) != 0U) {
+      ret |= o_flag;
+    }
+  };
 
-  if (flags & static_cast<std::uint32_t>(O_NOCTTY)) {
-    ret |= open_flags::no_ctty;
-  }
-
-  if (flags & static_cast<std::uint32_t>(O_TRUNC)) {
-    ret |= open_flags::truncate;
-  }
-
-  if (flags & static_cast<std::uint32_t>(O_APPEND)) {
-    ret |= open_flags::append;
-  }
-
-  if (flags & static_cast<std::uint32_t>(O_NONBLOCK)) {
-    ret |= open_flags::non_blocking;
-  }
-
-  if (flags & static_cast<std::uint32_t>(O_SYNC)) {
-    ret |= open_flags::sync;
-  }
-
-  if (flags & static_cast<std::uint32_t>(O_ASYNC)) {
-    ret |= open_flags::async;
-  }
-
-  if (flags & static_cast<std::uint32_t>(O_DIRECTORY)) {
-    ret |= open_flags::directory;
-  }
-
-  if (flags & static_cast<std::uint32_t>(O_NOFOLLOW)) {
-    ret |= open_flags::no_follow;
-  }
-
-  if (flags & static_cast<std::uint32_t>(O_CLOEXEC)) {
-    ret |= open_flags::clo_exec;
-  }
+  set_if_has_flag(O_APPEND, open_flags::append);
+  set_if_has_flag(O_ASYNC, open_flags::async);
+  set_if_has_flag(O_CLOEXEC, open_flags::clo_exec);
+  set_if_has_flag(O_CREAT, open_flags::create);
 #ifdef O_DIRECT
-  if (flags & static_cast<std::uint32_t>(O_DIRECT)) {
-    ret |= open_flags::direct;
-  }
+  set_if_has_flag(O_DIRECT, open_flags::direct);
 #endif
-#ifdef O_NOATIME
-  if (flags & static_cast<std::uint32_t>(O_NOATIME)) {
-    ret |= open_flags::no_atime;
-  }
-#endif
-#ifdef O_PATH
-  if (flags & static_cast<std::uint32_t>(O_PATH)) {
-    ret |= open_flags::path;
-  }
-#endif
-#ifdef O_TMPFILE
-  if (flags & static_cast<std::uint32_t>(O_TMPFILE)) {
-    ret |= open_flags::temp_file;
-  }
-#endif
+  set_if_has_flag(O_DIRECTORY, open_flags::directory);
 #ifdef O_DSYNC
-  if (flags & static_cast<std::uint32_t>(O_DSYNC)) {
-    ret |= open_flags::dsync;
-  }
+  set_if_has_flag(O_DSYNC, open_flags::dsync);
 #endif
+  set_if_has_flag(O_EXCL, open_flags::excl);
+#ifdef O_NOATIME
+  set_if_has_flag(O_NOATIME, open_flags::no_atime);
+#endif
+  set_if_has_flag(O_NOCTTY, open_flags::no_ctty);
+  set_if_has_flag(O_NOFOLLOW, open_flags::no_follow);
+  set_if_has_flag(O_NONBLOCK, open_flags::non_blocking);
+#ifdef O_PATH
+  set_if_has_flag(O_PATH, open_flags::path);
+#endif
+  set_if_has_flag(O_SYNC, open_flags::sync);
+#ifdef O_TMPFILE
+  set_if_has_flag(O_TMPFILE, open_flags::temp_file);
+#endif
+  set_if_has_flag(O_TRUNC, open_flags::truncate);
+
   return ret;
 }
 
 auto create_os_open_flags(const open_flags &flags) -> std::uint32_t {
-  std::uint32_t ret = 0u;
-  if ((flags & open_flags::read_write) == open_flags::read_write) {
-    ret |= static_cast<std::uint32_t>(O_RDWR);
-  } else if ((flags & open_flags::write_only) == open_flags::write_only) {
-    ret |= static_cast<std::uint32_t>(O_WRONLY);
-  } else {
-    ret |= static_cast<std::uint32_t>(O_RDONLY);
+  std::uint32_t ret{};
+  const auto set_if_has_flag = [&flags, &ret](auto o_flag, auto flag) -> bool {
+    if ((flags & o_flag) == o_flag) {
+      ret |= static_cast<std::uint32_t>(flag);
+      return true;
+    }
+
+    return false;
+  };
+
+  if (not set_if_has_flag(open_flags::read_write, O_RDWR)) {
+    if (not set_if_has_flag(open_flags::write_only, O_WRONLY)) {
+      ret |= static_cast<std::uint32_t>(O_RDONLY);
+    }
   }
 
-  if ((flags & open_flags::create) == open_flags::create) {
-    ret |= static_cast<std::uint32_t>(O_CREAT);
-  }
-
-  if ((flags & open_flags::excl) == open_flags::excl) {
-    ret |= static_cast<std::uint32_t>(O_EXCL);
-  }
-
-  if ((flags & open_flags::no_ctty) == open_flags::no_ctty) {
-    ret |= static_cast<std::uint32_t>(O_NOCTTY);
-  }
-
-  if ((flags & open_flags::truncate) == open_flags::truncate) {
-    ret |= static_cast<std::uint32_t>(O_TRUNC);
-  }
-
-  if ((flags & open_flags::append) == open_flags::append) {
-    ret |= static_cast<std::uint32_t>(O_APPEND);
-  }
-
-  if ((flags & open_flags::non_blocking) == open_flags::non_blocking) {
-    ret |= static_cast<std::uint32_t>(O_NONBLOCK);
-  }
-
-  if ((flags & open_flags::sync) == open_flags::sync) {
-    ret |= static_cast<std::uint32_t>(O_SYNC);
-  }
-
-  if ((flags & open_flags::async) == open_flags::async) {
-    ret |= static_cast<std::uint32_t>(O_ASYNC);
-  }
-
-  if ((flags & open_flags::directory) == open_flags::directory) {
-    ret |= static_cast<std::uint32_t>(O_DIRECTORY);
-  }
-
-  if ((flags & open_flags::no_follow) == open_flags::no_follow) {
-    ret |= static_cast<std::uint32_t>(O_NOFOLLOW);
-  }
-
-  if ((flags & open_flags::clo_exec) == open_flags::clo_exec) {
-    ret |= static_cast<std::uint32_t>(O_CLOEXEC);
-  }
+  set_if_has_flag(open_flags::append, O_APPEND);
+  set_if_has_flag(open_flags::async, O_ASYNC);
+  set_if_has_flag(open_flags::clo_exec, O_CLOEXEC);
+  set_if_has_flag(open_flags::create, O_CREAT);
 #ifdef O_DIRECT
-  if ((flags & open_flags::direct) == open_flags::direct) {
-    ret |= static_cast<std::uint32_t>(O_DIRECT);
-  }
+  set_if_has_flag(open_flags::direct, O_DIRECT);
 #endif
-#ifdef O_NOATIME
-  if ((flags & open_flags::no_atime) == open_flags::no_atime) {
-    ret |= static_cast<std::uint32_t>(O_NOATIME);
-  }
-#endif
-#ifdef O_PATH
-  if ((flags & open_flags::path) == open_flags::path) {
-    ret |= static_cast<std::uint32_t>(O_PATH);
-  }
-#endif
-#ifdef O_TMPFILE
-  if ((flags & open_flags::temp_file) == open_flags::temp_file) {
-    ret |= static_cast<std::uint32_t>(O_TMPFILE);
-  }
-#endif
+  set_if_has_flag(open_flags::directory, O_DIRECTORY);
 #ifdef O_DSYNC
-  if ((flags & open_flags::dsync) == open_flags::dsync) {
-    ret |= static_cast<std::uint32_t>(O_DSYNC);
-  }
+  set_if_has_flag(open_flags::dsync, O_DSYNC);
 #endif
+  set_if_has_flag(open_flags::excl, O_EXCL);
+#ifdef O_NOATIME
+  set_if_has_flag(open_flags::no_atime, O_NOATIME);
+#endif
+  set_if_has_flag(open_flags::no_ctty, O_NOCTTY);
+  set_if_has_flag(open_flags::no_follow, O_NOFOLLOW);
+  set_if_has_flag(open_flags::non_blocking, O_NONBLOCK);
+#ifdef O_PATH
+  set_if_has_flag(open_flags::path, O_PATH);
+#endif
+  set_if_has_flag(open_flags::sync, O_SYNC);
+#ifdef O_TMPFILE
+  set_if_has_flag(open_flags::temp_file, O_TMPFILE);
+#endif
+  set_if_has_flag(open_flags::truncate, O_TRUNC);
+
   return ret;
 }
 #endif

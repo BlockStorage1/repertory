@@ -19,6 +19,7 @@
   OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
   SOFTWARE.
 */
+#include "common.hpp"
 #ifndef _WIN32
 
 #include "drives/fuse/fuse_base.hpp"
@@ -28,6 +29,7 @@
 #include "events/event_system.hpp"
 #include "events/events.hpp"
 #include "providers/i_provider.hpp"
+#include "utils/file_utils.hpp"
 #include "utils/path_utils.hpp"
 #include "utils/string_utils.hpp"
 #include "utils/utils.hpp"
@@ -160,21 +162,27 @@ void fuse_base::destroy_(void *ptr) {
   execute_void_callback(__FUNCTION__, [&]() { instance().destroy_impl(ptr); });
 }
 
-void fuse_base::display_options([[maybe_unused]] int argc,
-                                [[maybe_unused]] char *argv[]) {
+void fuse_base::destroy_impl(void * /* ptr */) { repertory_shutdown(); }
+
+void fuse_base::display_options(
+    [[maybe_unused]] std::vector<const char *> args) {
 #if FUSE_USE_VERSION >= 30
   fuse_cmdline_help();
 #else
   struct fuse_operations fuse_ops {};
-  fuse_main(argc, argv, &fuse_ops, nullptr);
+  fuse_main(args.size(),
+            reinterpret_cast<char **>(const_cast<char **>(args.data())),
+            &fuse_ops, nullptr);
 #endif
 
   std::cout << std::endl;
 }
 
-void fuse_base::display_version_information(int argc, char *argv[]) {
+void fuse_base::display_version_information(std::vector<const char *> args) {
   struct fuse_operations fuse_ops {};
-  fuse_main(argc, argv, &fuse_ops, nullptr);
+  fuse_main(static_cast<int>(args.size()),
+            reinterpret_cast<char **>(const_cast<char **>(args.data())),
+            &fuse_ops, nullptr);
 }
 
 auto fuse_base::execute_callback(
@@ -308,6 +316,9 @@ auto fuse_base::init_(struct fuse_conn_info *conn) -> void * {
 #if FUSE_USE_VERSION >= 30
 auto fuse_base::init_impl([[maybe_unused]] struct fuse_conn_info *conn,
                           struct fuse_config *cfg) -> void * {
+  utils::file::change_to_process_directory();
+  repertory_init();
+
 #ifdef __APPLE__
   conn->want |= FUSE_CAP_VOL_RENAME;
   conn->want |= FUSE_CAP_XTIMES;
@@ -320,6 +331,9 @@ auto fuse_base::init_impl([[maybe_unused]] struct fuse_conn_info *conn,
 }
 #else
 auto fuse_base::init_impl(struct fuse_conn_info *conn) -> void * {
+  utils::file::change_to_process_directory();
+  repertory_init();
+
 #ifdef __APPLE__
   conn->want |= FUSE_CAP_VOL_RENAME;
   conn->want |= FUSE_CAP_XTIMES;
@@ -347,10 +361,11 @@ auto fuse_base::mount(std::vector<std::string> args) -> int {
     }
 
     {
-      struct fuse_args fa = FUSE_ARGS_INIT(static_cast<int>(fuse_argv.size()),
-                                           (char **)&fuse_argv[0]);
+      struct fuse_args fa = FUSE_ARGS_INIT(
+          static_cast<int>(fuse_argv.size()),
+          reinterpret_cast<char **>(const_cast<char **>(fuse_argv.data())));
 
-      char *mount_location = nullptr;
+      char *mount_location{nullptr};
 #if FUSE_USE_VERSION >= 30
       struct fuse_cmdline_opts opts {};
       fuse_parse_cmdline(&fa, &opts);
@@ -370,8 +385,10 @@ auto fuse_base::mount(std::vector<std::string> args) -> int {
 #if FUSE_USE_VERSION < 30
     umask(0);
 #endif
-    ret = fuse_main(static_cast<int>(fuse_argv.size()), (char **)&fuse_argv[0],
-                    &fuse_ops_, this);
+    ret = fuse_main(
+        static_cast<int>(fuse_argv.size()),
+        reinterpret_cast<char **>(const_cast<char **>(fuse_argv.data())),
+        &fuse_ops_, this);
     notify_fuse_main_exit(ret);
   }
 

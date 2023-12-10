@@ -33,6 +33,12 @@ public:
 
   ~encrypt_provider() override = default;
 
+public:
+  encrypt_provider(const encrypt_provider &) = delete;
+  encrypt_provider(encrypt_provider &&) = delete;
+  auto operator=(const encrypt_provider &) -> encrypt_provider & = delete;
+  auto operator=(encrypt_provider &&) -> encrypt_provider & = delete;
+
 private:
   struct reader_info final {
     std::chrono::system_clock::time_point last_access_time =
@@ -43,11 +49,7 @@ private:
 
 private:
   app_config &config_;
-  std::unique_ptr<rocksdb::DB> db_;
-  rocksdb::ColumnFamilyHandle *dir_family_{};
-  rocksdb::ColumnFamilyHandle *file_family_{};
-  rocksdb::ColumnFamilyHandle *source_family_{};
-  const std::string DB_NAME = "meta_db";
+  db3_t db_;
 
 private:
   i_file_manager *fm_ = nullptr;
@@ -56,7 +58,7 @@ private:
   std::recursive_mutex reader_lookup_mtx_{};
 
 private:
-  static auto create_api_file(const std::string api_path, bool directory,
+  static auto create_api_file(const std::string &api_path, bool directory,
                               const std::string &source_path) -> api_file;
 
   static void create_item_meta(api_meta_map &meta, bool directory,
@@ -201,13 +203,12 @@ public:
   }
 
   [[nodiscard]] auto start(api_item_added_callback api_item_added,
-                           i_file_manager *fm) -> bool override;
+                           i_file_manager *mgr) -> bool override;
 
   void stop() override;
 
   [[nodiscard]] auto upload_file(const std::string & /*api_path*/,
                                  const std::string & /*source_path*/,
-                                 const std::string & /*encryption_token*/,
                                  stop_type & /*stop_requested*/)
       -> api_error override {
     return api_error::not_implemented;

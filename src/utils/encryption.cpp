@@ -72,16 +72,16 @@ auto generate_key(const std::string &encryption_token) -> key_type {
     throw std::runtime_error("failed to initialize sha256|" +
                              std::to_string(res));
   }
-
-  if ((res = crypto_hash_sha256_update(
-           &state,
-           reinterpret_cast<const unsigned char *>(encryption_token.c_str()),
-           strnlen(encryption_token.c_str(), encryption_token.size()))) != 0) {
+  res = crypto_hash_sha256_update(
+      &state, reinterpret_cast<const unsigned char *>(encryption_token.c_str()),
+      strnlen(encryption_token.c_str(), encryption_token.size()));
+  if (res != 0) {
     throw std::runtime_error("failed to update sha256|" + std::to_string(res));
   }
 
   key_type ret{};
-  if ((res = crypto_hash_sha256_final(&state, ret.data())) != 0) {
+  res = crypto_hash_sha256_final(&state, ret.data());
+  if (res != 0) {
     throw std::runtime_error("failed to finalize sha256|" +
                              std::to_string(res));
   }
@@ -89,11 +89,9 @@ auto generate_key(const std::string &encryption_token) -> key_type {
   return ret;
 }
 
-auto read_encrypted_range(
-    const http_range &range, const key_type &key,
-    const std::function<api_error(data_buffer &ct, std::uint64_t start_offset,
-                                  std::uint64_t end_offset)> &reader,
-    std::uint64_t total_size, data_buffer &data) -> api_error {
+auto read_encrypted_range(const http_range &range, const key_type &key,
+                          reader_func reader, std::uint64_t total_size,
+                          data_buffer &data) -> api_error {
   const auto encrypted_chunk_size =
       utils::encryption::encrypting_reader::get_encrypted_chunk_size();
   const auto data_chunk_size =
@@ -104,35 +102,37 @@ auto read_encrypted_range(
   const auto start_chunk =
       static_cast<std::size_t>(range.begin / data_chunk_size);
   const auto end_chunk = static_cast<std::size_t>(range.end / data_chunk_size);
-  auto remain = range.end - range.begin + 1u;
+  auto remain = range.end - range.begin + 1U;
   auto source_offset = static_cast<std::size_t>(range.begin % data_chunk_size);
 
   for (std::size_t chunk = start_chunk; chunk <= end_chunk; chunk++) {
-    data_buffer ct;
+    data_buffer cypher;
     const auto start_offset = chunk * encrypted_chunk_size;
     const auto end_offset = std::min(
         start_offset + (total_size - (chunk * data_chunk_size)) + header_size -
-            1u,
-        static_cast<std::uint64_t>(start_offset + encrypted_chunk_size - 1u));
+            1U,
+        static_cast<std::uint64_t>(start_offset + encrypted_chunk_size - 1U));
 
-    const auto result = reader(ct, start_offset, end_offset);
+    const auto result = reader(cypher, start_offset, end_offset);
     if (result != api_error::success) {
       return result;
     }
 
     data_buffer source_buffer;
-    if (not utils::encryption::decrypt_data(key, ct, source_buffer)) {
+    if (not utils::encryption::decrypt_data(key, cypher, source_buffer)) {
       return api_error::decryption_error;
     }
-    ct.clear();
+    cypher.clear();
 
     const auto data_size = static_cast<std::size_t>(std::min(
         remain, static_cast<std::uint64_t>(data_chunk_size - source_offset)));
-    std::copy(source_buffer.begin() + source_offset,
-              source_buffer.begin() + source_offset + data_size,
+    std::copy(std::next(source_buffer.begin(),
+                        static_cast<std::int64_t>(source_offset)),
+              std::next(source_buffer.begin(),
+                        static_cast<std::int64_t>(source_offset + data_size)),
               std::back_inserter(data));
     remain -= data_size;
-    source_offset = 0u;
+    source_offset = 0U;
   }
 
   return api_error::success;

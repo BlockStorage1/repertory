@@ -98,10 +98,9 @@ remote_winfsp_drive::remote_winfsp_drive(app_config &config,
       config_(config),
       lock_(lock),
       factory_(std::move(factory)) {
-  E_SUBSCRIBE_EXACT(unmount_requested,
-                    [this](const unmount_requested & /* e */) {
-                      std::thread([this]() { this->shutdown(); }).detach();
-                    });
+  E_SUBSCRIBE_EXACT(unmount_requested, [this](const unmount_requested &) {
+    std::thread([this]() { this->shutdown(); }).detach();
+  });
 }
 
 auto remote_winfsp_drive::CanDelete(PVOID /*file_node*/, PVOID file_desc,

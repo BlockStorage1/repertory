@@ -22,7 +22,7 @@
 #ifndef INCLUDE_PROVIDERS_SIA_SIA_PROVIDER_HPP_
 #define INCLUDE_PROVIDERS_SIA_SIA_PROVIDER_HPP_
 
-#include "providers/i_provider.hpp"
+#include "providers/base_provider.hpp"
 #include "types/repertory.hpp"
 
 namespace repertory {
@@ -30,60 +30,51 @@ class app_config;
 class i_file_manager;
 class i_http_comm;
 
-class sia_provider : public i_provider {
+class sia_provider : public base_provider {
 public:
   sia_provider(app_config &config, i_http_comm &comm);
 
   ~sia_provider() override = default;
 
-private:
-  app_config &config_;
-  i_http_comm &comm_;
+public:
+  sia_provider(const sia_provider &) = delete;
+  sia_provider(sia_provider &&) = delete;
+  auto operator=(const sia_provider &) -> sia_provider & = delete;
+  auto operator=(sia_provider &&) -> sia_provider & = delete;
 
 private:
-  const std::string DB_NAME = "meta_db";
-  api_item_added_callback api_item_added_;
-  std::unique_ptr<rocksdb::DB> db_;
-  i_file_manager *fm_ = nullptr;
-
-private:
-  [[nodiscard]] static auto create_api_file(std::string path,
-                                            std::uint64_t size) -> api_file;
-
-  [[nodiscard]] static auto create_api_file(std::string path,
-                                            std::uint64_t size,
-                                            api_meta_map &meta) -> api_file;
-
   [[nodiscard]] auto get_object_info(const std::string &api_path,
                                      json &object_info) const -> api_error;
 
-  [[nodiscard]] auto get_object_list(const std::string api_path,
+  [[nodiscard]] auto get_object_list(const std::string &api_path,
                                      nlohmann::json &object_list) const -> bool;
 
-  void remove_deleted_files();
-
-public:
-  [[nodiscard]] auto create_directory(const std::string &api_path,
-                                      api_meta_map &meta) -> api_error override;
-
-  [[nodiscard]] auto
-  create_directory_clone_source_meta(const std::string &source_api_path,
-                                     const std::string &api_path)
+protected:
+  [[nodiscard]] auto create_directory_impl(const std::string &api_path,
+                                           api_meta_map &meta)
       -> api_error override;
 
-  [[nodiscard]] auto get_directory_item_count(const std::string &api_path) const
+  [[nodiscard]] auto get_directory_items_impl(const std::string &api_path,
+                                              directory_item_list &list) const
+      -> api_error override;
+
+  [[nodiscard]] auto get_used_drive_space_impl() const
       -> std::uint64_t override;
 
-  [[nodiscard]] auto create_file(const std::string &api_path,
-                                 api_meta_map &meta) -> api_error override;
-
-  [[nodiscard]] auto get_api_path_from_source(const std::string &source_path,
-                                              std::string &api_path) const
+  [[nodiscard]] auto remove_directory_impl(const std::string &api_path)
       -> api_error override;
 
-  [[nodiscard]] auto get_directory_items(const std::string &api_path,
-                                         directory_item_list &list) const
+  [[nodiscard]] auto remove_file_impl(const std::string &api_path)
       -> api_error override;
+
+  [[nodiscard]] auto upload_file_impl(const std::string &api_path,
+                                      const std::string &source_path,
+                                      stop_type &stop_requested)
+      -> api_error override;
+
+public:
+  [[nodiscard]] auto get_directory_item_count(const std::string &api_path) const
+      -> std::uint64_t override;
 
   [[nodiscard]] auto get_file(const std::string &api_path, api_file &file) const
       -> api_error override;
@@ -91,46 +82,11 @@ public:
   [[nodiscard]] auto get_file_list(api_file_list &list) const
       -> api_error override;
 
-  [[nodiscard]] auto get_file_size(const std::string &api_path,
-                                   std::uint64_t &file_size) const
-      -> api_error override;
-
-  [[nodiscard]] auto get_filesystem_item(const std::string &api_path,
-                                         bool directory,
-                                         filesystem_item &fsi) const
-      -> api_error override;
-
-  [[nodiscard]] auto get_filesystem_item_and_file(const std::string &api_path,
-                                                  api_file &f,
-                                                  filesystem_item &fsi) const
-      -> api_error override;
-
-  [[nodiscard]] auto
-  get_filesystem_item_from_source_path(const std::string &source_path,
-                                       filesystem_item &fsi) const
-      -> api_error override;
-
-  [[nodiscard]] auto get_item_meta(const std::string &api_path,
-                                   api_meta_map &meta) const
-      -> api_error override;
-
-  [[nodiscard]] auto get_item_meta(const std::string &api_path,
-                                   const std::string &key,
-                                   std::string &value) const
-      -> api_error override;
-
-  [[nodiscard]] auto get_pinned_files() const
-      -> std::vector<std::string> override;
-
   [[nodiscard]] auto get_provider_type() const -> provider_type override {
     return provider_type::sia;
   }
 
   [[nodiscard]] auto get_total_drive_space() const -> std::uint64_t override;
-
-  [[nodiscard]] auto get_total_item_count() const -> std::uint64_t override;
-
-  [[nodiscard]] auto get_used_drive_space() const -> std::uint64_t override;
 
   [[nodiscard]] auto is_direct_only() const -> bool override { return false; }
 
@@ -140,13 +96,10 @@ public:
   [[nodiscard]] auto is_file(const std::string &api_path, bool &exists) const
       -> api_error override;
 
-  [[nodiscard]] auto is_file_writeable(const std::string &api_path) const
-      -> bool override;
-
   [[nodiscard]] auto is_online() const -> bool override;
 
   [[nodiscard]] auto is_rename_supported() const -> bool override {
-    return false;
+    return true;
   }
 
   [[nodiscard]] auto read_file_bytes(const std::string &api_path,
@@ -155,39 +108,14 @@ public:
                                      stop_type &stop_requested)
       -> api_error override;
 
-  [[nodiscard]] auto remove_directory(const std::string &api_path)
-      -> api_error override;
-
-  [[nodiscard]] auto remove_file(const std::string &api_path)
-      -> api_error override;
-
-  [[nodiscard]] auto remove_item_meta(const std::string &api_path,
-                                      const std::string &key)
-      -> api_error override;
-
   [[nodiscard]] auto rename_file(const std::string &from_api_path,
                                  const std::string &to_api_path)
       -> api_error override;
 
-  [[nodiscard]] auto set_item_meta(const std::string &api_path,
-                                   const std::string &key,
-                                   const std::string &value)
-      -> api_error override;
-
-  [[nodiscard]] auto set_item_meta(const std::string &api_path,
-                                   const api_meta_map &meta)
-      -> api_error override;
-
   [[nodiscard]] auto start(api_item_added_callback api_item_added,
-                           i_file_manager *fm) -> bool override;
+                           i_file_manager *mgr) -> bool override;
 
   void stop() override;
-
-  [[nodiscard]] auto upload_file(const std::string &api_path,
-                                 const std::string &source_path,
-                                 const std::string & /* encryption_token */,
-                                 stop_type &stop_requested)
-      -> api_error override;
 };
 } // namespace repertory
 

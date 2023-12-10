@@ -232,9 +232,9 @@ auto fuse_drive_base::get_mode_from_meta(const api_meta_map &meta) -> mode_t {
 void fuse_drive_base::get_timespec_from_meta(const api_meta_map &meta,
                                              const std::string &name,
                                              struct timespec &ts) {
-  const auto t = utils::string::to_uint64(meta.at(name));
-  ts.tv_nsec = t % NANOS_PER_SECOND;
-  ts.tv_sec = t / NANOS_PER_SECOND;
+  const auto meta_time = utils::string::to_int64(meta.at(name));
+  ts.tv_nsec = meta_time % NANOS_PER_SECOND;
+  ts.tv_sec = meta_time / NANOS_PER_SECOND;
 }
 
 auto fuse_drive_base::get_uid_from_meta(const api_meta_map &meta) -> uid_t {
@@ -305,21 +305,22 @@ void fuse_drive_base::populate_stat(const std::string &api_path,
                                     i_provider &provider, struct stat *st) {
   memset(st, 0, sizeof(struct stat));
   st->st_nlink =
-      (directory
-           ? 2 + (size_or_count ? size_or_count
-                                : provider.get_directory_item_count(api_path))
-           : 1);
+      (directory ? 2 + (size_or_count == 0U
+                            ? provider.get_directory_item_count(api_path)
+                            : size_or_count)
+                 : 1);
   if (directory) {
     st->st_blocks = 0;
   } else {
-    st->st_size = size_or_count;
-    static const auto block_size_stat = static_cast<std::uint64_t>(512u);
-    static const auto block_size = static_cast<std::uint64_t>(4096u);
+    st->st_size = static_cast<off_t>(size_or_count);
+    static const auto block_size_stat = static_cast<std::uint64_t>(512U);
+    static const auto block_size = static_cast<std::uint64_t>(4096U);
     const auto size = utils::divide_with_ceiling(
                           static_cast<std::uint64_t>(st->st_size), block_size) *
                       block_size;
-    st->st_blocks = std::max(block_size / block_size_stat,
-                             utils::divide_with_ceiling(size, block_size_stat));
+    st->st_blocks = static_cast<blkcnt_t>(
+        std::max(block_size / block_size_stat,
+                 utils::divide_with_ceiling(size, block_size_stat)));
   }
   st->st_gid = get_gid_from_meta(meta);
   st->st_mode = (directory ? S_IFDIR : S_IFREG) | get_mode_from_meta(meta);
@@ -344,9 +345,9 @@ void fuse_drive_base::populate_stat(const std::string &api_path,
 void fuse_drive_base::set_timespec_from_meta(const api_meta_map &meta,
                                              const std::string &name,
                                              struct timespec &ts) {
-  const auto t = utils::string::to_uint64(meta.at(name));
-  ts.tv_nsec = t % NANOS_PER_SECOND;
-  ts.tv_sec = t / NANOS_PER_SECOND;
+  const auto meta_time = utils::string::to_int64(meta.at(name));
+  ts.tv_nsec = meta_time % NANOS_PER_SECOND;
+  ts.tv_sec = meta_time / NANOS_PER_SECOND;
 }
 } // namespace repertory
 

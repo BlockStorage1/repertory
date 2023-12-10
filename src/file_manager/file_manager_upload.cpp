@@ -27,10 +27,11 @@
 #include "utils/unix/unix_utils.hpp"
 
 namespace repertory {
+using std::bind;
+
 file_manager::upload::upload(filesystem_item fsi, i_provider &provider)
-    : fsi_(fsi), provider_(provider) {
-  thread_ =
-      std::make_unique<std::thread>(std::bind(&upload::upload_thread, this));
+    : fsi_(std::move(fsi)), provider_(provider) {
+  thread_ = std::make_unique<std::thread>([this] { upload_thread(); });
 }
 
 file_manager::upload::~upload() {
@@ -48,8 +49,8 @@ void file_manager::upload::cancel() {
 void file_manager::upload::stop() { stop_requested_ = true; }
 
 void file_manager::upload::upload_thread() {
-  error_ = provider_.upload_file(fsi_.api_path, fsi_.source_path,
-                                 fsi_.encryption_token, stop_requested_);
+  error_ =
+      provider_.upload_file(fsi_.api_path, fsi_.source_path, stop_requested_);
   if (not utils::file::reset_modified_time(fsi_.source_path)) {
     utils::error::raise_api_path_error(
         __FUNCTION__, fsi_.api_path, fsi_.source_path,

@@ -81,8 +81,6 @@ TEST(encrypt_provider, can_get_file_list) {
                    list2.at(idx).api_parent.c_str());
       EXPECT_EQ(list.at(idx).accessed_date, list2.at(idx).accessed_date);
       EXPECT_EQ(list.at(idx).changed_date, list2.at(idx).changed_date);
-      EXPECT_TRUE(list.at(idx).encryption_token.empty());
-      EXPECT_TRUE(list2.at(idx).encryption_token.empty());
       EXPECT_EQ(list.at(idx).file_size, list2.at(idx).file_size);
       EXPECT_TRUE(list.at(idx).key.empty());
       EXPECT_TRUE(list2.at(idx).key.empty());

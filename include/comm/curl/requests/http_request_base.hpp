@@ -39,17 +39,25 @@ struct read_file_info final {
 
 inline const auto read_file_data = static_cast<read_callback>(
     [](char *buffer, size_t size, size_t nitems, void *instream) -> size_t {
-      auto *rd = reinterpret_cast<read_file_info *>(instream);
+      auto *read_info = reinterpret_cast<read_file_info *>(instream);
       std::size_t bytes_read{};
-      auto ret =
-          rd->nf->read_bytes(buffer, size * nitems, rd->offset, bytes_read);
+      auto ret = read_info->nf->read_bytes(buffer, size * nitems,
+                                           read_info->offset, bytes_read);
       if (ret) {
-        rd->offset += bytes_read;
+        read_info->offset += bytes_read;
       }
-      return ret && not rd->stop_requested ? bytes_read : CURL_READFUNC_ABORT;
+      return ret && not read_info->stop_requested ? bytes_read
+                                                  : CURL_READFUNC_ABORT;
     });
 
 struct http_request_base {
+  http_request_base() = default;
+  http_request_base(const http_request_base &) = default;
+  http_request_base(http_request_base &&) = default;
+
+  auto operator=(const http_request_base &) -> http_request_base & = default;
+  auto operator=(http_request_base &&) -> http_request_base & = default;
+
   virtual ~http_request_base() = default;
 
   bool allow_timeout{};

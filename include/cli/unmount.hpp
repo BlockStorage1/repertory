@@ -29,14 +29,13 @@
 #include "utils/cli_utils.hpp"
 
 namespace repertory::cli::actions {
-[[nodiscard]] inline auto unmount(int, char *[],
-                                  const std::string &data_directory,
-                                  const provider_type &pt, const std::string &,
-                                  std::string user, std::string password)
-    -> exit_code {
+[[nodiscard]] inline auto
+unmount(std::vector<const char *> /* args */, const std::string &data_directory,
+        const provider_type &prov, const std::string & /*unique_id*/,
+        std::string user, std::string password) -> exit_code {
   auto ret = exit_code::success;
-  auto port = app_config::default_api_port(pt);
-  utils::cli::get_api_authentication_data(user, password, port, pt,
+  auto port = app_config::default_api_port(prov);
+  utils::cli::get_api_authentication_data(user, password, port, prov,
                                           data_directory);
   const auto response = client({"localhost", password, port, user}).unmount();
   std::cout << static_cast<int>(response.response_type) << std::endl;

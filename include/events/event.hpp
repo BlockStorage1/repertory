@@ -23,7 +23,13 @@
 #define INCLUDE_EVENTS_EVENT_HPP_
 
 namespace repertory {
-enum class event_level { error, warn, normal, debug, verbose };
+enum class event_level {
+  error,
+  warn,
+  normal,
+  debug,
+  verbose,
+};
 
 auto event_level_from_string(std::string level) -> event_level;
 
@@ -37,10 +43,14 @@ protected:
       : allow_async_(allow_async), ss_(ss.str()), j_(std::move(j)) {}
 
 public:
+  event(const event &) = delete;
+  event(event &&) = delete;
+  auto operator=(const event &) -> event & = delete;
+  auto operator=(event &&) -> event & = delete;
   virtual ~event() = default;
 
 private:
-  const bool allow_async_;
+  bool allow_async_;
 
 protected:
   std::stringstream ss_;

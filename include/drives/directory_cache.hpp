@@ -33,15 +33,19 @@ public:
 
 private:
   struct open_directory {
-    directory_iterator *iterator;
-    std::chrono::system_clock::time_point last_update =
-        std::chrono::system_clock::now();
+    directory_iterator *iterator{nullptr};
+    std::chrono::system_clock::time_point last_update{
+        std::chrono::system_clock::now()};
   };
 
 public:
   directory_cache() : single_thread_service_base("directory_cache") {}
-
   ~directory_cache() override = default;
+
+  directory_cache(const directory_cache &) = delete;
+  directory_cache(directory_cache &&) = delete;
+  auto operator=(const directory_cache &) -> directory_cache & = delete;
+  auto operator=(directory_cache &&) -> directory_cache & = delete;
 
 private:
   std::unordered_map<std::string, open_directory> directory_lookup_;

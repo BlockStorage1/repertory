@@ -69,9 +69,6 @@ public:
   [[nodiscard]] virtual auto is_processing(const std::string &api_path) const
       -> bool = 0;
 
-  virtual void populate_stat(const directory_item &di,
-                             struct stat &st) const = 0;
-
   [[nodiscard]] virtual auto rename_directory(const std::string &from_api_path,
                                               const std::string &to_api_path)
       -> int = 0;

@@ -30,39 +30,42 @@
 namespace repertory {
 class app_config final {
 public:
-  [[nodiscard]] static auto default_agent_name(const provider_type &pt)
+  [[nodiscard]] static auto default_agent_name(const provider_type &prov)
       -> std::string;
 
-  [[nodiscard]] static auto default_api_port(const provider_type &pt)
+  [[nodiscard]] static auto default_api_port(const provider_type &prov)
       -> std::uint16_t;
 
-  [[nodiscard]] static auto default_data_directory(const provider_type &pt)
+  [[nodiscard]] static auto default_data_directory(const provider_type &prov)
       -> std::string;
 
-  [[nodiscard]] static auto default_rpc_port(const provider_type &pt)
+  [[nodiscard]] static auto default_remote_port(const provider_type &prov)
       -> std::uint16_t;
 
-  [[nodiscard]] static auto get_provider_api_password(const provider_type &pt)
+  [[nodiscard]] static auto default_rpc_port(const provider_type &prov)
+      -> std::uint16_t;
+
+  [[nodiscard]] static auto get_provider_api_password(const provider_type &prov)
       -> std::string;
 
-  [[nodiscard]] static auto get_provider_display_name(const provider_type &pt)
+  [[nodiscard]] static auto get_provider_display_name(const provider_type &prov)
       -> std::string;
 
-  [[nodiscard]] static auto get_provider_name(const provider_type &pt)
+  [[nodiscard]] static auto get_provider_name(const provider_type &prov)
       -> std::string;
 
 public:
-  app_config(const provider_type &pt, const std::string &data_directory = "");
+  app_config(const provider_type &prov, const std::string &data_directory = "");
 
   ~app_config() { save(); }
 
 private:
-  const provider_type pt_;
+  provider_type prov_;
   std::string api_auth_;
   std::uint16_t api_port_;
   std::string api_user_;
   bool config_changed_;
-  const std::string data_directory_;
+  std::string data_directory_;
   std::uint8_t download_timeout_secs_;
   bool enable_chunk_downloader_timeout_;
   bool enable_comm_duration_events_;
@@ -100,8 +103,8 @@ private:
   s3_config s3_config_;
   std::uint64_t version_ = REPERTORY_CONFIG_VERSION;
   std::string log_directory_;
-  std::recursive_mutex read_write_mutex_;
-  std::recursive_mutex remote_mount_mutex_;
+  mutable std::recursive_mutex read_write_mutex_;
+  mutable std::recursive_mutex remote_mount_mutex_;
 
 private:
   [[nodiscard]] auto load() -> bool;
@@ -129,7 +132,7 @@ private:
   template <typename dest, typename source>
   auto set_value(dest &dst, const source &src) -> bool {
     auto ret = false;
-    recur_mutex_lock l(read_write_mutex_);
+    recur_mutex_lock lock(read_write_mutex_);
     if (dst != src) {
       dst = src;
       config_changed_ = true;
@@ -244,7 +247,9 @@ public:
                                             download_type::fallback);
   }
 
-  [[nodiscard]] auto get_provider_type() const -> provider_type { return pt_; }
+  [[nodiscard]] auto get_provider_type() const -> provider_type {
+    return prov_;
+  }
 
   [[nodiscard]] auto get_read_ahead_count() const -> std::uint8_t {
     return std::max(static_cast<std::uint8_t>(1U), read_ahead_count_);
@@ -358,9 +363,17 @@ public:
   }
 
 #ifdef REPERTORY_TESTING
-  void set_host_config(host_config hc) { hc_ = std::move(hc); }
+  void set_host_config(host_config hc) {
+    config_changed_ = true;
+    hc_ = std::move(hc);
+    save();
+  }
 
-  void set_s3_config(s3_config s3) { s3_config_ = std::move(s3); }
+  void set_s3_config(s3_config s3) {
+    config_changed_ = true;
+    s3_config_ = std::move(s3);
+    save();
+  }
 #endif
 
   void set_is_remote_mount(bool is_remote_mount);

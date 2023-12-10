@@ -30,8 +30,8 @@ TEST(lock_data, lock_and_unlock) {
     EXPECT_EQ(lock_result::success, l.grab_lock());
 
     std::thread([]() {
-      lock_data l(provider_type::sia, "1");
-      EXPECT_EQ(lock_result::locked, l.grab_lock(10));
+      lock_data l2(provider_type::sia, "1");
+      EXPECT_EQ(lock_result::locked, l2.grab_lock(10));
     }).join();
   }
 

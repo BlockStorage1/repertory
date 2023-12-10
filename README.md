@@ -16,13 +16,11 @@ on Windows.
 
 * [Sia renterd](https://github.com/SiaFoundation/renterd/releases) v0.4.0+ for Sia support
 * Only 64-bit operating systems are supported
-  * Linux requires the following dependencies:
-    * `libfuse3`
+  * Linux requires `fusermount3` or `repertory` must be manually compiled with `libfuse2` support
   * OS X requires the following dependency to be installed:
     * [FUSE for macOS v4.5.0](https://github.com/osxfuse/osxfuse/releases/download/macfuse-4.5.0/macfuse-4.5.0.dmg)
   * Windows requires the following dependencies to be installed:
     * [WinFSP 2023](https://github.com/winfsp/winfsp/releases/download/v2.0/winfsp-2.0.23075.msi)
-    * [Microsoft Visual C++ Redistributable for Visual Studio 2015, 2017 and 2019](https://aka.ms/vs/16/release/vc_redist.x64.exe)
 
 ## Supported Operating Systems
 
@@ -36,17 +34,17 @@ on Windows.
 * [boost c++ libraries](https://www.boost.org/)
 * [cpp-httplib](https://github.com/yhirose/cpp-httplib)
 * [curl](https://curl.haxx.se/)
-* [Filebase](https://filebase.com/)
 * [FUSE for macOS](https://osxfuse.github.io/)
 * [Google Test](https://github.com/google/googletest)
 * [JSON for Modern C++](https://github.com/nlohmann/json)
 * [libfuse](https://github.com/libfuse/libfuse)
 * [libsodium](https://doc.libsodium.org/)
 * [OpenSSL](https://www.openssl.org/)
-* [OSSP uuid](http://www.ossp.org/pkg/lib/uuid/)
-* [RocksDB](https://rocksdb.org/)
 * [ScPrime](https://scpri.me/)
 * [Sia Decentralized Cloud Storage](https://sia.tech/)
+* [SQLite](https://www.sqlite.org)
+* [stduuid](https://github.com/mariusbancila/stduuid)
+* [Storj](https://storj.io/)
 * [WinFSP - FUSE for Windows](https://github.com/billziss-gh/winfsp)
 * [zlib](https://zlib.net/)
 
@@ -79,4 +77,3 @@ mMH3segHBkRj0xJcfOxceRLj1a+ULIIR3xL/3f8s5Id25TDo/nqBoCvu5PeCpo6L
 9wIDAQAB
 -----END PUBLIC KEY-----
 ```
-

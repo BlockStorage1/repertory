@@ -23,14 +23,12 @@
 #define INCLUDE_CLI_ACTIONS_HPP_
 
 #include "cli/check_version.hpp"
-#include "cli/create_directory.hpp"
 #include "cli/display_config.hpp"
 #include "cli/drive_information.hpp"
 #include "cli/get.hpp"
 #include "cli/get_directory_items.hpp"
 #include "cli/get_pinned_files.hpp"
 #include "cli/help.hpp"
-#include "cli/list_objects.hpp"
 #include "cli/mount.hpp"
 #include "cli/open_files.hpp"
 #include "cli/pin_file.hpp"
@@ -44,12 +42,12 @@
 
 namespace repertory::cli::actions {
 using action = std::function<exit_code(
-    int, char **, const std::string &, const provider_type &,
+    std::vector<const char *>, const std::string &, const provider_type &,
     const std::string &, std::string, std::string)>;
 
 struct option_hasher {
   auto operator()(const utils::cli::option &opt) const -> std::size_t {
-    return std::hash<std::string>()(opt[0u] + '|' + opt[1u]);
+    return std::hash<std::string>()(opt[0U] + '|' + opt[1U]);
   }
 };
 
@@ -57,11 +55,6 @@ static const std::unordered_map<utils::cli::option, action, option_hasher>
     option_actions = {
         {utils::cli::options::check_version_option,
          cli::actions::check_version},
-#if defined(REPERTORY_ENABLE_S3)
-        {utils::cli::options::create_directory_option,
-         cli::actions::create_directory},
-        {utils::cli::options::list_objects_option, cli::actions::list_objects},
-#endif
         {utils::cli::options::display_config_option,
          cli::actions::display_config},
         {utils::cli::options::drive_information_option,
@@ -82,14 +75,14 @@ static const std::unordered_map<utils::cli::option, action, option_hasher>
 };
 
 [[nodiscard]] inline auto
-perform_action(const utils::cli::option &opt, int argc, char *argv[],
-               const std::string &data_directory, const provider_type &pt,
+perform_action(const utils::cli::option &opt, std::vector<const char *> args,
+               const std::string &data_directory, const provider_type &prov,
                const std::string &unique_id, std::string user,
                std::string password) -> exit_code {
-  if (utils::cli::has_option(argc, argv, opt)) {
+  if (utils::cli::has_option(args, opt)) {
     if (option_actions.find(opt) != option_actions.end()) {
-      return option_actions.at(opt)(argc, argv, data_directory, pt, unique_id,
-                                    user, password);
+      return option_actions.at(opt)(args, data_directory, prov, unique_id, user,
+                                    password);
     }
   }
 

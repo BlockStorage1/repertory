@@ -35,29 +35,30 @@ namespace repertory {
 file_manager::open_file::open_file(std::uint64_t chunk_size,
                                    std::uint8_t chunk_timeout,
                                    filesystem_item fsi, i_provider &provider,
-                                   i_upload_manager &um)
+                                   i_upload_manager &mgr)
     : open_file(chunk_size, chunk_timeout, fsi, {}, provider, std::nullopt,
-                um) {}
+                mgr) {}
 
 file_manager::open_file::open_file(
     std::uint64_t chunk_size, std::uint8_t chunk_timeout, filesystem_item fsi,
     std::map<std::uint64_t, open_file_data> open_data, i_provider &provider,
-    i_upload_manager &um)
+    i_upload_manager &mgr)
     : open_file(chunk_size, chunk_timeout, fsi, open_data, provider,
-                std::nullopt, um) {}
+                std::nullopt, mgr) {}
 
 file_manager::open_file::open_file(
     std::uint64_t chunk_size, std::uint8_t chunk_timeout, filesystem_item fsi,
     i_provider &provider, std::optional<boost::dynamic_bitset<>> read_state,
-    i_upload_manager &um)
-    : open_file(chunk_size, chunk_timeout, fsi, {}, provider, read_state, um) {}
+    i_upload_manager &mgr)
+    : open_file(chunk_size, chunk_timeout, fsi, {}, provider, read_state, mgr) {
+}
 
 file_manager::open_file::open_file(
     std::uint64_t chunk_size, std::uint8_t chunk_timeout, filesystem_item fsi,
     std::map<std::uint64_t, open_file_data> open_data, i_provider &provider,
-    std::optional<boost::dynamic_bitset<>> read_state, i_upload_manager &um)
+    std::optional<boost::dynamic_bitset<>> read_state, i_upload_manager &mgr)
     : open_file_base(chunk_size, chunk_timeout, fsi, open_data, provider),
-      um_(um) {
+      mgr_(mgr) {
   if (fsi_.directory && read_state.has_value()) {
     throw startup_exception("cannot resume a directory|" + fsi.api_path);
   }
@@ -67,10 +68,9 @@ file_manager::open_file::open_file(
         fsi.source_path, not provider_.is_direct_only(), nf_));
     if (get_api_error() == api_error::success) {
       if (read_state.has_value()) {
-        modified_ = true;
-        um_.store_resume(*this);
         read_state_ = read_state.value();
-      } else if (fsi_.size > 0u) {
+        set_modified();
+      } else if (fsi_.size > 0U) {
         read_state_.resize(static_cast<std::size_t>(utils::divide_with_ceiling(
                                fsi_.size, chunk_size)),
                            false);
@@ -78,7 +78,7 @@ file_manager::open_file::open_file(
         std::uint64_t file_size{};
         if (nf_->get_file_size(file_size)) {
           if (provider_.is_direct_only() || file_size == fsi.size) {
-            read_state_.set(0u, read_state_.size(), true);
+            read_state_.set(0U, read_state_.size(), true);
           } else if (not nf_->truncate(fsi.size)) {
             set_api_error(api_error::os_error);
           }
@@ -103,13 +103,13 @@ void file_manager::open_file::download_chunk(std::size_t chunk,
     reset_timeout();
   }
 
-  unique_recur_mutex_lock file_lock(file_mtx_);
+  unique_recur_mutex_lock download_lock(file_mtx_);
   if ((get_api_error() == api_error::success) && (chunk < read_state_.size()) &&
       not read_state_[chunk]) {
     if (active_downloads_.find(chunk) != active_downloads_.end()) {
       if (not skip_active) {
         auto active_download = active_downloads_.at(chunk);
-        file_lock.unlock();
+        download_lock.unlock();
 
         active_download->wait();
       }
@@ -119,8 +119,8 @@ void file_manager::open_file::download_chunk(std::size_t chunk,
 
     const auto data_offset = chunk * chunk_size_;
     const auto data_size =
-        (chunk == read_state_.size() - 1u) ? last_chunk_size_ : chunk_size_;
-    if (active_downloads_.empty() && (read_state_.count() == 0u)) {
+        (chunk == read_state_.size() - 1U) ? last_chunk_size_ : chunk_size_;
+    if (active_downloads_.empty() && (read_state_.count() == 0U)) {
       event_system::instance().raise<download_begin>(fsi_.api_path,
                                                      fsi_.source_path);
     }
@@ -129,7 +129,7 @@ void file_manager::open_file::download_chunk(std::size_t chunk,
         read_state_.count());
 
     active_downloads_[chunk] = std::make_shared<download>();
-    file_lock.unlock();
+    download_lock.unlock();
 
     if (should_reset) {
       reset_timeout();
@@ -237,19 +237,19 @@ auto file_manager::open_file::is_complete() const -> bool {
 }
 
 auto file_manager::open_file::native_operation(
-    const i_open_file::native_operation_callback &operation) -> api_error {
+    const i_open_file::native_operation_callback &callback) -> api_error {
   unique_recur_mutex_lock file_lock(file_mtx_);
   if (stop_requested_) {
     return api_error::download_stopped;
   }
   file_lock.unlock();
 
-  return do_io([&]() -> api_error { return operation(nf_->get_handle()); });
+  return do_io([&]() -> api_error { return callback(nf_->get_handle()); });
 }
 
 auto file_manager::open_file::native_operation(
     std::uint64_t new_file_size,
-    const i_open_file::native_operation_callback &operation) -> api_error {
+    const i_open_file::native_operation_callback &callback) -> api_error {
   if (fsi_.directory) {
     return api_error::invalid_operation;
   }
@@ -260,17 +260,17 @@ auto file_manager::open_file::native_operation(
   }
   file_lock.unlock();
 
-  const auto is_empty_file = new_file_size == 0u;
+  const auto is_empty_file = new_file_size == 0U;
   const auto last_chunk =
-      is_empty_file ? std::size_t(0u)
+      is_empty_file ? std::size_t(0U)
                     : static_cast<std::size_t>(utils::divide_with_ceiling(
                           new_file_size, chunk_size_)) -
-                          1u;
+                          1U;
 
   file_lock.lock();
   if (not is_empty_file && (last_chunk < read_state_.size())) {
     file_lock.unlock();
-    update_background_reader(0u);
+    update_background_reader(0U);
 
     download_chunk(last_chunk, false, true);
     if (get_api_error() != api_error::success) {
@@ -281,7 +281,7 @@ auto file_manager::open_file::native_operation(
 
   const auto original_file_size = get_file_size();
 
-  auto res = do_io([&]() -> api_error { return operation(nf_->get_handle()); });
+  auto res = do_io([&]() -> api_error { return callback(nf_->get_handle()); });
   if (res != api_error::success) {
     utils::error::raise_api_path_error(__FUNCTION__, get_api_path(),
                                        utils::get_last_error_code(),
@@ -308,25 +308,21 @@ auto file_manager::open_file::native_operation(
     }
   }
 
-  if (is_empty_file || (read_state_.size() != (last_chunk + 1u))) {
-    read_state_.resize(is_empty_file ? 0u : last_chunk + 1u);
+  if (is_empty_file || (read_state_.size() != (last_chunk + 1U))) {
+    read_state_.resize(is_empty_file ? 0U : last_chunk + 1U);
 
     if (not is_empty_file) {
       read_state_[last_chunk] = true;
     }
 
     last_chunk_size_ = static_cast<std::size_t>(
-        new_file_size <= chunk_size_  ? new_file_size
-        : new_file_size % chunk_size_ ? new_file_size % chunk_size_
-                                      : chunk_size_);
+        new_file_size <= chunk_size_          ? new_file_size
+        : (new_file_size % chunk_size_) == 0U ? chunk_size_
+                                              : new_file_size % chunk_size_);
   }
 
   if (original_file_size != new_file_size) {
-    if (not modified_) {
-      um_.store_resume(*this);
-    }
-    modified_ = true;
-    um_.remove_upload(get_api_path());
+    set_modified();
 
     fsi_.size = new_file_size;
     const auto now = std::to_string(utils::get_file_time_now());
@@ -356,7 +352,7 @@ auto file_manager::open_file::read(std::size_t read_size,
 
   read_size =
       utils::calculate_read_size(get_file_size(), read_size, read_offset);
-  if (read_size == 0u) {
+  if (read_size == 0U) {
     return api_error::success;
   }
 
@@ -405,8 +401,12 @@ void file_manager::open_file::remove(std::uint64_t handle) {
   open_file_base::remove(handle);
   if (modified_ && read_state_.all() &&
       (get_api_error() == api_error::success)) {
-    um_.queue_upload(*this);
+    mgr_.queue_upload(*this);
     modified_ = false;
+  }
+
+  if (removed_ && (get_open_file_count() == 0U)) {
+    removed_ = false;
   }
 }
 
@@ -443,7 +443,7 @@ auto file_manager::open_file::close() -> bool {
             err == api_error::download_stopped) {
           if (modified_ && not read_state_.all()) {
             set_api_error(api_error::download_incomplete);
-          } else if (not modified_ && (fsi_.size > 0u) &&
+          } else if (not modified_ && (fsi_.size > 0U) &&
                      not read_state_.all()) {
             set_api_error(api_error::download_stopped);
           }
@@ -454,12 +454,12 @@ auto file_manager::open_file::close() -> bool {
       nf_.reset();
 
       if (modified_ && (get_api_error() == api_error::success)) {
-        um_.queue_upload(*this);
+        mgr_.queue_upload(*this);
       } else if (modified_ &&
                  (get_api_error() == api_error::download_incomplete)) {
-        um_.store_resume(*this);
+        mgr_.store_resume(*this);
       } else if (get_api_error() != api_error::success) {
-        um_.remove_resume(get_api_path(), get_source_path());
+        mgr_.remove_resume(get_api_path(), get_source_path());
         if (not utils::file::retry_delete_file(fsi_.source_path)) {
           utils::error::raise_api_path_error(
               __FUNCTION__, get_api_path(), fsi_.source_path,
@@ -485,16 +485,28 @@ auto file_manager::open_file::close() -> bool {
   return false;
 }
 
+void file_manager::open_file::set_modified() {
+  if (not modified_) {
+    modified_ = true;
+    mgr_.store_resume(*this);
+  }
+
+  if (not removed_) {
+    removed_ = true;
+    mgr_.remove_upload(get_api_path());
+  }
+}
+
 void file_manager::open_file::update_background_reader(std::size_t read_chunk) {
-  recur_mutex_lock file_lock(file_mtx_);
+  recur_mutex_lock reader_lock(file_mtx_);
   read_chunk_index_ = read_chunk;
 
   if (not reader_thread_ && not stop_requested_) {
     reader_thread_ = std::make_unique<std::thread>([this]() {
-      auto next_chunk = 0u;
+      std::size_t next_chunk{};
       while (not stop_requested_) {
         unique_recur_mutex_lock file_lock(file_mtx_);
-        if ((fsi_.size == 0u) || read_state_.all()) {
+        if ((fsi_.size == 0U) || read_state_.all()) {
           file_lock.unlock();
 
           unique_mutex_lock io_lock(io_thread_mtx_);
@@ -506,10 +518,10 @@ void file_manager::open_file::update_background_reader(std::size_t read_chunk) {
         } else {
           do {
             next_chunk = read_chunk_index_ =
-                ((read_chunk_index_ + 1u) >= read_state_.size())
-                    ? 0u
-                    : read_chunk_index_ + 1u;
-          } while ((next_chunk != 0u) && (active_downloads_.find(next_chunk) !=
+                ((read_chunk_index_ + 1U) >= read_state_.size())
+                    ? 0U
+                    : read_chunk_index_ + 1U;
+          } while ((next_chunk != 0U) && (active_downloads_.find(next_chunk) !=
                                           active_downloads_.end()));
 
           file_lock.unlock();
@@ -523,7 +535,7 @@ void file_manager::open_file::update_background_reader(std::size_t read_chunk) {
 auto file_manager::open_file::write(std::uint64_t write_offset,
                                     const data_buffer &data,
                                     std::size_t &bytes_written) -> api_error {
-  bytes_written = 0u;
+  bytes_written = 0U;
 
   if (fsi_.directory || provider_.is_direct_only()) {
     return api_error::invalid_operation;
@@ -533,11 +545,11 @@ auto file_manager::open_file::write(std::uint64_t write_offset,
     return api_error::success;
   }
 
-  unique_recur_mutex_lock file_lock(file_mtx_);
+  unique_recur_mutex_lock write_lock(file_mtx_);
   if (stop_requested_) {
     return api_error::download_stopped;
   }
-  file_lock.unlock();
+  write_lock.unlock();
 
   const auto start_chunk_index =
       static_cast<std::size_t>(write_offset / chunk_size_);
@@ -547,12 +559,12 @@ auto file_manager::open_file::write(std::uint64_t write_offset,
   update_background_reader(start_chunk_index);
 
   download_range(start_chunk_index,
-                 std::min(read_state_.size() - 1u, end_chunk_index), true);
+                 std::min(read_state_.size() - 1U, end_chunk_index), true);
   if (get_api_error() != api_error::success) {
     return get_api_error();
   }
 
-  file_lock.lock();
+  write_lock.lock();
   if ((write_offset + data.size()) > fsi_.size) {
     auto res = resize(write_offset + data.size());
     if (res != api_error::success) {
@@ -585,12 +597,7 @@ auto file_manager::open_file::write(std::uint64_t write_offset,
     return set_api_error(res);
   }
 
-  if (not modified_) {
-    um_.store_resume(*this);
-  }
-  modified_ = true;
-  um_.remove_upload(get_api_path());
-
+  set_modified();
   return api_error::success;
 }
 } // namespace repertory

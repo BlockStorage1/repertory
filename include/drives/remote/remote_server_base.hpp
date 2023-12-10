@@ -44,9 +44,15 @@ class remote_server_base : public remote_open_file_table,
                            public virtual remote_winfsp::i_remote_instance,
                            public virtual remote_fuse::i_remote_instance {
 public:
-  remote_server_base(app_config &config, drive &d, std::string mount_location)
+  remote_server_base(const remote_server_base &) = delete;
+  remote_server_base(remote_server_base &&) = delete;
+  auto operator=(const remote_server_base &) -> remote_server_base & = delete;
+  auto operator=(remote_server_base &&) -> remote_server_base & = delete;
+
+public:
+  remote_server_base(app_config &config, drive &drv, std::string mount_location)
       : config_(config),
-        drive_(d),
+        drive_(drv),
         mount_location_(std::move(mount_location)),
         client_pool_(config.get_remote_client_pool_size()) {
     event_system::instance().raise<service_started>("remote_server_base");
@@ -57,14 +63,13 @@ public:
                 packet &) -> packet::error_type {
            auto ret = STATUS_SUCCESS;
 
-           HANDLE file_desc;
+           HANDLE file_desc{};
            DECODE_OR_RETURN(request, file_desc);
 
            std::wstring file_name;
            DECODE_OR_RETURN(request, file_name);
 
-           ret = this->winfsp_can_delete(file_desc, &file_name[0]);
-           return ret;
+           return this->winfsp_can_delete(file_desc, file_name.data());
          }});
     handler_lookup_.insert(
         {"::winfsp_cleanup",
@@ -73,17 +78,17 @@ public:
                 packet &response) -> packet::error_type {
            auto ret = STATUS_SUCCESS;
 
-           HANDLE file_desc;
+           HANDLE file_desc{};
            DECODE_OR_RETURN(request, file_desc);
 
            std::wstring file_name;
            DECODE_OR_RETURN(request, file_name);
 
-           UINT32 flags;
+           UINT32 flags{};
            DECODE_OR_RETURN(request, flags);
 
-           BOOLEAN was_closed;
-           ret = this->winfsp_cleanup(file_desc, &file_name[0], flags,
+           BOOLEAN was_closed{};
+           ret = this->winfsp_cleanup(file_desc, file_name.data(), flags,
                                       was_closed);
            response.encode(was_closed);
 
@@ -96,11 +101,10 @@ public:
                 packet &) -> packet::error_type {
            auto ret = STATUS_SUCCESS;
 
-           HANDLE file_desc;
+           HANDLE file_desc{};
            DECODE_OR_RETURN(request, file_desc);
 
-           ret = this->winfsp_close(file_desc);
-           return ret;
+           return this->winfsp_close(file_desc);
          }});
     handler_lookup_.insert(
         {"::winfsp_create",
@@ -112,23 +116,23 @@ public:
            std::wstring file_name;
            DECODE_OR_RETURN(request, file_name);
 
-           UINT32 create_options;
+           UINT32 create_options{};
            DECODE_OR_RETURN(request, create_options);
 
-           UINT32 granted_access;
+           UINT32 granted_access{};
            DECODE_OR_RETURN(request, granted_access);
 
-           UINT32 attributes;
+           UINT32 attributes{};
            DECODE_OR_RETURN(request, attributes);
 
-           UINT64 allocation_size;
+           UINT64 allocation_size{};
            DECODE_OR_RETURN(request, allocation_size);
 
-           BOOLEAN exists = 0;
+           BOOLEAN exists{0};
            remote::file_info file_info{};
            std::string normalized_name;
-           PVOID file_desc;
-           ret = this->winfsp_create(&file_name[0], create_options,
+           PVOID file_desc{};
+           ret = this->winfsp_create(file_name.data(), create_options,
                                      granted_access, attributes,
                                      allocation_size, &file_desc, &file_info,
                                      normalized_name, exists);
@@ -136,8 +140,10 @@ public:
 #ifdef _WIN32
              this->set_client_id(file_desc, client_id);
 #else
-             this->set_client_id(reinterpret_cast<std::uintptr_t>(file_desc),
-                                 client_id);
+             this->set_client_id(
+                 static_cast<native_handle>(
+                     reinterpret_cast<std::uintptr_t>(file_desc)),
+                 client_id);
 #endif
              response.encode(file_desc);
              response.encode(file_info);
@@ -154,7 +160,7 @@ public:
                 packet &response) -> packet::error_type {
            auto ret = STATUS_SUCCESS;
 
-           HANDLE file_desc;
+           HANDLE file_desc{};
            DECODE_OR_RETURN(request, file_desc);
 
            remote::file_info file_info{};
@@ -172,7 +178,7 @@ public:
                 packet &response) -> packet::error_type {
            auto ret = STATUS_SUCCESS;
 
-           HANDLE file_desc;
+           HANDLE file_desc{};
            DECODE_OR_RETURN(request, file_desc);
 
            remote::file_info file_info{};
@@ -192,21 +198,22 @@ public:
            std::wstring file_name;
            DECODE_OR_RETURN(request, file_name);
 
-           std::uint64_t descriptor_size;
+           std::uint64_t descriptor_size{};
            DECODE_OR_RETURN(request, descriptor_size);
 
-           std::uint8_t get_attributes;
+           std::uint8_t get_attributes{};
            DECODE_OR_RETURN(request, get_attributes);
 
-           UINT32 attributes;
-           auto *attrPtr = get_attributes ? &attributes : nullptr;
+           UINT32 attributes{};
+           auto *attr_ptr = get_attributes == 0U ? nullptr : &attributes;
            std::wstring string_descriptor;
            ret = this->winfsp_get_security_by_name(
-               &file_name[0], attrPtr,
-               descriptor_size ? &descriptor_size : nullptr, string_descriptor);
+               file_name.data(), attr_ptr,
+               descriptor_size == 0U ? nullptr : &descriptor_size,
+               string_descriptor);
            if (ret == STATUS_SUCCESS) {
              response.encode(string_descriptor);
-             if (get_attributes) {
+             if (get_attributes != 0U) {
                response.encode(attributes);
              }
            }
@@ -219,8 +226,8 @@ public:
                                    packet &response) -> packet::error_type {
                               auto ret = STATUS_SUCCESS;
 
-                              UINT64 total_size = 0u;
-                              UINT64 free_size = 0u;
+                              UINT64 total_size{};
+                              UINT64 free_size{};
                               std::string volume_label;
                               if ((ret = this->winfsp_get_volume_info(
                                        total_size, free_size, volume_label)) ==
@@ -257,24 +264,26 @@ public:
            std::wstring file_name;
            DECODE_OR_RETURN(request, file_name);
 
-           UINT32 create_options;
+           UINT32 create_options{};
            DECODE_OR_RETURN(request, create_options);
 
-           UINT32 granted_access;
+           UINT32 granted_access{};
            DECODE_OR_RETURN(request, granted_access);
 
            remote::file_info file_info{};
            std::string normalized_name;
-           PVOID file_desc;
-           ret =
-               this->winfsp_open(&file_name[0], create_options, granted_access,
-                                 &file_desc, &file_info, normalized_name);
+           PVOID file_desc{};
+           ret = this->winfsp_open(file_name.data(), create_options,
+                                   granted_access, &file_desc, &file_info,
+                                   normalized_name);
            if (ret == STATUS_SUCCESS) {
 #ifdef _WIN32
              this->set_client_id(file_desc, client_id);
 #else
-             this->set_client_id(reinterpret_cast<std::uintptr_t>(file_desc),
-                                 client_id);
+             this->set_client_id(
+                 static_cast<native_handle>(
+                     reinterpret_cast<std::uintptr_t>(file_desc)),
+                 client_id);
 #endif
              response.encode(file_desc);
              response.encode(file_info);
@@ -290,16 +299,16 @@ public:
                 packet &response) -> packet::error_type {
            auto ret = STATUS_SUCCESS;
 
-           HANDLE file_desc;
+           HANDLE file_desc{};
            DECODE_OR_RETURN(request, file_desc);
 
-           UINT32 attributes;
+           UINT32 attributes{};
            DECODE_OR_RETURN(request, attributes);
 
-           BOOLEAN replace_attributes;
+           BOOLEAN replace_attributes{};
            DECODE_OR_RETURN(request, replace_attributes);
 
-           UINT64 allocation_size;
+           UINT64 allocation_size{};
            DECODE_OR_RETURN(request, allocation_size);
 
            remote::file_info file_info{};
@@ -318,23 +327,23 @@ public:
                 packet &response) -> packet::error_type {
            auto ret = STATUS_SUCCESS;
 
-           HANDLE file_desc;
+           HANDLE file_desc{};
            DECODE_OR_RETURN(request, file_desc);
 
-           UINT64 offset;
+           UINT64 offset{};
            DECODE_OR_RETURN(request, offset);
 
-           UINT32 length;
+           UINT32 length{};
            DECODE_OR_RETURN(request, length);
 
            data_buffer buffer(length);
            UINT32 bytes_transferred = 0;
-           ret = this->winfsp_read(file_desc, &buffer[0], offset, length,
+           ret = this->winfsp_read(file_desc, buffer.data(), offset, length,
                                    &bytes_transferred);
            if (ret == STATUS_SUCCESS) {
-             response.encode(static_cast<UINT32>(bytes_transferred));
-             if (bytes_transferred) {
-               response.encode(&buffer[0], bytes_transferred);
+             response.encode(bytes_transferred);
+             if (bytes_transferred != 0U) {
+               response.encode(buffer.data(), bytes_transferred);
              }
            }
            return ret;
@@ -346,7 +355,7 @@ public:
                 packet &response) -> packet::error_type {
            auto ret = STATUS_SUCCESS;
 
-           HANDLE file_desc;
+           HANDLE file_desc{};
            DECODE_OR_RETURN(request, file_desc);
 
            std::wstring pattern;
@@ -355,13 +364,14 @@ public:
            std::wstring marker;
            DECODE_OR_IGNORE(request, marker);
 
-           json itemList;
+           json item_list;
            ret = this->winfsp_read_directory(
-               file_desc, &pattern[0],
-               wcsnlen(&marker[0], marker.size()) ? &marker[0] : nullptr,
-               itemList);
+               file_desc, pattern.data(),
+               wcsnlen(marker.data(), marker.size()) == 0U ? nullptr
+                                                           : marker.data(),
+               item_list);
            if (ret == STATUS_SUCCESS) {
-             response.encode(itemList.dump(0));
+             response.encode(item_list.dump(0));
            }
            return ret;
          }});
@@ -372,7 +382,7 @@ public:
                 packet &) -> packet::error_type {
            auto ret = STATUS_SUCCESS;
 
-           HANDLE file_desc;
+           HANDLE file_desc{};
            DECODE_OR_RETURN(request, file_desc);
 
            std::wstring file_name;
@@ -381,11 +391,11 @@ public:
            std::wstring new_file_name;
            DECODE_OR_RETURN(request, new_file_name);
 
-           BOOLEAN replace_if_exists;
+           BOOLEAN replace_if_exists{};
            DECODE_OR_RETURN(request, replace_if_exists);
 
-           ret = this->winfsp_rename(file_desc, &file_name[0],
-                                     &new_file_name[0], replace_if_exists);
+           ret = this->winfsp_rename(file_desc, file_name.data(),
+                                     new_file_name.data(), replace_if_exists);
            return ret;
          }});
     handler_lookup_.insert(
@@ -395,22 +405,22 @@ public:
                 packet &response) -> packet::error_type {
            auto ret = STATUS_SUCCESS;
 
-           HANDLE file_desc;
+           HANDLE file_desc{};
            DECODE_OR_RETURN(request, file_desc);
 
-           UINT32 attributes;
+           UINT32 attributes{};
            DECODE_OR_RETURN(request, attributes);
 
-           UINT64 creation_time;
+           UINT64 creation_time{};
            DECODE_OR_RETURN(request, creation_time);
 
-           UINT64 last_access_time;
+           UINT64 last_access_time{};
            DECODE_OR_RETURN(request, last_access_time);
 
-           UINT64 last_write_time;
+           UINT64 last_write_time{};
            DECODE_OR_RETURN(request, last_write_time);
 
-           UINT64 change_time;
+           UINT64 change_time{};
            DECODE_OR_RETURN(request, change_time);
 
            remote::file_info file_info{};
@@ -429,13 +439,13 @@ public:
                 packet &response) -> packet::error_type {
            auto ret = STATUS_SUCCESS;
 
-           HANDLE file_desc;
+           HANDLE file_desc{};
            DECODE_OR_RETURN(request, file_desc);
 
-           UINT64 new_size;
+           UINT64 new_size{};
            DECODE_OR_RETURN(request, new_size);
 
-           BOOLEAN set_allocation_size;
+           BOOLEAN set_allocation_size{};
            DECODE_OR_RETURN(request, set_allocation_size);
 
            remote::file_info file_info{};
@@ -456,8 +466,7 @@ public:
            std::wstring location;
            DECODE_OR_RETURN(request, location);
 
-           ret = this->winfsp_unmounted(location);
-           return ret;
+           return this->winfsp_unmounted(location);
          }});
     handler_lookup_.insert(
         {"::winfsp_write",
@@ -466,19 +475,19 @@ public:
                 packet &response) -> packet::error_type {
            auto ret = STATUS_SUCCESS;
 
-           HANDLE file_desc;
+           HANDLE file_desc{};
            DECODE_OR_RETURN(request, file_desc);
 
-           UINT32 length;
+           UINT32 length{};
            DECODE_OR_RETURN(request, length);
 
-           UINT64 offset;
+           UINT64 offset{};
            DECODE_OR_RETURN(request, offset);
 
-           BOOLEAN write_to_end;
+           BOOLEAN write_to_end{};
            DECODE_OR_RETURN(request, write_to_end);
 
-           BOOLEAN constrained_io;
+           BOOLEAN constrained_io{};
            DECODE_OR_RETURN(request, constrained_io);
 
            auto *buffer = request->current_pointer();
@@ -504,10 +513,10 @@ public:
            std::string path;
            DECODE_OR_RETURN(request, path);
 
-           std::int32_t mask;
+           std::int32_t mask{};
            DECODE_OR_RETURN(request, mask);
 
-           return this->fuse_access(&path[0], mask);
+           return this->fuse_access(path.data(), mask);
          }});
     handler_lookup_.insert(
         {"::fuse_chflags",
@@ -519,10 +528,10 @@ public:
            std::string path;
            DECODE_OR_RETURN(request, path);
 
-           std::uint32_t flags;
+           std::uint32_t flags{};
            DECODE_OR_RETURN(request, flags);
 
-           return this->fuse_chflags(&path[0], flags);
+           return this->fuse_chflags(path.data(), flags);
          }});
     handler_lookup_.insert(
         {"::fuse_chmod",
@@ -549,10 +558,10 @@ public:
            std::string path;
            DECODE_OR_RETURN(request, path);
 
-           remote::user_id uid;
+           remote::user_id uid{};
            DECODE_OR_RETURN(request, uid);
 
-           remote::group_id gid;
+           remote::group_id gid{};
            DECODE_OR_RETURN(request, gid);
 
            return this->fuse_chown(&path[0], uid, gid);
@@ -567,18 +576,19 @@ public:
            std::string path;
            DECODE_OR_RETURN(request, path);
 
-           remote::file_mode mode;
+           remote::file_mode mode{};
            DECODE_OR_RETURN(request, mode);
 
-           remote::open_flags flags;
+           remote::open_flags flags{};
            DECODE_OR_RETURN(request, flags);
 
-           remote::file_handle handle;
-           if ((ret = this->fuse_create(&path[0], mode, flags, handle)) >= 0) {
+           remote::file_handle handle{};
+           if ((ret = this->fuse_create(path.data(), mode, flags, handle)) >=
+               0) {
 #ifdef _WIN32
              this->set_compat_client_id(handle, client_id);
 #else
-             this->set_client_id(handle, client_id);
+             this->set_client_id(static_cast<native_handle>(handle), client_id);
 #endif
              response.encode(handle);
            }
@@ -623,18 +633,18 @@ public:
            std::string path;
            DECODE_OR_RETURN(request, path);
 
-           remote::file_handle handle;
+           remote::file_handle handle{};
            DECODE_OR_RETURN(request, handle);
 
-           remote::user_id uid;
+           remote::user_id uid{};
            DECODE_OR_RETURN(request, uid);
 
-           remote::group_id gid;
+           remote::group_id gid{};
            DECODE_OR_RETURN(request, gid);
 
            remote::stat st{};
            bool directory = false;
-           ret = this->fuse_fgetattr(&path[0], st, directory, handle);
+           ret = this->fuse_fgetattr(path.data(), st, directory, handle);
            if (ret == 0) {
              st.st_uid = uid;
              st.st_gid = gid;
@@ -657,10 +667,10 @@ public:
            remote::setattr_x attr{};
            DECODE_OR_RETURN(request, attr);
 
-           remote::file_handle handle;
+           remote::file_handle handle{};
            DECODE_OR_RETURN(request, handle);
 
-           return this->fuse_fsetattr_x(&path[0], attr, handle);
+           return this->fuse_fsetattr_x(path.data(), attr, handle);
          }});
     handler_lookup_.insert(
         {"::fuse_fsync",
@@ -833,7 +843,7 @@ public:
 #ifdef _WIN32
              this->set_compat_client_id(handle, client_id);
 #else
-             this->set_client_id(handle, client_id);
+             this->set_client_id(static_cast<native_handle>(handle), client_id);
 #endif
              response.encode(handle);
            }
@@ -965,7 +975,7 @@ public:
          [this](std::uint32_t, const std::string &, std::uint64_t,
                 const std::string &, packet *request,
                 packet &) -> packet::error_type {
-           auto ret = 0;
+           std::int32_t ret{0};
 
            std::string from;
            DECODE_OR_RETURN(request, from);
@@ -973,26 +983,26 @@ public:
            std::string to;
            DECODE_OR_RETURN(request, to);
 
-           return this->fuse_rename(&from[0], &to[0]);
+           return this->fuse_rename(from.data(), to.data());
          }});
     handler_lookup_.insert(
         {"::fuse_rmdir",
          [this](std::uint32_t, const std::string &, std::uint64_t,
                 const std::string &, packet *request,
                 packet &) -> packet::error_type {
-           auto ret = 0;
+           std::int32_t ret{0};
 
            std::string path;
            DECODE_OR_RETURN(request, path);
 
-           return this->fuse_rmdir(&path[0]);
+           return this->fuse_rmdir(path.data());
          }});
     handler_lookup_.insert(
         {"::fuse_setattr_x",
          [this](std::uint32_t, const std::string &, std::uint64_t,
                 const std::string &, packet *request,
                 packet &) -> packet::error_type {
-           auto ret = 0;
+           std::int32_t ret{0};
 
            std::string path;
            DECODE_OR_RETURN(request, path);
@@ -1000,64 +1010,64 @@ public:
            remote::setattr_x attr{};
            DECODE_OR_RETURN(request, attr);
 
-           return this->fuse_setattr_x(&path[0], attr);
+           return this->fuse_setattr_x(path.data(), attr);
          }});
     handler_lookup_.insert(
         {"::fuse_setbkuptime",
          [this](std::uint32_t, const std::string &, std::uint64_t,
                 const std::string &, packet *request,
                 packet &) -> packet::error_type {
-           auto ret = 0;
+           std::int32_t ret{0};
 
            std::string path;
            DECODE_OR_RETURN(request, path);
 
-           remote::file_time bkuptime;
+           remote::file_time bkuptime{};
            DECODE_OR_RETURN(request, bkuptime);
 
-           return this->fuse_setbkuptime(&path[0], bkuptime);
+           return this->fuse_setbkuptime(path.data(), bkuptime);
          }});
     handler_lookup_.insert(
         {"::fuse_setchgtime",
          [this](std::uint32_t, const std::string &, std::uint64_t,
                 const std::string &, packet *request,
                 packet &) -> packet::error_type {
-           auto ret = 0;
+           std::int32_t ret{0};
 
            std::string path;
            DECODE_OR_RETURN(request, path);
 
-           remote::file_time chgtime;
+           remote::file_time chgtime{};
            DECODE_OR_RETURN(request, chgtime);
 
-           return this->fuse_setchgtime(&path[0], chgtime);
+           return this->fuse_setchgtime(path.data(), chgtime);
          }});
     handler_lookup_.insert(
         {"::fuse_setcrtime",
          [this](std::uint32_t, const std::string &, std::uint64_t,
                 const std::string &, packet *request,
                 packet &) -> packet::error_type {
-           auto ret = 0;
+           std::int32_t ret{0};
 
            std::string path;
            DECODE_OR_RETURN(request, path);
 
-           remote::file_time crtime;
+           remote::file_time crtime{};
            DECODE_OR_RETURN(request, crtime);
 
-           return this->fuse_setcrtime(&path[0], crtime);
+           return this->fuse_setcrtime(path.data(), crtime);
          }});
     handler_lookup_.insert(
         {"::fuse_setvolname",
          [this](std::uint32_t, const std::string &, std::uint64_t,
                 const std::string &, packet *request,
                 packet &) -> packet::error_type {
-           auto ret = 0;
+           std::int32_t ret{0};
 
            std::string name;
            DECODE_OR_RETURN(request, name);
 
-           return this->fuse_setvolname(&name[0]);
+           return this->fuse_setvolname(name.data());
          }});
     /*handlerLookup_.insert({"::fuse_setxattr",
                            [this](std::uint32_t serviceFlags, const std::string
@@ -1125,16 +1135,16 @@ public:
          [this](std::uint32_t, const std::string &, std::uint64_t,
                 const std::string &, packet *request,
                 packet &response) -> packet::error_type {
-           auto ret = -1;
+           std::int32_t ret{-1};
 
            std::string path;
            DECODE_OR_RETURN(request, path);
 
-           std::uint64_t frsize;
+           std::uint64_t frsize{};
            DECODE_OR_RETURN(request, frsize);
 
            remote::statfs st{};
-           ret = this->fuse_statfs(&path[0], frsize, st);
+           ret = this->fuse_statfs(path.data(), frsize, st);
            if (ret == 0) {
              response.encode(st);
            }
@@ -1145,16 +1155,16 @@ public:
          [this](std::uint32_t, const std::string &, std::uint64_t,
                 const std::string &, packet *request,
                 packet &response) -> packet::error_type {
-           auto ret = -1;
+           std::int32_t ret{-1};
 
            std::string path;
            DECODE_OR_RETURN(request, path);
 
-           std::uint64_t bsize;
+           std::uint64_t bsize{};
            DECODE_OR_RETURN(request, bsize);
 
            remote::statfs_x st{};
-           ret = this->fuse_statfs_x(&path[0], bsize, st);
+           ret = this->fuse_statfs_x(path.data(), bsize, st);
            if (ret == 0) {
              response.encode(st);
            }
@@ -1165,34 +1175,34 @@ public:
          [this](std::uint32_t, const std::string &, std::uint64_t,
                 const std::string &, packet *request,
                 packet &) -> packet::error_type {
-           auto ret = 0;
+           std::int32_t ret{};
 
            std::string path;
            DECODE_OR_RETURN(request, path);
 
-           remote::file_offset size;
+           remote::file_offset size{};
            DECODE_OR_IGNORE(request, size);
 
-           return this->fuse_truncate(&path[0], size);
+           return this->fuse_truncate(path.data(), size);
          }});
     handler_lookup_.insert(
         {"::fuse_unlink",
          [this](std::uint32_t, const std::string &, std::uint64_t,
                 const std::string &, packet *request,
                 packet &) -> packet::error_type {
-           auto ret = 0;
+           std::int32_t ret{};
 
            std::string path;
            DECODE_OR_RETURN(request, path);
 
-           return this->fuse_unlink(&path[0]);
+           return this->fuse_unlink(path.data());
          }});
     handler_lookup_.insert(
         {"::fuse_utimens",
          [this](std::uint32_t, const std::string &, std::uint64_t,
                 const std::string &, packet *request,
                 packet &) -> packet::error_type {
-           auto ret = 0;
+           std::int32_t ret{};
 
            std::string path;
            DECODE_OR_RETURN(request, path);
@@ -1200,13 +1210,13 @@ public:
            remote::file_time tv[2] = {0};
            if ((ret = request->decode(&tv[0], sizeof(remote::file_time) * 2)) ==
                0) {
-             std::uint64_t op0;
+             std::uint64_t op0{};
              DECODE_OR_RETURN(request, op0);
 
-             std::uint64_t op1;
+             std::uint64_t op1{};
              DECODE_OR_RETURN(request, op1);
 
-             ret = this->fuse_utimens(&path[0], tv, op0, op1);
+             ret = this->fuse_utimens(path.data(), tv, op0, op1);
            }
            return ret;
          }});
@@ -1215,27 +1225,27 @@ public:
          [this](std::uint32_t, const std::string &, std::uint64_t,
                 const std::string &, packet *request,
                 packet &) -> packet::error_type {
-           std::int32_t ret = 0;
+           std::int32_t ret{};
 
            std::string path;
            DECODE_OR_RETURN(request, path);
 
-           remote::file_size writeSize;
-           DECODE_OR_RETURN(request, writeSize);
+           remote::file_size write_size{};
+           DECODE_OR_RETURN(request, write_size);
 
-           if (writeSize > std::numeric_limits<std::size_t>::max()) {
+           if (write_size > std::numeric_limits<std::size_t>::max()) {
              return -ERANGE;
            }
 
-           data_buffer buffer(static_cast<std::size_t>(writeSize));
-           if ((ret = request->decode(&buffer[0], buffer.size())) == 0) {
-             remote::file_offset write_offset;
+           data_buffer buffer(write_size);
+           if ((ret = request->decode(buffer.data(), buffer.size())) == 0) {
+             remote::file_offset write_offset{};
              DECODE_OR_RETURN(request, write_offset);
 
-             remote::file_handle handle;
+             remote::file_handle handle{};
              DECODE_OR_RETURN(request, handle);
 
-             ret = this->fuse_write(&path[0], &buffer[0], writeSize,
+             ret = this->fuse_write(path.data(), buffer.data(), write_size,
                                     write_offset, handle);
            }
            return ret;
@@ -1245,31 +1255,31 @@ public:
          [this](std::uint32_t, const std::string &, std::uint64_t,
                 const std::string &, packet *request,
                 packet &) -> packet::error_type {
-           std::int32_t ret = 0;
+           std::int32_t ret{};
 
            std::string path;
            DECODE_OR_RETURN(request, path);
 
-           remote::file_size write_size;
+           remote::file_size write_size{};
            DECODE_OR_RETURN(request, write_size);
 
            if (write_size > std::numeric_limits<std::size_t>::max()) {
              return -ERANGE;
            }
 
-           data_buffer buffer(static_cast<std::size_t>(write_size));
-           if ((ret = request->decode(&buffer[0], buffer.size())) == 0) {
+           data_buffer buffer(write_size);
+           if ((ret = request->decode(buffer.data(), buffer.size())) == 0) {
              buffer = macaron::Base64::Decode(
                  std::string(buffer.begin(), buffer.end()));
              write_size = buffer.size();
 
-             remote::file_offset write_offset;
+             remote::file_offset write_offset{};
              DECODE_OR_RETURN(request, write_offset);
 
-             remote::file_handle handle;
+             remote::file_handle handle{};
              DECODE_OR_RETURN(request, handle);
 
-             ret = this->fuse_write(&path[0], &buffer[0], write_size,
+             ret = this->fuse_write(path.data(), buffer.data(), write_size,
                                     write_offset, handle);
            }
            return ret;
@@ -1279,7 +1289,7 @@ public:
          [this](std::uint32_t, const std::string &client_id, std::uint64_t,
                 const std::string &, packet *request,
                 packet &response) -> packet::error_type {
-           std::int32_t ret = 0;
+           std::int32_t ret{};
 
            std::string path;
            DECODE_OR_RETURN(request, path);
@@ -1288,7 +1298,7 @@ public:
            json_data["handle"] = -1;
            json_data["page_count"] = 0;
            json_data["path"] = path;
-           if ((ret = this->json_create_directory_snapshot(&path[0],
+           if ((ret = this->json_create_directory_snapshot(path.data(),
                                                            json_data)) == 0) {
              this->add_directory(client_id,
                                  reinterpret_cast<void *>(
@@ -1307,10 +1317,10 @@ public:
            std::string path;
            DECODE_OR_RETURN(request, path);
 
-           remote::file_handle handle;
+           remote::file_handle handle{};
            DECODE_OR_RETURN(request, handle);
 
-           std::uint32_t page;
+           std::uint32_t page{};
            DECODE_OR_RETURN(request, page);
 
            ret = -EBADF;
@@ -1338,10 +1348,10 @@ public:
            std::string path;
            DECODE_OR_RETURN(request, path);
 
-           remote::file_handle handle;
+           remote::file_handle handle{};
            DECODE_OR_RETURN(request, handle);
 
-           ret = this->json_release_directory_snapshot(&path[0], handle);
+           ret = this->json_release_directory_snapshot(path.data(), handle);
            if (this->remove_directory(client_id,
                                       reinterpret_cast<void *>(handle))) {
              return ret;
@@ -1380,7 +1390,7 @@ public:
 protected:
   app_config &config_;
   drive &drive_;
-  const std::string mount_location_;
+  std::string mount_location_;
 
 private:
   client_pool client_pool_;
@@ -1422,7 +1432,7 @@ protected:
   }
 
   void delete_open_directory(void *dir) override {
-    if (dir) {
+    if (dir != nullptr) {
       delete reinterpret_cast<directory_iterator *>(dir);
     }
   }

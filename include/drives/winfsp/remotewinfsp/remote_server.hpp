@@ -266,7 +266,7 @@ public:
                              remote::file_info *file_info)
       -> packet::error_type override;
 
-  auto winfsp_set_file_size(PVOID file_desc, UINT64 newSize,
+  auto winfsp_set_file_size(PVOID file_desc, UINT64 new_size,
                             BOOLEAN set_allocation_size,
                             remote::file_info *file_info)
       -> packet::error_type override;

@@ -56,11 +56,17 @@ private:
 
     ~pool() { shutdown(); }
 
+  public:
+    pool(const pool &) = delete;
+    pool(pool &&) = delete;
+    auto operator=(const pool &) -> pool & = delete;
+    auto operator=(pool &&) -> pool & = delete;
+
   private:
     std::vector<std::unique_ptr<work_queue>> pool_queues_;
     std::vector<std::thread> pool_threads_;
-    bool shutdown_ = false;
-    std::atomic<std::uint8_t> thread_index_;
+    bool shutdown_{false};
+    std::atomic<std::uint8_t> thread_index_{};
 
   public:
     void execute(std::uint64_t thread_id, const worker_callback &worker,
@@ -70,16 +76,25 @@ private:
   };
 
 public:
-  explicit client_pool(std::uint8_t pool_size = 10u)
-      : pool_size_(pool_size ? pool_size : 10u) {}
+  explicit client_pool(std::uint8_t pool_size = min_pool_size)
+      : pool_size_(pool_size == 0U ? min_pool_size : pool_size) {}
 
   ~client_pool() { shutdown(); }
 
+public:
+  client_pool(const client_pool &) = delete;
+  client_pool(client_pool &&) = delete;
+  auto operator=(const client_pool &) -> client_pool & = delete;
+  auto operator=(client_pool &&) -> client_pool & = delete;
+
 private:
-  const std::uint8_t pool_size_;
+  std::uint8_t pool_size_;
   std::unordered_map<std::string, std::shared_ptr<pool>> pool_lookup_;
   std::mutex pool_mutex_;
   bool shutdown_ = false;
+
+private:
+  static constexpr const auto min_pool_size = 10U;
 
 public:
   void execute(const std::string &client_id, std::uint64_t thread_id,

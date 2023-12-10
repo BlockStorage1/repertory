@@ -22,9 +22,9 @@
 #include "file_manager/file_manager.hpp"
 
 namespace repertory {
-void file_manager::open_file_base::download::notify(const api_error &e) {
+void file_manager::open_file_base::download::notify(const api_error &err) {
   complete_ = true;
-  error_ = e;
+  error_ = err;
   unique_mutex_lock lock(mtx_);
   notify_.notify_all();
 }

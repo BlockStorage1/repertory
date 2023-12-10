@@ -32,12 +32,12 @@ using event_consumer = event_system::event_consumer;
 
 #define E_CAST(t) ((std::string)t)
 #define E_DOUBLE(d) std::to_string(d)
-#define E_DOUBLE_PRECISE(d)                                                    \
+#define E_DOUBLE_PRECISE(dbl_val)                                              \
   ([](const double &d) -> std::string {                                        \
     std::stringstream ss;                                                      \
     ss << std::fixed << std::setprecision(2) << d;                             \
     return ss.str();                                                           \
-  })(d)
+  })(dbl_val)
 #define E_FROM_BOOL(t) std::to_string(t)
 #define E_FROM_EXCEPTION(e) std::string(e.what() ? e.what() : "")
 #define E_FROM_INT32(t) std::to_string(t)
@@ -60,6 +60,7 @@ using event_consumer = event_system::event_consumer;
     return ss;                                                                 \
   })(d)
 #define E_STRING(t) t
+#define E_FROM_CURL_CODE(t) std::string(curl_easy_strerror(t))
 #define E_FROM_UINT8(t) std::to_string(t)
 #define E_FROM_UINT32(t) std::to_string(t)
 #define E_FROM_UINT64(t) std::to_string(t)
@@ -69,8 +70,9 @@ using event_consumer = event_system::event_consumer;
 #define E_PROP(type, name, short_name, ts)                                     \
 private:                                                                       \
   void init_##short_name(const type &val) {                                    \
-    ss_ << "|" << #short_name << "|" << ts(val);                               \
-    j_[#name] = ts(val);                                                       \
+    auto ts_val = ts(val);                                                     \
+    ss_ << "|" << #short_name << "|" << ts_val;                                \
+    j_[#name] = ts_val;                                                        \
   }                                                                            \
                                                                                \
 public:                                                                        \
@@ -244,16 +246,17 @@ private:                                                                       \
 
 #define E_SUBSCRIBE(name, callback)                                            \
   event_consumers_.emplace_back(std::make_shared<repertory::event_consumer>(   \
-      #name, [this](const event &e) { callback(e); }))
+      #name, [this](const event &evt) { callback(evt); }))
 
 #define E_SUBSCRIBE_EXACT(name, callback)                                      \
   event_consumers_.emplace_back(std::make_shared<repertory::event_consumer>(   \
-      #name,                                                                   \
-      [this](const event &e) { callback(dynamic_cast<const name &>(e)); }))
+      #name, [this](const event &evt) {                                        \
+        callback(dynamic_cast<const name &>(evt));                             \
+      }))
 
 #define E_SUBSCRIBE_ALL(callback)                                              \
   event_consumers_.emplace_back(std::make_shared<repertory::event_consumer>(   \
-      [this](const event &e) { callback(e); }))
+      [this](const event &evt) { callback(evt); }))
 } // namespace repertory
 
 #endif // INCLUDE_EVENTS_EVENT_SYSTEM_HPP_

@@ -23,8 +23,8 @@
 #define INCLUDE_CLI_HELP_HPP_
 
 namespace repertory::cli::actions {
-template <typename drive> inline void help(int argc, char *argv[]) {
-  drive::display_options(argc, argv);
+template <typename drive> inline void help(std::vector<const char *> args) {
+  drive::display_options(args);
   std::cout << "Repertory options:" << std::endl;
   std::cout << "    -cv,--check_version               Check daemon version "
                "compatibility"
@@ -41,11 +41,6 @@ template <typename drive> inline void help(int argc, char *argv[]) {
             << std::endl;
   std::cout << "    -na,--name                        Unique name for S3 "
                "instance [Required]"
-            << std::endl;
-  std::cout
-      << "    -cd,--create_directory [API path] Create directory object in S3"
-      << std::endl;
-  std::cout << "    -lo,--list_objects                List all S3 objects"
             << std::endl;
 #endif // defined(REPERTORY_ENABLE_S3)
   std::cout

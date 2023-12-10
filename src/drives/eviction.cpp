@@ -41,12 +41,12 @@ auto eviction::check_minimum_requirements(const std::string &file_path)
   }
 
   auto ret = false;
-  if (file_size) {
+  if (file_size != 0U) {
     std::uint64_t reference_time{};
-    if ((ret =
-             config_.get_eviction_uses_accessed_time()
-                 ? utils::file::get_accessed_time(file_path, reference_time)
-                 : utils::file::get_modified_time(file_path, reference_time))) {
+    ret = config_.get_eviction_uses_accessed_time()
+              ? utils::file::get_accessed_time(file_path, reference_time)
+              : utils::file::get_modified_time(file_path, reference_time);
+    if (ret) {
 #ifdef _WIN32
       const auto now = std::chrono::system_clock::now();
       const auto delay =
@@ -57,7 +57,7 @@ auto eviction::check_minimum_requirements(const std::string &file_path)
       const auto now = utils::get_time_now();
       const auto delay =
           (config_.get_eviction_delay_mins() * 60L) * NANOS_PER_SECOND;
-      ret = ((reference_time + delay) <= now);
+      ret = ((reference_time + static_cast<std::uint64_t>(delay)) <= now);
 #endif
     }
   }

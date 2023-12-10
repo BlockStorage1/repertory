@@ -42,18 +42,18 @@ public:
 
 const auto DEFAULT_SIA_CONFIG = "{\n"
                                 "  \"ApiAuth\": \"\",\n"
-                                "  \"ApiPort\": 11101,\n"
+                                "  \"ApiPort\": 10000,\n"
                                 "  \"ApiUser\": \"repertory\",\n"
                                 "  \"ChunkDownloaderTimeoutSeconds\": 30,\n"
                                 "  \"EnableChunkDownloaderTimeout\": true,\n"
                                 "  \"EnableCommDurationEvents\": false,\n"
                                 "  \"EnableDriveEvents\": false,\n"
-                                "  \"EnableMaxCacheSize\": true,\n"
+                                "  \"EnableMaxCacheSize\": false,\n"
 #ifdef _WIN32
                                 "  \"EnableMountManager\": false,\n"
 #endif
                                 "  \"EventLevel\": \"normal\",\n"
-                                "  \"EvictionDelayMinutes\": 30,\n"
+                                "  \"EvictionDelayMinutes\": 10,\n"
                                 "  \"EvictionUsesAccessedTime\": false,\n"
                                 "  \"HighFreqIntervalSeconds\": 30,\n"
                                 "  \"HostConfig\": {\n"
@@ -90,18 +90,18 @@ const auto DEFAULT_SIA_CONFIG = "{\n"
 
 const auto DEFAULT_S3_CONFIG = "{\n"
                                "  \"ApiAuth\": \"\",\n"
-                               "  \"ApiPort\": 11103,\n"
+                               "  \"ApiPort\": 10100,\n"
                                "  \"ApiUser\": \"repertory\",\n"
                                "  \"ChunkDownloaderTimeoutSeconds\": 30,\n"
                                "  \"EnableChunkDownloaderTimeout\": true,\n"
                                "  \"EnableCommDurationEvents\": false,\n"
                                "  \"EnableDriveEvents\": false,\n"
-                               "  \"EnableMaxCacheSize\": true,\n"
+                               "  \"EnableMaxCacheSize\": false,\n"
 #ifdef _WIN32
                                "  \"EnableMountManager\": false,\n"
 #endif
                                "  \"EventLevel\": \"normal\",\n"
-                               "  \"EvictionDelayMinutes\": 30,\n"
+                               "  \"EvictionDelayMinutes\": 10,\n"
                                "  \"EvictionUsesAccessedTime\": false,\n"
                                "  \"HighFreqIntervalSeconds\": 30,\n"
                                "  \"LowFreqIntervalSeconds\": 3600,\n"
@@ -117,7 +117,7 @@ const auto DEFAULT_S3_CONFIG = "{\n"
                                "    \"RemoteClientPoolSize\": 10,\n"
                                "    \"RemoteHostNameOrIp\": \"\",\n"
                                "    \"RemoteMaxConnections\": 20,\n"
-                               "    \"RemotePort\": 20001,\n"
+                               "    \"RemotePort\": 20100,\n"
                                "    \"RemoteReceiveTimeoutSeconds\": 120,\n"
                                "    \"RemoteSendTimeoutSeconds\": 30,\n"
                                "    \"RemoteToken\": \"\"\n"
@@ -133,6 +133,7 @@ const auto DEFAULT_S3_CONFIG = "{\n"
                                "    \"SecretKey\": \"\",\n"
                                "    \"TimeoutMs\": 60000,\n"
                                "    \"URL\": \"\",\n"
+                               "    \"UsePathStyle\": false,\n"
                                "    \"UseRegionInURL\": false\n"
                                "  },\n"
                                "  \"Version\": " +
@@ -145,7 +146,7 @@ TEST_F(config_test, sia_default_settings) {
       utils::path::combine("./data/sia", {"config.json"}));
 
   for (int i = 0; i < 2; i++) {
-    app_config config(provider_type::sia, "./data");
+    app_config config(provider_type::sia, "./data/sia");
     config.set_remote_token("");
     config.set_api_auth("");
     EXPECT_TRUE(config.set_value_by_name("HostConfig.ApiPassword", "").empty());
@@ -178,7 +179,7 @@ TEST_F(config_test, api_path) {
   {
     app_config config(provider_type::sia, "./data");
     original_value = config.get_api_auth();
-    EXPECT_EQ(48u, original_value.size());
+    EXPECT_EQ(48U, original_value.size());
   }
 }
 
@@ -197,7 +198,7 @@ TEST_F(config_test, api_auth) {
 }
 
 TEST_F(config_test, api_port) {
-  std::uint16_t original_value;
+  std::uint16_t original_value{};
   {
     app_config config(provider_type::sia, "./data");
     original_value = config.get_api_port();
@@ -225,7 +226,7 @@ TEST_F(config_test, api_user) {
 }
 
 TEST_F(config_test, chunk_downloader_timeout_secs) {
-  std::uint8_t original_value;
+  std::uint8_t original_value{};
   {
     app_config config(provider_type::sia, "./data");
     original_value = config.get_chunk_downloader_timeout_secs();
@@ -239,7 +240,7 @@ TEST_F(config_test, chunk_downloader_timeout_secs) {
 }
 
 TEST_F(config_test, enable_chunk_download_timeout) {
-  bool original_value;
+  bool original_value{};
   {
     app_config config(provider_type::sia, "./data");
     original_value = config.get_enable_chunk_download_timeout();
@@ -253,7 +254,7 @@ TEST_F(config_test, enable_chunk_download_timeout) {
 }
 
 TEST_F(config_test, enable_comm_duration_events) {
-  bool original_value;
+  bool original_value{};
   {
     app_config config(provider_type::sia, "./data");
     original_value = config.get_enable_comm_duration_events();
@@ -267,7 +268,7 @@ TEST_F(config_test, enable_comm_duration_events) {
 }
 
 TEST_F(config_test, enable_drive_events) {
-  bool original_value;
+  bool original_value{};
   {
     app_config config(provider_type::sia, "./data");
     original_value = config.get_enable_drive_events();
@@ -281,7 +282,7 @@ TEST_F(config_test, enable_drive_events) {
 }
 
 TEST_F(config_test, enable_max_cache_size) {
-  bool original_value;
+  bool original_value{};
   {
     app_config config(provider_type::sia, "./data");
     original_value = config.get_enable_max_cache_size();
@@ -323,7 +324,7 @@ TEST_F(config_test, event_level) {
 }
 
 TEST_F(config_test, eviction_delay_mins) {
-  std::uint32_t original_value;
+  std::uint32_t original_value{};
   {
     app_config config(provider_type::sia, "./data");
     original_value = config.get_eviction_delay_mins();
@@ -337,7 +338,7 @@ TEST_F(config_test, eviction_delay_mins) {
 }
 
 TEST_F(config_test, eviction_uses_accessed_time) {
-  bool original_value;
+  bool original_value{};
   {
     app_config config(provider_type::sia, "./data");
     original_value = config.get_eviction_uses_accessed_time();
@@ -352,7 +353,7 @@ TEST_F(config_test, eviction_uses_accessed_time) {
 }
 
 TEST_F(config_test, high_frequency_interval_secs) {
-  std::uint8_t original_value;
+  std::uint8_t original_value{};
   {
     app_config config(provider_type::sia, "./data");
     original_value = config.get_high_frequency_interval_secs();
@@ -366,7 +367,7 @@ TEST_F(config_test, high_frequency_interval_secs) {
 }
 
 TEST_F(config_test, low_frequency_interval_secs) {
-  std::uint32_t original_value;
+  std::uint32_t original_value{};
   {
     app_config config(provider_type::sia, "./data");
     original_value = config.get_low_frequency_interval_secs();
@@ -383,33 +384,33 @@ TEST_F(config_test, max_cache_size_bytes) {
   {
     app_config config(provider_type::sia, "./data");
     config.set_max_cache_size_bytes(100 * 1024 * 1024);
-    EXPECT_EQ(100u * 1024 * 1024, config.get_max_cache_size_bytes());
+    EXPECT_EQ(100U * 1024 * 1024, config.get_max_cache_size_bytes());
   }
   {
     app_config config(provider_type::sia, "./data");
-    EXPECT_EQ(100u * 1024 * 1024, config.get_max_cache_size_bytes());
+    EXPECT_EQ(100U * 1024 * 1024, config.get_max_cache_size_bytes());
   }
 }
 
 TEST_F(config_test, max_upload_count) {
   {
     app_config config(provider_type::sia, "./data");
-    config.set_max_upload_count(8u);
-    EXPECT_EQ(std::uint8_t(8u), config.get_max_upload_count());
+    config.set_max_upload_count(8U);
+    EXPECT_EQ(std::uint8_t(8U), config.get_max_upload_count());
   }
   {
     app_config config(provider_type::sia, "./data");
-    EXPECT_EQ(std::uint8_t(8u), config.get_max_upload_count());
+    EXPECT_EQ(std::uint8_t(8U), config.get_max_upload_count());
   }
   {
     app_config config(provider_type::sia, "./data");
-    config.set_max_upload_count(0u);
-    EXPECT_EQ(std::uint8_t(1u), config.get_max_upload_count());
+    config.set_max_upload_count(0U);
+    EXPECT_EQ(std::uint8_t(1U), config.get_max_upload_count());
   }
 }
 
 TEST_F(config_test, online_check_retry_secs) {
-  std::uint16_t original_value;
+  std::uint16_t original_value{};
   {
     app_config config(provider_type::sia, "./data");
     original_value = config.get_online_check_retry_secs();
@@ -431,7 +432,7 @@ TEST_F(config_test, online_check_retry_secs_minimum_value) {
 }
 
 TEST_F(config_test, orphaned_file_retention_days) {
-  std::uint16_t original_value;
+  std::uint16_t original_value{};
   {
     app_config config(provider_type::sia, "./data");
     original_value = config.get_orphaned_file_retention_days();
@@ -461,7 +462,7 @@ TEST_F(config_test, orphaned_file_retention_days_maximum_value) {
 }
 
 TEST_F(config_test, read_ahead_count) {
-  std::uint8_t original_value;
+  std::uint8_t original_value{};
   {
     app_config config(provider_type::sia, "./data");
     original_value = config.get_read_ahead_count();
@@ -476,7 +477,7 @@ TEST_F(config_test, read_ahead_count) {
 
 TEST_F(config_test, get_cache_directory) {
   {
-    app_config config(provider_type::sia, "./data");
+    app_config config(provider_type::sia, "./data/sia");
     EXPECT_STREQ(utils::path::absolute("./data/sia/cache").c_str(),
                  config.get_cache_directory().c_str());
   }
@@ -487,14 +488,14 @@ TEST_F(config_test, get_config_file_path) {
     const auto config_file = utils::path::absolute(
         utils::path::combine("./data/sia", {"config.json"}));
 
-    app_config config(provider_type::sia, "./data");
+    app_config config(provider_type::sia, "./data/sia");
     EXPECT_STREQ(config_file.c_str(), config.get_config_file_path().c_str());
   }
 }
 
 TEST_F(config_test, get_data_directory) {
   {
-    app_config config(provider_type::sia, "./data");
+    app_config config(provider_type::sia, "./data/sia");
     EXPECT_STREQ(utils::path::absolute("./data/sia").c_str(),
                  config.get_data_directory().c_str());
   }
@@ -502,7 +503,7 @@ TEST_F(config_test, get_data_directory) {
 
 TEST_F(config_test, get_log_directory) {
   {
-    app_config config(provider_type::sia, "./data");
+    app_config config(provider_type::sia, "./data/sia");
     EXPECT_STREQ(utils::path::absolute("./data/sia/logs").c_str(),
                  config.get_log_directory().c_str());
   }
@@ -566,11 +567,11 @@ TEST_F(config_test, default_agent_name) {
 }
 
 TEST_F(config_test, default_api_port) {
-  EXPECT_EQ(9980u, app_config::default_api_port(provider_type::sia));
+  EXPECT_EQ(9980U, app_config::default_api_port(provider_type::sia));
 }
 
 TEST_F(config_test, default_data_directory) {
-  const std::string data_directory[] = {
+  const std::array<std::string, 1U> data_directory = {
       app_config::default_data_directory(provider_type::sia),
   };
 
@@ -591,7 +592,7 @@ TEST_F(config_test, default_data_directory) {
 }
 
 TEST_F(config_test, default_rpc_port) {
-  EXPECT_EQ(11101u, app_config::default_rpc_port(provider_type::sia));
+  EXPECT_EQ(10000U, app_config::default_rpc_port(provider_type::sia));
 }
 
 TEST_F(config_test, get_provider_display_name) {
@@ -612,7 +613,7 @@ TEST_F(config_test, get_version) {
 }
 
 TEST_F(config_test, enable_remote_mount) {
-  bool original_value;
+  bool original_value{};
   {
     app_config config(provider_type::sia, "./data");
     original_value = config.get_enable_remote_mount();
@@ -626,7 +627,7 @@ TEST_F(config_test, enable_remote_mount) {
 }
 
 TEST_F(config_test, is_remote_mount) {
-  bool original_value;
+  bool original_value{};
   {
     app_config config(provider_type::sia, "./data");
     original_value = config.get_is_remote_mount();
@@ -668,7 +669,7 @@ TEST_F(config_test, remote_host_name_or_ip) {
 }
 
 TEST_F(config_test, remote_port) {
-  std::uint16_t original_value;
+  std::uint16_t original_value{};
   {
     app_config config(provider_type::sia, "./data");
     original_value = config.get_remote_port();
@@ -682,7 +683,7 @@ TEST_F(config_test, remote_port) {
 }
 
 TEST_F(config_test, remote_receive_timeout_secs) {
-  std::uint16_t original_value;
+  std::uint16_t original_value{};
   {
     app_config config(provider_type::sia, "./data");
     original_value = config.get_remote_receive_timeout_secs();
@@ -696,7 +697,7 @@ TEST_F(config_test, remote_receive_timeout_secs) {
 }
 
 TEST_F(config_test, remote_send_timeout_secs) {
-  std::uint16_t original_value;
+  std::uint16_t original_value{};
   {
     app_config config(provider_type::sia, "./data");
     original_value = config.get_remote_send_timeout_secs();
@@ -722,7 +723,7 @@ TEST_F(config_test, remote_token) {
 }
 
 TEST_F(config_test, remote_client_pool_size) {
-  std::uint8_t original_value;
+  std::uint8_t original_value{};
   {
     app_config config(provider_type::sia, "./data");
     original_value = config.get_remote_client_pool_size();
@@ -748,7 +749,7 @@ TEST_F(config_test, remote_client_pool_size_minimum_value) {
 }
 
 TEST_F(config_test, remote_max_connections) {
-  std::uint8_t original_value;
+  std::uint8_t original_value{};
   {
     app_config config(provider_type::sia, "./data");
     original_value = config.get_remote_max_connections();
@@ -774,7 +775,7 @@ TEST_F(config_test, remote_max_connections_minimum_value) {
 }
 
 TEST_F(config_test, retry_read_count) {
-  std::uint16_t original_value;
+  std::uint16_t original_value{};
   {
     app_config config(provider_type::sia, "./data");
     original_value = config.get_retry_read_count();
@@ -800,7 +801,7 @@ TEST_F(config_test, cache_timeout_seconds_minimum_value) {
     app_config config(provider_type::s3, "./data");
     EXPECT_FALSE(
         config.set_value_by_name("S3Config.CacheTimeoutSeconds", "1").empty());
-    EXPECT_EQ(std::uint16_t(5u), config.get_s3_config().cache_timeout_secs);
+    EXPECT_EQ(std::uint16_t(5U), config.get_s3_config().cache_timeout_secs);
   }
 }
 } // namespace repertory

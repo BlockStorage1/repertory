@@ -237,12 +237,12 @@ public:
   }
 
   [[nodiscard]] auto json_create_directory_snapshot(const std::string &path,
-                                                    json &jsonData)
+                                                    json &json_data)
       -> packet::error_type override;
 
   [[nodiscard]] auto json_read_directory_snapshot(
       const std::string &path, const remote::file_handle &handle,
-      std::uint32_t page, json &jsonData) -> packet::error_type override;
+      std::uint32_t page, json &json_data) -> packet::error_type override;
 
   [[nodiscard]] auto
   json_release_directory_snapshot(const std::string &path,
@@ -254,7 +254,7 @@ public:
       -> packet::error_type override;
 
   [[nodiscard]] auto winfsp_cleanup(PVOID file_desc, PWSTR file_name,
-                                    UINT32 flags, BOOLEAN &wasClosed)
+                                    UINT32 flags, BOOLEAN &was_closed)
       -> packet::error_type override;
 
   [[nodiscard]] auto winfsp_close(PVOID file_desc)
@@ -275,8 +275,8 @@ public:
 
   [[nodiscard]] auto
   winfsp_get_security_by_name(PWSTR file_name, PUINT32 attributes,
-                              std::uint64_t * /*securityDescriptorSize*/,
-                              std::wstring & /*strDescriptor*/)
+                              std::uint64_t * /*security_descriptor_size*/,
+                              std::wstring & /*str_descriptor*/)
       -> packet::error_type override;
 
   [[nodiscard]] auto winfsp_get_volume_info(UINT64 &total_size,
@@ -317,7 +317,7 @@ public:
       UINT64 last_access_time, UINT64 last_write_time, UINT64 change_time,
       remote::file_info *file_info) -> packet::error_type override;
 
-  [[nodiscard]] auto winfsp_set_file_size(PVOID file_desc, UINT64 newSize,
+  [[nodiscard]] auto winfsp_set_file_size(PVOID file_desc, UINT64 new_size,
                                           BOOLEAN set_allocation_size,
                                           remote::file_info *file_info)
       -> packet::error_type override;

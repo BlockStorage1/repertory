@@ -26,6 +26,9 @@
 #include "utils/encrypting_reader.hpp"
 
 namespace repertory::utils::encryption {
+using reader_func = std::function<api_error(data_buffer &cypher_text,
+                                            std::uint64_t start_offset,
+                                            std::uint64_t end_offset)>;
 // Prototypes
 [[nodiscard]] auto decrypt_file_path(const std::string &encryption_token,
                                      std::string &file_path) -> api_error;
@@ -36,11 +39,10 @@ namespace repertory::utils::encryption {
 [[nodiscard]] auto generate_key(const std::string &encryption_token)
     -> key_type;
 
-[[nodiscard]] auto read_encrypted_range(
-    const http_range &range, const key_type &key,
-    const std::function<api_error(data_buffer &ct, std::uint64_t start_offset,
-                                  std::uint64_t end_offset)> &reader,
-    std::uint64_t total_size, data_buffer &data) -> api_error;
+[[nodiscard]] auto read_encrypted_range(const http_range &range,
+                                        const key_type &key, reader_func reader,
+                                        std::uint64_t total_size,
+                                        data_buffer &data) -> api_error;
 
 // Implementations
 template <typename result>

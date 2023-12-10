@@ -22,8 +22,8 @@
 #ifndef INCLUDE_TYPES_REMOTE_HPP_
 #define INCLUDE_TYPES_REMOTE_HPP_
 
-#define PACKET_SERVICE_FUSE std::uint32_t(1)
-#define PACKET_SERVICE_WINFSP std::uint32_t(2)
+#define PACKET_SERVICE_FUSE 1U
+#define PACKET_SERVICE_WINFSP 2U
 
 #ifdef _WIN32
 #define PACKET_SERVICE_FLAGS PACKET_SERVICE_WINFSP
@@ -44,48 +44,51 @@ using group_id = std::uint32_t;
 using user_id = std::uint32_t;
 
 enum class open_flags : std::uint32_t {
-  read_only = 0u,
-  write_only = 1u,
-  read_write = 2u,
-  create = 4u,
-  excl = 8u,
-  no_ctty = 16u,
-  truncate = 32u,
-  append = 64u,
-  non_blocking = 128u,
-  sync = 256u,
-  async = 512u,
-  directory = 1024u,
-  no_follow = 2048u,
-  clo_exec = 4096u,
-  direct = 8192u,
-  no_atime = 16384u,
-  path = 32768u,
-  temp_file = 65536u,
-  dsync = 131072u,
+  read_only = 0U,
+  write_only = 1U,
+  read_write = 2U,
+  create = 4U,
+  excl = 8U,
+  no_ctty = 16U,
+  truncate = 32U,
+  append = 64U,
+  non_blocking = 128U,
+  sync = 256U,
+  async = 512U,
+  directory = 1024U,
+  no_follow = 2048U,
+  clo_exec = 4096U,
+  direct = 8192U,
+  no_atime = 16384U,
+  path = 32768U,
+  temp_file = 65536U,
+  dsync = 131072U,
 };
 
-inline auto operator|(const open_flags &a, const open_flags &b) -> open_flags {
+inline auto operator|(const open_flags &flag_1, const open_flags &flag_2)
+    -> open_flags {
   using t = std::underlying_type_t<open_flags>;
-  return static_cast<open_flags>(static_cast<t>(a) | static_cast<t>(b));
+  return static_cast<open_flags>(static_cast<t>(flag_1) |
+                                 static_cast<t>(flag_2));
 }
 
 #ifdef __GNUG__
 __attribute__((unused))
 #endif
 inline auto
-operator|=(open_flags &a, const open_flags &b) -> open_flags & {
-  a = a | b;
-  return a;
+operator|=(open_flags &flag_1, const open_flags &flag_2) -> open_flags & {
+  flag_1 = flag_1 | flag_2;
+  return flag_1;
 }
 
 #ifdef __GNUG__
 __attribute__((unused))
 #endif
 inline auto
-operator&(const open_flags &a, const open_flags &b) -> open_flags {
+operator&(const open_flags &flag_1, const open_flags &flag_2) -> open_flags {
   using t = std::underlying_type_t<open_flags>;
-  return static_cast<open_flags>(static_cast<t>(a) & static_cast<t>(b));
+  return static_cast<open_flags>(static_cast<t>(flag_1) &
+                                 static_cast<t>(flag_2));
 }
 
 #pragma pack(1)

@@ -539,7 +539,8 @@ auto is_modified_date_older_than(const std::string &path,
     return (std::chrono::system_clock::from_time_t(modified) + seconds) <
            std::chrono::system_clock::now();
 #else
-    return (modified + (seconds.count() * NANOS_PER_SECOND)) <
+    return (modified +
+            static_cast<std::uint64_t>(seconds.count() * NANOS_PER_SECOND)) <
            utils::get_time_now();
 #endif
   }

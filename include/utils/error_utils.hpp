@@ -25,59 +25,59 @@
 #include "types/repertory.hpp"
 
 namespace repertory::utils::error {
-void raise_error(std::string_view function, std::string_view msg);
+void raise_error(std::string function, std::string_view msg);
 
-void raise_error(std::string_view function, const api_error &e,
+void raise_error(std::string function, const api_error &err,
                  std::string_view msg);
 
-void raise_error(std::string_view function, const std::exception &e,
+void raise_error(std::string function, const std::exception &exception,
                  std::string_view msg);
 
-void raise_error(std::string_view function, std::int64_t e,
-                 std::string_view msg);
+void raise_error(std::string function, std::int64_t err, std::string_view msg);
 
-void raise_error(std::string_view function, const json &e,
-                 std::string_view msg);
+void raise_error(std::string function, const json &err, std::string_view msg);
 
-void raise_error(std::string_view function, const api_error &e,
+void raise_error(std::string function, const api_error &err,
                  std::string_view file_path, std::string_view msg);
 
-void raise_error(std::string_view function, std::int64_t e,
+void raise_error(std::string function, std::int64_t err,
                  std::string_view file_path, std::string_view msg);
 
-void raise_error(std::string_view function, const std::exception &e,
+void raise_error(std::string function, const std::exception &exception,
                  std::string_view file_path, std::string_view msg);
 
-void raise_api_path_error(std::string_view function, std::string_view api_path,
-                          const api_error &e, std::string_view msg);
+void raise_api_path_error(std::string function, std::string_view api_path,
+                          const api_error &err, std::string_view msg);
 
-void raise_api_path_error(std::string_view function, std::string_view api_path,
-                          const std::exception &e, std::string_view msg);
-
-void raise_api_path_error(std::string_view function, std::string_view api_path,
-                          std::int64_t e, std::string_view msg);
-
-void raise_api_path_error(std::string_view function, std::string_view api_path,
-                          const json &e, std::string_view msg);
-
-void raise_api_path_error(std::string_view function, std::string_view api_path,
-                          std::string_view source_path, const api_error &e,
+void raise_api_path_error(std::string function, std::string_view api_path,
+                          const std::exception &exception,
                           std::string_view msg);
 
-void raise_api_path_error(std::string_view function, std::string_view api_path,
-                          std::string_view source_path, std::int64_t e,
+void raise_api_path_error(std::string function, std::string_view api_path,
+                          std::int64_t err, std::string_view msg);
+
+void raise_api_path_error(std::string function, std::string_view api_path,
+                          const json &err, std::string_view msg);
+
+void raise_api_path_error(std::string function, std::string_view api_path,
+                          std::string_view source_path, const api_error &err,
                           std::string_view msg);
 
-void raise_api_path_error(std::string_view function, std::string_view api_path,
-                          std::string_view source_path, const std::exception &e,
+void raise_api_path_error(std::string function, std::string_view api_path,
+                          std::string_view source_path, std::int64_t err,
                           std::string_view msg);
 
-void raise_url_error(std::string_view function, std::string_view url,
-                     CURLcode e, std::string_view msg);
+void raise_api_path_error(std::string function, std::string_view api_path,
+                          std::string_view source_path,
+                          const std::exception &exception,
+                          std::string_view msg);
 
-void raise_url_error(std::string_view function, std::string_view url,
-                     std::string_view source_path, const std::exception &e,
+void raise_url_error(std::string function, std::string_view url, CURLcode err,
                      std::string_view msg);
+
+void raise_url_error(std::string function, std::string_view url,
+                     std::string_view source_path,
+                     const std::exception &exception, std::string_view msg);
 
 } // namespace repertory::utils::error
 

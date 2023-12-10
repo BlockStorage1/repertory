@@ -27,7 +27,7 @@
 #include "utils/path_utils.hpp"
 
 namespace repertory {
-static std::string get_source_file_name() {
+static auto get_source_file_name() -> std::string {
   return generate_test_file_name("./", "encrypting_reader");
 }
 
@@ -36,12 +36,12 @@ TEST(encrypting_reader, get_encrypted_file_name) {
   ASSERT_TRUE(utils::file::retry_delete_file(source_file_name));
 
   const auto token = std::string("moose");
-  auto source_file = create_random_file(source_file_name, 1024ul);
+  auto source_file = create_random_file(source_file_name, 1024UL);
   EXPECT_TRUE(source_file != nullptr);
   if (source_file) {
     stop_type stop_requested = false;
-    utils::encryption::encrypting_reader reader("test.dat", source_file_name,
-                                                stop_requested, token);
+    utils::encryption::encrypting_reader reader(
+        "test.dat", source_file_name, stop_requested, token, std::nullopt);
 
     auto file_name = reader.get_encrypted_file_name();
     std::cout << file_name << std::endl;
@@ -64,20 +64,20 @@ TEST(encrypting_reader, file_data) {
   const auto token = std::string("moose");
   auto source_file = create_random_file(
       source_file_name,
-      8u * utils::encryption::encrypting_reader::get_data_chunk_size());
+      8U * utils::encryption::encrypting_reader::get_data_chunk_size());
   EXPECT_TRUE(source_file != nullptr);
   if (source_file) {
     stop_type stop_requested = false;
     utils::encryption::encrypting_reader reader("test.dat", source_file_name,
                                                 stop_requested, token);
 
-    for (std::uint8_t i = 0u; i < 8u; i++) {
+    for (std::uint8_t i = 0U; i < 8U; i++) {
       data_buffer buffer(
           utils::encryption::encrypting_reader::get_encrypted_chunk_size());
-      for (std::uint8_t j = 0u; j < 2u; j++) {
-        EXPECT_EQ(buffer.size() / 2u,
+      for (std::uint8_t j = 0U; j < 2U; j++) {
+        EXPECT_EQ(buffer.size() / 2U,
                   utils::encryption::encrypting_reader::reader_function(
-                      &buffer[(buffer.size() / 2u) * j], buffer.size() / 2u, 1u,
+                      &buffer[(buffer.size() / 2U) * j], buffer.size() / 2U, 1U,
                       &reader));
       }
 
@@ -91,10 +91,10 @@ TEST(encrypting_reader, file_data) {
       std::size_t bytes_read{};
       data_buffer file_data(decrypted_data.size());
       EXPECT_TRUE(source_file->read_bytes(
-          &file_data[0u], file_data.size(),
+          file_data.data(), file_data.size(),
           utils::encryption::encrypting_reader::get_data_chunk_size() * i,
           bytes_read));
-      EXPECT_EQ(0, std::memcmp(&file_data[0u], &decrypted_data[0u],
+      EXPECT_EQ(0, std::memcmp(file_data.data(), decrypted_data.data(),
                                file_data.size()));
     }
 
@@ -110,28 +110,30 @@ TEST(encrypting_reader, file_data_in_multiple_chunks) {
   const auto token = std::string("moose");
   auto source_file = create_random_file(
       source_file_name,
-      8u * utils::encryption::encrypting_reader::get_data_chunk_size());
+      8U * utils::encryption::encrypting_reader::get_data_chunk_size());
   EXPECT_TRUE(source_file != nullptr);
   if (source_file) {
     stop_type stop_requested = false;
     utils::encryption::encrypting_reader reader("test.dat", source_file_name,
                                                 stop_requested, token);
 
-    for (std::uint8_t i = 0u; i < 8u; i += 2u) {
+    for (std::uint8_t i = 0U; i < 8U; i += 2U) {
       data_buffer buffer(
           utils::encryption::encrypting_reader::get_encrypted_chunk_size() *
-          2u);
+          2U);
       EXPECT_EQ(buffer.size(),
                 utils::encryption::encrypting_reader::reader_function(
-                    &buffer[0u], buffer.size(), 1u, &reader));
+                    buffer.data(), buffer.size(), 1U, &reader));
 
-      for (std::uint8_t j = 0u; j < 2u; j++) {
+      for (std::uint8_t j = 0U; j < 2U; j++) {
         data_buffer decrypted_data;
-        const auto offset = (j * (buffer.size() / 2u));
+        const auto offset = (j * (buffer.size() / 2U));
         EXPECT_TRUE(utils::encryption::decrypt_data(
             token,
-            data_buffer(buffer.begin() + offset,
-                        buffer.begin() + offset + (buffer.size() / 2u)),
+            data_buffer(
+                std::next(buffer.begin(), static_cast<std::int64_t>(offset)),
+                std::next(buffer.begin(), static_cast<std::int64_t>(
+                                              offset + (buffer.size() / 2U)))),
             decrypted_data));
 
         EXPECT_EQ(utils::encryption::encrypting_reader::get_data_chunk_size(),
@@ -140,12 +142,12 @@ TEST(encrypting_reader, file_data_in_multiple_chunks) {
         std::size_t bytes_read{};
         data_buffer file_data(decrypted_data.size());
         EXPECT_TRUE(source_file->read_bytes(
-            &file_data[0u], file_data.size(),
+            file_data.data(), file_data.size(),
             (utils::encryption::encrypting_reader::get_data_chunk_size() * i) +
                 (j *
                  utils::encryption::encrypting_reader::get_data_chunk_size()),
             bytes_read));
-        EXPECT_EQ(0, std::memcmp(&file_data[0u], &decrypted_data[0u],
+        EXPECT_EQ(0, std::memcmp(file_data.data(), decrypted_data.data(),
                                  file_data.size()));
       }
     }
@@ -163,7 +165,7 @@ TEST(encrypting_reader, file_data_as_stream) {
   const auto token = std::string("moose");
   auto source_file = create_random_file(
       source_file_name,
-      8u * utils::encryption::encrypting_reader::get_data_chunk_size());
+      8U * utils::encryption::encrypting_reader::get_data_chunk_size());
   EXPECT_TRUE(source_file != nullptr);
   if (source_file) {
     stop_type stop_requested = false;
@@ -177,15 +179,18 @@ TEST(encrypting_reader, file_data_as_stream) {
     EXPECT_FALSE(io_stream->seekg(0, std::ios_base::beg).fail());
     EXPECT_TRUE(io_stream->good());
 
-    for (std::uint8_t i = 0u; i < 8u; i++) {
+    for (std::uint8_t i = 0U; i < 8U; i++) {
       data_buffer buffer(
           utils::encryption::encrypting_reader::get_encrypted_chunk_size());
-      EXPECT_FALSE(io_stream->seekg(i * buffer.size()).fail());
+      EXPECT_FALSE(
+          io_stream->seekg(static_cast<std::streamoff>(i * buffer.size()))
+              .fail());
       EXPECT_TRUE(io_stream->good());
-      for (std::uint8_t j = 0u; j < 2u; j++) {
+      for (std::uint8_t j = 0U; j < 2U; j++) {
         EXPECT_FALSE(
             io_stream
-                ->read(&buffer[(buffer.size() / 2u) * j], buffer.size() / 2u)
+                ->read(&buffer[(buffer.size() / 2U) * j],
+                       static_cast<std::streamsize>(buffer.size()) / 2U)
                 .fail());
         EXPECT_TRUE(io_stream->good());
       }
@@ -200,10 +205,10 @@ TEST(encrypting_reader, file_data_as_stream) {
       std::size_t bytes_read{};
       data_buffer file_data(decrypted_data.size());
       EXPECT_TRUE(source_file->read_bytes(
-          &file_data[0u], file_data.size(),
+          file_data.data(), file_data.size(),
           utils::encryption::encrypting_reader::get_data_chunk_size() * i,
           bytes_read));
-      EXPECT_EQ(0, std::memcmp(&file_data[0u], &decrypted_data[0u],
+      EXPECT_EQ(0, std::memcmp(file_data.data(), decrypted_data.data(),
                                file_data.size()));
     }
 
@@ -233,20 +238,25 @@ TEST(encrypting_reader, file_data_in_multiple_chunks_as_stream) {
     EXPECT_FALSE(io_stream->seekg(0, std::ios_base::beg).fail());
     EXPECT_TRUE(io_stream->good());
 
-    for (std::uint8_t i = 0u; i < 8u; i += 2u) {
+    for (std::uint8_t i = 0U; i < 8U; i += 2U) {
       data_buffer buffer(
           utils::encryption::encrypting_reader::get_encrypted_chunk_size() *
-          2u);
-      EXPECT_FALSE(io_stream->read(&buffer[0u], buffer.size()).fail());
+          2U);
+      EXPECT_FALSE(
+          io_stream
+              ->read(buffer.data(), static_cast<std::streamsize>(buffer.size()))
+              .fail());
       EXPECT_TRUE(io_stream->good());
 
-      for (std::uint8_t j = 0u; j < 2u; j++) {
+      for (std::uint8_t j = 0U; j < 2U; j++) {
         data_buffer decrypted_data;
-        const auto offset = (j * (buffer.size() / 2u));
+        const auto offset = (j * (buffer.size() / 2U));
         EXPECT_TRUE(utils::encryption::decrypt_data(
             token,
-            data_buffer(buffer.begin() + offset,
-                        buffer.begin() + offset + (buffer.size() / 2u)),
+            data_buffer(
+                std::next(buffer.begin(), static_cast<std::int64_t>(offset)),
+                std::next(buffer.begin(), static_cast<std::int64_t>(
+                                              offset + (buffer.size() / 2U)))),
             decrypted_data));
 
         EXPECT_EQ(utils::encryption::encrypting_reader::get_data_chunk_size(),
@@ -255,12 +265,12 @@ TEST(encrypting_reader, file_data_in_multiple_chunks_as_stream) {
         std::size_t bytes_read{};
         data_buffer file_data(decrypted_data.size());
         EXPECT_TRUE(source_file->read_bytes(
-            &file_data[0u], file_data.size(),
+            file_data.data(), file_data.size(),
             (utils::encryption::encrypting_reader::get_data_chunk_size() * i) +
                 (j *
                  utils::encryption::encrypting_reader::get_data_chunk_size()),
             bytes_read));
-        EXPECT_EQ(0, std::memcmp(&file_data[0u], &decrypted_data[0u],
+        EXPECT_EQ(0, std::memcmp(file_data.data(), decrypted_data.data(),
                                  file_data.size()));
       }
     }

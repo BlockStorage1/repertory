@@ -26,6 +26,11 @@
 
 namespace repertory::curl::requests {
 struct http_get final : http_request_base {
+  http_get() = default;
+  http_get(const http_get &) = default;
+  http_get(http_get &&) = default;
+  auto operator=(const http_get &) -> http_get & = default;
+  auto operator=(http_get &&) -> http_get & = default;
   ~http_get() override = default;
 
   [[nodiscard]] auto set_method(CURL *curl,

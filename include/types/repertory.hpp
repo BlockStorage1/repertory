@@ -29,9 +29,7 @@ const std::string META_BACKUP = "backup";
 const std::string META_CHANGED = "changed";
 const std::string META_CREATION = "creation";
 const std::string META_DIRECTORY = "directory";
-const std::string META_ENCRYPTION_TOKEN = "token";
 const std::string META_GID = "gid";
-const std::string META_ID = "id";
 const std::string META_KEY = "key";
 const std::string META_MODE = "mode";
 const std::string META_MODIFIED = "modified";
@@ -43,24 +41,10 @@ const std::string META_UID = "uid";
 const std::string META_WRITTEN = "written";
 
 const std::vector<std::string> META_USED_NAMES = {
-    META_ACCESSED,
-    META_ATTRIBUTES,
-    META_BACKUP,
-    META_CHANGED,
-    META_CREATION,
-    META_DIRECTORY,
-    META_ENCRYPTION_TOKEN,
-    META_GID,
-    META_ID,
-    META_KEY,
-    META_MODE,
-    META_MODIFIED,
-    META_OSXFLAGS,
-    META_PINNED,
-    META_SIZE,
-    META_SOURCE,
-    META_UID,
-    META_WRITTEN,
+    META_ACCESSED, META_ATTRIBUTES, META_BACKUP,   META_CHANGED,
+    META_CREATION, META_DIRECTORY,  META_GID,      META_KEY,
+    META_MODE,     META_MODIFIED,   META_OSXFLAGS, META_PINNED,
+    META_SIZE,     META_SOURCE,     META_UID,      META_WRITTEN,
 };
 
 using api_meta_map = std::map<std::string, std::string>;
@@ -139,6 +123,12 @@ enum class exit_code : std::int32_t {
   init_failed = -18,
 };
 
+enum http_error_codes : std::int32_t {
+  ok = 200,
+  multiple_choices = 300,
+  not_found = 404,
+};
+
 enum class lock_result {
   success,
   locked,
@@ -149,39 +139,37 @@ enum class provider_type : std::size_t {
   sia,
   remote,
   s3,
-  passthrough,
   encrypt,
   unknown,
 };
 
 #ifdef _WIN32
 struct open_file_data {
-  void *directory_buffer = nullptr;
+  void *directory_buffer{};
 };
 #else
 using open_file_data = int;
 #endif
 
 struct api_file {
-  std::string api_path{};
-  std::string api_parent{};
-  std::uint64_t accessed_date = 0u;
-  std::uint64_t changed_date = 0u;
-  std::uint64_t creation_date = 0u;
-  std::string encryption_token{};
-  std::uint64_t file_size = 0u;
-  std::string key{};
-  std::uint64_t modified_date = 0u;
-  std::string source_path{};
+  std::string api_path;
+  std::string api_parent;
+  std::uint64_t accessed_date{};
+  std::uint64_t changed_date{};
+  std::uint64_t creation_date{};
+  std::uint64_t file_size{};
+  std::string key;
+  std::uint64_t modified_date{};
+  std::string source_path;
 };
 
 struct directory_item {
-  std::string api_path{};
-  std::string api_parent{};
-  bool directory = false;
-  std::uint64_t size = 0u;
+  std::string api_path;
+  std::string api_parent;
+  bool directory{false};
+  std::uint64_t size{};
   api_meta_map meta{};
-  bool resolved = false;
+  bool resolved{false};
 
   [[nodiscard]] static auto from_json(const json &item) -> directory_item {
     directory_item ret{};
@@ -203,27 +191,22 @@ struct directory_item {
 };
 
 struct filesystem_item {
-  std::string api_path{};
-  std::string api_parent{};
-  bool directory = false;
-  std::string encryption_token{};
-  std::uint64_t size = 0u;
-  std::string source_path{};
-
-  [[nodiscard]] auto is_encrypted() const -> bool {
-    return not encryption_token.empty();
-  }
+  std::string api_path;
+  std::string api_parent;
+  bool directory{false};
+  std::uint64_t size{};
+  std::string source_path;
 };
 
 struct host_config {
-  std::string agent_string{};
-  std::string api_password{};
-  std::string api_user{};
-  std::uint16_t api_port = 0u;
-  std::string host_name_or_ip = "localhost";
+  std::string agent_string;
+  std::string api_password;
+  std::string api_user;
+  std::uint16_t api_port{};
+  std::string host_name_or_ip{"localhost"};
   std::string path{};
-  std::string protocol = "http";
-  std::uint32_t timeout_ms = 60000u;
+  std::string protocol{"http"};
+  std::uint32_t timeout_ms{60000U};
 
   auto operator==(const host_config &hc) const noexcept -> bool {
     if (&hc != this) {
@@ -275,29 +258,25 @@ from_json(const json &j, host_config &hc) {
 }
 
 struct http_range {
-  std::uint64_t begin = 0u;
-  std::uint64_t end = 0u;
-};
-
-struct passthrough_config {
-  std::string location{};
-  std::string name{};
+  std::uint64_t begin;
+  std::uint64_t end;
 };
 
 struct encrypt_config {
-  std::string encryption_token{};
-  std::string path{};
+  std::string encryption_token;
+  std::string path;
 };
 
 struct s3_config {
-  std::string access_key{};
-  std::string bucket{};
-  std::uint16_t cache_timeout_secs = 60u;
-  std::string encryption_token{};
+  std::string access_key;
+  std::string bucket;
+  std::uint16_t cache_timeout_secs{60U};
+  std::string encryption_token;
   std::string region = "any";
-  std::string secret_key{};
-  std::uint32_t timeout_ms = 60000u;
+  std::string secret_key;
+  std::uint32_t timeout_ms{60000U};
   std::string url;
+  bool use_path_style{false};
   bool use_region_in_url{false};
 };
 

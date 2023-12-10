@@ -54,6 +54,12 @@ public:
 
     ~event_consumer() { t_event_system::instance().release(this); }
 
+  public:
+    event_consumer(const event_consumer &) = delete;
+    event_consumer(event_consumer &&) = delete;
+    auto operator=(const event_consumer &) -> event_consumer & = delete;
+    auto operator=(event_consumer &&) -> event_consumer & = delete;
+
   private:
     std::function<void(const event &)> callback_;
 
@@ -82,9 +88,9 @@ private:
   void process_events() {
     std::vector<std::shared_ptr<event_type>> events;
     {
-      unique_mutex_lock l(event_mutex_);
+      unique_mutex_lock lock(event_mutex_);
       if (not stop_requested_ && event_list_.empty()) {
-        event_notify_.wait_for(l, 1s);
+        event_notify_.wait_for(lock, 1s);
       }
 
       if (not event_list_.empty()) {
@@ -96,15 +102,16 @@ private:
     const auto notify_events = [this](const std::string &name,
                                       const event_type &event) {
       std::deque<std::future<void>> futures;
-      recur_mutex_lock l(consumer_mutex_);
+      recur_mutex_lock lock(consumer_mutex_);
       if (event_consumers_.find(name) != event_consumers_.end()) {
-        for (auto *ec : event_consumers_[name]) {
+        for (auto *consumer : event_consumers_[name]) {
           if (event.get_allow_async()) {
-            futures.emplace_back(std::async(std::launch::async, [ec, &event]() {
-              ec->notify_event(event);
-            }));
+            futures.emplace_back(
+                std::async(std::launch::async, [consumer, &event]() {
+                  consumer->notify_event(event);
+                }));
           } else {
-            ec->notify_event(event);
+            consumer->notify_event(event);
           }
         }
       }
@@ -115,48 +122,48 @@ private:
       }
     };
 
-    for (const auto &e : events) {
-      notify_events("", *e.get());
-      notify_events(e->get_name(), *e.get());
+    for (const auto &evt : events) {
+      notify_events("", *evt.get());
+      notify_events(evt->get_name(), *evt.get());
     }
   }
 
-  void queue_event(event_type *e) {
-    mutex_lock l(event_mutex_);
-    event_list_.emplace_back(std::shared_ptr<event_type>(e));
+  void queue_event(std::shared_ptr<event_type> evt) {
+    mutex_lock lock(event_mutex_);
+    event_list_.push_back(std::move(evt));
     event_notify_.notify_all();
   }
 
 public:
-  void attach(event_consumer *ec) {
-    recur_mutex_lock l(consumer_mutex_);
-    event_consumers_[""].push_back(ec);
+  void attach(event_consumer *consumer) {
+    recur_mutex_lock lock(consumer_mutex_);
+    event_consumers_[""].push_back(consumer);
   }
 
-  void attach(const std::string &event_name, event_consumer *ec) {
-    recur_mutex_lock l(consumer_mutex_);
-    event_consumers_[event_name].push_back(ec);
+  void attach(const std::string &event_name, event_consumer *consumer) {
+    recur_mutex_lock lock(consumer_mutex_);
+    event_consumers_[event_name].push_back(consumer);
   }
 
-  template <typename t, typename... args> void raise(args &&...a) {
-    queue_event(new t(std::forward<args>(a)...));
+  template <typename event_t, typename... arg_t> void raise(arg_t &&...args) {
+    queue_event(std::make_shared<event_t>(std::forward<arg_t>(args)...));
   }
 
-  void release(event_consumer *ec) {
-    recur_mutex_lock l(consumer_mutex_);
-    auto it = std::find_if(event_consumers_.begin(), event_consumers_.end(),
-                           [&](const auto &kv) -> bool {
-                             return utils::collection_includes(kv.second, ec);
-                           });
+  void release(event_consumer *consumer) {
+    recur_mutex_lock lock(consumer_mutex_);
+    auto iter =
+        std::find_if(event_consumers_.begin(), event_consumers_.end(),
+                     [&](const auto &item) -> bool {
+                       return utils::collection_includes(item.second, consumer);
+                     });
 
-    if (it != event_consumers_.end()) {
-      auto &q = (*it).second;
-      utils::remove_element_from(q, ec);
+    if (iter != event_consumers_.end()) {
+      utils::remove_element_from((*iter).second, consumer);
     }
   }
 
   void start() {
-    mutex_lock l(run_mutex_);
+    mutex_lock lock(run_mutex_);
     if (not event_thread_) {
       stop_requested_ = false;
       event_thread_ = std::make_unique<std::thread>([this]() {
@@ -168,7 +175,7 @@ public:
   }
 
   void stop() {
-    mutex_lock l(run_mutex_);
+    mutex_lock lock(run_mutex_);
     if (event_thread_) {
       stop_requested_ = true;
       event_notify_.notify_all();

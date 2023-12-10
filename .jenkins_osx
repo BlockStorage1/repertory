@@ -36,7 +36,7 @@ pipeline {
       steps {
         retry(2) {
           sleep time: 5, unit: 'SECONDS'
-          cmake arguments: '--build . -j 4', installation: 'InSearchPath', workingDir: 'build'
+          cmake arguments: '--build . -j 3', installation: 'InSearchPath', workingDir: 'build'
         }
       }
     }
@@ -47,7 +47,7 @@ pipeline {
       }
 
       steps {
-        sh 'scripts/make_package.sh darwin /Users/sgraves/cert build . /Users/sgraves/mnt/filebase'
+        sh 'scripts/make_package.sh darwin /Users/sgraves/cert build . /Users/sgraves/mnt/storj'
       }
     }
   }
