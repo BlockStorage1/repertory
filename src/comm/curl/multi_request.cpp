@@ -38,6 +38,8 @@ multi_request::~multi_request() {
 }
 
 void multi_request::get_result(CURLcode &curl_code, long &http_code) {
+  static constexpr const auto timeout_ms = 100;
+
   curl_code = CURLcode::CURLE_ABORTED_BY_CALLBACK;
   http_code = -1;
 
@@ -45,8 +47,8 @@ void multi_request::get_result(CURLcode &curl_code, long &http_code) {
   int running_handles = 0;
   curl_multi_perform(multi_handle_, &running_handles);
   while (not error && (running_handles > 0) && not stop_requested_) {
-    int ignored;
-    curl_multi_wait(multi_handle_, nullptr, 0, 100, &ignored);
+    int ignored{};
+    curl_multi_wait(multi_handle_, nullptr, 0, timeout_ms, &ignored);
 
     const auto ret = curl_multi_perform(multi_handle_, &running_handles);
     error = (ret != CURLM_CALL_MULTI_PERFORM) && (ret != CURLM_OK);
@@ -56,7 +58,7 @@ void multi_request::get_result(CURLcode &curl_code, long &http_code) {
     int remaining_messages = 0;
     auto *multi_result =
         curl_multi_info_read(multi_handle_, &remaining_messages);
-    if (multi_result && (multi_result->msg == CURLMSG_DONE)) {
+    if ((multi_result != nullptr) && (multi_result->msg == CURLMSG_DONE)) {
       curl_easy_getinfo(multi_result->easy_handle, CURLINFO_RESPONSE_CODE,
                         &http_code);
       curl_code = multi_result->data.result;

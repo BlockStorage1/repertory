@@ -6,7 +6,7 @@ pipeline {
   environment {
     BUILD_ARGS = '--build . -j 8'
     CONFIGURE_ARGS = '../.. -DCMAKE_BUILD_TYPE=Release -DREPERTORY_ENABLE_S3=ON' 
-    CONFIGURE_MINGW64_ARGS = '../.. -DCMAKE_BUILD_TYPE=Release -DREPERTORY_ENABLE_S3=ON -DCMAKE_TOOLCHAIN_FILE=../../cmake/mingw-w64-x86_64.cmake' 
+    CONFIGURE_MINGW64_ARGS = '../.. -DCMAKE_BUILD_TYPE=Release -DREPERTORY_ENABLE_S3=ON -DCMAKE_TOOLCHAIN_FILE=${WORKSPACE}/cmake/mingw-w64-x86_64.cmake' 
     REPERTORY_TEST_DIR = "${HOME}/.ci/cfg"
   }
 
@@ -86,9 +86,9 @@ pipeline {
       agent any
 
       steps {
-        sh 'scripts/make_package.sh alpine /home/sgraves/cert build/alpine_arm64 . /mnt/filebase 1'
-        sh 'scripts/make_package.sh alpine /home/sgraves/cert build/alpine . /mnt/filebase'
-        sh 'scripts/make_package.sh mingw64 /home/sgraves/cert build/mingw64 . /mnt/filebase'
+        sh 'scripts/make_package.sh alpine /home/sgraves/cert build/alpine_arm64 . /mnt/storj 1'
+        sh 'scripts/make_package.sh alpine /home/sgraves/cert build/alpine . /mnt/storj'
+        sh 'scripts/make_package.sh mingw64 /home/sgraves/cert build/mingw64 . /mnt/storj'
       }
     }
   }

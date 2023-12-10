@@ -30,23 +30,23 @@ void client_pool::pool::execute(
     std::uint64_t thread_id, const worker_callback &worker,
     const worker_complete_callback &worker_complete) {
   const auto index = thread_id % pool_queues_.size();
-  auto wi = std::make_shared<work_item>(worker, worker_complete);
+  auto job = std::make_shared<work_item>(worker, worker_complete);
   auto &pool_queue = pool_queues_[index];
 
   unique_mutex_lock queue_lock(pool_queue->mutex);
-  pool_queue->queue.emplace_back(wi);
+  pool_queue->queue.emplace_back(job);
   pool_queue->notify.notify_all();
   queue_lock.unlock();
 }
 
 client_pool::pool::pool(std::uint8_t pool_size) {
   event_system::instance().raise<service_started>("client_pool");
-  thread_index_ = 0u;
-  for (std::uint8_t i = 0u; i < pool_size; i++) {
+
+  for (std::uint8_t i = 0U; i < pool_size; i++) {
     pool_queues_.emplace_back(std::make_unique<work_queue>());
   }
 
-  for (std::size_t i = 0u; i < pool_queues_.size(); i++) {
+  for (std::size_t i = 0U; i < pool_queues_.size(); i++) {
     pool_threads_.emplace_back([this]() {
       const auto thread_index = thread_index_++;
 
@@ -88,12 +88,12 @@ client_pool::pool::pool(std::uint8_t pool_size) {
 
       queue_lock.lock();
       while (not queue.empty()) {
-        auto wi = queue.front();
+        auto job = queue.front();
         queue.pop_front();
         queue_notify.notify_all();
         queue_lock.unlock();
 
-        wi->work_complete(utils::from_api_error(api_error::download_stopped));
+        job->work_complete(utils::from_api_error(api_error::download_stopped));
 
         queue_lock.lock();
       }
@@ -108,7 +108,7 @@ void client_pool::pool::shutdown() {
   shutdown_ = true;
 
   for (auto &pool_queue : pool_queues_) {
-    unique_mutex_lock l(pool_queue->mutex);
+    mutex_lock lock(pool_queue->mutex);
     pool_queue->notify.notify_all();
   }
 
@@ -148,8 +148,8 @@ void client_pool::shutdown() {
     unique_mutex_lock pool_lock(pool_mutex_);
     if (not shutdown_) {
       shutdown_ = true;
-      for (auto &kv : pool_lookup_) {
-        kv.second->shutdown();
+      for (auto &pool_entry : pool_lookup_) {
+        pool_entry.second->shutdown();
       }
       pool_lookup_.clear();
     }

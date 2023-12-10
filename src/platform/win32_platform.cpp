@@ -166,11 +166,10 @@ auto lock_data::set_mount_state(bool active, const std::string &mount_location,
 auto create_meta_attributes(
     std::uint64_t accessed_date, std::uint32_t attributes,
     std::uint64_t changed_date, std::uint64_t creation_date, bool directory,
-    const std::string &encryption_token, std::uint32_t gid,
-    const std::string &key, std::uint32_t mode, std::uint64_t modified_date,
-    std::uint32_t osx_backup, std::uint32_t osx_flags, std::uint64_t size,
-    const std::string &source_path, std::uint32_t uid,
-    std::uint64_t written_date) -> api_meta_map {
+    std::uint32_t gid, const std::string &key, std::uint32_t mode,
+    std::uint64_t modified_date, std::uint32_t osx_backup,
+    std::uint32_t osx_flags, std::uint64_t size, const std::string &source_path,
+    std::uint32_t uid, std::uint64_t written_date) -> api_meta_map {
   return {
       {META_ACCESSED, std::to_string(accessed_date)},
       {META_ATTRIBUTES, std::to_string(attributes)},
@@ -178,7 +177,6 @@ auto create_meta_attributes(
       {META_CHANGED, std::to_string(changed_date)},
       {META_CREATION, std::to_string(creation_date)},
       {META_DIRECTORY, utils::string::from_bool(directory)},
-      {META_ENCRYPTION_TOKEN, encryption_token},
       {META_GID, std::to_string(gid)},
       {META_KEY, key},
       {META_MODE, std::to_string(mode)},
@@ -198,9 +196,9 @@ auto provider_meta_handler(i_provider &provider, bool directory,
       file.accessed_date,
       directory ? FILE_ATTRIBUTE_DIRECTORY
                 : FILE_ATTRIBUTE_NORMAL | FILE_ATTRIBUTE_ARCHIVE,
-      file.changed_date, file.creation_date, directory, file.encryption_token,
-      0u, file.key, directory ? S_IFDIR : S_IFREG, file.modified_date, 0u, 0u,
-      file.file_size, file.source_path, 0u, file.modified_date);
+      file.changed_date, file.creation_date, directory, 0u, file.key,
+      directory ? S_IFDIR : S_IFREG, file.modified_date, 0u, 0u, file.file_size,
+      file.source_path, 0u, file.modified_date);
   auto res = provider.set_item_meta(file.api_path, meta);
   if (res == api_error::success) {
     event_system::instance().raise<filesystem_item_added>(

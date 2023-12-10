@@ -143,13 +143,13 @@ public:
       -> api_error = 0;
 
   [[nodiscard]] virtual auto start(api_item_added_callback api_item_added,
-                                   i_file_manager *fm) -> bool = 0;
+                                   i_file_manager *mgr) -> bool = 0;
 
   virtual void stop() = 0;
 
-  [[nodiscard]] virtual auto
-  upload_file(const std::string &api_path, const std::string &source_path,
-              const std::string &encryption_token, stop_type &stop_requested)
+  [[nodiscard]] virtual auto upload_file(const std::string &api_path,
+                                         const std::string &source_path,
+                                         stop_type &stop_requested)
       -> api_error = 0;
 };
 } // namespace repertory

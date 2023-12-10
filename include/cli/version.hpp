@@ -23,12 +23,12 @@
 #define INCLUDE_CLI_VERSION_HPP_
 
 namespace repertory::cli::actions {
-template <typename drive> inline void version(int argc, char *argv[]) {
+template <typename drive> inline void version(std::vector<const char *> args) {
   std::cout << "Repertory core version: " << get_repertory_version()
             << std::endl;
   std::cout << "Repertory Git revision: " << get_repertory_git_revision()
             << std::endl;
-  drive::display_version_information(argc, argv);
+  drive::display_version_information(args);
 }
 } // namespace repertory::cli::actions
 

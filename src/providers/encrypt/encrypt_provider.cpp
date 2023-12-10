@@ -21,6 +21,9 @@
 */
 #include "providers/encrypt/encrypt_provider.hpp"
 
+#include "database/db_common.hpp"
+#include "database/db_insert.hpp"
+#include "database/db_select.hpp"
 #include "events/event_system.hpp"
 #include "events/events.hpp"
 #include "platform/win32_platform.hpp"
@@ -28,12 +31,42 @@
 #include "utils/encrypting_reader.hpp"
 #include "utils/path_utils.hpp"
 #include "utils/polling.hpp"
-#include "utils/rocksdb_utils.hpp"
+
+namespace {
+const std::string directory_table = "directory";
+const std::string file_table = "file";
+const std::string source_table = "source";
+const std::map<std::string, std::string> sql_create_tables = {
+    {
+        {directory_table},
+        {"CREATE TABLE IF NOT EXISTS " + directory_table +
+         "("
+         "source_path TEXT PRIMARY KEY ASC, "
+         "api_path TEXT"
+         ");"},
+    },
+    {
+        {file_table},
+        {"CREATE TABLE IF NOT EXISTS " + file_table +
+         "("
+         "source_path TEXT PRIMARY KEY ASC, "
+         "data TEXT"
+         ");"},
+    },
+    {
+        {source_table},
+        {"CREATE TABLE IF NOT EXISTS " + source_table +
+         "("
+         "api_path TEXT PRIMARY KEY ASC, "
+         "source_path TEXT"
+         ");"},
+    }};
+} // namespace
 
 namespace repertory {
 encrypt_provider::encrypt_provider(app_config &config) : config_(config) {}
 
-auto encrypt_provider::create_api_file(const std::string api_path,
+auto encrypt_provider::create_api_file(const std::string &api_path,
                                        bool directory,
                                        const std::string &source_path)
     -> api_file {
@@ -81,14 +114,14 @@ auto encrypt_provider::create_api_file(const std::string api_path,
   file.modified_date =
       (static_cast<std::uint64_t>(ft.dwHighDateTime) << 32U) | ft.dwLowDateTime;
 #else
-  file.changed_date =
-      buf.st_mtim.tv_nsec + (buf.st_mtim.tv_sec * NANOS_PER_SECOND);
-  file.accessed_date =
-      buf.st_atim.tv_nsec + (buf.st_atim.tv_sec * NANOS_PER_SECOND);
-  file.creation_date =
-      buf.st_ctim.tv_nsec + (buf.st_ctim.tv_sec * NANOS_PER_SECOND);
-  file.modified_date =
-      buf.st_mtim.tv_nsec + (buf.st_mtim.tv_sec * NANOS_PER_SECOND);
+  file.changed_date = static_cast<std::uint64_t>(
+      buf.st_mtim.tv_nsec + (buf.st_mtim.tv_sec * NANOS_PER_SECOND));
+  file.accessed_date = static_cast<std::uint64_t>(
+      buf.st_atim.tv_nsec + (buf.st_atim.tv_sec * NANOS_PER_SECOND));
+  file.creation_date = static_cast<std::uint64_t>(
+      buf.st_ctim.tv_nsec + (buf.st_ctim.tv_sec * NANOS_PER_SECOND));
+  file.modified_date = static_cast<std::uint64_t>(
+      buf.st_mtim.tv_nsec + (buf.st_mtim.tv_sec * NANOS_PER_SECOND));
 #endif
 
   return file;
@@ -140,21 +173,33 @@ auto encrypt_provider::get_api_path_from_source(const std::string &source_path,
                                                 std::string &api_path) const
     -> api_error {
   try {
-    std::string api_path_data{};
-    db_->Get(rocksdb::ReadOptions(), file_family_, source_path, &api_path_data);
-    if (not api_path_data.empty()) {
-      api_path = json::parse(api_path_data).at("api_path").get<std::string>();
+    auto result = db::db_select{*db_, file_table}
+                      .column("data")
+                      .where("source_path")
+                      .equals(source_path)
+                      .go();
+    std::optional<db::db_select::row> row;
+    if (result.get_row(row) && row.has_value()) {
+      api_path = row->get_column("data")
+                     .get_value_as_json()
+                     .at("api_path")
+                     .get<std::string>();
       return api_error::success;
     }
 
-    std::string dir_api_path{};
-    db_->Get(rocksdb::ReadOptions(), dir_family_, source_path, &dir_api_path);
-    if (dir_api_path.empty()) {
-      return api_error::item_not_found;
+    result = db::db_select{*db_, directory_table}
+                 .column("api_path")
+                 .where("source_path")
+                 .equals(source_path)
+                 .go();
+    row.reset();
+    if (result.get_row(row) && row.has_value()) {
+      api_path = row->get_column("api_path").get_value<std::string>();
+      return api_error::success;
     }
 
-    api_path = dir_api_path;
-    return api_error::success;
+    return api_error::item_not_found;
+
   } catch (const std::exception &ex) {
     utils::error::raise_error(__FUNCTION__, ex, source_path,
                               "failed to get api path from source path");
@@ -165,15 +210,23 @@ auto encrypt_provider::get_api_path_from_source(const std::string &source_path,
 
 auto encrypt_provider::get_directory_item_count(
     const std::string &api_path) const -> std::uint64_t {
-  std::string source_path{};
-  db_->Get(rocksdb::ReadOptions(), source_family_, api_path, &source_path);
-  if (source_path.empty()) {
+  auto result = db::db_select{*db_, source_table}
+                    .column("source_path")
+                    .where("api_path")
+                    .equals(api_path)
+                    .go();
+  std::optional<db::db_select::row> row;
+  if (not(result.get_row(row) && row.has_value())) {
     return 0U;
   }
 
-  std::string dir_api_path{};
-  db_->Get(rocksdb::ReadOptions(), dir_family_, source_path, &dir_api_path);
-  if (dir_api_path.empty()) {
+  auto source_path = row->get_column("source_path").get_value<std::string>();
+  result = db::db_select{*db_, directory_table}
+               .column("api_path")
+               .where("source_path")
+               .equals(source_path)
+               .go();
+  if (not result.has_row()) {
     return 0U;
   }
 
@@ -206,15 +259,23 @@ auto encrypt_provider::get_directory_items(const std::string &api_path,
     return api_error::item_exists;
   }
 
-  std::string source_path{};
-  db_->Get(rocksdb::ReadOptions(), source_family_, api_path, &source_path);
-  if (source_path.empty()) {
+  auto result = db::db_select{*db_, source_table}
+                    .column("source_path")
+                    .where("api_path")
+                    .equals(api_path)
+                    .go();
+  std::optional<db::db_select::row> row;
+  if (not(result.get_row(row) && row.has_value())) {
     return api_error::directory_not_found;
   }
+  auto source_path = row->get_column("source_path").get_value<std::string>();
 
-  std::string dir_api_path{};
-  db_->Get(rocksdb::ReadOptions(), dir_family_, source_path, &dir_api_path);
-  if (dir_api_path.empty()) {
+  result = db::db_select{*db_, directory_table}
+               .column("api_path")
+               .where("source_path")
+               .equals(source_path)
+               .go();
+  if (not result.has_row()) {
     return api_error::directory_not_found;
   }
 
@@ -222,51 +283,69 @@ auto encrypt_provider::get_directory_items(const std::string &api_path,
     for (const auto &dir_entry :
          std::filesystem::directory_iterator(source_path)) {
       try {
-        std::string api_path{};
+        std::string current_api_path{};
         if (dir_entry.is_directory()) {
-          db_->Get(rocksdb::ReadOptions(), dir_family_,
-                   dir_entry.path().string(), &api_path);
-          if (api_path.empty()) {
+          result = db::db_select{*db_, directory_table}
+                       .column("api_path")
+                       .where("source_path")
+                       .equals(dir_entry.path().string())
+                       .go();
+          row.reset();
+          if (result.get_row(row) && row.has_value()) {
+            current_api_path =
+                row->get_column("api_path").get_value<std::string>();
+          }
+          if (current_api_path.empty()) {
             const auto cfg = config_.get_encrypt_config();
             for (const auto &child_dir_entry :
                  std::filesystem::directory_iterator(dir_entry.path())) {
-              if (process_directory_entry(child_dir_entry, cfg, api_path)) {
-                api_path = utils::path::get_parent_api_path(api_path);
+              if (process_directory_entry(child_dir_entry, cfg,
+                                          current_api_path)) {
+                current_api_path =
+                    utils::path::get_parent_api_path(current_api_path);
                 break;
               }
             }
 
-            if (api_path.empty()) {
+            if (current_api_path.empty()) {
               continue;
             }
           }
         } else {
           std::string api_path_data{};
-          db_->Get(rocksdb::ReadOptions(), file_family_,
-                   dir_entry.path().string(), &api_path_data);
+          result = db::db_select{*db_, file_table}
+                       .column("data")
+                       .where("source_path")
+                       .equals(dir_entry.path().string())
+                       .go();
+          row.reset();
+          if (result.get_row(row) && row.has_value()) {
+            api_path_data = row->get_column("data").get_value<std::string>();
+          }
+
           if (api_path_data.empty()) {
             const auto cfg = config_.get_encrypt_config();
-            if (not process_directory_entry(dir_entry, cfg, api_path)) {
+            if (not process_directory_entry(dir_entry, cfg, current_api_path)) {
               continue;
             }
           } else {
-            api_path =
+            current_api_path =
                 json::parse(api_path_data).at("api_path").get<std::string>();
           }
         }
 
-        auto file = create_api_file(api_path, dir_entry.is_directory(),
+        auto file = create_api_file(current_api_path, dir_entry.is_directory(),
                                     dir_entry.path().string());
 
-        directory_item di{};
-        di.api_parent = file.api_parent;
-        di.api_path = file.api_path;
-        di.directory = dir_entry.is_directory();
-        di.resolved = true;
-        di.size = file.file_size;
-        create_item_meta(di.meta, di.directory, file);
+        directory_item dir_item{};
+        dir_item.api_parent = file.api_parent;
+        dir_item.api_path = file.api_path;
+        dir_item.directory = dir_entry.is_directory();
+        dir_item.resolved = true;
+        dir_item.size = file.file_size;
+        create_item_meta(dir_item.meta, dir_item.directory, file);
 
-        list.emplace_back(std::move(di));
+        list.emplace_back(std::move(dir_item));
       } catch (const std::exception &ex) {
         utils::error::raise_error(__FUNCTION__, ex, dir_entry.path().string(),
                                   "failed to process directory item");
@@ -309,13 +388,18 @@ auto encrypt_provider::get_file(const std::string &api_path,
     return api_error::directory_exists;
   }
 
-  std::string source_path{};
-  db_->Get(rocksdb::ReadOptions(), source_family_, api_path, &source_path);
-  if (source_path.empty()) {
+  auto result = db::db_select{*db_, source_table}
+                    .column("source_path")
+                    .where("api_path")
+                    .equals(api_path)
+                    .go();
+  std::optional<db::db_select::row> row;
+  if (not(result.get_row(row) && row.has_value())) {
     return api_error::item_not_found;
   }
 
-  file = create_api_file(api_path, false, source_path);
+  file = create_api_file(
+      api_path, false, row->get_column("source_path").get_value<std::string>());
   return api_error::success;
 }
 
@@ -327,12 +411,26 @@ auto encrypt_provider::process_directory_entry(
     const auto relative_path = dir_entry.path().lexically_relative(cfg.path);
 
     std::string api_path_data{};
-    db_->Get(rocksdb::ReadOptions(), file_family_, dir_entry.path().string(),
-             &api_path_data);
+    auto result = db::db_select{*db_, file_table}
+                      .column("data")
+                      .where("source_path")
+                      .equals(dir_entry.path().string())
+                      .go();
+    std::optional<db::db_select::row> row;
+    if (result.get_row(row) && row.has_value()) {
+      api_path_data = row->get_column("data").get_value<std::string>();
+    }
 
     std::string api_parent{};
-    db_->Get(rocksdb::ReadOptions(), dir_family_,
-             dir_entry.path().parent_path().string(), &api_parent);
+    result = db::db_select{*db_, directory_table}
+                 .column("api_path")
+                 .where("source_path")
+                 .equals(dir_entry.path().parent_path().string())
+                 .go();
+    row.reset();
+    if (result.get_row(row) && row.has_value()) {
+      api_parent = row->get_column("api_path").get_value<std::string>();
+    }
 
     if (api_path_data.empty() || api_parent.empty()) {
       stop_type stop_requested = false;
@@ -357,15 +455,31 @@ auto encrypt_provider::process_directory_entry(
               utils::path::combine(current_source_path, {part.string()});
 
           std::string parent_api_path{};
-          db_->Get(rocksdb::ReadOptions(), dir_family_, current_source_path,
-                   &parent_api_path);
+          result = db::db_select{*db_, directory_table}
+                       .column("api_path")
+                       .where("source_path")
+                       .equals(current_source_path)
+                       .go();
+          row.reset();
+          if (result.get_row(row) && row.has_value()) {
+            parent_api_path =
+                row->get_column("api_path").get_value<std::string>();
+          }
+
           if (parent_api_path.empty()) {
             parent_api_path = utils::path::create_api_path(
                 current_encrypted_path + '/' + encrypted_parts[idx]);
-            db_->Put(rocksdb::WriteOptions(), dir_family_, current_source_path,
-                     parent_api_path);
-            db_->Put(rocksdb::WriteOptions(), source_family_, parent_api_path,
-                     current_source_path);
+
+            auto ins_res = db::db_insert{*db_, directory_table}
+                               .column_value("source_path", current_source_path)
+                               .column_value("api_path", parent_api_path)
+                               .go();
+            // TODO handle error
+            ins_res = db::db_insert{*db_, source_table}
+                          .column_value("api_path", parent_api_path)
+                          .column_value("source_path", current_source_path)
+                          .go();
+            // TODO handle error
             event_system::instance().raise<filesystem_item_added>(
                 parent_api_path,
                 utils::path::get_parent_api_path(parent_api_path), true);
@@ -391,10 +505,18 @@ auto encrypt_provider::process_directory_entry(
             {"iv_list", iv_list},
             {"original_file_size", dir_entry.file_size()},
         };
-        db_->Put(rocksdb::WriteOptions(), file_family_,
-                 dir_entry.path().string(), data.dump());
-        db_->Put(rocksdb::WriteOptions(), source_family_, api_path,
-                 dir_entry.path().string());
+        auto ins_res =
+            db::db_insert{*db_, file_table}
+                .column_value("source_path", dir_entry.path().string())
+                .column_value("data", data.dump())
+                .go();
+        // TODO handle error
+
+        ins_res = db::db_insert{*db_, source_table}
+                      .column_value("api_path", api_path)
+                      .column_value("source_path", dir_entry.path().string())
+                      .go();
+        // TODO handle error
         event_system::instance().raise<filesystem_item_added>(
             api_path, api_parent, false);
       } else {
@@ -435,13 +557,18 @@ auto encrypt_provider::get_file_list(api_file_list &list) const -> api_error {
 auto encrypt_provider::get_file_size(const std::string &api_path,
                                      std::uint64_t &file_size) const
     -> api_error {
-  std::string source_path{};
-  db_->Get(rocksdb::ReadOptions(), source_family_, api_path, &source_path);
-  if (source_path.empty()) {
-    return api_error::item_not_found;
-  }
-
   try {
+    auto result = db::db_select{*db_, source_table}
+                      .column("source_path")
+                      .where("api_path")
+                      .equals(api_path)
+                      .go();
+    std::optional<db::db_select::row> row;
+    if (not(result.get_row(row) && row.has_value())) {
+      return api_error::item_not_found;
+    }
+    auto source_path = row->get_column("source_path").get_value<std::string>();
+
     file_size = utils::encryption::encrypting_reader::calculate_encrypted_size(
         source_path);
     return api_error::success;
@@ -457,34 +584,52 @@ auto encrypt_provider::get_filesystem_item(const std::string &api_path,
                                            bool directory,
                                            filesystem_item &fsi) const
     -> api_error {
-  std::string source_path{};
-  db_->Get(rocksdb::ReadOptions(), source_family_, api_path, &source_path);
-  if (source_path.empty()) {
+  auto result = db::db_select{*db_, source_table}
+                    .column("source_path")
+                    .where("api_path")
+                    .equals(api_path)
+                    .go();
+  std::optional<db::db_select::row> row;
+  if (not(result.get_row(row) && row.has_value())) {
     return api_error::item_not_found;
   }
 
+  auto source_path = row->get_column("source_path").get_value<std::string>();
+
   if (directory) {
-    std::string api_path{};
-    db_->Get(rocksdb::ReadOptions(), dir_family_, source_path, &api_path);
-    if (api_path.empty()) {
+    result = db::db_select{*db_, directory_table}
+                 .column("api_path")
+                 .where("source_path")
+                 .equals(source_path)
+                 .go();
+    row.reset();
+    if (not(result.get_row(row) && row.has_value())) {
       return api_error::item_not_found;
     }
-    fsi.api_parent = utils::path::get_parent_api_path(api_path);
-    fsi.api_path = api_path;
+    auto db_api_path = row->get_column("api_path").get_value<std::string>();
+
+    fsi.api_parent = utils::path::get_parent_api_path(db_api_path);
+    fsi.api_path = db_api_path;
     fsi.directory = true;
     fsi.size = 0U;
     fsi.source_path = source_path;
     return api_error::success;
   }
 
-  std::string api_path_data{};
-  db_->Get(rocksdb::ReadOptions(), file_family_, source_path, &api_path_data);
-  if (api_path_data.empty()) {
+  result = db::db_select{*db_, file_table}
+               .column("data")
+               .where("source_path")
+               .equals(source_path)
+               .go();
+  row.reset();
+  if (not(result.get_row(row) && row.has_value())) {
     return api_error::item_not_found;
   }
 
-  auto data = json::parse(api_path_data);
-  fsi.api_path = data["api_path"].get<std::string>();
+  fsi.api_path = row->get_column("data")
+                     .get_value_as_json()
+                     .at("api_path")
+                     .get<std::string>();
   fsi.api_parent = utils::path::get_parent_api_path(fsi.api_path);
   fsi.directory = false;
   fsi.size = utils::encryption::encrypting_reader::calculate_encrypted_size(
@@ -542,11 +687,17 @@ auto encrypt_provider::get_pinned_files() const -> std::vector<std::string> {
 
 auto encrypt_provider::get_item_meta(const std::string &api_path,
                                      api_meta_map &meta) const -> api_error {
-  std::string source_path{};
-  db_->Get(rocksdb::ReadOptions(), source_family_, api_path, &source_path);
-  if (source_path.empty()) {
+  auto result = db::db_select{*db_, source_table}
+                    .column("source_path")
+                    .where("api_path")
+                    .equals(api_path)
+                    .go();
+  std::optional<db::db_select::row> row;
+  if (not(result.get_row(row) && row.has_value())) {
     return api_error::item_not_found;
   }
+
+  auto source_path = row->get_column("source_path").get_value<std::string>();
 
   bool exists{};
   auto res = is_directory(api_path, exists);
@@ -578,15 +729,16 @@ auto encrypt_provider::get_total_drive_space() const -> std::uint64_t {
 }
 
 auto encrypt_provider::get_total_item_count() const -> std::uint64_t {
-  std::uint64_t ret{};
+  auto result =
+      db::db_select{*db_, source_table}.count("api_path", "count").go();
 
-  auto iterator = std::unique_ptr<rocksdb::Iterator>(
-      db_->NewIterator(rocksdb::ReadOptions(), source_family_));
-  for (iterator->SeekToFirst(); iterator->Valid(); iterator->Next()) {
-    ret++;
+  std::optional<db::db_select::row> row;
+  if (result.get_row(row) && row.has_value()) {
+    return static_cast<std::uint64_t>(
+        row->get_column("count").get_value<std::int64_t>());
   }
 
-  return ret;
+  return 0U;
 }
 
 auto encrypt_provider::get_used_drive_space() const -> std::uint64_t {
@@ -596,27 +748,37 @@ auto encrypt_provider::get_used_drive_space() const -> std::uint64_t {
 
 auto encrypt_provider::is_directory(const std::string &api_path,
                                     bool &exists) const -> api_error {
-  std::string source_path{};
-  db_->Get(rocksdb::ReadOptions(), source_family_, api_path, &source_path);
-  if (source_path.empty()) {
+  auto result = db::db_select{*db_, source_table}
+                    .column("source_path")
+                    .where("api_path")
+                    .equals(api_path)
+                    .go();
+  std::optional<db::db_select::row> row;
+  if (not(result.get_row(row) && row.has_value())) {
     exists = false;
     return api_error::success;
   }
 
-  exists = utils::file::is_directory(source_path);
+  exists = utils::file::is_directory(
+      row->get_column("source_path").get_value<std::string>());
   return api_error::success;
 }
 
 auto encrypt_provider::is_file(const std::string &api_path, bool &exists) const
     -> api_error {
-  std::string source_path{};
-  db_->Get(rocksdb::ReadOptions(), source_family_, api_path, &source_path);
-  if (source_path.empty()) {
+  auto result = db::db_select{*db_, source_table}
+                    .column("source_path")
+                    .where("api_path")
+                    .equals(api_path)
+                    .go();
+  std::optional<db::db_select::row> row;
+  if (not(result.get_row(row) && row.has_value())) {
     exists = false;
     return api_error::success;
   }
 
-  exists = utils::file::is_file(source_path);
+  exists = utils::file::is_file(
+      row->get_column("source_path").get_value<std::string>());
   return api_error::success;
 }
 
@@ -635,17 +797,32 @@ auto encrypt_provider::read_file_bytes(const std::string &api_path,
                                        std::size_t size, std::uint64_t offset,
                                        data_buffer &data,
                                        stop_type &stop_requested) -> api_error {
-  std::string source_path{};
-  db_->Get(rocksdb::ReadOptions(), source_family_, api_path, &source_path);
+  auto result = db::db_select{*db_, source_table}
+                    .column("source_path")
+                    .where("api_path")
+                    .equals(api_path)
+                    .go();
+  std::optional<db::db_select::row> row;
+  if (not(result.get_row(row) && row.has_value())) {
+    return api_error::item_not_found;
+  }
+
+  auto source_path = row->get_column("source_path").get_value<std::string>();
   if (source_path.empty()) {
     return api_error::item_not_found;
   }
 
-  std::string api_path_data{};
-  db_->Get(rocksdb::ReadOptions(), file_family_, source_path, &api_path_data);
-  if (api_path_data.empty()) {
+  result = db::db_select{*db_, file_table}
+               .column("data")
+               .where("source_path")
+               .equals(source_path)
+               .go();
+  row.reset();
+  if (not(result.get_row(row) && row.has_value())) {
     return api_error::item_not_found;
   }
+
+  auto file_data = row->get_column("data").get_value_as_json();
 
   std::uint64_t file_size{};
   if (not utils::file::get_file_size(source_path, file_size)) {
@@ -660,7 +837,6 @@ auto encrypt_provider::read_file_bytes(const std::string &api_path,
 
   unique_recur_mutex_lock reader_lookup_lock(reader_lookup_mtx_);
 
-  auto file_data = json::parse(api_path_data);
   if (file_data.at("original_file_size").get<std::uint64_t>() != file_size) {
     const auto relative_path =
         std::filesystem::path(source_path).lexically_relative(cfg.path);
@@ -674,10 +850,12 @@ auto encrypt_provider::read_file_bytes(const std::string &api_path,
 
     file_data["original_file_size"] = file_size;
     file_data["iv_list"] = iv_list;
-    auto res = db_->Put(rocksdb::WriteOptions(), file_family_, source_path,
-                        file_data.dump());
-    if (not res.ok()) {
-      utils::error::raise_error(__FUNCTION__, res.code(), source_path,
+    auto ins_res = db::db_insert{*db_, file_table}
+                       .column_value("source_path", source_path)
+                       .column_value("data", file_data.dump())
+                       .go();
+    if (not ins_res.ok()) {
+      utils::error::raise_error(__FUNCTION__, ins_res.get_error(), source_path,
                                 "failed to update meta db");
       return api_error::error;
     }
@@ -725,26 +903,44 @@ void encrypt_provider::remove_deleted_files() {
   };
 
   std::vector<removed_item> removed_list{};
-  auto iterator = std::unique_ptr<rocksdb::Iterator>(
-      db_->NewIterator(rocksdb::ReadOptions(), source_family_));
-  for (iterator->SeekToFirst(); iterator->Valid(); iterator->Next()) {
-    auto source_path = iterator->value().ToString();
+  std::vector<db::db_select::row> row_list{};
+
+  auto result = db::db_select{*db_, source_table}.go();
+  while (result.has_row()) {
+    std::optional<db::db_select::row> row;
+    if (result.get_row(row) && row.has_value()) {
+      row_list.push_back(row.value());
+    }
+  }
+
+  for (const auto &row : row_list) {
+    auto source_path = row.get_column("source_path").get_value<std::string>();
     if (not std::filesystem::exists(source_path)) {
-      auto api_path =
-          utils::string::split(iterator->key().ToString(), '|', false)[1U];
-
-      std::string value{};
-      db_->Get(rocksdb::ReadOptions(), file_family_, source_path, &value);
-
+      auto api_path = row.get_column("api_path").get_value<std::string>();
+      result = db::db_select{*db_, file_table}
+                   .column("source_path")
+                   .where("source_path")
+                   .equals(source_path)
+                   .go();
       removed_list.emplace_back(
-          removed_item{api_path, value.empty(), source_path});
+          removed_item{api_path, not result.has_row(), source_path});
     }
   }
 
   for (const auto &item : removed_list) {
     if (not item.directory) {
-      db_->Delete(rocksdb::WriteOptions(), source_family_, item.api_path);
-      db_->Delete(rocksdb::WriteOptions(), file_family_, item.source_path);
+      auto del_res = db::db_select{*db_, source_table}
+                         .delete_query()
+                         .where("api_path")
+                         .equals(item.api_path)
+                         .go();
+      // TODO handle error
+      del_res = db::db_select{*db_, file_table}
+                    .delete_query()
+                    .where("source_path")
+                    .equals(item.source_path)
+                    .go();
+      // TODO handle error
       event_system::instance().raise<file_removed_externally>(item.api_path,
                                                               item.source_path);
     }
@@ -752,8 +948,18 @@ void encrypt_provider::remove_deleted_files() {
 
   for (const auto &item : removed_list) {
     if (item.directory) {
-      db_->Delete(rocksdb::WriteOptions(), source_family_, item.api_path);
-      db_->Delete(rocksdb::WriteOptions(), dir_family_, item.source_path);
+      auto del_res = db::db_select{*db_, source_table}
+                         .delete_query()
+                         .where("api_path")
+                         .equals(item.api_path)
+                         .go();
+      // TODO handle error
+      del_res = db::db_select{*db_, directory_table}
+                    .delete_query()
+                    .where("source_path")
+                    .equals(item.source_path)
+                    .go();
+      // TODO handle error
       event_system::instance().raise<directory_removed_externally>(
           item.api_path, item.source_path);
     }
@@ -761,40 +967,69 @@ void encrypt_provider::remove_deleted_files() {
 }
 
 auto encrypt_provider::start(api_item_added_callback /*api_item_added*/,
-                             i_file_manager * /*fm*/) -> bool {
+                             i_file_manager * /*mgr*/) -> bool {
   if (not is_online()) {
     return false;
   }
 
-  auto families = std::vector<rocksdb::ColumnFamilyDescriptor>();
-  families.emplace_back(rocksdb::kDefaultColumnFamilyName,
-                        rocksdb::ColumnFamilyOptions());
-  families.emplace_back("dir", rocksdb::ColumnFamilyOptions());
-  families.emplace_back("file", rocksdb::ColumnFamilyOptions());
-  families.emplace_back("source", rocksdb::ColumnFamilyOptions());
+  auto db_path =
+      utils::path::combine(config_.get_data_directory(), {"meta.db3"});
 
-  auto handles = std::vector<rocksdb::ColumnFamilyHandle *>();
+  sqlite3 *db3{nullptr};
+  auto res =
+      sqlite3_open_v2(db_path.c_str(), &db3,
+                      SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE, nullptr);
+  if (res != SQLITE_OK) {
+    utils::error::raise_error(__FUNCTION__, "failed to open db|" + db_path +
+                                                '|' + std::to_string(res) +
+                                                '|' + sqlite3_errstr(res));
+    return false;
+  }
+  db_.reset(db3);
 
-  utils::db::create_rocksdb(config_, DB_NAME, families, handles, db_);
+  for (const auto &create : sql_create_tables) {
+    std::string err;
+    if (not db::execute_sql(*db_, create.second, err)) {
+      utils::error::raise_error(__FUNCTION__, "failed to create table|" +
+                                                  create.first + '|' + err);
+      db_.reset();
+      return false;
+    }
+  }
 
-  std::size_t idx{};
-  dir_family_ = handles[idx++];
-  file_family_ = handles[idx++];
-  source_family_ = handles[idx++];
+  db::set_journal_mode(*db_);
 
   const auto cfg = config_.get_encrypt_config();
 
-  std::string source_path{};
-  db_->Get(rocksdb::ReadOptions(), source_family_, "/", &source_path);
-  if (source_path.empty()) {
-    db_->Put(rocksdb::WriteOptions(), source_family_, "/", cfg.path);
+  std::string source_path;
+  auto result = db::db_select{*db_, source_table}
+                    .column("source_path")
+                    .where("api_path")
+                    .equals("/")
+                    .go();
+  std::optional<db::db_select::row> row;
+  if (result.get_row(row) && row.has_value()) {
+    source_path = row->get_column("source_path").get_value<std::string>();
+  } else {
+    auto ins_res = db::db_insert{*db_, source_table}
+                       .column_value("api_path", "/")
+                       .column_value("source_path", cfg.path)
+                       .go();
+    // TODO error handling
     source_path = cfg.path;
   }
 
-  std::string dir_api_path{};
-  db_->Get(rocksdb::ReadOptions(), dir_family_, source_path, &dir_api_path);
-  if (dir_api_path.empty()) {
-    db_->Put(rocksdb::WriteOptions(), dir_family_, source_path, "/");
+  result = db::db_select{*db_, directory_table}
+               .column("api_path")
+               .where("source_path")
+               .equals(source_path)
+               .go();
+  if (not result.has_row()) {
+    auto ins_res = db::db_insert{*db_, directory_table}
+                       .column_value("source_path", source_path)
+                       .column_value("api_path", "/")
+                       .go();
+    // TODO error handling
   }
 
   polling::instance().set_callback({"check_deleted", polling::frequency::low,

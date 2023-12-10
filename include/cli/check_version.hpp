@@ -27,9 +27,10 @@
 
 namespace repertory::cli::actions {
 [[nodiscard]] inline auto
-check_version(int, char *[], const std::string & /* data_directory */,
-              const provider_type & /* pt */, const std::string &, std::string,
-              std::string) -> exit_code {
+check_version(std::vector<const char *> /* args */,
+              const std::string & /* data_directory */,
+              const provider_type & /* pt */, const std::string & /*unique_id*/,
+              std::string /*user*/, std::string /*password*/) -> exit_code {
   auto ret = exit_code::success;
 
   // TODO need to updated way to check version

@@ -26,19 +26,14 @@
 #undef U
 #endif
 
+REPERTORY_IGNORE_WARNINGS_ENABLE()
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
+REPERTORY_IGNORE_WARNINGS_DISABLE()
 
 #include "events/consumers/console_consumer.hpp"
 #include "events/event_system.hpp"
 #include "events/events.hpp"
-
-#ifdef _WIN32
-// Disable DLL-interface warnings
-#pragma warning(disable : 4251)
-#pragma warning(disable : 4275)
-#endif
-
 #include "utils/encryption.hpp"
 #include "utils/file_utils.hpp"
 #include "utils/native_file.hpp"

@@ -111,7 +111,7 @@ auto winfsp_drive::winfsp_service::OnStop() -> NTSTATUS {
 winfsp_drive::winfsp_drive(app_config &config, lock_data &lock,
                            i_provider &provider)
     : FileSystemBase(), provider_(provider), config_(config), lock_(lock) {
-  E_SUBSCRIBE_EXACT(unmount_requested, [this](const unmount_requested & /*e*/) {
+  E_SUBSCRIBE_EXACT(unmount_requested, [this](const unmount_requested &) {
     std::thread([this]() { this->shutdown(); }).detach();
   });
 }
@@ -260,8 +260,8 @@ VOID winfsp_drive::Close(PVOID /*file_node*/, PVOID file_desc) {
   RAISE_WINFSP_EVENT(__FUNCTION__, api_path, 0);
 }
 
-auto winfsp_drive::Create(PWSTR fileName, UINT32 create_options,
-                          UINT32 /*grantedAccess*/, UINT32 attributes,
+auto winfsp_drive::Create(PWSTR file_name, UINT32 create_options,
+                          UINT32 /*granted_access*/, UINT32 attributes,
                           PSECURITY_DESCRIPTOR /*descriptor*/,
                           UINT64 /*allocation_size*/, PVOID * /*file_node*/,
                           PVOID *file_desc, OpenFileInfo *ofi) -> NTSTATUS {
@@ -281,8 +281,8 @@ auto winfsp_drive::Create(PWSTR fileName, UINT32 create_options,
 
   const auto now = utils::get_file_time_now();
   auto meta = create_meta_attributes(
-      now, attributes, now, now, attributes & FILE_ATTRIBUTE_DIRECTORY, "", 0U,
-      "", 0U, now, 0U, 0U, 0U,
+      now, attributes, now, now, attributes & FILE_ATTRIBUTE_DIRECTORY, 0U, "",
+      0U, now, 0U, 0U, 0U,
       (attributes & FILE_ATTRIBUTE_DIRECTORY)
           ? ""
           : utils::path::combine(config_.get_cache_directory(),
@@ -290,7 +290,7 @@ auto winfsp_drive::Create(PWSTR fileName, UINT32 create_options,
       0U, now);
 
   const auto api_path =
-      utils::path::create_api_path(utils::string::to_utf8(fileName));
+      utils::path::create_api_path(utils::string::to_utf8(file_name));
 
   open_file_data ofd{};
   std::uint64_t handle{};
@@ -315,7 +315,7 @@ auto winfsp_drive::Create(PWSTR fileName, UINT32 create_options,
 }
 
 auto winfsp_drive::Flush(PVOID /*file_node*/, PVOID file_desc,
-                         FileInfo *fileInfo) -> NTSTATUS {
+                         FileInfo *file_info) -> NTSTATUS {
   std::string api_path;
   auto error = api_error::success;
   auto handle =
@@ -336,7 +336,7 @@ auto winfsp_drive::Flush(PVOID /*file_node*/, PVOID file_desc,
       // Populate file information
       api_meta_map meta;
       if (provider_.get_item_meta(api_path, meta) == api_error::success) {
-        populate_file_info(f->get_file_size(), meta, *fileInfo);
+        populate_file_info(f->get_file_size(), meta, *file_info);
       }
     }
   }
@@ -363,7 +363,7 @@ auto winfsp_drive::get_directory_items(const std::string &api_path) const
 }
 
 auto winfsp_drive::GetFileInfo(PVOID /*file_node*/, PVOID file_desc,
-                               FileInfo *fileInfo) -> NTSTATUS {
+                               FileInfo *file_info) -> NTSTATUS {
   std::string api_path;
   auto error = api_error::invalid_handle;
   auto handle =
@@ -375,7 +375,7 @@ auto winfsp_drive::GetFileInfo(PVOID /*file_node*/, PVOID file_desc,
       api_meta_map meta;
       if ((error = provider_.get_item_meta(api_path, meta)) ==
           api_error::success) {
-        populate_file_info(f->get_file_size(), meta, *fileInfo);
+        populate_file_info(f->get_file_size(), meta, *file_info);
       }
     }
   }
@@ -414,12 +414,12 @@ auto winfsp_drive::get_item_meta(const std::string &api_path,
   return ret;
 }
 
-auto winfsp_drive::get_security_by_name(PWSTR fileName, PUINT32 attributes,
+auto winfsp_drive::get_security_by_name(PWSTR file_name, PUINT32 attributes,
                                         PSECURITY_DESCRIPTOR descriptor,
                                         std::uint64_t *descriptor_size)
     -> NTSTATUS {
   const auto api_path =
-      utils::path::create_api_path(utils::string::to_utf8(fileName));
+      utils::path::create_api_path(utils::string::to_utf8(file_name));
 
   api_meta_map meta{};
   auto error = provider_.get_item_meta(api_path, meta);
@@ -451,13 +451,13 @@ auto winfsp_drive::get_security_by_name(PWSTR fileName, PUINT32 attributes,
   return utils::from_api_error(error);
 }
 
-auto winfsp_drive::GetSecurityByName(PWSTR fileName, PUINT32 attributes,
+auto winfsp_drive::GetSecurityByName(PWSTR file_name, PUINT32 attributes,
                                      PSECURITY_DESCRIPTOR descriptor,
                                      SIZE_T *descriptor_size) -> NTSTATUS {
   const auto api_path =
-      utils::path::create_api_path(utils::string::to_utf8(fileName));
+      utils::path::create_api_path(utils::string::to_utf8(file_name));
   std::uint64_t sds = descriptor_size ? *descriptor_size : 0U;
-  auto ret = get_security_by_name(fileName, attributes, descriptor,
+  auto ret = get_security_by_name(file_name, attributes, descriptor,
                                   sds > 0U ? &sds : nullptr);
   if (sds) {
     *descriptor_size = static_cast<SIZE_T>(sds);
@@ -939,7 +939,7 @@ auto winfsp_drive::Rename(PVOID /*file_node*/, PVOID /*file_desc*/,
 auto winfsp_drive::SetBasicInfo(PVOID /*file_node*/, PVOID file_desc,
                                 UINT32 attributes, UINT64 creation_time,
                                 UINT64 last_access_time, UINT64 last_write_time,
-                                UINT64 change_time, FileInfo *fileInfo)
+                                UINT64 change_time, FileInfo *file_info)
     -> NTSTATUS {
   std::string api_path;
   auto error = api_error::invalid_handle;
@@ -983,7 +983,7 @@ auto winfsp_drive::SetBasicInfo(PVOID /*file_node*/, PVOID file_desc,
       // Populate file information
       if (provider_.get_item_meta(api_path, meta) == api_error::success) {
         populate_file_info(utils::string::to_uint64(meta[META_SIZE]), meta,
-                           *fileInfo);
+                           *file_info);
       }
     }
   }

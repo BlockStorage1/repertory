@@ -30,11 +30,15 @@ using key_type = std::array<unsigned char, 32U>;
 
 class encrypting_reader final {
 public:
-  encrypting_reader(
-      const std::string &file_name, const std::string &source_path,
-      stop_type &stop_requested, const std::string &token,
-      std::optional<std::string> relative_parent_path = std::nullopt,
-      const size_t error_return = 0);
+  encrypting_reader(const std::string &file_name,
+                    const std::string &source_path, stop_type &stop_requested,
+                    const std::string &token,
+                    std::optional<std::string> relative_parent_path,
+                    std::size_t error_return = 0U);
+
+  encrypting_reader(const std::string &encrypted_file_path,
+                    const std::string &source_path, stop_type &stop_requested,
+                    const std::string &token, std::size_t error_return = 0U);
 
   encrypting_reader(
       const std::string &encrypted_file_path, const std::string &source_path,
@@ -42,9 +46,13 @@ public:
       std::vector<std::array<unsigned char,
                              crypto_aead_xchacha20poly1305_IETF_NPUBBYTES>>
           iv_list,
-      const size_t error_return = 0);
+      std::size_t error_return = 0U);
 
-  encrypting_reader(const encrypting_reader &r);
+  encrypting_reader(const encrypting_reader &reader);
+  encrypting_reader(encrypting_reader &&) = delete;
+
+  auto operator=(const encrypting_reader &) -> encrypting_reader & = delete;
+  auto operator=(encrypting_reader &&) -> encrypting_reader & = delete;
 
   ~encrypting_reader();
 
@@ -62,11 +70,11 @@ private:
   std::vector<
       std::array<unsigned char, crypto_aead_xchacha20poly1305_IETF_NPUBBYTES>>
       iv_list_;
-  std::size_t last_data_chunk_ = 0u;
-  std::size_t last_data_chunk_size_ = 0u;
-  std::uint64_t read_offset_ = 0u;
+  std::size_t last_data_chunk_{};
+  std::size_t last_data_chunk_size_{};
+  std::uint64_t read_offset_{};
   native_file_ptr source_file_;
-  std::uint64_t total_size_ = 0u;
+  std::uint64_t total_size_{};
 
 private:
   static const std::size_t header_size_;

@@ -70,6 +70,7 @@ duse_libidn2
 dwith_gflags
 dwith_liburing
 dwith_tools
+dxxh_no_inline_hints
 dylib
 endfunction
 endmacro
@@ -144,6 +145,7 @@ lptr
 lpwstr
 lzma
 makefiles
+markdownlint
 mbig
 mockwinfspdrive
 mqtt
@@ -157,6 +159,8 @@ nmake
 noappledouble
 nocache
 nocloseprocess
+nolintbegin
+nolintend
 nopath
 npubbytes
 ntfs
@@ -209,6 +213,7 @@ smatch
 sopen
 stbuf
 stdc
+stduuid
 stod
 stoi
 stoll
@@ -224,6 +229,7 @@ szlib_libpath
 target_precompile_headers
 teventsystem
 tolower
+tomykaira
 toolset
 ttmath
 ularge
@@ -238,6 +244,7 @@ wcast
 wconversion
 wdouble
 wduplicated
+wfloat
 wformat
 windres
 winfsp
@@ -254,6 +261,7 @@ woverloaded
 wpedantic
 wshadow
 wsign
+wunknown
 wunused
 wuseless
 xattr

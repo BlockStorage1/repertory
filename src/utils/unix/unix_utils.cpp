@@ -28,13 +28,13 @@
 
 namespace repertory::utils {
 #ifndef __APPLE__
-auto convert_to_uint64(const pthread_t &t) -> std::uint64_t {
-  return static_cast<std::uint64_t>(t);
+auto convert_to_uint64(const pthread_t &thread) -> std::uint64_t {
+  return static_cast<std::uint64_t>(thread);
 }
 #endif
 
-auto from_api_error(const api_error &e) -> int {
-  switch (e) {
+auto from_api_error(const api_error &err) -> int {
+  switch (err) {
   case api_error::access_denied:
     return -EACCES;
   case api_error::bad_address:
@@ -107,18 +107,16 @@ auto get_thread_id() -> std::uint64_t {
 }
 
 auto is_uid_member_of_group(const uid_t &uid, const gid_t &gid) -> bool {
-  static const auto function_name = __FUNCTION__;
-
   std::vector<gid_t> groups{};
-  use_getpwuid(uid, [&groups](struct passwd *pw) {
+  use_getpwuid(uid, [&groups](struct passwd *pass) {
     int group_count{};
-    if (getgrouplist(pw->pw_name, pw->pw_gid, nullptr, &group_count) < 0) {
+    if (getgrouplist(pass->pw_name, pass->pw_gid, nullptr, &group_count) < 0) {
       groups.resize(static_cast<std::size_t>(group_count));
 #ifdef __APPLE__
-      getgrouplist(pw->pw_name, pw->pw_gid,
+      getgrouplist(pass->pw_name, pass->pw_gid,
                    reinterpret_cast<int *>(groups.data()), &group_count);
 #else
-      getgrouplist(pw->pw_name, pw->pw_gid, groups.data(), &group_count);
+      getgrouplist(pass->pw_name, pass->pw_gid, groups.data(), &group_count);
 #endif
     }
   });
@@ -126,8 +124,8 @@ auto is_uid_member_of_group(const uid_t &uid, const gid_t &gid) -> bool {
   return collection_includes(groups, gid);
 }
 
-auto to_api_error(int e) -> api_error {
-  switch (abs(e)) {
+auto to_api_error(int err) -> api_error {
+  switch (abs(err)) {
   case 0:
     return api_error::success;
   case EBADF:
@@ -196,8 +194,8 @@ auto to_api_error(int e) -> api_error {
 
 void set_last_error_code(int error_code) { errno = error_code; }
 
-auto unix_error_to_windows(int e) -> std::int32_t {
-  switch (e) {
+auto unix_error_to_windows(int err) -> std::int32_t {
+  switch (err) {
   case 0:
     return STATUS_SUCCESS;
   case EACCES:
@@ -236,20 +234,21 @@ auto unix_error_to_windows(int e) -> std::int32_t {
   }
 }
 
-auto unix_time_to_windows_time(const remote::file_time &ts) -> UINT64 {
-  return (ts / 100ull) + 116444736000000000ull;
+auto unix_time_to_windows_time(const remote::file_time &file_time) -> UINT64 {
+  return (file_time / 100ULL) + 116444736000000000ULL;
 }
 
-void use_getpwuid(uid_t uid, std::function<void(struct passwd *pw)> fn) {
+void use_getpwuid(uid_t uid,
+                  std::function<void(struct passwd *pass)> callback) {
   static std::mutex mtx{};
   mutex_lock lock{mtx};
-  auto *pw = getpwuid(uid);
-  if (not pw) {
+  auto *temp_pw = getpwuid(uid);
+  if (temp_pw == nullptr) {
     utils::error::raise_error(__FUNCTION__, "'getpwuid' returned nullptr");
     return;
   }
 
-  fn(pw);
+  callback(temp_pw);
 }
 
 void windows_create_to_unix(const UINT32 &create_options,
@@ -257,20 +256,20 @@ void windows_create_to_unix(const UINT32 &create_options,
                             remote::file_mode &mode) {
   mode = S_IRUSR | S_IWUSR;
   flags = O_CREAT | O_RDWR;
-  if (create_options & FILE_DIRECTORY_FILE) {
+  if ((create_options & FILE_DIRECTORY_FILE) != 0U) {
     mode |= S_IXUSR;
     flags = O_DIRECTORY;
   }
 
-  if ((granted_access & GENERIC_EXECUTE) ||
-      (granted_access & FILE_GENERIC_EXECUTE) ||
-      (granted_access & FILE_EXECUTE)) {
+  if (((granted_access & GENERIC_EXECUTE) != 0U) ||
+      ((granted_access & FILE_GENERIC_EXECUTE) != 0U) ||
+      ((granted_access & FILE_EXECUTE) != 0U)) {
     mode |= (S_IXUSR);
   }
 }
 
-auto windows_time_to_unix_time(std::uint64_t t) -> remote::file_time {
-  return (t - 116444736000000000ull) * 100ull;
+auto windows_time_to_unix_time(std::uint64_t win_time) -> remote::file_time {
+  return (win_time - 116444736000000000ULL) * 100ULL;
 }
 } // namespace repertory::utils
 

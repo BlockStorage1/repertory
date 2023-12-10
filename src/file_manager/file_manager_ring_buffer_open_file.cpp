@@ -37,7 +37,7 @@ file_manager::ring_buffer_open_file::ring_buffer_open_file(
     std::uint8_t chunk_timeout, filesystem_item fsi, i_provider &provider)
     : ring_buffer_open_file(std::move(buffer_directory), chunk_size,
                             chunk_timeout, std::move(fsi), provider,
-                            (1024ull * 1024ull * 1024ull) / chunk_size) {}
+                            (1024ULL * 1024ULL * 1024ULL) / chunk_size) {}
 
 file_manager::ring_buffer_open_file::ring_buffer_open_file(
     std::string buffer_directory, std::uint64_t chunk_size,
@@ -47,11 +47,11 @@ file_manager::ring_buffer_open_file::ring_buffer_open_file(
       ring_state_(ring_size),
       total_chunks_(static_cast<std::size_t>(
           utils::divide_with_ceiling(fsi.size, chunk_size_))) {
-  if (ring_size % 2u) {
+  if ((ring_size % 2U) != 0U) {
     throw std::runtime_error("ring size must be a multiple of 2");
   }
 
-  if (ring_size < 4u) {
+  if (ring_size < 4U) {
     throw std::runtime_error("ring size must be greater than or equal to 4");
   }
 
@@ -59,8 +59,8 @@ file_manager::ring_buffer_open_file::ring_buffer_open_file(
     throw std::runtime_error("file size is less than ring buffer size");
   }
 
-  last_chunk_ = ring_state_.size() - 1u;
-  ring_state_.set(0u, ring_state_.size(), true);
+  last_chunk_ = ring_state_.size() - 1U;
+  ring_state_.set(0U, ring_state_.size(), true);
 
   buffer_directory = utils::path::absolute(buffer_directory);
   if (not utils::file::create_full_directory_path(buffer_directory)) {
@@ -113,7 +113,7 @@ auto file_manager::file_manager::ring_buffer_open_file::download_chunk(
     chunk_notify_.notify_all();
     chunk_lock.unlock();
 
-    data_buffer buffer((chunk == (total_chunks_ - 1u)) ? last_chunk_size_
+    data_buffer buffer((chunk == (total_chunks_ - 1U)) ? last_chunk_size_
                                                        : chunk_size_);
 
     stop_type stop_requested = !!ring_state_[chunk % ring_state_.size()];
@@ -149,8 +149,8 @@ auto file_manager::file_manager::ring_buffer_open_file::download_chunk(
 
 void file_manager::ring_buffer_open_file::forward(std::size_t count) {
   mutex_lock chunk_lock(chunk_mtx_);
-  if ((current_chunk_ + count) > (total_chunks_ - 1u)) {
-    count = (total_chunks_ - 1u) - current_chunk_;
+  if ((current_chunk_ + count) > (total_chunks_ - 1U)) {
+    count = (total_chunks_ - 1U) - current_chunk_;
   }
 
   if ((current_chunk_ + count) <= last_chunk_) {
@@ -158,19 +158,19 @@ void file_manager::ring_buffer_open_file::forward(std::size_t count) {
   } else {
     const auto added = count - (last_chunk_ - current_chunk_);
     if (added >= ring_state_.size()) {
-      ring_state_.set(0u, ring_state_.size(), true);
+      ring_state_.set(0U, ring_state_.size(), true);
       current_chunk_ += count;
       first_chunk_ += added;
       last_chunk_ =
-          std::min(total_chunks_ - 1u, first_chunk_ + ring_state_.size() - 1u);
+          std::min(total_chunks_ - 1U, first_chunk_ + ring_state_.size() - 1U);
     } else {
-      for (std::size_t i = 0u; i < added; i++) {
+      for (std::size_t i = 0U; i < added; i++) {
         ring_state_[(first_chunk_ + i) % ring_state_.size()] = true;
       }
       first_chunk_ += added;
       current_chunk_ += count;
       last_chunk_ =
-          std::min(total_chunks_ - 1u, first_chunk_ + ring_state_.size() - 1u);
+          std::min(total_chunks_ - 1U, first_chunk_ + ring_state_.size() - 1U);
     }
   }
 
@@ -195,8 +195,8 @@ auto file_manager::ring_buffer_open_file::is_download_complete() const -> bool {
 }
 
 auto file_manager::ring_buffer_open_file::native_operation(
-    const i_open_file::native_operation_callback &operation) -> api_error {
-  return do_io([&]() -> api_error { return operation(nf_->get_handle()); });
+    const i_open_file::native_operation_callback &callback) -> api_error {
+  return do_io([&]() -> api_error { return callback(nf_->get_handle()); });
 }
 
 void file_manager::ring_buffer_open_file::reverse(std::size_t count) {
@@ -210,19 +210,19 @@ void file_manager::ring_buffer_open_file::reverse(std::size_t count) {
   } else {
     const auto removed = count - (current_chunk_ - first_chunk_);
     if (removed >= ring_state_.size()) {
-      ring_state_.set(0u, ring_state_.size(), true);
+      ring_state_.set(0U, ring_state_.size(), true);
       current_chunk_ -= count;
       first_chunk_ = current_chunk_;
       last_chunk_ =
-          std::min(total_chunks_ - 1u, first_chunk_ + ring_state_.size() - 1u);
+          std::min(total_chunks_ - 1U, first_chunk_ + ring_state_.size() - 1U);
     } else {
-      for (std::size_t i = 0u; i < removed; i++) {
+      for (std::size_t i = 0U; i < removed; i++) {
         ring_state_[(last_chunk_ - i) % ring_state_.size()] = true;
       }
       first_chunk_ -= removed;
       current_chunk_ -= count;
       last_chunk_ =
-          std::min(total_chunks_ - 1u, first_chunk_ + ring_state_.size() - 1u);
+          std::min(total_chunks_ - 1U, first_chunk_ + ring_state_.size() - 1U);
     }
   }
 
@@ -239,7 +239,7 @@ auto file_manager::ring_buffer_open_file::read(std::size_t read_size,
   reset_timeout();
 
   read_size = utils::calculate_read_size(fsi_.size, read_size, read_offset);
-  if (read_size == 0u) {
+  if (read_size == 0U) {
     return api_error::success;
   }
 
@@ -250,7 +250,7 @@ auto file_manager::ring_buffer_open_file::read(std::size_t read_size,
 
   auto res = api_error::success;
   for (std::size_t chunk = start_chunk_index;
-       (res == api_error::success) && (read_size > 0u); chunk++) {
+       (res == api_error::success) && (read_size > 0U); chunk++) {
     if (chunk > current_chunk_) {
       forward(chunk - current_chunk_);
     } else if (chunk < current_chunk_) {
@@ -258,26 +258,29 @@ auto file_manager::ring_buffer_open_file::read(std::size_t read_size,
     }
 
     reset_timeout();
-    if ((res = download_chunk(chunk)) == api_error::success) {
+    res = download_chunk(chunk);
+    if (res == api_error::success) {
       const auto to_read = std::min(
           static_cast<std::size_t>(chunk_size_ - read_offset), read_size);
       res = do_io([this, &buffer, &chunk, &data, read_offset,
                    &to_read]() -> api_error {
         std::size_t bytes_read{};
-        auto res = nf_->read_bytes(buffer.data(), buffer.size(),
+        auto ret = nf_->read_bytes(buffer.data(), buffer.size(),
                                    ((chunk % ring_state_.size()) * chunk_size_),
                                    bytes_read)
                        ? api_error::success
                        : api_error::os_error;
-        if (res == api_error::success) {
-          data.insert(data.end(), buffer.begin() + read_offset,
-                      buffer.begin() + read_offset + to_read);
+        if (ret == api_error::success) {
+          data.insert(data.end(),
+                      buffer.begin() + static_cast<std::int64_t>(read_offset),
+                      buffer.begin() +
+                          static_cast<std::int64_t>(read_offset + to_read));
           reset_timeout();
         }
 
-        return res;
+        return ret;
       });
-      read_offset = 0u;
+      read_offset = 0U;
       read_size -= to_read;
     }
   }
@@ -294,7 +297,7 @@ void file_manager::ring_buffer_open_file::set(std::size_t first_chunk,
   }
 
   first_chunk_ = first_chunk;
-  last_chunk_ = first_chunk_ + ring_state_.size() - 1u;
+  last_chunk_ = first_chunk_ + ring_state_.size() - 1U;
 
   if (current_chunk > last_chunk_) {
     chunk_notify_.notify_all();
@@ -303,7 +306,7 @@ void file_manager::ring_buffer_open_file::set(std::size_t first_chunk,
   }
 
   current_chunk_ = current_chunk;
-  ring_state_.set(0u, ring_state_.size(), false);
+  ring_state_.set(0U, ring_state_.size(), false);
 
   chunk_notify_.notify_all();
 }

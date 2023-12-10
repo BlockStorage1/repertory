@@ -26,147 +26,141 @@
 #include "types/repertory.hpp"
 
 namespace repertory::utils::error {
-void raise_error(std::string_view function, std::string_view msg) {
+void raise_error(std::string function, std::string_view msg) {
   event_system::instance().raise<repertory_exception>(
-      static_cast<std::string>(function), static_cast<std::string>(msg));
+      function, static_cast<std::string>(msg));
 }
 
-void raise_error(std::string_view function, const api_error &e,
+void raise_error(std::string function, const api_error &err,
                  std::string_view msg) {
   event_system::instance().raise<repertory_exception>(
-      static_cast<std::string>(function),
-      static_cast<std::string>(msg) + "|err|" + api_error_to_string(e));
+      function,
+      static_cast<std::string>(msg) + "|err|" + api_error_to_string(err));
 }
 
-void raise_error(std::string_view function, const std::exception &e,
+void raise_error(std::string function, const std::exception &exception,
                  std::string_view msg) {
   event_system::instance().raise<repertory_exception>(
-      static_cast<std::string>(function),
+      function,
       static_cast<std::string>(msg) + "|err|" +
-          (e.what() ? e.what() : "unknown error"));
+          (exception.what() == nullptr ? "unknown error" : exception.what()));
 }
 
-void raise_error(std::string_view function, const json &e,
-                 std::string_view msg) {
+void raise_error(std::string function, const json &err, std::string_view msg) {
   event_system::instance().raise<repertory_exception>(
-      static_cast<std::string>(function),
-      static_cast<std::string>(msg) + "|err|" + e.dump(2));
+      function, static_cast<std::string>(msg) + "|err|" + err.dump(2));
 }
 
-void raise_error(std::string_view function, std::int64_t e,
-                 std::string_view msg) {
+void raise_error(std::string function, std::int64_t err, std::string_view msg) {
   event_system::instance().raise<repertory_exception>(
-      static_cast<std::string>(function),
-      static_cast<std::string>(msg) + "|err|" + std::to_string(e));
+      function, static_cast<std::string>(msg) + "|err|" + std::to_string(err));
 }
 
-void raise_error(std::string_view function, const api_error &e,
+void raise_error(std::string function, const api_error &err,
                  std::string_view file_path, std::string_view msg) {
   event_system::instance().raise<repertory_exception>(
-      static_cast<std::string>(function),
+      function, static_cast<std::string>(msg) + "|sp|" +
+                    static_cast<std::string>(file_path) + "|err|" +
+                    api_error_to_string(err));
+}
+
+void raise_error(std::string function, std::int64_t err,
+                 std::string_view file_path, std::string_view msg) {
+  event_system::instance().raise<repertory_exception>(
+      function, static_cast<std::string>(msg) + "|sp|" +
+                    static_cast<std::string>(file_path) + "|err|" +
+                    std::to_string(err));
+}
+
+void raise_error(std::string function, const std::exception &exception,
+                 std::string_view file_path, std::string_view msg) {
+  event_system::instance().raise<repertory_exception>(
+      function,
       static_cast<std::string>(msg) + "|sp|" +
           static_cast<std::string>(file_path) + "|err|" +
-          api_error_to_string(e));
+          (exception.what() == nullptr ? "unknown error" : exception.what()));
 }
 
-void raise_error(std::string_view function, std::int64_t e,
-                 std::string_view file_path, std::string_view msg) {
+void raise_api_path_error(std::string function, std::string_view api_path,
+                          const api_error &err, std::string_view msg) {
   event_system::instance().raise<repertory_exception>(
-      static_cast<std::string>(function),
-      static_cast<std::string>(msg) + "|sp|" +
-          static_cast<std::string>(file_path) + "|err|" + std::to_string(e));
+      function, static_cast<std::string>(msg) + "|ap|" +
+                    static_cast<std::string>(api_path) + "|err|" +
+                    api_error_to_string(err));
 }
 
-void raise_error(std::string_view function, const std::exception &e,
-                 std::string_view file_path, std::string_view msg) {
+void raise_api_path_error(std::string function, std::string_view api_path,
+                          std::int64_t err, std::string_view msg) {
   event_system::instance().raise<repertory_exception>(
-      static_cast<std::string>(function),
-      static_cast<std::string>(msg) + "|sp|" +
-          static_cast<std::string>(file_path) + "|err|" +
-          (e.what() ? e.what() : "unknown error"));
+      function, static_cast<std::string>(msg) + "|ap|" +
+                    static_cast<std::string>(api_path) + "|err|" +
+                    std::to_string(err));
 }
 
-void raise_api_path_error(std::string_view function, std::string_view api_path,
-                          const api_error &e, std::string_view msg) {
-  event_system::instance().raise<repertory_exception>(
-      static_cast<std::string>(function),
-      static_cast<std::string>(msg) + "|ap|" +
-          static_cast<std::string>(api_path) + "|err|" +
-          api_error_to_string(e));
-}
-
-void raise_api_path_error(std::string_view function, std::string_view api_path,
-                          std::int64_t e, std::string_view msg) {
-  event_system::instance().raise<repertory_exception>(
-      static_cast<std::string>(function),
-      static_cast<std::string>(msg) + "|ap|" +
-          static_cast<std::string>(api_path) + "|err|" + std::to_string(e));
-}
-
-void raise_api_path_error(std::string_view function, std::string_view api_path,
-                          const std::exception &e, std::string_view msg) {
-  event_system::instance().raise<repertory_exception>(
-      static_cast<std::string>(function),
-      static_cast<std::string>(msg) + "|ap|" +
-          static_cast<std::string>(api_path) + "|err|" +
-          (e.what() ? e.what() : "unknown error"));
-}
-
-void raise_api_path_error(std::string_view function, std::string_view api_path,
-                          std::string_view source_path, const api_error &e,
+void raise_api_path_error(std::string function, std::string_view api_path,
+                          const std::exception &exception,
                           std::string_view msg) {
   event_system::instance().raise<repertory_exception>(
-      static_cast<std::string>(function),
+      function,
+      static_cast<std::string>(msg) + "|ap|" +
+          static_cast<std::string>(api_path) + "|err|" +
+          (exception.what() == nullptr ? "unknown error" : exception.what()));
+}
+
+void raise_api_path_error(std::string function, std::string_view api_path,
+                          std::string_view source_path, const api_error &err,
+                          std::string_view msg) {
+  event_system::instance().raise<repertory_exception>(
+      function, static_cast<std::string>(msg) + "|ap|" +
+                    static_cast<std::string>(api_path) + "|sp|" +
+                    static_cast<std::string>(source_path) + "|err|" +
+                    api_error_to_string(err));
+}
+
+void raise_api_path_error(std::string function, std::string_view api_path,
+                          std::string_view source_path, std::int64_t err,
+                          std::string_view msg) {
+  event_system::instance().raise<repertory_exception>(
+      function, static_cast<std::string>(msg) + "|ap|" +
+                    static_cast<std::string>(api_path) + "|sp|" +
+                    static_cast<std::string>(source_path) + "|err|" +
+                    std::to_string(err));
+}
+
+void raise_api_path_error(std::string function, std::string_view api_path,
+                          const json &err, std::string_view msg) {
+  event_system::instance().raise<repertory_exception>(
+      function, static_cast<std::string>(msg) + "|ap|" +
+                    static_cast<std::string>(api_path) + "|err|" + err.dump(2));
+}
+
+void raise_api_path_error(std::string function, std::string_view api_path,
+                          std::string_view source_path,
+                          const std::exception &exception,
+                          std::string_view msg) {
+  event_system::instance().raise<repertory_exception>(
+      function,
       static_cast<std::string>(msg) + "|ap|" +
           static_cast<std::string>(api_path) + "|sp|" +
           static_cast<std::string>(source_path) + "|err|" +
-          api_error_to_string(e));
+          (exception.what() == nullptr ? "unknown error" : exception.what()));
 }
 
-void raise_api_path_error(std::string_view function, std::string_view api_path,
-                          std::string_view source_path, std::int64_t e,
-                          std::string_view msg) {
-  event_system::instance().raise<repertory_exception>(
-      static_cast<std::string>(function),
-      static_cast<std::string>(msg) + "|ap|" +
-          static_cast<std::string>(api_path) + "|sp|" +
-          static_cast<std::string>(source_path) + "|err|" + std::to_string(e));
-}
-
-void raise_api_path_error(std::string_view function, std::string_view api_path,
-                          const json &e, std::string_view msg) {
-  event_system::instance().raise<repertory_exception>(
-      static_cast<std::string>(function),
-      static_cast<std::string>(msg) + "|ap|" +
-          static_cast<std::string>(api_path) + "|err|" + e.dump(2));
-}
-
-void raise_api_path_error(std::string_view function, std::string_view api_path,
-                          std::string_view source_path, const std::exception &e,
-                          std::string_view msg) {
-  event_system::instance().raise<repertory_exception>(
-      static_cast<std::string>(function),
-      static_cast<std::string>(msg) + "|ap|" +
-          static_cast<std::string>(api_path) + "|sp|" +
-          static_cast<std::string>(source_path) + "|err|" +
-          (e.what() ? e.what() : "unknown error"));
-}
-
-void raise_url_error(std::string_view function, std::string_view url,
-                     CURLcode e, std::string_view msg) {
-  event_system::instance().raise<repertory_exception>(
-      static_cast<std::string>(function),
-      static_cast<std::string>(msg) + "|url|" + static_cast<std::string>(url) +
-          "|err|" + curl_easy_strerror(e));
-}
-
-void raise_url_error(std::string_view function, std::string_view url,
-                     std::string_view source_path, const std::exception &e,
+void raise_url_error(std::string function, std::string_view url, CURLcode err,
                      std::string_view msg) {
   event_system::instance().raise<repertory_exception>(
-      static_cast<std::string>(function),
+      function, static_cast<std::string>(msg) + "|url|" +
+                    static_cast<std::string>(url) + "|err|" +
+                    curl_easy_strerror(err));
+}
+
+void raise_url_error(std::string function, std::string_view url,
+                     std::string_view source_path,
+                     const std::exception &exception, std::string_view msg) {
+  event_system::instance().raise<repertory_exception>(
+      function,
       static_cast<std::string>(msg) + "|url|" + static_cast<std::string>(url) +
           "|sp|" + static_cast<std::string>(source_path) + "|err|" +
-          (e.what() ? e.what() : "unknown error"));
+          (exception.what() == nullptr ? "unknown error" : exception.what()));
 }
 } // namespace repertory::utils::error

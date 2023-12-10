@@ -169,13 +169,13 @@ static void get_security_by_name_test(remote_client &client) {
   EXPECT_EQ(STATUS_SUCCESS, client.winfsp_close(file_desc));
 
   UINT32 attributes = 0u;
-  std::uint64_t securityDescriptorSize = 1024;
-  std::wstring strDescriptor;
+  std::uint64_t security_descriptor_size = 1024;
+  std::wstring str_descriptor;
   ret = client.winfsp_get_security_by_name(
-      &api_path[0], &attributes, &securityDescriptorSize, strDescriptor);
+      &api_path[0], &attributes, &security_descriptor_size, str_descriptor);
   EXPECT_EQ(STATUS_SUCCESS, ret);
   EXPECT_EQ(static_cast<UINT32>(FILE_ATTRIBUTE_NORMAL), attributes);
-  EXPECT_FALSE(strDescriptor.empty());
+  EXPECT_FALSE(str_descriptor.empty());
 
   EXPECT_TRUE(utils::file::retry_delete_file(test_file));
 }

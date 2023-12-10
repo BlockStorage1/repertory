@@ -93,7 +93,7 @@ E_SIMPLE3(download_stored_failed, error, true,
   std::string, error, err, E_STRING
 );
 
-E_SIMPLE1(download_timeout, warn, true,
+E_SIMPLE1(item_timeout, normal, true,
   std::string, api_path, ap, E_STRING
 );
 // clang-format on
