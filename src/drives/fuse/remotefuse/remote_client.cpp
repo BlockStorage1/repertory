@@ -40,7 +40,7 @@ auto remote_client::fuse_access(const char *path, const std::int32_t &mask)
   request.encode(path);
   request.encode(mask);
 
-  std::uint32_t service_flags = 0u;
+  std::uint32_t service_flags{};
   return packet_client_.send(__FUNCTION__, request, service_flags);
 }
 
@@ -50,7 +50,7 @@ auto remote_client::fuse_chflags(const char *path, std::uint32_t flags)
   request.encode(path);
   request.encode(flags);
 
-  std::uint32_t service_flags = 0u;
+  std::uint32_t service_flags{};
   return packet_client_.send(__FUNCTION__, request, service_flags);
 }
 
@@ -60,7 +60,7 @@ auto remote_client::fuse_chmod(const char *path, const remote::file_mode &mode)
   request.encode(path);
   request.encode(mode);
 
-  std::uint32_t service_flags = 0u;
+  std::uint32_t service_flags{};
   return packet_client_.send(__FUNCTION__, request, service_flags);
 }
 
@@ -72,12 +72,12 @@ auto remote_client::fuse_chown(const char *path, const remote::user_id &uid,
   request.encode(uid);
   request.encode(gid);
 
-  std::uint32_t service_flags = 0u;
+  std::uint32_t service_flags{};
   return packet_client_.send(__FUNCTION__, request, service_flags);
 }
 
 auto remote_client::fuse_destroy() -> packet::error_type {
-  std::uint32_t service_flags = 0u;
+  std::uint32_t service_flags{};
   return packet_client_.send(__FUNCTION__, service_flags);
 }
 
@@ -90,7 +90,7 @@ std::int32_t &mode, const remote::file_offset &offset, const remote::file_offset
   request.encode(length);
   request.encode(handle);
 
-  std::uint32_t service_flags = 0u;
+  std::uint32_t service_flags {};
   return packetClient_.send(__FUNCTION__, request, service_flags);
 }*/
 
@@ -105,12 +105,12 @@ auto remote_client::fuse_fgetattr(const char *path, remote::stat &st,
   request.encode(gid_);
 
   packet response;
-  std::uint32_t service_flags = 0u;
+  std::uint32_t service_flags{};
   auto ret =
       packet_client_.send(__FUNCTION__, request, response, service_flags);
   if (ret == 0) {
     if ((ret = response.decode(st)) == 0) {
-      std::uint8_t d = 0u;
+      std::uint8_t d{};
       if ((ret = response.decode(d)) == 0) {
         directory = static_cast<bool>(d);
       }
@@ -129,7 +129,7 @@ auto remote_client::fuse_fsetattr_x(const char *path,
   request.encode(attr);
   request.encode(handle);
 
-  std::uint32_t service_flags = 0u;
+  std::uint32_t service_flags{};
   return packet_client_.send(__FUNCTION__, request, service_flags);
 }
 
@@ -141,7 +141,7 @@ auto remote_client::fuse_fsync(const char *path, const std::int32_t &datasync,
   request.encode(datasync);
   request.encode(handle);
 
-  std::uint32_t service_flags = 0u;
+  std::uint32_t service_flags{};
   return packet_client_.send(__FUNCTION__, request, service_flags);
 }
 
@@ -154,7 +154,7 @@ auto remote_client::fuse_ftruncate(const char *path,
   request.encode(size);
   request.encode(handle);
 
-  std::uint32_t service_flags = 0u;
+  std::uint32_t service_flags{};
   return packet_client_.send(__FUNCTION__, request, service_flags);
 }
 
@@ -166,7 +166,7 @@ auto remote_client::fuse_getattr(const char *path, remote::stat &st,
   request.encode(gid_);
 
   packet response;
-  std::uint32_t service_flags = 0u;
+  std::uint32_t service_flags{};
   auto ret =
       packet_client_.send(__FUNCTION__, request, response, service_flags);
   if (ret == 0) {
@@ -188,7 +188,7 @@ packet request; request.encode(path); request.encode(name);
     request.encode(size);
 
     packet response;
-    std::uint32_t service_flags = 0u;
+    std::uint32_t service_flags {};
     if ((ret = packetClient_.send(__FUNCTION__, request, response,
 service_flags)) == 0) { remote::file_size size2; if ((ret =
 response.decode(size2)) == 0) { if (size2 >
@@ -211,7 +211,7 @@ packet::error_type ret = 0; if (size > std::numeric_limits<std::size_t>::max())
     request.encode(position);
 
     packet response;
-    std::uint32_t service_flags = 0u;
+    std::uint32_t service_flags {};
     if ((ret = packetClient_.send(__FUNCTION__, request, response,
 service_flags)) == 0) { remote::file_size size2; if ((ret =
 response.decode(size2)) == 0) { if (size2 >
@@ -233,7 +233,7 @@ auto remote_client::fuse_getxtimes(const char *path,
   request.encode(path);
 
   packet response;
-  std::uint32_t service_flags = 0u;
+  std::uint32_t service_flags{};
   auto ret =
       packet_client_.send(__FUNCTION__, request, response, service_flags);
   if (ret == 0) {
@@ -245,7 +245,7 @@ auto remote_client::fuse_getxtimes(const char *path,
 }
 
 auto remote_client::fuse_init() -> packet::error_type {
-  std::uint32_t service_flags = 0u;
+  std::uint32_t service_flags{};
   return packet_client_.send(__FUNCTION__, service_flags);
 }
 
@@ -255,7 +255,7 @@ std::numeric_limits<std::size_t>::max()) { ret = -ERANGE; } else { packet
 request; request.encode(path); request.encode(size);
 
     packet response;
-    std::uint32_t service_flags = 0u;
+    std::uint32_t service_flags {};
     if ((ret = packetClient_.send(__FUNCTION__, request, response,
 service_flags)) == 0) { remote::file_size size2; if ((ret =
 response.decode(size2)) == 0) { if (size2 >
@@ -276,7 +276,7 @@ auto remote_client::fuse_mkdir(const char *path, const remote::file_mode &mode)
   request.encode(path);
   request.encode(mode);
 
-  std::uint32_t service_flags = 0u;
+  std::uint32_t service_flags{};
   return packet_client_.send(__FUNCTION__, request, service_flags);
 }
 
@@ -286,7 +286,7 @@ auto remote_client::fuse_opendir(const char *path, remote::file_handle &handle)
   request.encode(path);
 
   packet response;
-  std::uint32_t service_flags = 0u;
+  std::uint32_t service_flags{};
   auto ret =
       packet_client_.send(__FUNCTION__, request, response, service_flags);
   if (ret == 0) {
@@ -306,7 +306,7 @@ auto remote_client::fuse_create(const char *path, const remote::file_mode &mode,
   request.encode(flags);
 
   packet response;
-  std::uint32_t service_flags = 0u;
+  std::uint32_t service_flags{};
   auto ret =
       packet_client_.send(__FUNCTION__, request, response, service_flags);
   if (ret == 0) {
@@ -324,7 +324,7 @@ auto remote_client::fuse_open(const char *path, const remote::open_flags &flags,
   request.encode(flags);
 
   packet response;
-  std::uint32_t service_flags = 0u;
+  std::uint32_t service_flags{};
   auto ret =
       packet_client_.send(__FUNCTION__, request, response, service_flags);
   if (ret == 0) {
@@ -346,11 +346,11 @@ auto remote_client::fuse_read(const char *path, char *buffer,
   request.encode(handle);
 
   packet response;
-  std::uint32_t service_flags = 0u;
+  std::uint32_t service_flags{};
   auto ret =
       packet_client_.send(__FUNCTION__, request, response, service_flags);
   if (ret > 0) {
-    memcpy(buffer, response.current_pointer(), ret);
+    memcpy(buffer, response.current_pointer(), static_cast<std::size_t>(ret));
   }
 
   return ret;
@@ -362,7 +362,7 @@ auto remote_client::fuse_rename(const char *from, const char *to)
   request.encode(from);
   request.encode(to);
 
-  std::uint32_t service_flags = 0u;
+  std::uint32_t service_flags{};
   return packet_client_.send(__FUNCTION__, request, service_flags);
 }
 
@@ -382,7 +382,7 @@ auto remote_client::fuse_write(const char *path, const char *buffer,
   request.encode(write_offset);
   request.encode(handle);
 
-  std::uint32_t service_flags = 0u;
+  std::uint32_t service_flags{};
   return packet_client_.send(__FUNCTION__, request, service_flags);
 }
 
@@ -402,7 +402,7 @@ auto remote_client::fuse_write_base64(const char *path, const char *buffer,
   request.encode(write_offset);
   request.encode(handle);
 
-  std::uint32_t service_flags = 0u;
+  std::uint32_t service_flags{};
   return packet_client_.send(__FUNCTION__, request, service_flags);
 }
 
@@ -416,7 +416,7 @@ auto remote_client::fuse_readdir(const char *path,
   request.encode(handle);
 
   packet response;
-  std::uint32_t service_flags = 0u;
+  std::uint32_t service_flags{};
   auto ret =
       packet_client_.send(__FUNCTION__, request, response, service_flags);
   if (ret == 0) {
@@ -433,7 +433,7 @@ auto remote_client::fuse_release(const char *path,
   request.encode(path);
   request.encode(handle);
 
-  std::uint32_t service_flags = 0u;
+  std::uint32_t service_flags{};
   return packet_client_.send(__FUNCTION__, request, service_flags);
 }
 
@@ -444,7 +444,7 @@ auto remote_client::fuse_releasedir(const char *path,
   request.encode(path);
   request.encode(handle);
 
-  std::uint32_t service_flags = 0u;
+  std::uint32_t service_flags{};
   return packet_client_.send(__FUNCTION__, request, service_flags);
 }
 
@@ -452,7 +452,7 @@ auto remote_client::fuse_releasedir(const char *path,
 char *name) override { packet request; request.encode(path);
 request.Encode(name);
 
-  std::uint32_t service_flags = 0u;
+  std::uint32_t service_flags {};
   return packetClient_.send(__FUNCTION__, request, service_flags);
 }*/
 
@@ -460,7 +460,7 @@ auto remote_client::fuse_rmdir(const char *path) -> packet::error_type {
   packet request;
   request.encode(path);
 
-  std::uint32_t service_flags = 0u;
+  std::uint32_t service_flags{};
   return packet_client_.send(__FUNCTION__, request, service_flags);
 }
 
@@ -470,7 +470,7 @@ auto remote_client::fuse_setattr_x(const char *path, remote::setattr_x &attr)
   request.encode(path);
   request.encode(attr);
 
-  std::uint32_t service_flags = 0u;
+  std::uint32_t service_flags{};
   return packet_client_.send(__FUNCTION__, request, service_flags);
 }
 
@@ -481,7 +481,7 @@ auto remote_client::fuse_setbkuptime(const char *path,
   request.encode(path);
   request.encode(bkuptime);
 
-  std::uint32_t service_flags = 0u;
+  std::uint32_t service_flags{};
   return packet_client_.send(__FUNCTION__, request, service_flags);
 }
 
@@ -492,7 +492,7 @@ auto remote_client::fuse_setchgtime(const char *path,
   request.encode(path);
   request.encode(chgtime);
 
-  std::uint32_t service_flags = 0u;
+  std::uint32_t service_flags{};
   return packet_client_.send(__FUNCTION__, request, service_flags);
 }
 
@@ -503,7 +503,7 @@ auto remote_client::fuse_setcrtime(const char *path,
   request.encode(path);
   request.encode(crtime);
 
-  std::uint32_t service_flags = 0u;
+  std::uint32_t service_flags{};
   return packet_client_.send(__FUNCTION__, request, service_flags);
 }
 
@@ -511,7 +511,7 @@ auto remote_client::fuse_setvolname(const char *volname) -> packet::error_type {
   packet request;
   request.encode(volname);
 
-  std::uint32_t service_flags = 0u;
+  std::uint32_t service_flags{};
   return packet_client_.send(__FUNCTION__, request, service_flags);
 }
 
@@ -523,7 +523,7 @@ request; request.encode(path); request.encode(name); request.encode(size);
     request.encode(value, static_cast<std::size_t>(size));
     request.encode(flags);
 
-    std::uint32_t service_flags = 0u;
+    std::uint32_t service_flags {};
     ret = packetClient_.send(__FUNCTION__, request, service_flags);
   }
 
@@ -538,7 +538,7 @@ packet request; request.encode(path); request.Encode(name);
 request.Encode(size); request.encode(value, static_cast<std::size_t>(size));
 request.encode(flags); request.encode(position);
 
-    std::uint32_t service_flags = 0u;
+    std::uint32_t service_flags {};
     ret = packetClient_.send(__FUNCTION__, request, service_flags);
   }
 
@@ -552,7 +552,7 @@ auto remote_client::fuse_statfs(const char *path, std::uint64_t frsize,
   request.encode(frsize);
 
   packet response;
-  std::uint32_t service_flags = 0u;
+  std::uint32_t service_flags{};
   auto ret =
       packet_client_.send(__FUNCTION__, request, response, service_flags);
   if (ret == 0) {
@@ -569,7 +569,7 @@ auto remote_client::fuse_statfs_x(const char *path, std::uint64_t bsize,
   request.encode(bsize);
 
   packet response;
-  std::uint32_t service_flags = 0u;
+  std::uint32_t service_flags{};
   auto ret =
       packet_client_.send(__FUNCTION__, request, response, service_flags);
   if (ret == 0) {
@@ -586,7 +586,7 @@ auto remote_client::fuse_truncate(const char *path,
   request.encode(path);
   request.encode(size);
 
-  std::uint32_t service_flags = 0u;
+  std::uint32_t service_flags{};
   return packet_client_.send(__FUNCTION__, request, service_flags);
 }
 
@@ -594,7 +594,7 @@ auto remote_client::fuse_unlink(const char *path) -> packet::error_type {
   packet request;
   request.encode(path);
 
-  std::uint32_t service_flags = 0u;
+  std::uint32_t service_flags{};
   return packet_client_.send(__FUNCTION__, request, service_flags);
 }
 
@@ -607,7 +607,7 @@ auto remote_client::fuse_utimens(const char *path, const remote::file_time *tv,
   request.encode(op0);
   request.encode(op1);
 
-  std::uint32_t service_flags = 0u;
+  std::uint32_t service_flags{};
   return packet_client_.send(__FUNCTION__, request, service_flags);
 }
 
@@ -618,7 +618,7 @@ auto remote_client::json_create_directory_snapshot(const std::string &path,
   request.encode(path);
 
   packet response;
-  std::uint32_t service_flags = 0u;
+  std::uint32_t service_flags{};
   auto ret =
       packet_client_.send(__FUNCTION__, request, response, service_flags);
   if (ret == 0) {
@@ -637,7 +637,7 @@ auto remote_client::json_read_directory_snapshot(
   request.encode(page);
 
   packet response;
-  std::uint32_t service_flags = 0u;
+  std::uint32_t service_flags{};
   auto ret =
       packet_client_.send(__FUNCTION__, request, response, service_flags);
   if (ret == 0) {
@@ -654,7 +654,7 @@ auto remote_client::json_release_directory_snapshot(
   request.encode(path);
   request.encode(handle);
 
-  std::uint32_t service_flags = 0u;
+  std::uint32_t service_flags{};
   return packet_client_.send(__FUNCTION__, request, service_flags);
 }
 

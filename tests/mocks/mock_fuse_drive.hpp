@@ -39,52 +39,58 @@ public:
       : mount_location_(std::move(mount_location)) {}
 
 private:
-  const std::string mount_location_;
+  std::string mount_location_;
   std::unordered_map<std::string, api_meta_map> meta_;
 
 public:
-  api_error check_owner(const std::string &) const override {
+  auto check_owner(const std::string &) const -> api_error override {
     return api_error::success;
   }
 
-  api_error check_parent_access(const std::string &, int) const override {
+  auto check_parent_access(const std::string &, int) const
+      -> api_error override {
     return api_error::success;
   }
 
-  std::uint64_t get_directory_item_count(const std::string &) const override {
+  auto get_directory_item_count(const std::string &) const
+      -> std::uint64_t override {
     return 1;
   }
 
-  directory_item_list get_directory_items(const std::string &) const override {
+  auto get_directory_items(const std::string &) const
+      -> directory_item_list override {
     directory_item_list list{};
 
-    directory_item di{};
-    di.api_path = ".";
-    di.directory = true;
-    di.size = 0;
-    di.meta = {{META_ATTRIBUTES, "16"},
-               {META_MODIFIED, std::to_string(utils::get_file_time_now())},
-               {META_WRITTEN, std::to_string(utils::get_file_time_now())},
-               {META_ACCESSED, std::to_string(utils::get_file_time_now())},
-               {META_CREATION, std::to_string(utils::get_file_time_now())}};
-    list.emplace_back(di);
+    directory_item dir_item{};
+    dir_item.api_path = ".";
+    dir_item.directory = true;
+    dir_item.size = 0;
+    dir_item.meta = {
+        {META_ATTRIBUTES, "16"},
+        {META_MODIFIED, std::to_string(utils::get_file_time_now())},
+        {META_WRITTEN, std::to_string(utils::get_file_time_now())},
+        {META_ACCESSED, std::to_string(utils::get_file_time_now())},
+        {META_CREATION, std::to_string(utils::get_file_time_now())}};
+    list.emplace_back(dir_item);
 
-    di.api_path = "..";
-    list.emplace_back(di);
+    dir_item.api_path = "..";
+    list.emplace_back(dir_item);
 
     return list;
   }
 
-  std::uint64_t get_file_size(const std::string &) const override { return 0u; }
+  auto get_file_size(const std::string &) const -> std::uint64_t override {
+    return 0U;
+  }
 
-  api_error get_item_meta(const std::string &api_path,
-                          api_meta_map &meta) const override {
+  auto get_item_meta(const std::string &api_path, api_meta_map &meta) const
+      -> api_error override {
     meta = const_cast<mock_fuse_drive *>(this)->meta_[api_path];
     return api_error::success;
   }
 
-  api_error get_item_meta(const std::string &api_path, const std::string &name,
-                          std::string &value) const override {
+  auto get_item_meta(const std::string &api_path, const std::string &name,
+                     std::string &value) const -> api_error override {
     value = const_cast<mock_fuse_drive *>(this)->meta_[api_path][name];
     if (value.empty()) {
       value = "0";
@@ -92,13 +98,13 @@ public:
     return api_error::success;
   }
 
-  std::uint64_t get_total_drive_space() const override {
-    return 100 * 1024 * 1024;
+  auto get_total_drive_space() const -> std::uint64_t override {
+    return 100ULL * 1024ULL * 1024ULL;
   }
 
-  std::uint64_t get_total_item_count() const override { return 0u; }
+  auto get_total_item_count() const -> std::uint64_t override { return 0U; }
 
-  std::uint64_t get_used_drive_space() const override { return 0u; }
+  auto get_used_drive_space() const -> std::uint64_t override { return 0U; }
 
   void get_volume_info(UINT64 &total_size, UINT64 &free_size,
                        std::string &volume_label) const override {
@@ -107,10 +113,8 @@ public:
     volume_label = "TestVolumeLabel";
   }
 
-  void populate_stat(const directory_item &, struct stat &) const override {}
-
-  int rename_directory(const std::string &from_api_path,
-                       const std::string &to_api_path) override {
+  auto rename_directory(const std::string &from_api_path,
+                        const std::string &to_api_path) -> int override {
     const auto from_file_path =
         utils::path::combine(mount_location_, {from_api_path});
     const auto to_file_path =
@@ -118,8 +122,9 @@ public:
     return rename(from_file_path.c_str(), to_file_path.c_str());
   }
 
-  int rename_file(const std::string &from_api_path,
-                  const std::string &to_api_path, bool overwrite) override {
+  auto rename_file(const std::string &from_api_path,
+                   const std::string &to_api_path, bool overwrite)
+      -> int override {
     const auto from_file_path =
         utils::path::combine(mount_location_, {from_api_path});
     const auto to_file_path =
@@ -138,7 +143,9 @@ public:
     return rename(from_file_path.c_str(), to_file_path.c_str());
   }
 
-  bool is_processing(const std::string &) const override { return false; }
+  auto is_processing(const std::string &) const -> bool override {
+    return false;
+  }
 
   void set_item_meta(const std::string &api_path, const std::string &key,
                      const std::string &value) override {

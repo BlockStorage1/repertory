@@ -29,10 +29,10 @@
 
 namespace repertory::utils::cli {
 void get_api_authentication_data(std::string &user, std::string &password,
-                                 std::uint16_t &port, const provider_type &pt,
+                                 std::uint16_t &port, const provider_type &prov,
                                  const std::string &data_directory) {
   const auto cfg_file_path = utils::path::combine(
-      data_directory.empty() ? app_config::default_data_directory(pt)
+      data_directory.empty() ? app_config::default_data_directory(prov)
                              : data_directory,
       {"config.json"});
 
@@ -50,44 +50,45 @@ void get_api_authentication_data(std::string &user, std::string &password,
   }
 }
 
-auto get_provider_type_from_args(int argc, char *argv[]) -> provider_type {
+[[nodiscard]] auto get_provider_type_from_args(std::vector<const char *> args)
+    -> provider_type {
 #if defined(REPERTORY_ENABLE_S3)
-  if (has_option(argc, argv, options::s3_option)) {
+  if (has_option(args, options::s3_option)) {
     return provider_type::s3;
   }
 #endif // defined(REPERTORY_ENABLE_S3)
-  if (has_option(argc, argv, options::remote_mount_option)) {
+  if (has_option(args, options::remote_mount_option)) {
     return provider_type::remote;
   }
-  if (has_option(argc, argv, options::encrypt_option)) {
+  if (has_option(args, options::encrypt_option)) {
     return provider_type::encrypt;
   }
 
   return provider_type::sia;
 }
 
-auto has_option(int argc, char *argv[], const std::string &option_name)
+auto has_option(std::vector<const char *> args, const std::string &option_name)
     -> bool {
-  auto ret = false;
-  for (int i = 0; not ret && (i < argc); i++) {
-    ret = (option_name == argv[i]);
-  }
-  return ret;
+  return std::find_if(args.begin(), args.end(),
+                      [&option_name](const auto &value) -> bool {
+                        return option_name == value;
+                      }) != args.end();
 }
 
-auto has_option(int argc, char *argv[], const option &opt) -> bool {
-  return has_option(argc, argv, opt[0u]) || has_option(argc, argv, opt[1u]);
+auto has_option(std::vector<const char *> args, const option &opt) -> bool {
+  return has_option(args, opt.at(0U)) || has_option(args, opt.at(1U));
 }
 
-auto parse_option(int argc, char *argv[], const std::string &option_name,
-                  std::uint8_t count) -> std::vector<std::string> {
+auto parse_option(std::vector<const char *> args,
+                  const std::string &option_name, std::uint8_t count)
+    -> std::vector<std::string> {
   std::vector<std::string> ret;
-  auto found = false;
-  for (auto i = 0; not found && (i < argc); i++) {
-    if ((found = (option_name == argv[i]))) {
-      if ((++i + count) <= argc) {
-        while (count--) {
-          ret.emplace_back(argv[i++]);
+  auto found{false};
+  for (std::size_t i = 0U; not found && (i < args.size()); i++) {
+    if ((found = (option_name == args.at(i)))) {
+      if ((++i + count) <= args.size()) {
+        while ((count--) != 0U) {
+          ret.emplace_back(args.at(i++));
         }
       }
     }
@@ -96,87 +97,94 @@ auto parse_option(int argc, char *argv[], const std::string &option_name,
   return ret;
 }
 
-auto parse_string_option(int argc, char **argv, const option &opt,
+auto parse_string_option(std::vector<const char *> args, const option &opt,
                          std::string &value) -> exit_code {
-  auto ret = exit_code::success;
-  if (has_option(argc, argv, opt[0u]) || has_option(argc, argv, opt[1u])) {
-    auto data = parse_option(argc, argv, opt[0u], 1u);
+  exit_code ret{exit_code::success};
+  if (has_option(args, opt.at(0U)) || has_option(args, opt.at(1U))) {
+    auto data = parse_option(args, opt.at(0U), 1U);
     if (data.empty()) {
-      data = parse_option(argc, argv, opt[1u], 1u);
+      data = parse_option(args, opt.at(1U), 1U);
       if (data.empty()) {
-        std::cerr << "Invalid syntax for '" << opt[0u] << "," << opt[1u] << '\''
-                  << std::endl;
+        std::cerr << "Invalid syntax for '" << opt.at(0U) << "," << opt.at(1U)
+                  << '\'' << std::endl;
         ret = exit_code::invalid_syntax;
       }
     }
 
     if (not data.empty()) {
-      value = data[0u];
+      value = data.at(0U);
     }
   }
 
   return ret;
 }
 
-auto parse_drive_options(int argc, char **argv,
-                         [[maybe_unused]] provider_type &pt,
+auto parse_drive_options(std::vector<const char *> args,
+                         [[maybe_unused]] provider_type &prov,
                          [[maybe_unused]] std::string &data_directory)
     -> std::vector<std::string> {
   // Strip out options from command line
   const auto &option_list = options::option_list;
   std::vector<std::string> drive_args;
-  for (int i = 0; i < argc; i++) {
-    const auto &a = argv[i];
+  for (std::size_t i = 0U; i < args.size(); i++) {
+    const auto &arg = args.at(i);
     if (std::find_if(option_list.begin(), option_list.end(),
-                     [&a](const auto &pair) -> bool {
-                       return ((pair[0] == a) || (pair[1] == a));
+                     [&arg](const auto &pair) -> bool {
+                       return ((pair.at(0U) == arg) || (pair.at(1U) == arg));
                      }) == option_list.end()) {
-      drive_args.emplace_back(argv[i]);
-    } else if ((std::string(argv[i]) == options::remote_mount_option[0]) ||
-               (std::string(argv[i]) == options::remote_mount_option[1])) {
-      i++;
+      drive_args.emplace_back(args.at(i));
+      continue;
     }
+
+    if ((std::string(args.at(i)) == options::remote_mount_option.at(0U)) ||
+        (std::string(args.at(i)) == options::remote_mount_option.at(1U)) ||
+        (std::string(args.at(i)) == options::data_directory_option.at(0U)) ||
+        (std::string(args.at(i)) == options::data_directory_option.at(1U))
 #ifdef REPERTORY_ENABLE_S3
-    else if ((std::string(argv[i]) == options::name_option[0]) ||
-             (std::string(argv[i]) == options::name_option[1])) {
-      i++;
-    }
+        || (std::string(args.at(i)) == options::name_option.at(0U)) ||
+        (std::string(args.at(i)) == options::name_option.at(1U))
 #endif // REPERTORY_ENABLE_S3
+    ) {
+      i++;
+      continue;
+    }
   }
 
 #ifndef _WIN32
   std::vector<std::string> fuse_flags_list;
   for (std::size_t i = 1; i < drive_args.size(); i++) {
-    if (drive_args[i].find("-o") == 0) {
-      std::string options = "";
+    if (drive_args.at(i).find("-o") == 0) {
+      std::string options;
       if (drive_args[i].size() == 2) {
         if ((i + 1) < drive_args.size()) {
-          options = drive_args[++i];
+          options = drive_args.at(++i);
         }
       } else {
-        options = drive_args[i].substr(2);
+        options = drive_args.at(i).substr(2);
       }
 
       const auto fuse_option_list = utils::string::split(options, ',');
       for (const auto &fuse_option : fuse_option_list) {
 #if defined(REPERTORY_ENABLE_S3)
         if (fuse_option.find("s3") == 0) {
-          pt = provider_type::s3;
+          prov = provider_type::s3;
+          continue;
         }
 #endif // defined(REPERTORY_ENABLE_S3)
         if ((fuse_option.find("dd") == 0) ||
             (fuse_option.find("data_directory") == 0)) {
           const auto data = utils::string::split(fuse_option, '=');
-          if (data.size() == 2) {
-            data_directory = data[1];
+          if (data.size() == 2U) {
+            data_directory = data.at(1U);
           } else {
             std::cerr << "Invalid syntax for '-dd,--data_directory'"
                       << std::endl;
             exit(3);
           }
-        } else {
-          fuse_flags_list.push_back(fuse_option);
+          continue;
         }
+
+        fuse_flags_list.push_back(fuse_option);
       }
     }
   }
@@ -191,10 +199,12 @@ auto parse_drive_options(int argc, char **argv,
             utils::remove_element_from(new_drive_args, new_drive_args[i]);
             i--;
           }
-        } else {
-          utils::remove_element_from(new_drive_args, new_drive_args[i]);
-          i--;
+          continue;
         }
+
+        utils::remove_element_from(new_drive_args, new_drive_args[i]);
+        i--;
+        continue;
       }
     }
 
@@ -218,7 +228,7 @@ auto parse_drive_options(int argc, char **argv,
         fuse_flags_list.erase(it, fuse_flags_list.end());
       }
       fuse_flags_list.emplace_back("volname=Repertory" +
-                                   app_config::get_provider_display_name(pt));
+                                   app_config::get_provider_display_name(prov));
 
       it = std::remove_if(fuse_flags_list.begin(), fuse_flags_list.end(),
                           [](const auto &opt) -> bool {

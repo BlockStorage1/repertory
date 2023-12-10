@@ -144,11 +144,12 @@ auto is_process_elevated() -> bool {
   return ret;
 }
 
-auto run_process_elevated(int argc, char *argv[]) -> int {
+auto run_process_elevated(std::vector<const char *> args) -> int {
   std::cout << "Elevating Process" << std::endl;
   std::string parameters = "-hidden";
-  for (int i = 1; i < argc; i++) {
-    parameters += (parameters.empty() ? argv[i] : " " + std::string(argv[i]));
+  for (std::size_t i = 1U; i < args.size(); i++) {
+    parameters +=
+        (parameters.empty() ? args.at(i) : " " + std::string(args.at(i)));
   }
 
   char full_path[MAX_PATH] = {0};

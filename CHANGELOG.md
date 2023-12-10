@@ -1,7 +1,28 @@
 # Changelog
 
+## 2.0.1-rc
+
+### Issues
+
+* \#10 Address compiler warnings
+* \#11 Switch to SQLite over RocksDB
+
+### Changes from v2.0.0-rc
+
+* Refactored Sia, S3 and base provider
+* Fixed intermittent deadlock on file close
+* Removed MSVC compilation support (MinGW-64 should be used)
+* Require `c++20`
+* Switched to Storj over Filebase for hosting binaries
+* Updated `boost` to v1.83.0
+* Updated `cpp-httplib` to v0.14.2
+* Updated `curl` to v8.4.0
+* Updated `libsodium` to v1.0.19
+* Updated `OpenSSL` to v3.2.0
+
 ## 2.0.0-rc
 
+<!-- markdownlint-disable-next-line -->
 ### Issues
 
 * \#1 \[bug\] Unable to mount S3 due to 'item_not_found' exception

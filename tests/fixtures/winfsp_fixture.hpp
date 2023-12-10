@@ -26,7 +26,6 @@
 #include "test_common.hpp"
 
 #include "app_config.hpp"
-#include "comm/s3/s3_comm.hpp"
 #include "comm/curl/curl_comm.hpp"
 #include "drives/winfsp/winfsp_drive.hpp"
 #include "platform/platform.hpp"
@@ -43,9 +42,6 @@ public:
   std::unique_ptr<curl_comm> comm;
   std::unique_ptr<i_provider> provider;
   std::unique_ptr<winfsp_drive> drive;
-#ifdef REPERTORY_ENABLE_S3
-  std::unique_ptr<s3_comm> s3_comm_;
-#endif
 
 protected:
   void SetUp() override {
@@ -56,7 +52,7 @@ protected:
             "./winfsp_test" + std::to_string(PROVIDER_INDEX)));
 
         app_config src_cfg(provider_type::s3,
-                           utils::path::combine(get_test_dir(), {"filebase"}));
+                           utils::path::combine(get_test_dir(), {"storj"}));
         config = std::make_unique<app_config>(
             provider_type::s3,
             "./winfsp_test" + std::to_string(PROVIDER_INDEX));
@@ -74,6 +70,11 @@ protected:
                          .empty());
         EXPECT_FALSE(
             config
+                ->set_value_by_name("S3Config.EncryptionToken",
+                                    src_cfg.get_s3_config().encryption_token)
+                .empty());
+        EXPECT_FALSE(
+            config
                 ->set_value_by_name("S3Config.URL", src_cfg.get_s3_config().url)
                 .empty());
         EXPECT_FALSE(
@@ -82,8 +83,8 @@ protected:
         config->set_enable_drive_events(true);
         event_system::instance().start();
 
-        s3_comm_ = std::make_unique<s3_comm>(*config);
-        provider = std::make_unique<s3_provider>(*config, *s3_comm_);
+        comm = std::make_unique<curl_comm>(config->get_s3_config());
+        provider = std::make_unique<s3_provider>(*config, *comm);
         drive = std::make_unique<winfsp_drive>(*config, lock_data_, *provider);
 #endif
         return;
@@ -132,9 +133,6 @@ protected:
     if (PROVIDER_INDEX != 0) {
       drive.reset();
       provider.reset();
-#ifdef REPERTORY_ENABLE_S3
-      s3_comm_.reset();
-#endif
       comm.reset();
       config.reset();
 

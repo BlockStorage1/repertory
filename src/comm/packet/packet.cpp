@@ -32,7 +32,7 @@
 namespace repertory {
 void packet::clear() {
   buffer_.clear();
-  decode_offset_ = 0u;
+  decode_offset_ = 0U;
 }
 
 auto packet::decode(std::string &data) -> packet::error_type {
@@ -59,7 +59,7 @@ auto packet::decode(void *&ptr) -> packet::error_type {
 }
 
 auto packet::decode(void *buffer, std::size_t size) -> packet::error_type {
-  if (size) {
+  if (size != 0U) {
     const auto read_size =
         utils::calculate_read_size(buffer_.size(), size, decode_offset_);
     if (read_size == size) {
@@ -75,153 +75,153 @@ auto packet::decode(void *buffer, std::size_t size) -> packet::error_type {
   return utils::from_api_error(api_error::success);
 }
 
-auto packet::decode(std::int8_t &i) -> packet::error_type {
-  const auto ret = decode(&i, sizeof(i));
+auto packet::decode(std::int8_t &val) -> packet::error_type {
+  const auto ret = decode(&val, sizeof(val));
   if (ret == 0) {
-    boost::endian::big_to_native_inplace(i);
+    boost::endian::big_to_native_inplace(val);
   }
   return ret;
 }
 
-auto packet::decode(std::uint8_t &i) -> packet::error_type {
-  const auto ret = decode(&i, sizeof(i));
+auto packet::decode(std::uint8_t &val) -> packet::error_type {
+  const auto ret = decode(&val, sizeof(val));
   if (ret == 0) {
-    boost::endian::big_to_native_inplace(i);
+    boost::endian::big_to_native_inplace(val);
   }
   return ret;
 }
 
-auto packet::decode(std::int16_t &i) -> packet::error_type {
-  const auto ret = decode(&i, sizeof(i));
+auto packet::decode(std::int16_t &val) -> packet::error_type {
+  const auto ret = decode(&val, sizeof(val));
   if (ret == 0) {
-    boost::endian::big_to_native_inplace(i);
+    boost::endian::big_to_native_inplace(val);
   }
   return ret;
 }
 
-auto packet::decode(std::uint16_t &i) -> packet::error_type {
-  const auto ret = decode(&i, sizeof(i));
+auto packet::decode(std::uint16_t &val) -> packet::error_type {
+  const auto ret = decode(&val, sizeof(val));
   if (ret == 0) {
-    boost::endian::big_to_native_inplace(i);
+    boost::endian::big_to_native_inplace(val);
   }
   return ret;
 }
 
-auto packet::decode(std::int32_t &i) -> packet::error_type {
-  const auto ret = decode(&i, sizeof(i));
+auto packet::decode(std::int32_t &val) -> packet::error_type {
+  const auto ret = decode(&val, sizeof(val));
   if (ret == 0) {
-    boost::endian::big_to_native_inplace(i);
+    boost::endian::big_to_native_inplace(val);
   }
   return ret;
 }
 
-auto packet::decode(std::uint32_t &i) -> packet::error_type {
-  const auto ret = decode(&i, sizeof(i));
+auto packet::decode(std::uint32_t &val) -> packet::error_type {
+  const auto ret = decode(&val, sizeof(val));
   if (ret == 0) {
-    boost::endian::big_to_native_inplace(i);
+    boost::endian::big_to_native_inplace(val);
   }
   return ret;
 }
 
-auto packet::decode(std::int64_t &i) -> packet::error_type {
-  const auto ret = decode(&i, sizeof(i));
+auto packet::decode(std::int64_t &val) -> packet::error_type {
+  const auto ret = decode(&val, sizeof(val));
   if (ret == 0) {
-    boost::endian::big_to_native_inplace(i);
+    boost::endian::big_to_native_inplace(val);
   }
   return ret;
 }
 
-auto packet::decode(std::uint64_t &i) -> packet::error_type {
-  const auto ret = decode(&i, sizeof(i));
+auto packet::decode(std::uint64_t &val) -> packet::error_type {
+  const auto ret = decode(&val, sizeof(val));
   if (ret == 0) {
-    boost::endian::big_to_native_inplace(i);
+    boost::endian::big_to_native_inplace(val);
   }
   return ret;
 }
 
-auto packet::decode(remote::setattr_x &i) -> packet::error_type {
-  const auto ret = decode(&i, sizeof(i));
+auto packet::decode(remote::setattr_x &val) -> packet::error_type {
+  const auto ret = decode(&val, sizeof(val));
   if (ret == 0) {
-    boost::endian::big_to_native_inplace(i.acctime);
-    boost::endian::big_to_native_inplace(i.bkuptime);
-    boost::endian::big_to_native_inplace(i.chgtime);
-    boost::endian::big_to_native_inplace(i.crtime);
-    boost::endian::big_to_native_inplace(i.flags);
-    boost::endian::big_to_native_inplace(i.gid);
-    boost::endian::big_to_native_inplace(i.mode);
-    boost::endian::big_to_native_inplace(i.modtime);
-    boost::endian::big_to_native_inplace(i.size);
-    boost::endian::big_to_native_inplace(i.uid);
-    boost::endian::big_to_native_inplace(i.valid);
-  }
-
-  return ret;
-}
-
-auto packet::decode(remote::stat &i) -> packet::error_type {
-  const auto ret = decode(&i, sizeof(i));
-  if (ret == 0) {
-    boost::endian::big_to_native_inplace(i.st_mode);
-    boost::endian::big_to_native_inplace(i.st_nlink);
-    boost::endian::big_to_native_inplace(i.st_uid);
-    boost::endian::big_to_native_inplace(i.st_gid);
-    boost::endian::big_to_native_inplace(i.st_atimespec);
-    boost::endian::big_to_native_inplace(i.st_mtimespec);
-    boost::endian::big_to_native_inplace(i.st_ctimespec);
-    boost::endian::big_to_native_inplace(i.st_birthtimespec);
-    boost::endian::big_to_native_inplace(i.st_size);
-    boost::endian::big_to_native_inplace(i.st_blocks);
-    boost::endian::big_to_native_inplace(i.st_blksize);
-    boost::endian::big_to_native_inplace(i.st_flags);
+    boost::endian::big_to_native_inplace(val.acctime);
+    boost::endian::big_to_native_inplace(val.bkuptime);
+    boost::endian::big_to_native_inplace(val.chgtime);
+    boost::endian::big_to_native_inplace(val.crtime);
+    boost::endian::big_to_native_inplace(val.flags);
+    boost::endian::big_to_native_inplace(val.gid);
+    boost::endian::big_to_native_inplace(val.mode);
+    boost::endian::big_to_native_inplace(val.modtime);
+    boost::endian::big_to_native_inplace(val.size);
+    boost::endian::big_to_native_inplace(val.uid);
+    boost::endian::big_to_native_inplace(val.valid);
   }
 
   return ret;
 }
 
-auto packet::decode(remote::statfs &i) -> packet::error_type {
-  const auto ret = decode(&i, sizeof(i));
+auto packet::decode(remote::stat &val) -> packet::error_type {
+  const auto ret = decode(&val, sizeof(val));
   if (ret == 0) {
-    boost::endian::big_to_native_inplace(i.f_bavail);
-    boost::endian::big_to_native_inplace(i.f_bfree);
-    boost::endian::big_to_native_inplace(i.f_blocks);
-    boost::endian::big_to_native_inplace(i.f_favail);
-    boost::endian::big_to_native_inplace(i.f_ffree);
-    boost::endian::big_to_native_inplace(i.f_files);
+    boost::endian::big_to_native_inplace(val.st_mode);
+    boost::endian::big_to_native_inplace(val.st_nlink);
+    boost::endian::big_to_native_inplace(val.st_uid);
+    boost::endian::big_to_native_inplace(val.st_gid);
+    boost::endian::big_to_native_inplace(val.st_atimespec);
+    boost::endian::big_to_native_inplace(val.st_mtimespec);
+    boost::endian::big_to_native_inplace(val.st_ctimespec);
+    boost::endian::big_to_native_inplace(val.st_birthtimespec);
+    boost::endian::big_to_native_inplace(val.st_size);
+    boost::endian::big_to_native_inplace(val.st_blocks);
+    boost::endian::big_to_native_inplace(val.st_blksize);
+    boost::endian::big_to_native_inplace(val.st_flags);
+  }
+
+  return ret;
+}
+
+auto packet::decode(remote::statfs &val) -> packet::error_type {
+  const auto ret = decode(&val, sizeof(val));
+  if (ret == 0) {
+    boost::endian::big_to_native_inplace(val.f_bavail);
+    boost::endian::big_to_native_inplace(val.f_bfree);
+    boost::endian::big_to_native_inplace(val.f_blocks);
+    boost::endian::big_to_native_inplace(val.f_favail);
+    boost::endian::big_to_native_inplace(val.f_ffree);
+    boost::endian::big_to_native_inplace(val.f_files);
   }
   return ret;
 }
 
-auto packet::decode(remote::statfs_x &i) -> packet::error_type {
-  auto ret = decode(*dynamic_cast<remote::statfs *>(&i));
+auto packet::decode(remote::statfs_x &val) -> packet::error_type {
+  auto ret = decode(*dynamic_cast<remote::statfs *>(&val));
   if (ret == 0) {
-    ret = decode(&i.f_mntfromname[0], 1024);
+    ret = decode(&val.f_mntfromname[0U], sizeof(val.f_mntfromname));
   }
   return ret;
 }
 
-auto packet::decode(remote::file_info &i) -> packet::error_type {
-  const auto ret = decode(&i, sizeof(i));
+auto packet::decode(remote::file_info &val) -> packet::error_type {
+  const auto ret = decode(&val, sizeof(val));
   if (ret == 0) {
-    boost::endian::big_to_native_inplace(i.AllocationSize);
-    boost::endian::big_to_native_inplace(i.ChangeTime);
-    boost::endian::big_to_native_inplace(i.CreationTime);
-    boost::endian::big_to_native_inplace(i.EaSize);
-    boost::endian::big_to_native_inplace(i.FileAttributes);
-    boost::endian::big_to_native_inplace(i.FileSize);
-    boost::endian::big_to_native_inplace(i.HardLinks);
-    boost::endian::big_to_native_inplace(i.IndexNumber);
-    boost::endian::big_to_native_inplace(i.LastAccessTime);
-    boost::endian::big_to_native_inplace(i.LastWriteTime);
-    boost::endian::big_to_native_inplace(i.ReparseTag);
+    boost::endian::big_to_native_inplace(val.AllocationSize);
+    boost::endian::big_to_native_inplace(val.ChangeTime);
+    boost::endian::big_to_native_inplace(val.CreationTime);
+    boost::endian::big_to_native_inplace(val.EaSize);
+    boost::endian::big_to_native_inplace(val.FileAttributes);
+    boost::endian::big_to_native_inplace(val.FileSize);
+    boost::endian::big_to_native_inplace(val.HardLinks);
+    boost::endian::big_to_native_inplace(val.IndexNumber);
+    boost::endian::big_to_native_inplace(val.LastAccessTime);
+    boost::endian::big_to_native_inplace(val.LastWriteTime);
+    boost::endian::big_to_native_inplace(val.ReparseTag);
   }
 
   return ret;
 }
 
 auto packet::decode_json(packet &response, json &json_data) -> int {
-  int ret = 0;
   std::string data;
-  if ((ret = response.decode(data)) == 0) {
+  auto ret = response.decode(data);
+  if (ret == 0) {
     try {
       json_data = json::parse(data);
     } catch (const std::exception &e) {
@@ -253,7 +253,7 @@ auto packet::decrypt(const std::string &token) -> packet::error_type {
 }
 
 void packet::encode(const void *buffer, std::size_t size, bool should_reserve) {
-  if (size) {
+  if (size != 0U) {
     if (should_reserve) {
       buffer_.reserve(buffer_.size() + size);
     }
@@ -263,133 +263,130 @@ void packet::encode(const void *buffer, std::size_t size, bool should_reserve) {
 }
 
 void packet::encode(const std::string &str) {
-  const auto len = strnlen(&str[0], str.size());
+  const auto len = strnlen(str.c_str(), str.size());
   buffer_.reserve(len + 1 + buffer_.size());
-  encode(&str[0], len, false);
+  encode(str.c_str(), len, false);
   buffer_.emplace_back(0);
 }
 
-void packet::encode(wchar_t *str) {
-  encode(utils::string::to_utf8(str ? str : L""));
-}
-
 void packet::encode(const wchar_t *str) {
-  encode(utils::string::to_utf8(str ? str : L""));
+  encode(utils::string::to_utf8(str == nullptr ? L"" : str));
 }
 
 void packet::encode(const std::wstring &str) {
   encode(utils::string::to_utf8(str));
 }
 
-void packet::encode(std::int8_t i) {
-  boost::endian::native_to_big_inplace(i);
-  encode(&i, sizeof(i), true);
+void packet::encode(std::int8_t val) {
+  boost::endian::native_to_big_inplace(val);
+  encode(&val, sizeof(val), true);
 }
 
-void packet::encode(std::uint8_t i) {
-  boost::endian::native_to_big_inplace(i);
-  encode(&i, sizeof(i), true);
+void packet::encode(std::uint8_t val) {
+  boost::endian::native_to_big_inplace(val);
+  encode(&val, sizeof(val), true);
 }
 
-void packet::encode(std::int16_t i) {
-  boost::endian::native_to_big_inplace(i);
-  encode(&i, sizeof(i), true);
+void packet::encode(std::int16_t val) {
+  boost::endian::native_to_big_inplace(val);
+  encode(&val, sizeof(val), true);
 }
 
-void packet::encode(std::uint16_t i) {
-  boost::endian::native_to_big_inplace(i);
-  encode(&i, sizeof(i), true);
+void packet::encode(std::uint16_t val) {
+  boost::endian::native_to_big_inplace(val);
+  encode(&val, sizeof(val), true);
 }
 
-void packet::encode(std::int32_t i) {
-  boost::endian::native_to_big_inplace(i);
-  encode(&i, sizeof(i), true);
+void packet::encode(std::int32_t val) {
+  boost::endian::native_to_big_inplace(val);
+  encode(&val, sizeof(val), true);
 }
 
-void packet::encode(std::uint32_t i) {
-  boost::endian::native_to_big_inplace(i);
-  encode(&i, sizeof(i), true);
+void packet::encode(std::uint32_t val) {
+  boost::endian::native_to_big_inplace(val);
+  encode(&val, sizeof(val), true);
 }
 
-void packet::encode(std::int64_t i) {
-  boost::endian::native_to_big_inplace(i);
-  encode(&i, sizeof(i), true);
+void packet::encode(std::int64_t val) {
+  boost::endian::native_to_big_inplace(val);
+  encode(&val, sizeof(val), true);
 }
 
-void packet::encode(std::uint64_t i) {
-  boost::endian::native_to_big_inplace(i);
-  encode(&i, sizeof(i), true);
+void packet::encode(std::uint64_t val) {
+  boost::endian::native_to_big_inplace(val);
+  encode(&val, sizeof(val), true);
 }
 
-void packet::encode(remote::setattr_x i) {
-  boost::endian::native_to_big_inplace(i.acctime);
-  boost::endian::native_to_big_inplace(i.bkuptime);
-  boost::endian::native_to_big_inplace(i.chgtime);
-  boost::endian::native_to_big_inplace(i.crtime);
-  boost::endian::native_to_big_inplace(i.flags);
-  boost::endian::native_to_big_inplace(i.gid);
-  boost::endian::native_to_big_inplace(i.mode);
-  boost::endian::native_to_big_inplace(i.modtime);
-  boost::endian::native_to_big_inplace(i.size);
-  boost::endian::native_to_big_inplace(i.uid);
-  boost::endian::native_to_big_inplace(i.valid);
+void packet::encode(remote::setattr_x val) {
+  boost::endian::native_to_big_inplace(val.acctime);
+  boost::endian::native_to_big_inplace(val.bkuptime);
+  boost::endian::native_to_big_inplace(val.chgtime);
+  boost::endian::native_to_big_inplace(val.crtime);
+  boost::endian::native_to_big_inplace(val.flags);
+  boost::endian::native_to_big_inplace(val.gid);
+  boost::endian::native_to_big_inplace(val.mode);
+  boost::endian::native_to_big_inplace(val.modtime);
+  boost::endian::native_to_big_inplace(val.size);
+  boost::endian::native_to_big_inplace(val.uid);
+  boost::endian::native_to_big_inplace(val.valid);
 
-  encode(&i, sizeof(i), true);
+  encode(&val, sizeof(val), true);
 }
 
-void packet::encode(remote::stat i) {
-  boost::endian::native_to_big_inplace(i.st_mode);
-  boost::endian::native_to_big_inplace(i.st_nlink);
-  boost::endian::native_to_big_inplace(i.st_uid);
-  boost::endian::native_to_big_inplace(i.st_gid);
-  boost::endian::native_to_big_inplace(i.st_atimespec);
-  boost::endian::native_to_big_inplace(i.st_mtimespec);
-  boost::endian::native_to_big_inplace(i.st_ctimespec);
-  boost::endian::native_to_big_inplace(i.st_birthtimespec);
-  boost::endian::native_to_big_inplace(i.st_size);
-  boost::endian::native_to_big_inplace(i.st_blocks);
-  boost::endian::native_to_big_inplace(i.st_blksize);
-  boost::endian::native_to_big_inplace(i.st_flags);
+void packet::encode(remote::stat val) {
+  boost::endian::native_to_big_inplace(val.st_mode);
+  boost::endian::native_to_big_inplace(val.st_nlink);
+  boost::endian::native_to_big_inplace(val.st_uid);
+  boost::endian::native_to_big_inplace(val.st_gid);
+  boost::endian::native_to_big_inplace(val.st_atimespec);
+  boost::endian::native_to_big_inplace(val.st_mtimespec);
+  boost::endian::native_to_big_inplace(val.st_ctimespec);
+  boost::endian::native_to_big_inplace(val.st_birthtimespec);
+  boost::endian::native_to_big_inplace(val.st_size);
+  boost::endian::native_to_big_inplace(val.st_blocks);
+  boost::endian::native_to_big_inplace(val.st_blksize);
+  boost::endian::native_to_big_inplace(val.st_flags);
 
-  encode(&i, sizeof(i), true);
+  encode(&val, sizeof(val), true);
 }
 
-void packet::encode(remote::statfs i, bool should_reserve) {
-  boost::endian::native_to_big_inplace(i.f_bavail);
-  boost::endian::native_to_big_inplace(i.f_bfree);
-  boost::endian::native_to_big_inplace(i.f_blocks);
-  boost::endian::native_to_big_inplace(i.f_favail);
-  boost::endian::native_to_big_inplace(i.f_ffree);
-  boost::endian::native_to_big_inplace(i.f_files);
+void packet::encode(remote::statfs val, bool should_reserve) {
+  boost::endian::native_to_big_inplace(val.f_bavail);
+  boost::endian::native_to_big_inplace(val.f_bfree);
+  boost::endian::native_to_big_inplace(val.f_blocks);
+  boost::endian::native_to_big_inplace(val.f_favail);
+  boost::endian::native_to_big_inplace(val.f_ffree);
+  boost::endian::native_to_big_inplace(val.f_files);
 
-  encode(&i, sizeof(remote::statfs), should_reserve);
+  encode(&val, sizeof(remote::statfs), should_reserve);
 }
 
-void packet::encode(remote::statfs_x i) {
-  buffer_.reserve(buffer_.size() + sizeof(remote::statfs) + 1024);
-  encode(*dynamic_cast<remote::statfs *>(&i), false);
-  encode(&i.f_mntfromname[0], 1024, false);
+void packet::encode(remote::statfs_x val) {
+  buffer_.reserve(buffer_.size() + sizeof(remote::statfs) +
+                  sizeof(val.f_mntfromname));
+  encode(*dynamic_cast<remote::statfs *>(&val), false);
+  encode(&val.f_mntfromname[0], sizeof(val.f_mntfromname), false);
 }
 
-void packet::encode(remote::file_info i) {
-  boost::endian::native_to_big_inplace(i.FileAttributes);
-  boost::endian::native_to_big_inplace(i.ReparseTag);
-  boost::endian::native_to_big_inplace(i.AllocationSize);
-  boost::endian::native_to_big_inplace(i.FileSize);
-  boost::endian::native_to_big_inplace(i.CreationTime);
-  boost::endian::native_to_big_inplace(i.LastAccessTime);
-  boost::endian::native_to_big_inplace(i.LastWriteTime);
-  boost::endian::native_to_big_inplace(i.ChangeTime);
-  boost::endian::native_to_big_inplace(i.IndexNumber);
-  boost::endian::native_to_big_inplace(i.HardLinks);
-  boost::endian::native_to_big_inplace(i.EaSize);
+void packet::encode(remote::file_info val) {
+  boost::endian::native_to_big_inplace(val.FileAttributes);
+  boost::endian::native_to_big_inplace(val.ReparseTag);
+  boost::endian::native_to_big_inplace(val.AllocationSize);
+  boost::endian::native_to_big_inplace(val.FileSize);
+  boost::endian::native_to_big_inplace(val.CreationTime);
+  boost::endian::native_to_big_inplace(val.LastAccessTime);
+  boost::endian::native_to_big_inplace(val.LastWriteTime);
+  boost::endian::native_to_big_inplace(val.ChangeTime);
+  boost::endian::native_to_big_inplace(val.IndexNumber);
+  boost::endian::native_to_big_inplace(val.HardLinks);
+  boost::endian::native_to_big_inplace(val.EaSize);
 
-  encode(&i, sizeof(i), true);
+  encode(&val, sizeof(val), true);
 }
 
 void packet::encode_top(const void *buffer, std::size_t size,
                         bool should_reserve) {
-  if (size) {
+  if (size != 0U) {
     if (should_reserve) {
       buffer_.reserve(buffer_.size() + size);
     }
@@ -401,7 +398,7 @@ void packet::encode_top(const void *buffer, std::size_t size,
 void packet::encode_top(const std::string &str) {
   const auto len = strnlen(str.c_str(), str.size());
   buffer_.reserve(len + 1U + buffer_.size());
-  encode_top(&str[0], len, false);
+  encode_top(str.c_str(), len, false);
   buffer_.insert(buffer_.begin() + static_cast<std::int32_t>(len), 0);
 }
 
@@ -409,110 +406,111 @@ void packet::encode_top(const std::wstring &str) {
   encode_top(utils::string::to_utf8(str));
 }
 
-void packet::encode_top(std::int8_t i) {
-  boost::endian::native_to_big_inplace(i);
-  encode_top(&i, sizeof(i), true);
+void packet::encode_top(std::int8_t val) {
+  boost::endian::native_to_big_inplace(val);
+  encode_top(&val, sizeof(val), true);
 }
 
-void packet::encode_top(std::uint8_t i) {
-  boost::endian::native_to_big_inplace(i);
-  encode_top(&i, sizeof(i), true);
+void packet::encode_top(std::uint8_t val) {
+  boost::endian::native_to_big_inplace(val);
+  encode_top(&val, sizeof(val), true);
 }
 
-void packet::encode_top(std::int16_t i) {
-  boost::endian::native_to_big_inplace(i);
-  encode_top(&i, sizeof(i), true);
+void packet::encode_top(std::int16_t val) {
+  boost::endian::native_to_big_inplace(val);
+  encode_top(&val, sizeof(val), true);
 }
 
-void packet::encode_top(std::uint16_t i) {
-  boost::endian::native_to_big_inplace(i);
-  encode_top(&i, sizeof(i), true);
+void packet::encode_top(std::uint16_t val) {
+  boost::endian::native_to_big_inplace(val);
+  encode_top(&val, sizeof(val), true);
 }
 
-void packet::encode_top(std::int32_t i) {
-  boost::endian::native_to_big_inplace(i);
-  encode_top(&i, sizeof(i), true);
+void packet::encode_top(std::int32_t val) {
+  boost::endian::native_to_big_inplace(val);
+  encode_top(&val, sizeof(val), true);
 }
 
-void packet::encode_top(std::uint32_t i) {
-  boost::endian::native_to_big_inplace(i);
-  encode_top(&i, sizeof(i), true);
+void packet::encode_top(std::uint32_t val) {
+  boost::endian::native_to_big_inplace(val);
+  encode_top(&val, sizeof(val), true);
 }
 
-void packet::encode_top(std::int64_t i) {
-  boost::endian::native_to_big_inplace(i);
-  encode_top(&i, sizeof(i), true);
+void packet::encode_top(std::int64_t val) {
+  boost::endian::native_to_big_inplace(val);
+  encode_top(&val, sizeof(val), true);
 }
 
-void packet::encode_top(std::uint64_t i) {
-  boost::endian::native_to_big_inplace(i);
-  encode_top(&i, sizeof(i), true);
+void packet::encode_top(std::uint64_t val) {
+  boost::endian::native_to_big_inplace(val);
+  encode_top(&val, sizeof(val), true);
 }
 
-void packet::encode_top(remote::setattr_x i) {
-  boost::endian::native_to_big_inplace(i.acctime);
-  boost::endian::native_to_big_inplace(i.bkuptime);
-  boost::endian::native_to_big_inplace(i.chgtime);
-  boost::endian::native_to_big_inplace(i.crtime);
-  boost::endian::native_to_big_inplace(i.flags);
-  boost::endian::native_to_big_inplace(i.gid);
-  boost::endian::native_to_big_inplace(i.mode);
-  boost::endian::native_to_big_inplace(i.modtime);
-  boost::endian::native_to_big_inplace(i.size);
-  boost::endian::native_to_big_inplace(i.uid);
-  boost::endian::native_to_big_inplace(i.valid);
+void packet::encode_top(remote::setattr_x val) {
+  boost::endian::native_to_big_inplace(val.acctime);
+  boost::endian::native_to_big_inplace(val.bkuptime);
+  boost::endian::native_to_big_inplace(val.chgtime);
+  boost::endian::native_to_big_inplace(val.crtime);
+  boost::endian::native_to_big_inplace(val.flags);
+  boost::endian::native_to_big_inplace(val.gid);
+  boost::endian::native_to_big_inplace(val.mode);
+  boost::endian::native_to_big_inplace(val.modtime);
+  boost::endian::native_to_big_inplace(val.size);
+  boost::endian::native_to_big_inplace(val.uid);
+  boost::endian::native_to_big_inplace(val.valid);
 
-  encode_top(&i, sizeof(i), true);
+  encode_top(&val, sizeof(val), true);
 }
 
-void packet::encode_top(remote::stat i) {
-  boost::endian::native_to_big_inplace(i.st_mode);
-  boost::endian::native_to_big_inplace(i.st_nlink);
-  boost::endian::native_to_big_inplace(i.st_uid);
-  boost::endian::native_to_big_inplace(i.st_gid);
-  boost::endian::native_to_big_inplace(i.st_atimespec);
-  boost::endian::native_to_big_inplace(i.st_mtimespec);
-  boost::endian::native_to_big_inplace(i.st_ctimespec);
-  boost::endian::native_to_big_inplace(i.st_birthtimespec);
-  boost::endian::native_to_big_inplace(i.st_size);
-  boost::endian::native_to_big_inplace(i.st_blocks);
-  boost::endian::native_to_big_inplace(i.st_blksize);
-  boost::endian::native_to_big_inplace(i.st_flags);
+void packet::encode_top(remote::stat val) {
+  boost::endian::native_to_big_inplace(val.st_mode);
+  boost::endian::native_to_big_inplace(val.st_nlink);
+  boost::endian::native_to_big_inplace(val.st_uid);
+  boost::endian::native_to_big_inplace(val.st_gid);
+  boost::endian::native_to_big_inplace(val.st_atimespec);
+  boost::endian::native_to_big_inplace(val.st_mtimespec);
+  boost::endian::native_to_big_inplace(val.st_ctimespec);
+  boost::endian::native_to_big_inplace(val.st_birthtimespec);
+  boost::endian::native_to_big_inplace(val.st_size);
+  boost::endian::native_to_big_inplace(val.st_blocks);
+  boost::endian::native_to_big_inplace(val.st_blksize);
+  boost::endian::native_to_big_inplace(val.st_flags);
 
-  encode_top(&i, sizeof(i), true);
+  encode_top(&val, sizeof(val), true);
 }
 
-void packet::encode_top(remote::statfs i, bool should_reserve) {
-  boost::endian::native_to_big_inplace(i.f_bavail);
-  boost::endian::native_to_big_inplace(i.f_bfree);
-  boost::endian::native_to_big_inplace(i.f_blocks);
-  boost::endian::native_to_big_inplace(i.f_favail);
-  boost::endian::native_to_big_inplace(i.f_ffree);
-  boost::endian::native_to_big_inplace(i.f_files);
+void packet::encode_top(remote::statfs val, bool should_reserve) {
+  boost::endian::native_to_big_inplace(val.f_bavail);
+  boost::endian::native_to_big_inplace(val.f_bfree);
+  boost::endian::native_to_big_inplace(val.f_blocks);
+  boost::endian::native_to_big_inplace(val.f_favail);
+  boost::endian::native_to_big_inplace(val.f_ffree);
+  boost::endian::native_to_big_inplace(val.f_files);
 
-  encode_top(&i, sizeof(remote::statfs), should_reserve);
+  encode_top(&val, sizeof(remote::statfs), should_reserve);
 }
 
-void packet::encode_top(remote::statfs_x i) {
-  buffer_.reserve(buffer_.size() + sizeof(remote::statfs) + 1024);
-  encode_top(&i.f_mntfromname[0], 1024, false);
-  encode_top(*dynamic_cast<remote::statfs *>(&i), false);
+void packet::encode_top(remote::statfs_x val) {
+  buffer_.reserve(buffer_.size() + sizeof(remote::statfs) +
+                  sizeof(val.f_mntfromname));
+  encode_top(&val.f_mntfromname[0], sizeof(val.f_mntfromname), false);
+  encode_top(*dynamic_cast<remote::statfs *>(&val), false);
 }
 
-void packet::encode_top(remote::file_info i) {
-  boost::endian::native_to_big_inplace(i.FileAttributes);
-  boost::endian::native_to_big_inplace(i.ReparseTag);
-  boost::endian::native_to_big_inplace(i.AllocationSize);
-  boost::endian::native_to_big_inplace(i.FileSize);
-  boost::endian::native_to_big_inplace(i.CreationTime);
-  boost::endian::native_to_big_inplace(i.LastAccessTime);
-  boost::endian::native_to_big_inplace(i.LastWriteTime);
-  boost::endian::native_to_big_inplace(i.ChangeTime);
-  boost::endian::native_to_big_inplace(i.IndexNumber);
-  boost::endian::native_to_big_inplace(i.HardLinks);
-  boost::endian::native_to_big_inplace(i.EaSize);
+void packet::encode_top(remote::file_info val) {
+  boost::endian::native_to_big_inplace(val.FileAttributes);
+  boost::endian::native_to_big_inplace(val.ReparseTag);
+  boost::endian::native_to_big_inplace(val.AllocationSize);
+  boost::endian::native_to_big_inplace(val.FileSize);
+  boost::endian::native_to_big_inplace(val.CreationTime);
+  boost::endian::native_to_big_inplace(val.LastAccessTime);
+  boost::endian::native_to_big_inplace(val.LastWriteTime);
+  boost::endian::native_to_big_inplace(val.ChangeTime);
+  boost::endian::native_to_big_inplace(val.IndexNumber);
+  boost::endian::native_to_big_inplace(val.HardLinks);
+  boost::endian::native_to_big_inplace(val.EaSize);
 
-  encode_top(&i, sizeof(i), true);
+  encode_top(&val, sizeof(val), true);
 }
 
 void packet::encrypt(const std::string &token) {
@@ -550,19 +548,19 @@ auto packet::operator=(data_buffer &&buffer) noexcept -> packet & {
   return *this;
 }
 
-auto packet::operator=(const packet &p) noexcept -> packet & {
-  if (this != &p) {
-    buffer_ = p.buffer_;
-    decode_offset_ = p.decode_offset_;
+auto packet::operator=(const packet &pkt) noexcept -> packet & {
+  if (this != &pkt) {
+    buffer_ = pkt.buffer_;
+    decode_offset_ = pkt.decode_offset_;
   }
 
   return *this;
 }
 
-auto packet::operator=(packet &&p) noexcept -> packet & {
-  if (this != &p) {
-    buffer_ = std::move(p.buffer_);
-    decode_offset_ = p.decode_offset_;
+auto packet::operator=(packet &&pkt) noexcept -> packet & {
+  if (this != &pkt) {
+    buffer_ = std::move(pkt.buffer_);
+    decode_offset_ = pkt.decode_offset_;
   }
 
   return *this;

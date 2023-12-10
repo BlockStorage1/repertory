@@ -28,145 +28,9 @@
 
 namespace repertory {
 // clang-format off
-E_SIMPLE3(cache_file_processed, normal, true,
-  std::string, api_path, ap, E_STRING,
-  std::string, source, src, E_STRING,
-  api_error, result, res, E_FROM_API_FILE_ERROR
-);
-
-E_SIMPLE2(comm_auth_begin, normal, true,
+E_SIMPLE2(curl_error, normal, true,
   std::string, url, url, E_STRING,
-  std::string, user, user, E_STRING
-);
-
-E_SIMPLE4(comm_auth_end, normal, true,
-  std::string, url, url, E_STRING,
-  std::string, user, user, E_STRING,
-  CURLcode, curl, curl, E_FROM_INT32,
-  int, http, http, E_FROM_INT32
-);
-
-E_SIMPLE2(comm_auth_logout_begin, normal, true,
-  std::string, url, url, E_STRING,
-  std::string, user, user, E_STRING
-);
-
-E_SIMPLE4(comm_auth_logout_end, normal, true,
-  std::string, url, url, E_STRING,
-  std::string, user, user, E_STRING,
-  CURLcode, curl, curl, E_FROM_INT32,
-  int, http, http, E_FROM_INT32
-);
-
-E_SIMPLE1(comm_del_begin, verbose, true,
-  std::string, url, url, E_STRING
-);
-
-E_SIMPLE4(comm_del_end, verbose, true,
-  std::string, url, url, E_STRING,
-  CURLcode, curl, curl, E_FROM_INT32,
-  int, http, http, E_FROM_INT32,
-  std::string, result, res, E_STRING
-);
-
-E_SIMPLE1(comm_get_begin, verbose, true,
-  std::string, url, url, E_STRING
-);
-
-E_SIMPLE4(comm_get_end, verbose, true,
-  std::string, url, url, E_STRING,
-  CURLcode, curl, curl, E_FROM_INT32,
-  int, http, http, E_FROM_INT32,
-  std::string, result, res, E_STRING
-);
-
-E_SIMPLE1(comm_get_range_begin, verbose, true,
-  std::string, url, url, E_STRING
-);
-
-E_SIMPLE4(comm_get_range_end, verbose, true,
-  std::string, url, url, E_STRING,
-  CURLcode, curl, curl, E_FROM_INT32,
-  int, http, http, E_FROM_INT32,
-  std::string, error, err, E_STRING
-);
-
-E_SIMPLE1(comm_get_raw_begin, verbose, true,
-  std::string, url, url, E_STRING
-);
-
-E_SIMPLE4(comm_get_raw_end, verbose, true,
-  std::string, url, url, E_STRING,
-  CURLcode, curl, curl, E_FROM_INT32,
-  int, http, http, E_FROM_INT32,
-  std::string, error, err, E_STRING
-);
-
-E_SIMPLE2(comm_post_begin, verbose, true,
-  std::string, url, url, E_STRING,
-  std::string, fields, fields, E_STRING
-);
-
-E_SIMPLE4(comm_post_end, verbose, true,
-  std::string, url, url, E_STRING,
-  CURLcode, curl, curl, E_FROM_INT32,
-  int, http, http, E_FROM_INT32,
-  std::string, result, res, E_STRING
-);
-
-E_SIMPLE2(comm_duration, normal, true,
-  std::string, url, url, E_STRING,
-  std::string, duration, duration, E_STRING
-);
-
-E_SIMPLE1(comm_post_file_begin, debug, true,
-  std::string, url, url, E_STRING
-);
-
-E_SIMPLE4(comm_post_file_end, debug, true,
-  std::string, url, url, E_STRING,
-  CURLcode, curl, curl, E_FROM_INT32,
-  int, http, http, E_FROM_INT32,
-  std::string, error, err, E_STRING
-);
-
-E_SIMPLE1(comm_post_multi_part_file_begin, debug, true,
-  std::string, url, url, E_STRING
-);
-
-E_SIMPLE4(comm_post_multi_part_file_end, debug, true,
-  std::string, url, url, E_STRING,
-  CURLcode, curl, curl, E_FROM_INT32,
-  int, http, http, E_FROM_INT32,
-  std::string, error, err, E_STRING
-);
-
-E_SIMPLE4(comm_tus_upload_begin, debug, true,
-  std::string, file_name, fn, E_STRING,
-  std::string, url, url, E_STRING,
-  std::uint64_t, remain, rem, E_FROM_UINT64,
-  std::uint64_t, offset, off, E_FROM_UINT64
-);
-
-E_SIMPLE6(comm_tus_upload_end, debug, true,
-  std::string, file_name, fn, E_STRING,
-  std::string, url, url, E_STRING,
-  std::uint64_t, remain, rem, E_FROM_UINT64,
-  std::uint64_t, offset, OFF, E_FROM_UINT64,
-  CURLcode, curl, curl, E_FROM_INT32,
-  int, http, http, E_FROM_INT32
-);
-
-E_SIMPLE2(comm_tus_upload_create_begin, debug, true,
-  std::string, file_name, fn, E_STRING,
-  std::string, url, url, E_STRING
-);
-
-E_SIMPLE4(comm_tus_upload_create_end, debug, true,
-  std::string, file_name, fn, E_STRING,
-  std::string, url, url, E_STRING,
-  CURLcode, curl, curl, E_FROM_INT32,
-  int, http, http, E_FROM_INT32
+  CURLcode, res, res, E_FROM_CURL_CODE 
 );
 
 E_SIMPLE3(debug_log, debug, true,
@@ -341,9 +205,8 @@ E_SIMPLE2(file_upload_queued, normal, true,
   std::string, source, src, E_STRING
 );
 
-E_SIMPLE2(file_upload_removed, debug, true,
-  std::string, api_path, ap, E_STRING,
-  std::string, source, src, E_STRING
+E_SIMPLE1(file_upload_removed, debug, true,
+  std::string, api_path, ap, E_STRING
 );
 
 E_SIMPLE3(file_upload_retry, normal, true,

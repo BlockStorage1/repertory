@@ -81,7 +81,7 @@ TEST(file_manager, can_start_and_stop) {
   }
 
   event_system::instance().stop();
-  EXPECT_TRUE(utils::file::delete_directory_recursively("./fm_test"));
+  // EXPECT_TRUE(utils::file::delete_directory_recursively("./fm_test"));
 }
 
 TEST(file_manager, can_create_and_close_file) {
@@ -94,10 +94,13 @@ TEST(file_manager, can_create_and_close_file) {
     mock_provider mp;
 
     EXPECT_CALL(mp, is_direct_only()).WillRepeatedly(Return(false));
+    polling::instance().start(&cfg);
 
     file_manager fm(cfg, mp);
+    fm.start();
 
     event_capture capture({
+        "item_timeout",
         "filesystem_item_opened",
         "filesystem_item_handle_opened",
         "filesystem_item_handle_closed",
@@ -114,8 +117,8 @@ TEST(file_manager, can_create_and_close_file) {
       const auto now = utils::get_file_time_now();
       auto meta = create_meta_attributes(
           now, FILE_ATTRIBUTE_NORMAL | FILE_ATTRIBUTE_ARCHIVE, now + 1u,
-          now + 2u, false, "token", 1, "key", 2, now + 3u, 3u, 4u, 0u,
-          source_path, 10, now + 4u);
+          now + 2u, false, 1, "key", 2, now + 3u, 3u, 4u, 0u, source_path, 10,
+          now + 4u);
 
       EXPECT_CALL(mp, create_file("/test_create.txt", meta))
           .WillOnce(Return(api_error::success));
@@ -127,7 +130,6 @@ TEST(file_manager, can_create_and_close_file) {
             fsi.api_path = api_path;
             fsi.api_parent = utils::path::get_parent_api_path(api_path);
             fsi.directory = directory;
-            fsi.encryption_token = meta[META_ENCRYPTION_TOKEN];
             fsi.size = utils::string::to_uint64(meta[META_SIZE]);
             fsi.source_path = meta[META_SOURCE];
             return api_error::success;
@@ -185,12 +187,16 @@ TEST(file_manager, can_create_and_close_file) {
 
     fm.close(handle);
 
-    EXPECT_EQ(std::size_t(0u), fm.get_open_file_count());
+    EXPECT_EQ(std::size_t(1u), fm.get_open_file_count());
     EXPECT_EQ(std::size_t(0u), fm.get_open_handle_count());
 
     capture.wait_for_empty();
+    EXPECT_EQ(std::size_t(0u), fm.get_open_file_count());
+
+    fm.stop();
   }
 
+  polling::instance().stop();
   event_system::instance().stop();
   EXPECT_TRUE(utils::file::delete_directory_recursively("./fm_test"));
 }
@@ -206,9 +212,12 @@ TEST(file_manager, can_open_and_close_file) {
 
     EXPECT_CALL(mp, is_direct_only()).WillRepeatedly(Return(false));
 
+    polling::instance().start(&cfg);
     file_manager fm(cfg, mp);
+    fm.start();
 
     event_capture capture({
+        "item_timeout",
         "filesystem_item_opened",
         "filesystem_item_handle_opened",
         "filesystem_item_handle_closed",
@@ -223,8 +232,8 @@ TEST(file_manager, can_open_and_close_file) {
       const auto now = utils::get_file_time_now();
       auto meta = create_meta_attributes(
           now, FILE_ATTRIBUTE_NORMAL | FILE_ATTRIBUTE_ARCHIVE, now + 1u,
-          now + 2u, false, "token", 1, "key", 2, now + 3u, 3u, 4u, 0u,
-          source_path, 10, now + 4u);
+          now + 2u, false, 1, "key", 2, now + 3u, 3u, 4u, 0u, source_path, 10,
+          now + 4u);
 
       EXPECT_CALL(mp, create_file).Times(0u);
 
@@ -236,7 +245,6 @@ TEST(file_manager, can_open_and_close_file) {
             fsi.api_path = api_path;
             fsi.api_parent = utils::path::get_parent_api_path(api_path);
             fsi.directory = directory;
-            fsi.encryption_token = meta[META_ENCRYPTION_TOKEN];
             fsi.size = utils::string::to_uint64(meta[META_SIZE]);
             fsi.source_path = meta[META_SOURCE];
             return api_error::success;
@@ -295,12 +303,16 @@ TEST(file_manager, can_open_and_close_file) {
 
     fm.close(handle);
 
-    EXPECT_EQ(std::size_t(0u), fm.get_open_file_count());
+    EXPECT_EQ(std::size_t(1u), fm.get_open_file_count());
     EXPECT_EQ(std::size_t(0u), fm.get_open_handle_count());
 
     capture.wait_for_empty();
+    EXPECT_EQ(std::size_t(0u), fm.get_open_file_count());
+
+    fm.stop();
   }
 
+  polling::instance().stop();
   event_system::instance().stop();
   EXPECT_TRUE(utils::file::delete_directory_recursively("./fm_test"));
 }
@@ -316,7 +328,9 @@ TEST(file_manager, can_open_and_close_multiple_handles_for_same_file) {
 
     EXPECT_CALL(mp, is_direct_only()).WillRepeatedly(Return(false));
 
+    polling::instance().start(&cfg);
     file_manager fm(cfg, mp);
+    fm.start();
 
     {
       const auto source_path = utils::path::combine(
@@ -325,8 +339,8 @@ TEST(file_manager, can_open_and_close_multiple_handles_for_same_file) {
       const auto now = utils::get_file_time_now();
       auto meta = create_meta_attributes(
           now, FILE_ATTRIBUTE_NORMAL | FILE_ATTRIBUTE_ARCHIVE, now + 1u,
-          now + 2u, false, "token", 1, "key", 2, now + 3u, 3u, 4u, 0u,
-          source_path, 10, now + 4u);
+          now + 2u, false, 1, "key", 2, now + 3u, 3u, 4u, 0u, source_path, 10,
+          now + 4u);
 
       EXPECT_CALL(mp, create_file).Times(0u);
 
@@ -338,7 +352,6 @@ TEST(file_manager, can_open_and_close_multiple_handles_for_same_file) {
             fsi.api_path = api_path;
             fsi.api_parent = utils::path::get_parent_api_path(api_path);
             fsi.directory = directory;
-            fsi.encryption_token = meta[META_ENCRYPTION_TOKEN];
             fsi.size = utils::string::to_uint64(meta[META_SIZE]);
             fsi.source_path = meta[META_SOURCE];
             return api_error::success;
@@ -365,12 +378,14 @@ TEST(file_manager, can_open_and_close_multiple_handles_for_same_file) {
         EXPECT_EQ(std::size_t(handles.size() - i), fm.get_open_handle_count());
         fm.close(handles[i]);
       }
+      fm.stop();
     }
 
     EXPECT_EQ(std::size_t(0u), fm.get_open_file_count());
     EXPECT_EQ(std::size_t(0u), fm.get_open_handle_count());
   }
 
+  polling::instance().stop();
   event_system::instance().stop();
   EXPECT_TRUE(utils::file::delete_directory_recursively("./fm_test"));
 }
@@ -404,7 +419,7 @@ TEST(file_manager, download_is_stored_after_write_if_partially_downloaded) {
     const auto now = utils::get_file_time_now();
     auto meta = create_meta_attributes(
         now, FILE_ATTRIBUTE_NORMAL | FILE_ATTRIBUTE_ARCHIVE, now + 1u, now + 2u,
-        false, "", 1, "key", 2, now + 3u, 3u, 4u,
+        false, 1, "key", 2, now + 3u, 3u, 4u,
         utils::encryption::encrypting_reader::get_data_chunk_size() * 4u,
         source_path, 10, now + 4u);
     auto nf = create_random_file(generate_test_file_name(".", "test_src"),
@@ -418,7 +433,6 @@ TEST(file_manager, download_is_stored_after_write_if_partially_downloaded) {
           fsi.api_path = api_path;
           fsi.api_parent = utils::path::get_parent_api_path(api_path);
           fsi.directory = directory;
-          fsi.encryption_token = meta[META_ENCRYPTION_TOKEN];
           fsi.size = utils::string::to_uint64(meta[META_SIZE]);
           fsi.source_path = meta[META_SOURCE];
           return api_error::success;
@@ -461,10 +475,10 @@ TEST(file_manager, download_is_stored_after_write_if_partially_downloaded) {
         });
     EXPECT_CALL(mp, set_item_meta("/test_write_partial_download.txt", _))
         .WillOnce(
-            [](const std::string &, const api_meta_map &meta) -> api_error {
-              EXPECT_NO_THROW(EXPECT_FALSE(meta.at(META_CHANGED).empty()));
-              EXPECT_NO_THROW(EXPECT_FALSE(meta.at(META_MODIFIED).empty()));
-              EXPECT_NO_THROW(EXPECT_FALSE(meta.at(META_WRITTEN).empty()));
+            [](const std::string &, const api_meta_map &meta2) -> api_error {
+              EXPECT_NO_THROW(EXPECT_FALSE(meta2.at(META_CHANGED).empty()));
+              EXPECT_NO_THROW(EXPECT_FALSE(meta2.at(META_MODIFIED).empty()));
+              EXPECT_NO_THROW(EXPECT_FALSE(meta2.at(META_WRITTEN).empty()));
               return api_error::success;
             });
     EXPECT_CALL(mp, upload_file).Times(0u);
@@ -541,6 +555,7 @@ TEST(file_manager, upload_occurs_after_write_if_fully_downloaded) {
 
     EXPECT_CALL(mp, is_direct_only()).WillRepeatedly(Return(false));
 
+    polling::instance().start(&cfg);
     file_manager fm(cfg, mp);
     fm.start();
 
@@ -566,7 +581,7 @@ TEST(file_manager, upload_occurs_after_write_if_fully_downloaded) {
     const auto now = utils::get_file_time_now();
     auto meta = create_meta_attributes(
         now, FILE_ATTRIBUTE_NORMAL | FILE_ATTRIBUTE_ARCHIVE, now + 1u, now + 2u,
-        false, "", 1, "key", 2, now + 3u, 3u, 4u,
+        false, 1, "key", 2, now + 3u, 3u, 4u,
         utils::encryption::encrypting_reader::get_data_chunk_size() * 4u,
         source_path, 10, now + 4u);
     auto nf = create_random_file(generate_test_file_name(".", "test_src"),
@@ -580,7 +595,6 @@ TEST(file_manager, upload_occurs_after_write_if_fully_downloaded) {
           fsi.api_path = api_path;
           fsi.api_parent = utils::path::get_parent_api_path(api_path);
           fsi.directory = directory;
-          fsi.encryption_token = meta[META_ENCRYPTION_TOKEN];
           fsi.size = utils::string::to_uint64(meta[META_SIZE]);
           fsi.source_path = meta[META_SOURCE];
           return api_error::success;
@@ -611,10 +625,10 @@ TEST(file_manager, upload_occurs_after_write_if_fully_downloaded) {
         });
     EXPECT_CALL(mp, set_item_meta("/test_write_full_download.txt", _))
         .WillOnce(
-            [](const std::string &, const api_meta_map &meta) -> api_error {
-              EXPECT_NO_THROW(EXPECT_FALSE(meta.at(META_CHANGED).empty()));
-              EXPECT_NO_THROW(EXPECT_FALSE(meta.at(META_MODIFIED).empty()));
-              EXPECT_NO_THROW(EXPECT_FALSE(meta.at(META_WRITTEN).empty()));
+            [](const std::string &, const api_meta_map &meta2) -> api_error {
+              EXPECT_NO_THROW(EXPECT_FALSE(meta2.at(META_CHANGED).empty()));
+              EXPECT_NO_THROW(EXPECT_FALSE(meta2.at(META_MODIFIED).empty()));
+              EXPECT_NO_THROW(EXPECT_FALSE(meta2.at(META_WRITTEN).empty()));
               return api_error::success;
             });
     std::size_t bytes_written{};
@@ -625,23 +639,25 @@ TEST(file_manager, upload_occurs_after_write_if_fully_downloaded) {
 
     ec.wait_for_empty();
 
-    EXPECT_CALL(
-        mp, upload_file("/test_write_full_download.txt", source_path, "", _))
+    EXPECT_CALL(mp,
+                upload_file("/test_write_full_download.txt", source_path, _))
         .WillOnce(Return(api_error::success));
 
-    event_capture ec2({"file_upload_queued", "file_upload_completed"});
+    event_capture ec2(
+        {"item_timeout", "file_upload_queued", "file_upload_completed"});
     fm.close(handle);
 
     ec2.wait_for_empty();
 
-    EXPECT_EQ(std::size_t(0u), fm.get_open_file_count());
-    EXPECT_EQ(std::size_t(0u), fm.get_open_handle_count());
+    EXPECT_EQ(std::size_t(0U), fm.get_open_file_count());
+    EXPECT_EQ(std::size_t(0U), fm.get_open_handle_count());
 
     fm.stop();
 
     nf->close();
   }
 
+  polling::instance().stop();
   event_system::instance().stop();
   EXPECT_TRUE(utils::file::delete_directory_recursively("./fm_test"));
 }
@@ -676,8 +692,7 @@ TEST(file_manager, can_evict_file) {
 
     auto meta = create_meta_attributes(
         now, FILE_ATTRIBUTE_NORMAL | FILE_ATTRIBUTE_ARCHIVE, now + 1u, now + 2u,
-        false, "token", 1, "key", 2, now + 3u, 3u, 4u, 0u, source_path, 10,
-        now + 4u);
+        false, 1, "key", 2, now + 3u, 3u, 4u, 0u, source_path, 10, now + 4u);
     std::uint64_t handle{};
     {
       std::shared_ptr<i_open_file> f;
@@ -692,7 +707,6 @@ TEST(file_manager, can_evict_file) {
             fsi.api_path = api_path;
             fsi.api_parent = utils::path::get_parent_api_path(api_path);
             fsi.directory = directory;
-            fsi.encryption_token = meta[META_ENCRYPTION_TOKEN];
             fsi.size = utils::string::to_uint64(meta[META_SIZE]);
             fsi.source_path = meta[META_SOURCE];
             return api_error::success;
@@ -708,7 +722,7 @@ TEST(file_manager, can_evict_file) {
       EXPECT_CALL(mp, set_item_meta("/test_evict.txt", _))
           .Times(2)
           .WillRepeatedly(Return(api_error::success));
-      EXPECT_CALL(mp, upload_file(_, _, _, _))
+      EXPECT_CALL(mp, upload_file(_, _, _))
           .WillOnce(Return(api_error::success));
 
       data_buffer data{{0, 1, 1}};
@@ -944,7 +958,7 @@ TEST(file_manager, evict_file_fails_if_file_is_uploading) {
 
     auto meta = create_meta_attributes(
         now, FILE_ATTRIBUTE_NORMAL | FILE_ATTRIBUTE_ARCHIVE, now + 1u, now + 2u,
-        false, "", 1, "", 2, now + 3u, 3u, 4u, 0u, source_path, 10, now + 4u);
+        false, 1, "", 2, now + 3u, 3u, 4u, 0u, source_path, 10, now + 4u);
     std::uint64_t handle{};
     {
       std::shared_ptr<i_open_file> f;
@@ -959,7 +973,6 @@ TEST(file_manager, evict_file_fails_if_file_is_uploading) {
             fsi.api_path = api_path;
             fsi.api_parent = utils::path::get_parent_api_path(api_path);
             fsi.directory = directory;
-            fsi.encryption_token = meta[META_ENCRYPTION_TOKEN];
             fsi.size = utils::string::to_uint64(meta[META_SIZE]);
             fsi.source_path = meta[META_SOURCE];
             return api_error::success;
@@ -977,12 +990,10 @@ TEST(file_manager, evict_file_fails_if_file_is_uploading) {
           .WillRepeatedly(Return(api_error::success));
       EXPECT_CALL(mp, upload_file)
           .WillOnce([](const std::string &api_path,
-                       const std::string &source_path,
-                       const std::string &encryption_token,
+                       const std::string &source_path2,
                        stop_type & /*stop_requested*/) -> api_error {
             EXPECT_STREQ("/test_evict.txt", api_path.c_str());
-            EXPECT_FALSE(source_path.empty());
-            EXPECT_TRUE(encryption_token.empty());
+            EXPECT_FALSE(source_path2.empty());
             std::this_thread::sleep_for(3s);
             return api_error::success;
           });
@@ -1178,7 +1189,7 @@ TEST(file_manager, file_is_not_opened_if_provider_create_file_fails) {
     const auto now = utils::get_file_time_now();
     auto meta = create_meta_attributes(
         now, FILE_ATTRIBUTE_NORMAL | FILE_ATTRIBUTE_ARCHIVE, now + 1u, now + 2u,
-        false, "", 1, "", 2, now + 3u, 3u, 4u, 0u, "/test_create.src", 10,
+        false, 1, "", 2, now + 3u, 3u, 4u, 0u, "/test_create.src", 10,
         now + 4u);
     file_manager fm(cfg, mp);
 
@@ -1325,6 +1336,9 @@ TEST(file_manager,
     EXPECT_CALL(mp, set_item_meta("/test_open.txt", META_SOURCE, _))
         .WillOnce(Return(api_error::success));
 
+    EXPECT_CALL(*non_writeable, has_handle(1)).WillOnce([]() -> bool {
+      return true;
+    });
     EXPECT_TRUE(fm.get_open_file(handle, true, f));
     EXPECT_NE(non_writeable.get(), f.get());
     EXPECT_EQ(std::size_t(1U), fm.get_open_file_count());
@@ -1505,6 +1519,10 @@ TEST(file_manager, open_file_creates_source_path_if_empty) {
 #else
     EXPECT_EQ(api_error::success, fm.open(of, O_RDWR, handle, f));
 #endif
+    EXPECT_CALL(*of, has_handle(1)).Times(2).WillRepeatedly([]() -> bool {
+      return true;
+    });
+
     EXPECT_TRUE(fm.get_open_file(1U, true, f));
     EXPECT_EQ(std::size_t(1U), fm.get_open_file_count());
     EXPECT_TRUE(f);
@@ -1556,6 +1574,8 @@ TEST(file_manager, open_file_first_file_handle_is_not_zero) {
 #else
     EXPECT_EQ(api_error::success, fm.open(of, O_RDWR, handle, f));
 #endif
+    EXPECT_CALL(*of, has_handle(1)).WillOnce([]() -> bool { return true; });
+
     EXPECT_TRUE(fm.get_open_file(1U, true, f));
     EXPECT_GT(handle, std::uint64_t(0U));
   }
@@ -1712,8 +1732,8 @@ TEST(file_manager, file_is_closed_after_download_timeout) {
     const auto source_path = utils::path::combine(
         cfg.get_cache_directory(), {utils::create_uuid_string()});
 
-    event_consumer es("download_timeout", [](const event &e) {
-      const auto &ee = dynamic_cast<const download_timeout &>(e);
+    event_consumer es("item_timeout", [](const event &e) {
+      const auto &ee = dynamic_cast<const item_timeout &>(e);
       EXPECT_STREQ("/test_download_timeout.txt",
                    ee.get_api_path().get<std::string>().c_str());
     });
@@ -1721,7 +1741,7 @@ TEST(file_manager, file_is_closed_after_download_timeout) {
     const auto now = utils::get_file_time_now();
     auto meta = create_meta_attributes(
         now, FILE_ATTRIBUTE_NORMAL | FILE_ATTRIBUTE_ARCHIVE, now + 1u, now + 2u,
-        false, "", 1, "key", 2, now + 3u, 3u, 4u,
+        false, 1, "key", 2, now + 3u, 3u, 4u,
         utils::encryption::encrypting_reader::get_data_chunk_size() * 4u,
         source_path, 10, now + 4u);
 
@@ -1733,13 +1753,12 @@ TEST(file_manager, file_is_closed_after_download_timeout) {
           fsi.api_path = api_path;
           fsi.api_parent = utils::path::get_parent_api_path(api_path);
           fsi.directory = directory;
-          fsi.encryption_token = meta[META_ENCRYPTION_TOKEN];
           fsi.size = utils::string::to_uint64(meta[META_SIZE]);
           fsi.source_path = meta[META_SOURCE];
           return api_error::success;
         });
 
-    event_capture ec({"download_timeout"});
+    event_capture ec({"item_timeout"});
 
     std::uint64_t handle{};
     std::shared_ptr<i_open_file> f;

@@ -30,20 +30,22 @@
 #include "utils/cli_utils.hpp"
 
 namespace repertory::cli::actions {
-[[nodiscard]] inline auto
-display_config(int, char *[], const std::string &data_directory,
-               const provider_type &pt, const std::string &unique_id,
-               std::string user, std::string password) -> exit_code {
-  lock_data lock(pt, unique_id);
-  const auto res = lock.grab_lock(1u);
+[[nodiscard]] inline auto display_config(std::vector<const char *> /* args */,
+                                         const std::string &data_directory,
+                                         const provider_type &prov,
+                                         const std::string &unique_id,
+                                         std::string user, std::string password)
+    -> exit_code {
+  lock_data lock(prov, unique_id);
+  const auto res = lock.grab_lock(1U);
   if (res == lock_result::success) {
-    app_config config(pt, data_directory);
+    app_config config(prov, data_directory);
     const auto cfg = config.get_json();
     std::cout << 0 << std::endl;
     std::cout << cfg.dump(2) << std::endl;
   } else if (res == lock_result::locked) {
-    auto port = app_config::default_api_port(pt);
-    utils::cli::get_api_authentication_data(user, password, port, pt,
+    auto port = app_config::default_api_port(prov);
+    utils::cli::get_api_authentication_data(user, password, port, prov,
                                             data_directory);
     const auto response =
         client({"localhost", password, port, user}).get_config();

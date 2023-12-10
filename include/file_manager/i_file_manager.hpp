@@ -31,9 +31,6 @@ class i_file_manager {
   INTERFACE_SETUP(i_file_manager);
 
 public:
-  using locked_operation_callback = std::function<bool(i_provider &)>;
-
-public:
   [[nodiscard]] virtual auto evict_file(const std::string &api_path)
       -> bool = 0;
 
@@ -47,10 +44,6 @@ public:
   [[nodiscard]] virtual auto has_no_open_file_handles() const -> bool = 0;
 
   [[nodiscard]] virtual auto is_processing(const std::string &api_path) const
-      -> bool = 0;
-
-  virtual auto
-  perform_locked_operation(locked_operation_callback locked_operation)
       -> bool = 0;
 
   virtual void update_used_space(std::uint64_t &used_space) const = 0;

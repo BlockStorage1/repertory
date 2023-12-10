@@ -41,6 +41,15 @@ cmake ../.. ${CMAKE_ADDITIONAL_OPTS} \
   -DREPERTORY_ENABLE_S3=ON \
   -DREPERTORY_ENABLE_S3_TESTING=ON || exit 1
 
+pushd ..
+ln -sf ${BUILD_FOLDER}/compile_commands.json .
+ln -sf ${BUILD_FOLDER}/repertory${EXE_EXT} .
+ln -sf ${BUILD_FOLDER}/unittests${EXE_EXT} .
+if [ "${IS_MINGW}" == "1" ]; then
+  ln -sf ${BUILD_FOLDER}/winfsp-x64.dll .
+fi
+popd
+
 if [ "${BUILD_CLEAN}" == "clean" ]; then
   make clean
 fi

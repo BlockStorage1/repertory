@@ -89,9 +89,9 @@ TEST(open_file, properly_initializes_state_based_on_chunk_size) {
 
   EXPECT_CALL(um, remove_resume)
       .WillOnce(
-          [&fsi](const std::string &api_path, const std::string &source_path) {
+          [&fsi](const std::string &api_path, const std::string &source_path2) {
             EXPECT_EQ(fsi.api_path, api_path);
-            EXPECT_EQ(fsi.source_path, source_path);
+            EXPECT_EQ(fsi.source_path, source_path2);
           });
 
   file_manager::open_file o(1u, 0U, fsi, mp, um);
@@ -143,15 +143,15 @@ TEST(open_file, will_change_source_path_if_file_size_is_greater_than_0) {
 
   EXPECT_CALL(um, remove_resume)
       .WillOnce(
-          [&fsi](const std::string &api_path, const std::string &source_path) {
+          [&fsi](const std::string &api_path, const std::string &source_path2) {
             EXPECT_EQ(fsi.api_path, api_path);
-            EXPECT_EQ(fsi.source_path, source_path);
+            EXPECT_EQ(fsi.source_path, source_path2);
           });
 
   EXPECT_CALL(mp, set_item_meta(fsi.api_path, META_SOURCE, _))
       .WillOnce([&fsi](const std::string &, const std::string &,
-                       const std::string &source_path) -> api_error {
-        EXPECT_STRNE(fsi.source_path.c_str(), source_path.c_str());
+                       const std::string &source_path2) -> api_error {
+        EXPECT_STRNE(fsi.source_path.c_str(), source_path2.c_str());
         return api_error::success;
       });
 
@@ -248,9 +248,9 @@ TEST(open_file, write_with_incomplete_download) {
 
   EXPECT_CALL(um, store_resume)
       .Times(2)
-      .WillRepeatedly([&fsi](const i_open_file &o) {
-        EXPECT_EQ(fsi.api_path, o.get_api_path());
-        EXPECT_EQ(fsi.source_path, o.get_source_path());
+      .WillRepeatedly([&fsi](const i_open_file &cur_file) {
+        EXPECT_EQ(fsi.api_path, cur_file.get_api_path());
+        EXPECT_EQ(fsi.source_path, cur_file.get_source_path());
       });
 
   data_buffer data = {10, 9, 8};
@@ -319,15 +319,13 @@ TEST(open_file, write_new_file) {
         return api_error::success;
       });
 
-  EXPECT_CALL(um, remove_upload)
-      .Times(2)
-      .WillRepeatedly([&fsi](const std::string &api_path) {
-        EXPECT_EQ(fsi.api_path, api_path);
-      });
+  EXPECT_CALL(um, remove_upload).WillOnce([&fsi](const std::string &api_path) {
+    EXPECT_EQ(fsi.api_path, api_path);
+  });
 
-  EXPECT_CALL(um, queue_upload).WillOnce([&fsi](const i_open_file &o) {
-    EXPECT_EQ(fsi.api_path, o.get_api_path());
-    EXPECT_EQ(fsi.source_path, o.get_source_path());
+  EXPECT_CALL(um, queue_upload).WillOnce([&fsi](const i_open_file &cur_file) {
+    EXPECT_EQ(fsi.api_path, cur_file.get_api_path());
+    EXPECT_EQ(fsi.source_path, cur_file.get_source_path());
   });
 
   std::size_t bytes_written{};
@@ -408,15 +406,13 @@ TEST(open_file, write_new_file_multiple_chunks) {
         return api_error::success;
       });
 
-  EXPECT_CALL(um, remove_upload)
-      .Times(4)
-      .WillRepeatedly([&fsi](const std::string &api_path) {
-        EXPECT_EQ(fsi.api_path, api_path);
-      });
+  EXPECT_CALL(um, remove_upload).WillOnce([&fsi](const std::string &api_path) {
+    EXPECT_EQ(fsi.api_path, api_path);
+  });
 
-  EXPECT_CALL(um, queue_upload).WillOnce([&fsi](const i_open_file &o) {
-    EXPECT_EQ(fsi.api_path, o.get_api_path());
-    EXPECT_EQ(fsi.source_path, o.get_source_path());
+  EXPECT_CALL(um, queue_upload).WillOnce([&fsi](const i_open_file &cur_file) {
+    EXPECT_EQ(fsi.api_path, cur_file.get_api_path());
+    EXPECT_EQ(fsi.source_path, cur_file.get_source_path());
   });
 
   std::size_t bytes_written{};
@@ -478,13 +474,13 @@ TEST(open_file, resize_file_to_0_bytes) {
     EXPECT_EQ(fsi.api_path, api_path);
   });
 
-  EXPECT_CALL(um, queue_upload).WillOnce([&fsi](const i_open_file &o) {
-    EXPECT_EQ(fsi.api_path, o.get_api_path());
-    EXPECT_EQ(fsi.source_path, o.get_source_path());
+  EXPECT_CALL(um, queue_upload).WillOnce([&fsi](const i_open_file &cur_file) {
+    EXPECT_EQ(fsi.api_path, cur_file.get_api_path());
+    EXPECT_EQ(fsi.source_path, cur_file.get_source_path());
   });
-  EXPECT_CALL(um, store_resume).WillOnce([&fsi](const i_open_file &o) {
-    EXPECT_EQ(fsi.api_path, o.get_api_path());
-    EXPECT_EQ(fsi.source_path, o.get_source_path());
+  EXPECT_CALL(um, store_resume).WillOnce([&fsi](const i_open_file &cur_file) {
+    EXPECT_EQ(fsi.api_path, cur_file.get_api_path());
+    EXPECT_EQ(fsi.source_path, cur_file.get_source_path());
   });
 
   EXPECT_EQ(api_error::success, o.resize(0u));
@@ -532,9 +528,9 @@ TEST(open_file, resize_file_by_full_chunk) {
     EXPECT_EQ(fsi.api_path, api_path);
   });
 
-  EXPECT_CALL(um, queue_upload).WillOnce([&fsi](const i_open_file &o) {
-    EXPECT_EQ(fsi.api_path, o.get_api_path());
-    EXPECT_EQ(fsi.source_path, o.get_source_path());
+  EXPECT_CALL(um, queue_upload).WillOnce([&fsi](const i_open_file &cur_file) {
+    EXPECT_EQ(fsi.api_path, cur_file.get_api_path());
+    EXPECT_EQ(fsi.source_path, cur_file.get_source_path());
   });
 
   EXPECT_EQ(api_error::success, o.resize(test_chunk_size * 3u));
@@ -583,9 +579,9 @@ TEST(open_file, can_add_handle) {
       .WillOnce(Return(api_error::success));
   EXPECT_CALL(um, remove_resume)
       .WillOnce(
-          [&fsi](const std::string &api_path, const std::string &source_path) {
+          [&fsi](const std::string &api_path, const std::string &source_path2) {
             EXPECT_EQ(fsi.api_path, api_path);
-            EXPECT_EQ(fsi.source_path, source_path);
+            EXPECT_EQ(fsi.source_path, source_path2);
           });
 
   event_capture capture(
@@ -642,9 +638,9 @@ TEST(open_file, can_remove_handle) {
 
   EXPECT_CALL(um, remove_resume)
       .WillOnce(
-          [&fsi](const std::string &api_path, const std::string &source_path) {
+          [&fsi](const std::string &api_path, const std::string &source_path2) {
             EXPECT_EQ(fsi.api_path, api_path);
-            EXPECT_EQ(fsi.source_path, source_path);
+            EXPECT_EQ(fsi.source_path, source_path2);
           });
   EXPECT_CALL(mp, set_item_meta(fsi.api_path, META_SOURCE, _))
       .WillOnce(Return(api_error::success));

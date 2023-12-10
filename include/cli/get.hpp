@@ -30,19 +30,19 @@
 #include "utils/cli_utils.hpp"
 
 namespace repertory::cli::actions {
-[[nodiscard]] inline auto get(int argc, char *argv[],
+[[nodiscard]] inline auto get(std::vector<const char *> args,
                               const std::string &data_directory,
-                              const provider_type &pt,
+                              const provider_type &prov,
                               const std::string &unique_id, std::string user,
                               std::string password) -> exit_code {
   std::string data;
   auto ret = utils::cli::parse_string_option(
-      argc, argv, repertory::utils::cli::options::get_option, data);
+      args, repertory::utils::cli::options::get_option, data);
   if (ret == exit_code::success) {
-    lock_data lock(pt, unique_id);
+    lock_data lock(prov, unique_id);
     const auto res = lock.grab_lock(1);
     if (res == lock_result::success) {
-      app_config config(pt, data_directory);
+      app_config config(prov, data_directory);
       const auto value = config.get_value_by_name(data);
       std::cout << (value.empty()
                         ? static_cast<int>(
@@ -51,8 +51,8 @@ namespace repertory::cli::actions {
                 << std::endl;
       std::cout << json({{"value", value}}).dump(2) << std::endl;
     } else if (res == lock_result::locked) {
-      auto port = app_config::default_api_port(pt);
-      utils::cli::get_api_authentication_data(user, password, port, pt,
+      auto port = app_config::default_api_port(prov);
+      utils::cli::get_api_authentication_data(user, password, port, prov,
                                               data_directory);
       const auto response = client({"localhost", password, port, user})
                                 .get_config_value_by_name(data);

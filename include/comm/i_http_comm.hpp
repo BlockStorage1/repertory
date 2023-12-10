@@ -25,6 +25,7 @@
 #include "comm/curl/requests/http_delete.hpp"
 #include "comm/curl/requests/http_get.hpp"
 #include "comm/curl/requests/http_head.hpp"
+#include "comm/curl/requests/http_post.hpp"
 #include "comm/curl/requests/http_put_file.hpp"
 #include "types/repertory.hpp"
 
@@ -45,6 +46,11 @@ public:
       -> bool = 0;
 
   [[nodiscard]] virtual auto make_request(const curl::requests::http_head &head,
+                                          long &response_code,
+                                          stop_type &stop_requested) const
+      -> bool = 0;
+
+  [[nodiscard]] virtual auto make_request(const curl::requests::http_post &post,
                                           long &response_code,
                                           stop_type &stop_requested) const
       -> bool = 0;

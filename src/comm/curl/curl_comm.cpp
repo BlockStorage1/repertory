@@ -43,32 +43,36 @@ const curl_comm::write_callback curl_comm::write_headers =
       auto &headers = *reinterpret_cast<http_headers *>(outstream);
       const auto header = std::string(buffer, size * nitems);
       const auto parts = utils::string::split(header, ':');
-      if (parts.size() > 1u) {
-        auto data = header.substr(parts[0u].size() + 1u);
+      if (parts.size() > 1U) {
+        auto data = header.substr(parts[0U].size() + 1U);
         utils::string::left_trim(data);
         utils::string::right_trim(data, '\r');
         utils::string::right_trim(data, '\n');
         utils::string::right_trim(data, '\r');
-        headers[utils::string::to_lower(parts[0u])] = data;
+        headers[utils::string::to_lower(parts[0U])] = data;
       }
       return size * nitems;
     });
 
-curl_comm::curl_comm(host_config hc)
-    : host_config_(std::move(hc)), s3_config_(std::nullopt) {}
+curl_comm::curl_comm(host_config cfg)
+    : host_config_(std::move(cfg)), s3_config_(std::nullopt) {}
 
-curl_comm::curl_comm(s3_config s3)
-    : host_config_(std::nullopt), s3_config_(std::move(s3)) {}
+curl_comm::curl_comm(s3_config cfg)
+    : host_config_(std::nullopt), s3_config_(std::move(cfg)) {}
 
 auto curl_comm::construct_url(CURL *curl, const std::string &relative_path,
-                              const host_config &hc) -> std::string {
-  auto custom_port =
-      (((hc.protocol == "http") && (hc.api_port == 80U || hc.api_port == 0U)) ||
-       ((hc.protocol == "https") && (hc.api_port == 443U || hc.api_port == 0U)))
-          ? ""
-          : ":" + std::to_string(hc.api_port);
-  auto url = hc.protocol + "://" +
-             utils::string::trim_copy(hc.host_name_or_ip) + custom_port;
+                              const host_config &cfg) -> std::string {
+  static constexpr const auto http = 80U;
+  static constexpr const auto https = 443U;
+
+  auto custom_port = (((cfg.protocol == "http") &&
+                       (cfg.api_port == http || cfg.api_port == 0U)) ||
+                      ((cfg.protocol == "https") &&
+                       (cfg.api_port == https || cfg.api_port == 0U)))
+                         ? ""
+                         : ":" + std::to_string(cfg.api_port);
+  auto url = cfg.protocol + "://" +
+             utils::string::trim_copy(cfg.host_name_or_ip) + custom_port;
 
   static const auto complete_url = [](const std::string &current_path,
                                       const std::string &parent_path,
@@ -80,40 +84,40 @@ auto curl_comm::construct_url(CURL *curl, const std::string &relative_path,
     return final_url;
   };
 
-  auto path = utils::path::combine("/", {hc.path});
+  auto path = utils::path::combine("/", {cfg.path});
   return relative_path.empty()
-             ? complete_url(path, hc.path, url)
+             ? complete_url(path, cfg.path, url)
              : complete_url(utils::path::combine(
                                 path, {url_encode(curl, relative_path, true)}),
                             relative_path, url);
 }
 
-auto curl_comm::create_host_config(const s3_config &config,
-                                   bool use_s3_path_style) -> host_config {
-  host_config hc{};
-  hc.api_password = config.secret_key;
-  hc.api_user = config.access_key;
+auto curl_comm::create_host_config(const s3_config &cfg, bool use_s3_path_style)
+    -> host_config {
+  host_config host_cfg{};
+  host_cfg.api_password = cfg.secret_key;
+  host_cfg.api_user = cfg.access_key;
 
-  auto pos = config.url.find(':');
-  hc.host_name_or_ip = config.url.substr(pos + 3U);
-  if (config.use_region_in_url && not config.region.empty()) {
-    auto parts = utils::string::split(hc.host_name_or_ip, '.', false);
+  auto pos = cfg.url.find(':');
+  host_cfg.host_name_or_ip = cfg.url.substr(pos + 3U);
+  if (cfg.use_region_in_url && not cfg.region.empty()) {
+    auto parts = utils::string::split(host_cfg.host_name_or_ip, '.', false);
     if (parts.size() > 1U) {
-      parts.insert(parts.begin() + 1U, config.region);
-      hc.host_name_or_ip = utils::string::join(parts, '.');
+      parts.insert(parts.begin() + 1U, cfg.region);
+      host_cfg.host_name_or_ip = utils::string::join(parts, '.');
     }
   }
 
   if (not use_s3_path_style) {
-    hc.host_name_or_ip = config.bucket + '.' + hc.host_name_or_ip;
+    host_cfg.host_name_or_ip = cfg.bucket + '.' + host_cfg.host_name_or_ip;
   }
 
-  hc.protocol = config.url.substr(0U, pos);
+  host_cfg.protocol = cfg.url.substr(0U, pos);
   if (use_s3_path_style) {
-    hc.path = '/' + config.bucket;
+    host_cfg.path = '/' + cfg.bucket;
   }
 
-  return hc;
+  return host_cfg;
 }
 
 void curl_comm::enable_s3_path_style(bool enable) {
@@ -126,7 +130,7 @@ auto curl_comm::make_request(const curl::requests::http_delete &del,
   return make_request(
       s3_config_.has_value()
           ? create_host_config(s3_config_.value(), use_s3_path_style_)
-          : host_config_.value(),
+          : host_config_.value_or(host_config{}),
       del, response_code, stop_requested);
 }
 
@@ -136,7 +140,7 @@ auto curl_comm::make_request(const curl::requests::http_get &get,
   return make_request(
       s3_config_.has_value()
           ? create_host_config(s3_config_.value(), use_s3_path_style_)
-          : host_config_.value(),
+          : host_config_.value_or(host_config{}),
       get, response_code, stop_requested);
 }
 
@@ -146,8 +150,18 @@ auto curl_comm::make_request(const curl::requests::http_head &head,
   return make_request(
       s3_config_.has_value()
           ? create_host_config(s3_config_.value(), use_s3_path_style_)
-          : host_config_.value(),
+          : host_config_.value_or(host_config{}),
       head, response_code, stop_requested);
+}
+
+auto curl_comm::make_request(const curl::requests::http_post &post,
+                             long &response_code,
+                             stop_type &stop_requested) const -> bool {
+  return make_request(
+      s3_config_.has_value()
+          ? create_host_config(s3_config_.value(), use_s3_path_style_)
+          : host_config_.value_or(host_config{}),
+      post, response_code, stop_requested);
 }
 
 auto curl_comm::make_request(const curl::requests::http_put_file &put_file,
@@ -156,7 +170,7 @@ auto curl_comm::make_request(const curl::requests::http_put_file &put_file,
   return make_request(
       s3_config_.has_value()
           ? create_host_config(s3_config_.value(), use_s3_path_style_)
-          : host_config_.value(),
+          : host_config_.value_or(host_config{}),
       put_file, response_code, stop_requested);
 }
 

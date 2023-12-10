@@ -40,6 +40,9 @@ public:
 
   [[nodiscard]] virtual auto get_filesystem_item() const -> filesystem_item = 0;
 
+  [[nodiscard]] virtual auto get_open_data() const
+      -> std::map<std::uint64_t, open_file_data> = 0;
+
   [[nodiscard]] virtual auto get_open_data(std::uint64_t handle) const
       -> open_file_data = 0;
 
@@ -55,12 +58,14 @@ public:
 
   [[nodiscard]] virtual auto is_directory() const -> bool = 0;
 
+  [[nodiscard]] virtual auto has_handle(std::uint64_t handle) const -> bool = 0;
+
   [[nodiscard]] virtual auto
-  native_operation(const native_operation_callback &cb) -> api_error = 0;
+  native_operation(const native_operation_callback &callback) -> api_error = 0;
 
   [[nodiscard]] virtual auto
   native_operation(std::uint64_t new_file_size,
-                   const native_operation_callback &cb) -> api_error = 0;
+                   const native_operation_callback &callback) -> api_error = 0;
 
   [[nodiscard]] virtual auto read(std::size_t read_size,
                                   std::uint64_t read_offset, data_buffer &data)
@@ -88,9 +93,6 @@ public:
 
   [[nodiscard]] virtual auto get_handles() const
       -> std::vector<std::uint64_t> = 0;
-
-  [[nodiscard]] virtual auto get_open_data() const
-      -> std::map<std::uint64_t, open_file_data> = 0;
 
   [[nodiscard]] virtual auto is_complete() const -> bool = 0;
 

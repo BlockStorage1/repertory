@@ -25,16 +25,16 @@
 
 namespace repertory {
 TEST(packet, encrypt_and_decrypt) {
-  packet packet;
-  packet.encode("test");
-  packet.encrypt("moose");
+  packet test_packet;
+  test_packet.encode("test");
+  test_packet.encrypt("moose");
 
   std::uint32_t size{};
-  EXPECT_EQ(0, packet.decode(size));
-  EXPECT_EQ(0, packet.decrypt("moose"));
+  EXPECT_EQ(0, test_packet.decode(size));
+  EXPECT_EQ(0, test_packet.decrypt("moose"));
 
   std::string data;
-  EXPECT_EQ(0, packet.decode(data));
+  EXPECT_EQ(0, test_packet.decode(data));
 
   EXPECT_STREQ("test", data.c_str());
 }

@@ -12,6 +12,8 @@ if [ -z "${BUILD_ARCH}" ]; then
   BUILD_ARCH=64_bit
 fi
 
+ln -sf ${SOURCE_DIR}/build/compile_commands.json ${SOURCE_DIR}/compile_commands.json
+
 docker stop repertory_${NAME}
 docker rm repertory_${NAME}
 docker build -t repertory:${NAME} - < ${SOURCE_DIR}/docker/${BUILD_ARCH}/${NAME} &&

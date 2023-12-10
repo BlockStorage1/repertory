@@ -68,11 +68,10 @@ public:
 [[nodiscard]] auto create_meta_attributes(
     std::uint64_t accessed_date, std::uint32_t attributes,
     std::uint64_t changed_date, std::uint64_t creation_date, bool directory,
-    const std::string &encryption_token, std::uint32_t gid,
-    const std::string &key, std::uint32_t mode, std::uint64_t modified_date,
-    std::uint32_t osx_backup, std::uint32_t osx_flags, std::uint64_t size,
-    const std::string &source_path, std::uint32_t uid,
-    std::uint64_t written_date) -> api_meta_map;
+    std::uint32_t gid, const std::string &key, std::uint32_t mode,
+    std::uint64_t modified_date, std::uint32_t osx_backup,
+    std::uint32_t osx_flags, std::uint64_t size, const std::string &source_path,
+    std::uint32_t uid, std::uint64_t written_date) -> api_meta_map;
 
 [[nodiscard]] auto provider_meta_handler(i_provider &provider, bool directory,
                                          const api_file &file) -> api_error;

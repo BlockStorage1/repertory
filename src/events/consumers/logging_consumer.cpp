@@ -45,9 +45,9 @@ logging_consumer::logging_consumer(const std::string &log_directory,
   reopen_log_file();
   E_SUBSCRIBE_ALL(process_event);
   E_SUBSCRIBE_EXACT(event_level_changed,
-                    [this](const event_level_changed &evt) {
+                    [this](const event_level_changed &changed) {
                       event_level_ = event_level_from_string(
-                          evt.get_new_event_level().get<std::string>());
+                          changed.get_new_event_level().get<std::string>());
                     });
   logging_thread_ =
       std::make_unique<std::thread>([this] { logging_thread(false); });

@@ -38,6 +38,12 @@ public:
 
   virtual ~fuse_base();
 
+public:
+  fuse_base(const fuse_base &) = delete;
+  fuse_base(fuse_base &&) = delete;
+  auto operator=(const fuse_base &) -> fuse_base & = delete;
+  auto operator=(fuse_base &&) -> fuse_base & = delete;
+
 protected:
   app_config &config_;
 
@@ -309,7 +315,7 @@ protected:
     return api_error::not_implemented;
   }
 
-  virtual void destroy_impl(void * /*ptr*/) { return; }
+  virtual void destroy_impl(void * /*ptr*/);
 
   [[nodiscard]] virtual auto
   fallocate_impl(std::string /*api_path*/, int /*mode*/, off_t /*offset*/,
@@ -593,9 +599,9 @@ protected:
   virtual void shutdown();
 
 public:
-  static void display_options(int argc, char *argv[]);
+  static void display_options(std::vector<const char *> args);
 
-  static void display_version_information(int argc, char *argv[]);
+  static void display_version_information(std::vector<const char *> args);
 
   static auto unmount(const std::string &mount_location) -> int;
 

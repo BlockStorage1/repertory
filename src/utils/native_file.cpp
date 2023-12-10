@@ -121,7 +121,7 @@ auto native_file::allocate(std::uint64_t file_size) -> bool {
           ::SetEndOfFile(handle_));
 #endif
 #ifdef __linux__
-  return (fallocate(handle_, 0, 0, file_size) >= 0);
+  return (fallocate(handle_, 0, 0, static_cast<off_t>(file_size)) >= 0);
 #endif
 #ifdef __APPLE__
   return (ftruncate(handle_, file_size) >= 0);
@@ -236,11 +236,11 @@ auto native_file::read_bytes(char *buffer, std::size_t read_size,
 auto native_file::read_bytes(char *buffer, std::size_t read_size,
                              std::uint64_t read_offset, std::size_t &bytes_read)
     -> bool {
-  bytes_read = 0u;
+  bytes_read = 0U;
   ssize_t result = 0;
   do {
     result = pread64(handle_, &buffer[bytes_read], read_size - bytes_read,
-                     read_offset + bytes_read);
+                     static_cast<off_t>(read_offset + bytes_read));
     if (result > 0) {
       bytes_read += static_cast<size_t>(result);
     }
@@ -257,7 +257,7 @@ auto native_file::truncate(std::uint64_t file_size) -> bool {
   return (::SetFilePointerEx(handle_, li, nullptr, FILE_BEGIN) &&
           ::SetEndOfFile(handle_));
 #else
-  return (ftruncate(handle_, file_size) >= 0);
+  return (ftruncate(handle_, static_cast<off_t>(file_size)) >= 0);
 #endif
 }
 
@@ -288,11 +288,12 @@ auto native_file::write_bytes(const char *buffer, std::size_t write_size,
 auto native_file::write_bytes(const char *buffer, std::size_t write_size,
                               std::uint64_t write_offset,
                               std::size_t &bytes_written) -> bool {
-  bytes_written = 0;
-  ssize_t result = 0;
+  bytes_written = 0U;
+  ssize_t result = 0U;
   do {
-    result = pwrite64(handle_, &buffer[bytes_written],
-                      write_size - bytes_written, write_offset + bytes_written);
+    result =
+        pwrite64(handle_, &buffer[bytes_written], write_size - bytes_written,
+                 static_cast<off_t>(write_offset + bytes_written));
     if (result > 0) {
       bytes_written += static_cast<size_t>(result);
     }

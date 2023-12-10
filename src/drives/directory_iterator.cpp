@@ -54,10 +54,12 @@ auto directory_iterator::fill_buffer(const remote::file_offset &offset,
       }
 
 #if FUSE_USE_VERSION >= 30
-      if (filler_function(buffer, &item_name[0], pst, offset + 1,
+      if (filler_function(buffer, item_name.data(), pst,
+                          static_cast<off_t>(offset + 1),
                           FUSE_FILL_DIR_PLUS) != 0) {
 #else
-      if (filler_function(buffer, &item_name[0], pst, offset + 1) != 0) {
+      if (filler_function(buffer, item_name.data(), pst,
+                          static_cast<off_t>(offset + 1)) != 0) {
 #endif
         errno = ENOMEM;
         return -1;
@@ -121,13 +123,14 @@ auto directory_iterator::get_json(std::size_t offset, json &item) -> int {
 
 auto directory_iterator::get_next_directory_offset(
     const std::string &api_path) const -> std::size_t {
-  const auto it = std::find_if(
-      items_.begin(), items_.end(),
-      [&api_path](const auto &di) -> bool { return api_path == di.api_path; });
+  const auto iter = std::find_if(items_.begin(), items_.end(),
+                                 [&api_path](const auto &dir_item) -> bool {
+                                   return api_path == dir_item.api_path;
+                                 });
 
-  return (it == items_.end())
-             ? 0
-             : std::distance(items_.begin(), it) + std::size_t(1u);
+  return (iter == items_.end()) ? 0U
+                                : static_cast<std::size_t>(
+                                      std::distance(items_.begin(), iter) + 1);
 }
 
 auto directory_iterator::operator=(const directory_iterator &iterator) noexcept

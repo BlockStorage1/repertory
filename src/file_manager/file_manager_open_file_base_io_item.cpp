@@ -36,6 +36,6 @@ auto file_manager::open_file_base::io_item::get_result() -> api_error {
   }
 
   notify_.wait(lock);
-  return result_.value();
+  return result_.value_or(api_error::error);
 }
 } // namespace repertory

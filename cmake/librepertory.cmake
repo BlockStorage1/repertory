@@ -16,17 +16,6 @@ add_dependencies(librepertory
   boost_project
   curl_project
   libsodium_project
-  rocksdb_project
+  openssl_project
+  zlib_project
 )
-
-if (LINUX)
-  add_dependencies(librepertory libuuid_project)
-endif()
-
-if (LINUX OR MINGW OR MACOS)
-  add_dependencies(librepertory openssl_project)
-endif()
-
-if (MSVC OR MINGW)
-  add_dependencies(librepertory zlib_project)
-endif()

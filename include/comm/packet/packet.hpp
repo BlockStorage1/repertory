@@ -44,14 +44,16 @@ public:
 
   explicit packet(data_buffer &&buffer) : buffer_(std::move(buffer)) {}
 
-  packet(const packet &p) noexcept = default;
+  packet(const packet &pkt) noexcept = default;
 
-  packet(packet &&p) noexcept
-      : buffer_(std::move(p.buffer_)), decode_offset_(p.decode_offset_) {}
+  packet(packet &&pkt) noexcept
+      : buffer_(std::move(pkt.buffer_)), decode_offset_(pkt.decode_offset_) {}
+
+  ~packet() = default;
 
 private:
   data_buffer buffer_;
-  std::size_t decode_offset_ = 0u;
+  std::size_t decode_offset_ = 0U;
 
 public:
   [[nodiscard]] static auto decode_json(packet &response, json &json_data)
@@ -78,47 +80,45 @@ public:
 
   [[nodiscard]] auto decode(void *&ptr) -> error_type;
 
-  [[nodiscard]] auto decode(std::int8_t &i) -> error_type;
+  [[nodiscard]] auto decode(std::int8_t &val) -> error_type;
 
-  [[nodiscard]] auto decode(std::uint8_t &i) -> error_type;
+  [[nodiscard]] auto decode(std::uint8_t &val) -> error_type;
 
-  [[nodiscard]] auto decode(std::int16_t &i) -> error_type;
+  [[nodiscard]] auto decode(std::int16_t &val) -> error_type;
 
-  [[nodiscard]] auto decode(std::uint16_t &i) -> error_type;
+  [[nodiscard]] auto decode(std::uint16_t &val) -> error_type;
 
-  [[nodiscard]] auto decode(std::int32_t &i) -> error_type;
+  [[nodiscard]] auto decode(std::int32_t &val) -> error_type;
 
-  [[nodiscard]] auto decode(std::uint32_t &i) -> error_type;
+  [[nodiscard]] auto decode(std::uint32_t &val) -> error_type;
 
-  [[nodiscard]] auto decode(std::int64_t &i) -> error_type;
+  [[nodiscard]] auto decode(std::int64_t &val) -> error_type;
 
-  [[nodiscard]] auto decode(std::uint64_t &i) -> error_type;
+  [[nodiscard]] auto decode(std::uint64_t &val) -> error_type;
 
-  [[nodiscard]] auto decode(remote::open_flags &i) -> error_type {
-    return decode(reinterpret_cast<std::uint32_t &>(i));
+  [[nodiscard]] auto decode(remote::open_flags &val) -> error_type {
+    return decode(reinterpret_cast<std::uint32_t &>(val));
   }
 
-  [[nodiscard]] auto decode(remote::setattr_x &i) -> error_type;
+  [[nodiscard]] auto decode(remote::setattr_x &val) -> error_type;
 
-  [[nodiscard]] auto decode(remote::stat &i) -> error_type;
+  [[nodiscard]] auto decode(remote::stat &val) -> error_type;
 
-  [[nodiscard]] auto decode(remote::statfs &i) -> error_type;
+  [[nodiscard]] auto decode(remote::statfs &val) -> error_type;
 
-  [[nodiscard]] auto decode(remote::statfs_x &i) -> error_type;
+  [[nodiscard]] auto decode(remote::statfs_x &val) -> error_type;
 
-  [[nodiscard]] auto decode(remote::file_info &i) -> error_type;
+  [[nodiscard]] auto decode(remote::file_info &val) -> error_type;
 
   [[nodiscard]] auto decrypt(const std::string &token) -> error_type;
 
   void encode(const void *buffer, std::size_t size, bool should_reserve = true);
 
-  void encode(char *str) { encode(std::string(str ? str : "")); }
-
-  void encode(const char *str) { encode(std::string(str ? str : "")); }
+  void encode(const char *str) {
+    encode(std::string(str == nullptr ? "" : str));
+  }
 
   void encode(const std::string &str);
-
-  void encode(wchar_t *str);
 
   void encode(const wchar_t *str);
 
@@ -128,33 +128,35 @@ public:
     encode(static_cast<std::uint64_t>(reinterpret_cast<std::uintptr_t>(ptr)));
   }
 
-  void encode(std::int8_t i);
+  void encode(std::int8_t val);
 
-  void encode(std::uint8_t i);
+  void encode(std::uint8_t val);
 
-  void encode(std::int16_t i);
+  void encode(std::int16_t val);
 
-  void encode(std::uint16_t i);
+  void encode(std::uint16_t val);
 
-  void encode(std::int32_t i);
+  void encode(std::int32_t val);
 
-  void encode(std::uint32_t i);
+  void encode(std::uint32_t val);
 
-  void encode(std::int64_t i);
+  void encode(std::int64_t val);
 
-  void encode(std::uint64_t i);
+  void encode(std::uint64_t val);
 
-  void encode(remote::open_flags i) { encode(static_cast<std::uint32_t>(i)); }
+  void encode(remote::open_flags val) {
+    encode(static_cast<std::uint32_t>(val));
+  }
 
-  void encode(remote::setattr_x i);
+  void encode(remote::setattr_x val);
 
-  void encode(remote::stat i);
+  void encode(remote::stat val);
 
-  void encode(remote::statfs i, bool should_reserve = true);
+  void encode(remote::statfs val, bool should_reserve = true);
 
-  void encode(remote::statfs_x i);
+  void encode(remote::statfs_x val);
 
-  void encode(remote::file_info i);
+  void encode(remote::file_info val);
 
   void encode_top(const void *buffer, std::size_t size,
                   bool should_reserve = true);
@@ -168,35 +170,35 @@ public:
         static_cast<std::uint64_t>(reinterpret_cast<std::uintptr_t>(ptr)));
   }
 
-  void encode_top(std::int8_t i);
+  void encode_top(std::int8_t val);
 
-  void encode_top(std::uint8_t i);
+  void encode_top(std::uint8_t val);
 
-  void encode_top(std::int16_t i);
+  void encode_top(std::int16_t val);
 
-  void encode_top(std::uint16_t i);
+  void encode_top(std::uint16_t val);
 
-  void encode_top(std::int32_t i);
+  void encode_top(std::int32_t val);
 
-  void encode_top(std::uint32_t i);
+  void encode_top(std::uint32_t val);
 
-  void encode_top(std::int64_t i);
+  void encode_top(std::int64_t val);
 
-  void encode_top(std::uint64_t i);
+  void encode_top(std::uint64_t val);
 
-  void encode_top(remote::open_flags i) {
-    encode_top(static_cast<std::uint32_t>(i));
+  void encode_top(remote::open_flags val) {
+    encode_top(static_cast<std::uint32_t>(val));
   }
 
-  void encode_top(remote::setattr_x i);
+  void encode_top(remote::setattr_x val);
 
-  void encode_top(remote::stat i);
+  void encode_top(remote::stat val);
 
-  void encode_top(remote::statfs i, bool should_reserve = true);
+  void encode_top(remote::statfs val, bool should_reserve = true);
 
-  void encode_top(remote::statfs_x i);
+  void encode_top(remote::statfs_x val);
 
-  void encode_top(remote::file_info i);
+  void encode_top(remote::file_info val);
 
   void encrypt(const std::string &token);
 
@@ -211,9 +213,9 @@ public:
 
   auto operator=(data_buffer &&buffer) noexcept -> packet &;
 
-  auto operator=(const packet &p) noexcept -> packet &;
+  auto operator=(const packet &pkt) noexcept -> packet &;
 
-  auto operator=(packet &&p) noexcept -> packet &;
+  auto operator=(packet &&pkt) noexcept -> packet &;
 
   [[nodiscard]] auto operator[](std::size_t index) -> char & {
     return buffer_[index];

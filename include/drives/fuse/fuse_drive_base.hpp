@@ -36,6 +36,12 @@ public:
 
   ~fuse_drive_base() override = default;
 
+public:
+  fuse_drive_base(const fuse_drive_base &) = delete;
+  fuse_drive_base(fuse_drive_base &&) = delete;
+  auto operator=(const fuse_drive_base &) -> fuse_drive_base & = delete;
+  auto operator=(fuse_drive_base &&) -> fuse_drive_base & = delete;
+
 protected:
   [[nodiscard]] auto access_impl(std::string api_path, int mask)
       -> api_error override;

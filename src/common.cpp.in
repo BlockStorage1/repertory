@@ -20,6 +20,7 @@
   SOFTWARE.
 */
 #include "types/repertory.hpp"
+#include "utils/utils.hpp"
 
 namespace repertory {
 auto get_repertory_git_revision() -> const std::string & {
@@ -48,7 +49,11 @@ void repertory_init() {
   }
 
   curl_global_init(CURL_GLOBAL_DEFAULT);
+  sqlite3_initialize();
 }
 
-void repertory_shutdown() { curl_global_cleanup(); }
+void repertory_shutdown() {
+  curl_global_cleanup();
+  sqlite3_shutdown();
+}
 } // namespace repertory

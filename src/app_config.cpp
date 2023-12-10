@@ -28,70 +28,91 @@
 #include "utils/unix/unix_utils.hpp"
 #include "utils/utils.hpp"
 
+namespace {
+constexpr const auto default_api_auth_size = 48U;
+constexpr const auto default_download_timeout_ces = 30U;
+constexpr const auto default_eviction_delay_mins = 10U;
+constexpr const auto default_high_freq_interval_secs = 30U;
+constexpr const auto default_low_freq_interval_secs = 60U * 60U;
+constexpr const auto default_max_cache_size_bytes =
+    20ULL * 1024ULL * 1024ULL * 1024ULL;
+constexpr const auto default_max_upload_count = 5U;
+constexpr const auto default_min_download_timeout_secs = 5U;
+constexpr const auto default_online_check_retry_secs = 60U;
+constexpr const auto default_orphaned_file_retention_days = 15U;
+constexpr const auto default_read_ahead_count = 4U;
+constexpr const auto default_remote_client_pool_size = 10U;
+constexpr const auto default_remote_host_name_or_ip = "";
+constexpr const auto default_remote_max_connections = 20U;
+constexpr const auto default_remote_receive_timeout_secs = 120U;
+constexpr const auto default_remote_send_timeout_secs = 30U;
+constexpr const auto default_remote_token = "";
+constexpr const auto default_retry_read_count = 6U;
+constexpr const auto default_ring_buffer_file_size = 512U;
+constexpr const auto retry_save_count = 5U;
+} // namespace
+
 namespace repertory {
-app_config::app_config(const provider_type &pt,
+app_config::app_config(const provider_type &prov,
                        const std::string &data_directory)
-    : pt_(pt),
-      api_auth_(utils::generate_random_string(48u)),
-      api_port_(default_rpc_port(pt)),
-      api_user_("repertory"),
+    : prov_(prov),
+      api_auth_(utils::generate_random_string(default_api_auth_size)),
+      api_port_(default_rpc_port(prov)),
+      api_user_(REPERTORY),
       config_changed_(false),
-      data_directory_(
-          data_directory.empty() ? default_data_directory(pt)
-          : ((pt == provider_type::remote) || (pt == provider_type::s3))
-              ? utils::path::absolute(data_directory)
-              : utils::path::absolute(utils::path::combine(
-                    data_directory, {get_provider_name(pt)}))),
-      download_timeout_secs_(30),
+      data_directory_(data_directory.empty()
+                          ? default_data_directory(prov)
+                          : utils::path::absolute(data_directory)),
+      download_timeout_secs_(default_download_timeout_ces),
       enable_chunk_downloader_timeout_(true),
       enable_comm_duration_events_(false),
       enable_drive_events_(false),
-      enable_max_cache_size_(true),
+      enable_max_cache_size_(false),
 #ifdef _WIN32
       enable_mount_manager_(false),
 #endif
       enable_remote_mount_(false),
       event_level_(event_level::normal),
-      eviction_delay_mins_(30),
+      eviction_delay_mins_(default_eviction_delay_mins),
       eviction_uses_accessed_time_(false),
-      high_freq_interval_secs_(30),
+      high_freq_interval_secs_(default_high_freq_interval_secs),
       is_remote_mount_(false),
-      low_freq_interval_secs_(60 * 60),
-      max_cache_size_bytes_(20 * 1024 * 1024 * 1024ULL),
-      max_upload_count_(5u),
-      min_download_timeout_secs_(5),
-      online_check_retry_secs_(60),
-      orphaned_file_retention_days_(15),
+      low_freq_interval_secs_(default_low_freq_interval_secs),
+      max_cache_size_bytes_(default_max_cache_size_bytes),
+      max_upload_count_(default_max_upload_count),
+      min_download_timeout_secs_(default_min_download_timeout_secs),
+      online_check_retry_secs_(default_online_check_retry_secs),
+      orphaned_file_retention_days_(default_orphaned_file_retention_days),
       preferred_download_type_(
           utils::download_type_to_string(download_type::fallback)),
-      read_ahead_count_(4),
-      remote_client_pool_size_(10),
-      remote_host_name_or_ip_(""),
-      remote_max_connections_(20),
-      remote_port_((pt == provider_type::sia)       ? 20000
-                   : (pt == provider_type::s3)      ? 20001
-                   : (pt == provider_type::encrypt) ? 20002
-                                                    : 20003),
-      remote_receive_timeout_secs_(120),
-      remote_send_timeout_secs_(30),
-      remote_token_(""),
-      retry_read_count_(6),
-      ring_buffer_file_size_(512) {
+      read_ahead_count_(default_read_ahead_count),
+      remote_client_pool_size_(default_remote_client_pool_size),
+      remote_host_name_or_ip_(default_remote_host_name_or_ip),
+      remote_max_connections_(default_remote_max_connections),
+      remote_port_(default_remote_port(prov)),
+      remote_receive_timeout_secs_(default_remote_receive_timeout_secs),
+      remote_send_timeout_secs_(default_remote_send_timeout_secs),
+      remote_token_(default_remote_token),
+      retry_read_count_(default_retry_read_count),
+      ring_buffer_file_size_(default_ring_buffer_file_size) {
   cache_directory_ = utils::path::combine(data_directory_, {"cache"});
   log_directory_ = utils::path::combine(data_directory_, {"logs"});
 
-  hc_.agent_string = default_agent_name(pt_);
-  hc_.api_password = get_provider_api_password(pt_);
-  hc_.api_port = default_api_port(pt_);
+  hc_.agent_string = default_agent_name(prov_);
+  hc_.api_password = get_provider_api_password(prov_);
+  hc_.api_port = default_api_port(prov_);
 
-  if (not utils::file::create_full_directory_path(data_directory_))
+  if (not utils::file::create_full_directory_path(data_directory_)) {
     throw startup_exception("unable to create: " + data_directory_);
+  }
 
-  if (not utils::file::create_full_directory_path(cache_directory_))
+  if (not utils::file::create_full_directory_path(cache_directory_)) {
     throw startup_exception("unable to create: " + cache_directory_);
+  }
 
-  if (not utils::file::create_full_directory_path(log_directory_))
+  if (not utils::file::create_full_directory_path(log_directory_)) {
     throw startup_exception("unable to create: " + log_directory_);
+  }
 
   if (not load()) {
     save();
@@ -102,48 +123,73 @@ auto app_config::get_config_file_path() const -> std::string {
   return utils::path::combine(data_directory_, {"config.json"});
 }
 
-auto app_config::default_agent_name(const provider_type &pt) -> std::string {
+auto app_config::default_agent_name(const provider_type &prov) -> std::string {
   static const std::array<std::string,
                           static_cast<std::size_t>(provider_type::unknown)>
-      PROVIDER_AGENT_NAMES = {"Sia-Agent", "", "", "", ""};
+      PROVIDER_AGENT_NAMES = {
+          "Sia-Agent",
+          "",
+          "",
+          "",
+      };
 
-  return PROVIDER_AGENT_NAMES[static_cast<std::size_t>(pt)];
+  return PROVIDER_AGENT_NAMES.at(static_cast<std::size_t>(prov));
 }
 
-auto app_config::default_api_port(const provider_type &pt) -> std::uint16_t {
+auto app_config::default_api_port(const provider_type &prov) -> std::uint16_t {
   static const std::array<std::uint16_t,
                           static_cast<std::size_t>(provider_type::unknown)>
-      PROVIDER_API_PORTS = {9980u, 0u, 0u, 0u, 0u};
-  return PROVIDER_API_PORTS[static_cast<std::size_t>(pt)];
+      PROVIDER_API_PORTS = {
+          9980U,
+          0U,
+          0U,
+          0U,
+      };
+  return PROVIDER_API_PORTS.at(static_cast<std::size_t>(prov));
 }
 
-auto app_config::default_data_directory(const provider_type &pt)
+auto app_config::default_data_directory(const provider_type &prov)
     -> std::string {
 #ifdef _WIN32
   auto data_directory = utils::path::combine(
       utils::get_local_app_data_directory(),
-      {REPERTORY_DATA_NAME, app_config::get_provider_name(pt)});
+      {REPERTORY_DATA_NAME, app_config::get_provider_name(prov)});
 #else
 #ifdef __APPLE__
   auto data_directory = utils::path::resolve(
       std::string("~/Library/Application Support/") + REPERTORY_DATA_NAME +
-      '/' + app_config::get_provider_name(pt));
+      '/' + app_config::get_provider_name(prov));
 #else
   auto data_directory =
       utils::path::resolve(std::string("~/.local/") + REPERTORY_DATA_NAME +
-                           '/' + app_config::get_provider_name(pt));
+                           '/' + app_config::get_provider_name(prov));
 #endif
 #endif
   return data_directory;
 }
 
-auto app_config::default_rpc_port(const provider_type &pt) -> std::uint16_t {
+auto app_config::default_remote_port(const provider_type &prov)
+    -> std::uint16_t {
+  static const std::array<std::uint16_t,
+                          static_cast<std::size_t>(provider_type::unknown)>
+      PROVIDER_REMOTE_PORTS = {
+          20000U,
+          20010U,
+          20100U,
+          20001U,
+      };
+  return PROVIDER_REMOTE_PORTS.at(static_cast<std::size_t>(prov));
+}
+auto app_config::default_rpc_port(const provider_type &prov) -> std::uint16_t {
   static const std::array<std::uint16_t,
                           static_cast<std::size_t>(provider_type::unknown)>
       PROVIDER_RPC_PORTS = {
-          11101u, 11102u, 11103u, 11104u, 11105u,
+          10000U,
+          10010U,
+          10100U,
+          10002U,
       };
-  return PROVIDER_RPC_PORTS[static_cast<std::size_t>(pt)];
+  return PROVIDER_RPC_PORTS.at(static_cast<std::size_t>(prov));
 }
 
 auto app_config::get_json() const -> json {
@@ -209,11 +255,12 @@ auto app_config::get_json() const -> json {
            {"SecretKey", s3_config_.secret_key},
            {"TimeoutMs", s3_config_.timeout_ms},
            {"URL", s3_config_.url},
+           {"UsePathStyle", s3_config_.use_path_style},
            {"UseRegionInURL", s3_config_.use_region_in_url},
        }},
       {"Version", version_}};
 
-  if (pt_ == provider_type::encrypt) {
+  if (prov_ == provider_type::encrypt) {
     ret.erase("ChunkDownloaderTimeoutSeconds");
     ret.erase("EnableChunkDownloaderTimeout");
     ret.erase("EnableMaxCacheSize");
@@ -229,13 +276,13 @@ auto app_config::get_json() const -> json {
     ret.erase("RetryReadCount");
     ret.erase("RingBufferFileSize");
     ret.erase("S3Config");
-  } else if (pt_ == provider_type::s3) {
+  } else if (prov_ == provider_type::s3) {
     ret.erase("EncryptConfig");
     ret.erase("HostConfig");
-  } else if (pt_ == provider_type::sia) {
+  } else if (prov_ == provider_type::sia) {
     ret.erase("EncryptConfig");
     ret.erase("S3Config");
-  } else if (pt_ == provider_type::remote) {
+  } else if (prov_ == provider_type::remote) {
     ret.erase("ChunkDownloaderTimeoutSeconds");
     ret.erase("EnableChunkDownloaderTimeout");
     ret.erase("EnableChunkDownloaderTimeout");
@@ -261,50 +308,56 @@ auto app_config::get_json() const -> json {
 
 auto app_config::get_max_cache_size_bytes() const -> std::uint64_t {
   const auto max_space =
-      std::max(static_cast<std::uint64_t>(100ull * 1024ull * 1024ull),
+      std::max(static_cast<std::uint64_t>(100ULL * 1024ULL * 1024ULL),
                max_cache_size_bytes_);
   return std::min(utils::file::get_free_drive_space(get_cache_directory()),
                   max_space);
 }
 
-auto app_config::get_provider_api_password(const provider_type &pt)
+auto app_config::get_provider_api_password(const provider_type &prov)
     -> std::string {
 #ifdef _WIN32
   auto api_file =
       utils::path::combine(utils::get_local_app_data_directory(),
-                           {get_provider_display_name(pt), "apipassword"});
+                           {get_provider_display_name(prov), "apipassword"});
 #else
 #ifdef __APPLE__
   auto api_file =
       utils::path::combine(utils::path::resolve("~"),
                            {"/Library/Application Support",
-                            get_provider_display_name(pt), "apipassword"});
+                            get_provider_display_name(prov), "apipassword"});
 #else
-  auto api_file = utils::path::combine(utils::path::resolve("~/."),
-                                       {get_provider_name(pt), "apipassword"});
+  auto api_file = utils::path::combine(
+      utils::path::resolve("~/."), {get_provider_name(prov), "apipassword"});
 #endif
 #endif
   auto lines = utils::file::read_file_lines(api_file);
-  return lines.empty() ? "" : utils::string::trim(lines[0]);
+  return lines.empty() ? "" : utils::string::trim(lines[0U]);
 }
 
-auto app_config::get_provider_display_name(const provider_type &pt)
+auto app_config::get_provider_display_name(const provider_type &prov)
     -> std::string {
   static const std::array<std::string,
                           static_cast<std::size_t>(provider_type::unknown)>
       PROVIDER_DISPLAY_NAMES = {
-          "Sia", "Remote", "S3", "Passthrough", "Encrypt",
+          "Sia",
+          "Remote",
+          "S3",
+          "Encrypt",
       };
-  return PROVIDER_DISPLAY_NAMES[static_cast<std::size_t>(pt)];
+  return PROVIDER_DISPLAY_NAMES.at(static_cast<std::size_t>(prov));
 }
 
-auto app_config::get_provider_name(const provider_type &pt) -> std::string {
+auto app_config::get_provider_name(const provider_type &prov) -> std::string {
   static const std::array<std::string,
                           static_cast<std::size_t>(provider_type::unknown)>
       PROVIDER_NAMES = {
-          "sia", "remote", "s3", "passthrough", "encrypt",
+          "sia",
+          "remote",
+          "s3",
+          "encrypt",
       };
-  return PROVIDER_NAMES[static_cast<std::size_t>(pt)];
+  return PROVIDER_NAMES.at(static_cast<std::size_t>(prov));
 }
 
 auto app_config::get_value_by_name(const std::string &name) -> std::string {
@@ -322,16 +375,16 @@ auto app_config::get_value_by_name(const std::string &name) -> std::string {
       return std::to_string(get_chunk_downloader_timeout_secs());
     }
     if (name == "EnableChunkDownloaderTimeout") {
-      return std::to_string(get_enable_chunk_download_timeout());
+      return utils::string::from_bool(get_enable_chunk_download_timeout());
     }
     if (name == "GetEnableCommDurationEvents") {
-      return std::to_string(get_enable_comm_duration_events());
+      return utils::string::from_bool(get_enable_comm_duration_events());
     }
     if (name == "EnableDriveEvents") {
-      return std::to_string(get_enable_drive_events());
+      return utils::string::from_bool(get_enable_drive_events());
     }
     if (name == "EnableMaxCacheSize") {
-      return std::to_string(get_enable_max_cache_size());
+      return utils::string::from_bool(get_enable_max_cache_size());
 #ifdef _WIN32
     }
     if (name == "EnableMountManager") {
@@ -351,7 +404,7 @@ auto app_config::get_value_by_name(const std::string &name) -> std::string {
       return std::to_string(get_eviction_delay_mins());
     }
     if (name == "EvictionUsesAccessedTime") {
-      return std::to_string(get_eviction_uses_accessed_time());
+      return utils::string::from_bool(get_eviction_uses_accessed_time());
     }
     if (name == "HighFreqIntervalSeconds") {
       return std::to_string(get_high_frequency_interval_secs());
@@ -394,10 +447,10 @@ auto app_config::get_value_by_name(const std::string &name) -> std::string {
       return std::to_string(get_read_ahead_count());
     }
     if (name == "RemoteMount.EnableRemoteMount") {
-      return std::to_string(get_enable_remote_mount());
+      return utils::string::from_bool(get_enable_remote_mount());
     }
     if (name == "RemoteMount.IsRemoteMount") {
-      return std::to_string(get_is_remote_mount());
+      return utils::string::from_bool(get_is_remote_mount());
     }
     if (name == "RemoteMount.RemoteClientPoolSize") {
       return std::to_string(get_remote_client_pool_size());
@@ -447,8 +500,11 @@ auto app_config::get_value_by_name(const std::string &name) -> std::string {
     if (name == "S3Config.URL") {
       return s3_config_.url;
     }
+    if (name == "S3Config.UsePathStyle") {
+      return utils::string::from_bool(s3_config_.use_path_style);
+    }
     if (name == "S3Config.UseRegionInURL") {
-      return std::to_string(s3_config_.use_region_in_url);
+      return utils::string::from_bool(s3_config_.use_region_in_url);
     }
     if (name == "S3Config.TimeoutMs") {
       return std::to_string(s3_config_.timeout_ms);
@@ -463,16 +519,17 @@ auto app_config::load() -> bool {
   auto ret = false;
 
   const auto config_file_path = get_config_file_path();
-  recur_mutex_lock l(read_write_mutex_);
+  recur_mutex_lock lock(read_write_mutex_);
   if (utils::file::is_file(config_file_path)) {
     try {
-      std::ifstream config_file(&config_file_path[0]);
+      std::ifstream config_file(config_file_path.data());
       if (config_file.is_open()) {
-        std::stringstream ss;
-        ss << config_file.rdbuf();
-        const auto json_text = ss.str();
+        std::stringstream stream;
+        stream << config_file.rdbuf();
+        const auto json_text = stream.str();
         config_file.close();
-        if ((ret = not json_text.empty())) {
+        ret = not json_text.empty();
+        if (ret) {
           const auto json_document = json::parse(json_text);
 
           get_value(json_document, "ApiAuth", api_auth_, ret);
@@ -510,20 +567,20 @@ auto app_config::load() -> bool {
 
           if (json_document.find("HostConfig") != json_document.end()) {
             auto host_config_json = json_document["HostConfig"];
-            auto hc = hc_;
-            get_value(host_config_json, "AgentString", hc.agent_string, ret);
-            get_value(host_config_json, "ApiPassword", hc.api_password, ret);
-            get_value(host_config_json, "ApiPort", hc.api_port, ret);
-            get_value(host_config_json, "HostNameOrIp", hc.host_name_or_ip,
+            auto cfg = hc_;
+            get_value(host_config_json, "AgentString", cfg.agent_string, ret);
+            get_value(host_config_json, "ApiPassword", cfg.api_password, ret);
+            get_value(host_config_json, "ApiPort", cfg.api_port, ret);
+            get_value(host_config_json, "HostNameOrIp", cfg.host_name_or_ip,
                       ret);
-            get_value(host_config_json, "TimeoutMs", hc.timeout_ms, ret);
-            hc_ = hc;
+            get_value(host_config_json, "TimeoutMs", cfg.timeout_ms, ret);
+            hc_ = cfg;
           } else {
             ret = false;
           }
 
           if (hc_.api_password.empty()) {
-            hc_.api_password = get_provider_api_password(pt_);
+            hc_.api_password = get_provider_api_password(prov_);
             if (hc_.api_password.empty()) {
               ret = false;
             }
@@ -531,20 +588,22 @@ auto app_config::load() -> bool {
 
           if (json_document.find("S3Config") != json_document.end()) {
             auto s3_config_json = json_document["S3Config"];
-            auto s3 = s3_config_;
-            get_value(s3_config_json, "AccessKey", s3.access_key, ret);
-            get_value(s3_config_json, "Bucket", s3.bucket, ret);
+            auto s3_cfg = s3_config_;
+            get_value(s3_config_json, "AccessKey", s3_cfg.access_key, ret);
+            get_value(s3_config_json, "Bucket", s3_cfg.bucket, ret);
             get_value(s3_config_json, "CacheTimeoutSeconds",
-                      s3.cache_timeout_secs, ret);
-            get_value(s3_config_json, "EncryptionToken", s3.encryption_token,
+                      s3_cfg.cache_timeout_secs, ret);
+            get_value(s3_config_json, "EncryptionToken",
+                      s3_cfg.encryption_token, ret);
+            get_value(s3_config_json, "Region", s3_cfg.region, ret);
+            get_value(s3_config_json, "SecretKey", s3_cfg.secret_key, ret);
+            get_value(s3_config_json, "TimeoutMs", s3_cfg.timeout_ms, ret);
+            get_value(s3_config_json, "URL", s3_cfg.url, ret);
+            get_value(s3_config_json, "UsePathStyle", s3_cfg.use_path_style,
                       ret);
-            get_value(s3_config_json, "Region", s3.region, ret);
-            get_value(s3_config_json, "SecretKey", s3.secret_key, ret);
-            get_value(s3_config_json, "TimeoutMs", s3.timeout_ms, ret);
-            get_value(s3_config_json, "URL", s3.url, ret);
-            get_value(s3_config_json, "UseRegionInURL", s3.use_region_in_url,
-                      ret);
-            s3_config_ = s3;
+            get_value(s3_config_json, "UseRegionInURL",
+                      s3_cfg.use_region_in_url, ret);
+            s3_config_ = s3_cfg;
           } else {
             ret = false;
           }
@@ -593,13 +652,13 @@ auto app_config::load() -> bool {
             ret = false;
           }
 
-          std::uint64_t version = 0u;
+          std::uint64_t version{};
           get_value(json_document, "Version", version, ret);
 
           // Handle configuration defaults for new config versions
           if (version != REPERTORY_CONFIG_VERSION) {
             if (version > REPERTORY_CONFIG_VERSION) {
-              version = 0u;
+              version = 0U;
             }
 
             version_ = version;
@@ -621,9 +680,9 @@ auto app_config::load() -> bool {
 }
 
 void app_config::save() {
-  const auto configFilePath = get_config_file_path();
-  recur_mutex_lock l(read_write_mutex_);
-  if (config_changed_ || not utils::file::is_file(configFilePath)) {
+  const auto file_path = get_config_file_path();
+  recur_mutex_lock lock(read_write_mutex_);
+  if (config_changed_ || not utils::file::is_file(file_path)) {
     if (not utils::file::is_directory(data_directory_)) {
       if (not utils::file::create_full_directory_path(data_directory_)) {
         utils::error::raise_error(
@@ -635,8 +694,9 @@ void app_config::save() {
     config_changed_ = false;
     json data = get_json();
     auto success = false;
-    for (auto i = 0; not success && (i < 5); i++) {
-      if (not(success = utils::file::write_json_file(configFilePath, data))) {
+    for (auto i = 0U; not success && (i < retry_save_count); i++) {
+      success = utils::file::write_json_file(file_path, data);
+      if (not success) {
         std::this_thread::sleep_for(1s);
       }
     }
@@ -684,19 +744,19 @@ auto app_config::set_value_by_name(const std::string &name,
     }
     if (name == "EnableChunkDownloaderTimeout") {
       set_enable_chunk_downloader_timeout(utils::string::to_bool(value));
-      return std::to_string(get_enable_chunk_download_timeout());
+      return utils::string::from_bool(get_enable_chunk_download_timeout());
     }
     if (name == "EnableCommDurationEvents") {
       set_enable_comm_duration_events(utils::string::to_bool(value));
-      return std::to_string(get_enable_comm_duration_events());
+      return utils::string::from_bool(get_enable_comm_duration_events());
     }
     if (name == "EnableDriveEvents") {
       set_enable_drive_events(utils::string::to_bool(value));
-      return std::to_string(get_enable_drive_events());
+      return utils::string::from_bool(get_enable_drive_events());
     }
     if (name == "EnableMaxCacheSize") {
       set_enable_max_cache_size(utils::string::to_bool(value));
-      return std::to_string(get_enable_max_cache_size());
+      return utils::string::from_bool(get_enable_max_cache_size());
 #ifdef _WIN32
     }
     if (name == "EnableMountManager") {
@@ -722,7 +782,7 @@ auto app_config::set_value_by_name(const std::string &name,
     }
     if (name == "EvictionUsesAccessedTime") {
       set_eviction_uses_accessed_time(utils::string::to_bool(value));
-      return std::to_string(get_eviction_uses_accessed_time());
+      return utils::string::from_bool(get_eviction_uses_accessed_time());
     }
     if (name == "HighFreqIntervalSeconds") {
       set_high_frequency_interval_secs(utils::string::to_uint8(value));
@@ -779,11 +839,11 @@ auto app_config::set_value_by_name(const std::string &name,
     }
     if (name == "RemoteMount.EnableRemoteMount") {
       set_enable_remote_mount(utils::string::to_bool(value));
-      return std::to_string(get_enable_remote_mount());
+      return utils::string::from_bool(get_enable_remote_mount());
     }
     if (name == "RemoteMount.IsRemoteMount") {
       set_is_remote_mount(utils::string::to_bool(value));
-      return std::to_string(get_is_remote_mount());
+      return utils::string::from_bool(get_is_remote_mount());
     }
     if (name == "RemoteMount.RemoteClientPoolSize") {
       set_remote_client_pool_size(utils::string::to_uint8(value));
@@ -831,7 +891,7 @@ auto app_config::set_value_by_name(const std::string &name,
     }
     if (name == "S3Config.CacheTimeoutSeconds") {
       const auto timeout =
-          std::max(std::uint16_t(5u), utils::string::to_uint16(value));
+          std::max(std::uint16_t(5U), utils::string::to_uint16(value));
       set_value(s3_config_.cache_timeout_secs, timeout);
       return std::to_string(s3_config_.cache_timeout_secs);
     }
@@ -847,9 +907,13 @@ auto app_config::set_value_by_name(const std::string &name,
       set_value(s3_config_.url, value);
       return s3_config_.url;
     }
+    if (name == "S3Config.UsePathStyle") {
+      set_value(s3_config_.use_path_style, utils::string::to_bool(value));
+      return utils::string::from_bool(s3_config_.use_path_style);
+    }
     if (name == "S3Config.UseRegionInURL") {
       set_value(s3_config_.use_region_in_url, utils::string::to_bool(value));
-      return std::to_string(s3_config_.use_region_in_url);
+      return utils::string::from_bool(s3_config_.use_region_in_url);
     }
     if (name == "S3Config.TimeoutMs") {
       set_value(s3_config_.timeout_ms, utils::string::to_uint32(value));

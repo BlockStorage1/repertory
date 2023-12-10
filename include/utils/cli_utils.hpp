@@ -34,8 +34,6 @@ static const option data_directory_option = {"-dd", "--data_directory"};
 static const option encrypt_option = {"-en", "--encrypt"};
 static const option drive_information_option = {"-di", "--drive_information"};
 #if defined(REPERTORY_ENABLE_S3)
-static const option create_directory_option = {"-cd", "--create_directory"};
-static const option list_objects_option = {"-lo", "--list_objects"};
 static const option name_option = {"-na", "--name"};
 static const option s3_option = {"-s3", "--s3"};
 #endif // defined(REPERTORY_ENABLE_S3)
@@ -67,8 +65,6 @@ static const std::vector<option> option_list = {
 #if defined(REPERTORY_ENABLE_S3)
     s3_option,
     name_option,
-    create_directory_option,
-    list_objects_option,
 #endif // defined(REPERTORY_ENABLE_S3)
     generate_config_option,
     get_option,
@@ -92,26 +88,28 @@ static const std::vector<option> option_list = {
 
 // Prototypes
 void get_api_authentication_data(std::string &user, std::string &password,
-                                 std::uint16_t &port, const provider_type &pt,
+                                 std::uint16_t &port, const provider_type &prov,
                                  const std::string &data_directory);
 
-[[nodiscard]] auto get_provider_type_from_args(int argc, char *argv[])
+[[nodiscard]] auto get_provider_type_from_args(std::vector<const char *> args)
     -> provider_type;
 
-[[nodiscard]] auto has_option(int argc, char *argv[],
+[[nodiscard]] auto has_option(std::vector<const char *> args,
                               const std::string &option_name) -> bool;
 
-[[nodiscard]] auto has_option(int argc, char *argv[], const option &opt)
+[[nodiscard]] auto has_option(std::vector<const char *> args, const option &opt)
     -> bool;
 
-[[nodiscard]] auto parse_option(int argc, char *argv[],
+[[nodiscard]] auto parse_option(std::vector<const char *> args,
                                 const std::string &option_name,
                                 std::uint8_t count) -> std::vector<std::string>;
 
-[[nodiscard]] auto parse_string_option(int argc, char **argv, const option &opt,
-                                       std::string &value) -> exit_code;
+[[nodiscard]] auto parse_string_option(std::vector<const char *> args,
+                                       const option &opt, std::string &value)
+    -> exit_code;
 
-[[nodiscard]] auto parse_drive_options(int argc, char **argv, provider_type &pt,
+[[nodiscard]] auto parse_drive_options(std::vector<const char *> args,
+                                       provider_type &prov,
                                        std::string &data_directory)
     -> std::vector<std::string>;
 } // namespace repertory::utils::cli

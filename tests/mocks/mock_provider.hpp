@@ -154,7 +154,7 @@ public:
 
   MOCK_METHOD(api_error, upload_file,
               (const std::string &api_path, const std::string &source_path,
-               const std::string &encryption_token, stop_type &stop_requested),
+               stop_type &stop_requested),
               (override));
 };
 } // namespace repertory

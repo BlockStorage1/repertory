@@ -172,7 +172,7 @@ public:
                      PULONG bytes_transferred) -> NTSTATUS override;
 
   auto Rename(PVOID file_node, PVOID file_desc, PWSTR file_name,
-              PWSTR newFileName, BOOLEAN replace_if_exists)
+              PWSTR new_file_name, BOOLEAN replace_if_exists)
       -> NTSTATUS override;
 
   auto SetBasicInfo(PVOID file_node, PVOID file_desc, UINT32 attributes,
@@ -193,9 +193,9 @@ public:
 
   void shutdown();
 
-  static void display_options(int argc, char *argv[]) {}
+  static void display_options(std::vector<const char *> args) {}
 
-  static void display_version_information(int argc, char *argv[]) {}
+  static void display_version_information(std::vector<const char *> args) {}
 };
 } // namespace repertory
 

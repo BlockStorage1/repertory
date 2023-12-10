@@ -166,13 +166,16 @@ auto lock_data::set_mount_state(bool active, const std::string &mount_location,
 }
 
 auto lock_data::wait_for_lock(int fd, std::uint8_t retry_count) -> int {
+  static constexpr const std::uint32_t max_sleep = 100U;
+
   auto lock_status = EWOULDBLOCK;
-  std::int16_t remain = retry_count * 100u;
+  auto remain = static_cast<std::uint32_t>(retry_count * max_sleep);
   while ((remain > 0) && (lock_status == EWOULDBLOCK)) {
-    if ((lock_status = flock(fd, LOCK_EX | LOCK_NB)) == -1) {
-      if ((lock_status = errno) == EWOULDBLOCK) {
-        const auto sleep_ms = utils::random_between(
-            std::int16_t(1), std::min(remain, std::int16_t(100)));
+    lock_status = flock(fd, LOCK_EX | LOCK_NB);
+    if (lock_status == -1) {
+      lock_status = errno;
+      if (lock_status == EWOULDBLOCK) {
+        auto sleep_ms = utils::random_between(1U, std::min(remain, max_sleep));
         std::this_thread::sleep_for(std::chrono::milliseconds(sleep_ms));
         remain -= sleep_ms;
       }
@@ -185,11 +188,10 @@ auto lock_data::wait_for_lock(int fd, std::uint8_t retry_count) -> int {
 auto create_meta_attributes(
     std::uint64_t accessed_date, std::uint32_t attributes,
     std::uint64_t changed_date, std::uint64_t creation_date, bool directory,
-    const std::string &encryption_token, std::uint32_t gid,
-    const std::string &key, std::uint32_t mode, std::uint64_t modified_date,
-    std::uint32_t osx_backup, std::uint32_t osx_flags, std::uint64_t size,
-    const std::string &source_path, std::uint32_t uid,
-    std::uint64_t written_date) -> api_meta_map {
+    std::uint32_t gid, const std::string &key, std::uint32_t mode,
+    std::uint64_t modified_date, std::uint32_t osx_backup,
+    std::uint32_t osx_flags, std::uint64_t size, const std::string &source_path,
+    std::uint32_t uid, std::uint64_t written_date) -> api_meta_map {
   return {
       {META_ACCESSED, std::to_string(accessed_date)},
       {META_ATTRIBUTES, std::to_string(attributes)},
@@ -197,7 +199,6 @@ auto create_meta_attributes(
       {META_CHANGED, std::to_string(changed_date)},
       {META_CREATION, std::to_string(creation_date)},
       {META_DIRECTORY, utils::string::from_bool(directory)},
-      {META_ENCRYPTION_TOKEN, encryption_token},
       {META_GID, std::to_string(gid)},
       {META_KEY, key},
       {META_MODE, std::to_string(mode)},
@@ -217,8 +218,7 @@ auto provider_meta_handler(i_provider &provider, bool directory,
       file.accessed_date,
       directory ? FILE_ATTRIBUTE_DIRECTORY
                 : FILE_ATTRIBUTE_NORMAL | FILE_ATTRIBUTE_ARCHIVE,
-      file.changed_date, file.creation_date, directory, file.encryption_token,
-      getgid(), file.key,
+      file.changed_date, file.creation_date, directory, getgid(), file.key,
       directory ? S_IFDIR | S_IRUSR | S_IWUSR | S_IXUSR
                 : S_IFREG | S_IRUSR | S_IWUSR,
       file.modified_date, 0u, 0u, file.file_size, file.source_path, getuid(),

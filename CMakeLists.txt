@@ -11,7 +11,7 @@ include(ExternalProject)
 
 set(REPERTORY_MAJOR 2)
 set(REPERTORY_MINOR 0)
-set(REPERTORY_REV 0)
+set(REPERTORY_REV 1)
 set(REPERTORY_RELEASE_NUM 0)
 set(REPERTORY_RELEASE_ITER rc)
 set(REPERTORY_VERSION ${REPERTORY_MAJOR}.${REPERTORY_MINOR}.${REPERTORY_REV}-${REPERTORY_RELEASE_ITER})
@@ -44,24 +44,13 @@ if (UNIX)
   endif()
 endif()
 
-if (MSVC OR MINGW)
-  set(WINFSP_LIBRARY_BASENAME winfsp-x64)
-
-  include_directories(SYSTEM ${CMAKE_SOURCE_DIR}/3rd_party/winfsp-${WINFSP_VERSION}/inc)
-  link_directories(${CMAKE_SOURCE_DIR}/3rd_party/winfsp-${WINFSP_VERSION}/lib)
-  set(REPERTORY_LINK_LIBRARIES
-    ${REPERTORY_LINK_LIBRARIES}
-    ${WINFSP_LIBRARY_BASENAME}.lib
-  )
-endif()
-
 if (LINUX OR MINGW)
   if (CMAKE_COMPILER_IS_GNUCC AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 8.0)
     message(FATAL_ERROR "Require at least gcc-8.0")
   endif()
 
   set(ENV{PKG_CONFIG_PATH}
-    "${EXTERNAL_BUILD_ROOT}/lib/pkgconfig:${EXTERNAL_BUILD_ROOT}/lib64/pkgconfig:$ENV{PKG_CONFIG_PATH}"
+    "${EXTERNAL_BUILD_ROOT}/lib/pkgconfig:${EXTERNAL_BUILD_ROOT}/share/pkgconfig:$ENV{PKG_CONFIG_PATH}"
   )
 
   find_package(PkgConfig REQUIRED)
@@ -94,12 +83,12 @@ if (LINUX OR MINGW)
   if (LIBFUSE3 AND NOT MINGW)
     pkg_check_modules(LIBFUSE3 REQUIRED fuse3>=3.0.0)
     set(LIBFUSE3_LIBRARIES ${LIBFUSE3})
-    add_definitions(-DFUSE_USE_VERSION=30)
+    set(REPERTORY_DEFINITIONS ${REPERTORY_DEFINITIONS} -DFUSE_USE_VERSION=30)
   endif()
 
   if(NOT LIBFUSE3_LIBRARIES AND NOT MINGW)
     pkg_check_modules(LIBFUSE2 REQUIRED fuse>=2.9.0)
-    add_definitions(-DFUSE_USE_VERSION=29)
+    set(REPERTORY_DEFINITIONS ${REPERTORY_DEFINITIONS} -DFUSE_USE_VERSION=29)
   endif()
 
   if (NOT LIBPTHREAD_LIBRARY) 
@@ -143,8 +132,7 @@ elseif (MACOS)
     message(FATAL_ERROR "'libpthread' not found")
   endif()
 
-  set(REPERTORY_DEFINITIONS ${REPERTORY_DEFINITIONS} -DBOOST_ASIO_HAS_STD_STRING_VIEW)
-  add_definitions(-DFUSE_USE_VERSION=29)
+  set(REPERTORY_DEFINITIONS ${REPERTORY_DEFINITIONS} -DFUSE_USE_VERSION=29 -DBOOST_ASIO_HAS_STD_STRING_VIEW)
 
   include_directories(/usr/local/include)
   find_library(OSXFUSE NO_CACHE NAMES OSXFUSE)
@@ -163,27 +151,20 @@ elseif (MACOS)
     "-framework SystemConfiguration"
   )
 elseif (MSVC)
-  set(OPENSSL_USE_STATIC_LIBS TRUE)
-  if (NOT OPENSSL_ROOT_DIR)
-    set (OPENSSL_ROOT_DIR "$ENV{USERPROFILE}\\scoop\\apps\\openssl\\current")
-  endif()
-  find_package(OpenSSL 1.1.1 REQUIRED)
-  set(OPENSSL_LIBRARIES OpenSSL::SSL OpenSSL::Crypto)
-  set(REPERTORY_DEFINITIONS ${REPERTORY_DEFINITIONS} -D_SILENCE_CXX17_CODECVT_HEADER_DEPRECATION_WARNING)
-
-  if (NOT CMAKE_GENERATOR_LOWER STREQUAL "nmake makefiles")
-    set(REPERTORY_OUTPUT_DIR ${CMAKE_BINARY_DIR}/${CMAKE_BUILD_TYPE})
-  endif()
+  message(FATAL_ERROR "MSVC is currently not supported [MinGW-64 should be used]")
 endif()
 
 if (MINGW)
+  set(WINFSP_LIBRARY_BASENAME winfsp-x64)
+
+  include_directories(SYSTEM ${CMAKE_SOURCE_DIR}/3rd_party/winfsp-${WINFSP_VERSION}/inc)
+  link_directories(${CMAKE_SOURCE_DIR}/3rd_party/winfsp-${WINFSP_VERSION}/lib)
   set(REPERTORY_LINK_LIBRARIES
     ${REPERTORY_LINK_LIBRARIES}
+    ${WINFSP_LIBRARY_BASENAME}.lib
     mswsock
   )
-endif()
 
-if (MSVC OR MINGW)
   set(REPERTORY_VER_FILEVERSION ${REPERTORY_MAJOR},${REPERTORY_MINOR},${REPERTORY_REV},${REPERTORY_RELEASE_NUM})
   set(REPERTORY_VER_FILEVERSION_STR ${REPERTORY_MAJOR}.${REPERTORY_MINOR}.${REPERTORY_REV}.${REPERTORY_RELEASE_NUM})
   set(REPERTORY_VER_PRODUCTVERSION ${REPERTORY_MAJOR},${REPERTORY_MINOR},${REPERTORY_REV},${REPERTORY_RELEASE_NUM})
@@ -194,10 +175,6 @@ if (MSVC OR MINGW)
   set(REPERTORY_VER_FILEDESCRIPTION_STR "Mount utility for Sia and S3")
   configure_file(${CMAKE_CURRENT_SOURCE_DIR}/version.rc.in ${CMAKE_CURRENT_SOURCE_DIR}/src/version.rc @ONLY)
   set(WINDOWS_VERSION_RC ${CMAKE_CURRENT_SOURCE_DIR}/src/version.rc)
-
-  if (MSVC)
-    set(LIB_EXT .lib)
-  endif()
 
   set(REPERTORY_LINK_LIBRARIES
     ${REPERTORY_LINK_LIBRARIES}
@@ -232,36 +209,33 @@ include_directories(SYSTEM
 
 link_directories(
   ${EXTERNAL_BUILD_ROOT}/lib
-  ${EXTERNAL_BUILD_ROOT}/lib64
 )
 
 include(cmake/zlib.cmake)
 include(cmake/openssl.cmake)
 include(cmake/curl.cmake)
 include(cmake/boost.cmake)
-include(cmake/libuuid.cmake)
-include(cmake/rocksdb.cmake)
 include(cmake/libsodium.cmake)
+
+configure_file(${CMAKE_CURRENT_SOURCE_DIR}/src/common.cpp.in ${CMAKE_CURRENT_SOURCE_DIR}/src/common.cpp @ONLY)
 
 include_directories(include)
 include_directories(SYSTEM
   ${Boost_INCLUDE_DIR}
   ${CMAKE_CURRENT_SOURCE_DIR}/3rd_party/cpp-httplib
+  ${CMAKE_CURRENT_SOURCE_DIR}/3rd_party/stduuid
   ${CMAKE_CURRENT_SOURCE_DIR}/3rd_party/json
   ${CMAKE_CURRENT_SOURCE_DIR}/3rd_party/pugixml/src
+  ${CMAKE_CURRENT_SOURCE_DIR}/3rd_party/sqlite/include
   ${CURL_INCLUDE_DIRS}
   ${LIBFUSE2_INCLUDE_DIRS}
   ${LIBFUSE3_INCLUDE_DIRS}
-  ${LIBUUID_INCLUDE_DIR}
   ${OPENSSL_INCLUDE_DIR}
-  ${ROCKSDB_INCLUDE_DIRS}
 )
 
 set(REPERTORY_LINK_LIBRARIES
-  ${ROCKSDB_LIBRARIES}
   ${LIBFUSE2_LIBRARIES}
   ${LIBFUSE3_LIBRARIES}
-  ${LIBUUID_LIBRARIES}
   ${Boost_LIBRARIES}
   ${CURL_LIBRARIES}
   ${OPENSSL_LIBRARIES}
@@ -278,16 +252,16 @@ file(GLOB_RECURSE REPERTORY_HEADERS
   ${CMAKE_CURRENT_SOURCE_DIR}/include/**/*.hh
   ${CMAKE_CURRENT_SOURCE_DIR}/include/**/*.hpp
   ${CMAKE_CURRENT_SOURCE_DIR}/3rd_party/pugixml/src/*.hpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/3rd_party/sqlite/include/*.h
 )
 
 file(GLOB_RECURSE REPERTORY_SOURCES
   ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/**/*.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/3rd_party/pugixml/src/*.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/3rd_party/sqlite/src/*.c
 )
 list(REMOVE_ITEM REPERTORY_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/main.cpp)
-
-configure_file(${CMAKE_CURRENT_SOURCE_DIR}/src/common.cpp.in ${CMAKE_CURRENT_SOURCE_DIR}/src/common.cpp @ONLY)
 
 include(cmake/helpers.cmake)
 include(cmake/librepertory.cmake)

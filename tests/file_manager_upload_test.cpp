@@ -56,10 +56,8 @@ TEST(upload, can_upload_a_valid_file) {
     EXPECT_STREQ("0", ee.get_cancelled().get<std::string>().c_str());
   });
 
-  EXPECT_CALL(
-      mp, upload_file(fsi.api_path, fsi.source_path, fsi.encryption_token, _))
+  EXPECT_CALL(mp, upload_file(fsi.api_path, fsi.source_path, _))
       .WillOnce([&fsi](const std::string &, const std::string &,
-                       const std::string &,
                        stop_type &stop_requested) -> api_error {
         EXPECT_FALSE(stop_requested);
         return api_error::success;
@@ -105,10 +103,8 @@ TEST(upload, can_cancel_upload) {
   std::mutex mtx;
   std::condition_variable cv;
 
-  EXPECT_CALL(
-      mp, upload_file(fsi.api_path, fsi.source_path, fsi.encryption_token, _))
+  EXPECT_CALL(mp, upload_file(fsi.api_path, fsi.source_path, _))
       .WillOnce([&cv, &fsi, &mtx](const std::string &, const std::string &,
-                                  const std::string &,
                                   stop_type &stop_requested) -> api_error {
         EXPECT_FALSE(stop_requested);
 
@@ -169,10 +165,8 @@ TEST(upload, can_stop_upload) {
     EXPECT_STREQ("0", ee.get_cancelled().get<std::string>().c_str());
   });
 
-  EXPECT_CALL(
-      mp, upload_file(fsi.api_path, fsi.source_path, fsi.encryption_token, _))
+  EXPECT_CALL(mp, upload_file(fsi.api_path, fsi.source_path, _))
       .WillOnce([&fsi](const std::string &, const std::string &,
-                       const std::string &,
                        stop_type &stop_requested) -> api_error {
         std::this_thread::sleep_for(3s);
         EXPECT_TRUE(stop_requested);

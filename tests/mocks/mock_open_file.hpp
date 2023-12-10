@@ -48,14 +48,16 @@ public:
 
   MOCK_METHOD(std::string, get_source_path, (), (const, override));
 
+  MOCK_METHOD(bool, has_handle, (std::uint64_t handle), (const, override));
+
   MOCK_METHOD(bool, is_directory, (), (const, override));
 
   MOCK_METHOD(api_error, native_operation,
-              (const native_operation_callback &cb), (override));
+              (const native_operation_callback &callback), (override));
 
   MOCK_METHOD(api_error, native_operation,
               (std::uint64_t new_file_size,
-               const native_operation_callback &cb),
+               const native_operation_callback &callback),
               (override));
 
   MOCK_METHOD(api_error, read,

@@ -26,13 +26,15 @@
 #include "types/repertory.hpp"
 
 namespace repertory::cli::actions {
-[[nodiscard]] inline auto status(int, char *[], const std::string &,
-                                 const provider_type &pt,
-                                 const std::string &unique_id, std::string,
-                                 std::string) -> exit_code {
+[[nodiscard]] inline auto status(std::vector<const char *> /* args */,
+                                 const std::string & /*data_directory*/,
+                                 const provider_type &prov,
+                                 const std::string &unique_id,
+                                 std::string /* user */,
+                                 std::string /* password */) -> exit_code {
   auto ret = exit_code::success;
-  lock_data lock(pt, unique_id);
-  [[maybe_unused]] auto status = lock.grab_lock(10u);
+  lock_data lock(prov, unique_id);
+  [[maybe_unused]] auto status = lock.grab_lock(10U);
   json mount_state;
   if (lock.get_mount_state(mount_state)) {
     std::cout << mount_state.dump(2) << std::endl;

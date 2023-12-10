@@ -61,10 +61,10 @@ auto combine(std::string path, const std::vector<std::string> &paths)
   return finalize(
       std::accumulate(paths.begin(), paths.end(), path,
                       [](std::string next_path, const auto &path_part) {
-                        if (not next_path.empty()) {
-                          next_path += (directory_seperator + path_part);
+                        if (next_path.empty()) {
+                          return path_part;
                         }
-                        return next_path;
+                        return next_path + (directory_seperator + path_part);
                       }));
 }
 
