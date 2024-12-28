@@ -1,8 +1,30 @@
 ---
-Checks:          '-*,clang-diagnostic-*,clang-analyzer-*,bugprone-*,concurrency-*,cppcoreguidelines-*,modernize-*,readability-*,-readability-redundant-access-specifiers,-readability-function-cognitive-complexity'
-WarningsAsErrors: ''
-HeaderFilterRegex: ''
-AnalyzeTemporaryDtors: false
-FormatStyle:     none
-User:            sgraves
+Checks: [
+    '-*',
+    'clang-diagnostic-*',
+    'clang-analyzer-*',
+    'bugprone-*',
+    'concurrency-*',
+    'cppcoreguidelines-*',
+    'modernize-*',
+    'readability-*',
+    '-readability-redundant-access-specifiers',
+    '-readability-function-cognitive-complexity'
+  ]
+ExtraArgs: ['-Wno-unknown-warning-option']
+FormatStyle:                  none
+HeaderFileExtensions:         ['', 'h','hh','hpp','hxx']
+HeaderFilterRegex:            ''
+ImplementationFileExtensions: ['c','cc','cpp','cxx']
+CheckOptions:
+  - key: MinimumExceptionNameLength
+    value:   1
+  - key: MinimumLoopCounterNameLength
+    value:   3
+  - key: MinimumParameterNameLength
+    value:   3
+  - key: MinimumVariableNameLength
+    value:   3
+User:                         'scott.e.graves@protonmail.com'
+WarningsAsErrors:             ''
 ...

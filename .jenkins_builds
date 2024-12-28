@@ -1,0 +1,61 @@
+#!groovy
+
+pipeline {
+  agent none
+
+  environment {
+    DEVELOPER_PRIVATE_KEY = "/.ci/repertory/cert/developer.priv"
+    DEVELOPER_PUBLIC_KEY = "/.ci/repertory/cert/developer.pub"
+    PROJECT_TEST_CONFIG_DIR = "/.ci/repertory/test_config"
+  }
+
+  options {
+    disableConcurrentBuilds()
+    retry(2)
+  }
+
+  stages {
+    stage('linux_x86_64') {
+      agent any
+
+      steps {
+        retry(2) {
+          sleep time: 5, unit: 'SECONDS'
+          sh 'scripts/make_unix.sh'
+        }
+      }
+    }
+
+    stage('mingw64') {
+      agent any
+
+      steps {
+        retry(2) {
+          sleep time: 5, unit: 'SECONDS'
+          sh 'scripts/make_win32.sh'
+        }
+      }
+    }
+
+    stage('linux_aarch64') {
+      agent any
+
+      steps {
+        retry(2) {
+          sleep time: 5, unit: 'SECONDS'
+          sh 'scripts/make_unix.sh aarch64'
+        }
+      }
+    }
+
+    stage('deliver') {
+      agent any
+
+      steps {
+        sh 'scripts/deliver.sh /mnt/repertory "" "" "" "" 1 1'
+        sh 'scripts/deliver.sh /mnt/repertory "" aarch64'
+        sh 'scripts/deliver.sh /mnt/repertory'
+      }
+    }
+  }
+}

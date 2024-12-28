@@ -1,23 +1,20 @@
 #!/bin/bash
 
-BUILD_TYPE=$1
-BUILD_CLEAN=$2
-BUILD_ARCH=$3
+PROJECT_SCRIPTS_DIR=$(realpath "$0")
+PROJECT_SCRIPTS_DIR=$(dirname "${PROJECT_SCRIPTS_DIR}")
+. "${PROJECT_SCRIPTS_DIR}/env.sh" "$1" "$2" "$3" 0 0
 
-SOURCE_DIR=$(dirname "$0")/..
-SOURCE_DIR=$(realpath ${SOURCE_DIR})
-
-NAME=alpine
-if [ -z "${BUILD_ARCH}" ]; then
-  BUILD_ARCH=64_bit
+if [ -f "${PROJECT_SCRIPTS_DIR}/cleanup.sh" ]; then
+  . "${PROJECT_SCRIPTS_DIR}/cleanup.sh" "$1" "$2" "$3" 0 0
+  rm ${PROJECT_SCRIPTS_DIR}/cleanup.*
 fi
 
-ln -sf ${SOURCE_DIR}/build/compile_commands.json ${SOURCE_DIR}/compile_commands.json
+if [ "${PROJECT_REQUIRE_ALPINE}" == "ON" ] || [ "${PROJECT_IS_ARM64}" == "1" ]; then
+  DOCKER_NAME=alpine
+  DOCKER_CONTAINER=${PROJECT_NAME}_${DOCKER_NAME}_${PROJECT_BUILD_ARCH}
+  DOCKER_TAG=${PROJECT_NAME}:${DOCKER_NAME}
 
-docker stop repertory_${NAME}
-docker rm repertory_${NAME}
-docker build -t repertory:${NAME} - < ${SOURCE_DIR}/docker/${BUILD_ARCH}/${NAME} &&
-  docker run -td -u $(id -u):$(id -g) --device /dev/fuse --cap-add SYS_ADMIN --name repertory_${NAME} --env MY_NUM_JOBS=${MY_NUM_JOBS} -w ${SOURCE_DIR} -v ${SOURCE_DIR}:${SOURCE_DIR}:rw,z repertory:${NAME} &&
-  docker exec repertory_${NAME} /bin/bash -c "${SOURCE_DIR}/scripts/make_unix_docker.sh ${BUILD_TYPE} ${BUILD_CLEAN}"
-docker stop repertory_${NAME}
-docker rm repertory_${NAME}
+  . "${PROJECT_SCRIPTS_DIR}/docker_common.sh" || exit 1
+else
+  "${PROJECT_SOURCE_DIR}/scripts/make_common.sh" "${PROJECT_BUILD_ARCH}" "${PROJECT_CMAKE_BUILD_TYPE}" "${PROJECT_BUILD_CLEAN}" 0 0 || exit 1
+fi
