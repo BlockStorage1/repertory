@@ -1,0 +1,1116 @@
+#comment
+FROM alpine:3.20.3
+
+RUN apk update
+RUN apk upgrade
+RUN apk add \
+  autoconf \
+  automake \
+  bash \
+  binutils \
+  bison \
+  bzip2 \
+  clang17-extra-tools \
+  cmake \
+  file \
+  flex \
+  g++ \
+  gcc \
+  gettext \
+  git \
+  gmp \
+  gmp-dev \
+  gperf \
+  gtkmm3-dev \
+  intltool \
+  isl-dev \
+  libtool \
+  linux-headers \
+  make \
+  mpc1 \
+  mpc1-dev \
+  mpfr \
+  mpfr-dev \
+  ninja \
+  openssl \
+  p7zip \
+  patch \
+  perl \
+  py3-pip \
+  python3 \
+  rsync \
+  ruby \
+  texinfo \
+  unzip \
+  wget \
+  wine \
+  xz \
+  zlib \
+  zlib-dev 
+
+WORKDIR /mnt
+ENV MY_WORKDIR=/mnt
+
+ARG MINGW_DIR=/mingw64
+ENV MY_MINGW_DIR=${MINGW_DIR}
+
+ARG MINGW_PREFIX=x86_64-w64-mingw32
+ENV MY_MINGW_PREFIX=${MINGW_PREFIX}
+
+ARG NUM_JOBS=2
+ENV MY_NUM_JOBS=${NUM_JOBS}
+
+ARG CXX_STANDARD=20
+ENV MY_CXX_STANDARD=${CXX_STANDARD}
+
+ARG TOOLCHAIN_FILE_CMAKE=/cmake_toolchain.cmake
+ENV MY_TOOLCHAIN_FILE_CMAKE=${TOOLCHAIN_FILE_CMAKE}
+RUN echo -e \
+  "set(CMAKE_SYSTEM_NAME Windows)\n"\
+  "set(CMAKE_CXX_COMPILER ${MY_MINGW_PREFIX}-g++)\n"\
+  "set(CMAKE_C_COMPILER ${MY_MINGW_PREFIX}-gcc)\n"\
+  "set(CMAKE_FIND_ROOT_PATH ${MY_MINGW_DIR})\n"\
+  "set(CMAKE_FIND_ROOT_PATH_MODE_INCLUDE ONLY)\n"\
+  "set(CMAKE_FIND_ROOT_PATH_MODE_LIBRARY ONLY)\n"\
+  "set(CMAKE_FIND_ROOT_PATH_MODE_PROGRAM NEVER)\n"\
+  "set(CMAKE_Fortran_COMPILER ${MY_MINGW_PREFIX}-gfortran)\n"\
+  "set(CMAKE_INSTALL_PREFIX ${MY_MINGW_DIR})\n"\
+  "set(CMAKE_RC_COMPILER ${MY_MINGW_PREFIX}-windres)\n"\
+    > ${MY_TOOLCHAIN_FILE_CMAKE}
+
+ARG TOOLCHAIN_FILE_MESON=/meson_cross_file.txt
+ENV MY_TOOLCHAIN_FILE_MESON=${TOOLCHAIN_FILE_MESON}
+RUN echo -e \
+  "[binaries]\n"\
+  "ar = '${MY_MINGW_PREFIX}-ar'\n"\
+  "c = '${MY_MINGW_PREFIX}-gcc'\n"\
+  "cpp = '${MY_MINGW_PREFIX}-g++'\n"\
+  "ld = '${MY_MINGW_PREFIX}-ld'\n"\
+  "objcopy = '${MY_MINGW_PREFIX}-objcopy'\n"\
+  "pkg-config = 'pkg-config'\n"\
+  "strip = '${MY_MINGW_PREFIX}-strip'\n"\
+  "windres = '${MY_MINGW_PREFIX}-windres'\n"\
+  "exe_wrapper = 'wine64'\n"\
+  "[properties]\n"\
+  "c_args = ['-I${MY_MINGW_DIR}/include']\n"\
+  "c_link_args = ['-L${MY_MINGW_DIR}/lib', '-L${MY_MINGW_DIR}/lib64']\n"\
+  "[host_machine]\n"\
+  "cpu = 'x86_64'\n"\
+  "cpu_family = 'x86_64'\n"\
+  "endian = 'little'\n"\
+  "system = 'windows'\n"\
+    > ${MY_TOOLCHAIN_FILE_MESON}
+
+SHELL [ "/bin/bash", "-c" ]
+
+RUN mkdir -p \
+      ${MY_MINGW_DIR}/bin \
+      ${MY_MINGW_DIR}/include \
+      ${MY_MINGW_DIR}/lib/pkgconfig \
+      ${MY_MINGW_DIR}/lib64/pkgconfig
+
+ADD ./3rd_party /3rd_party
+
+ARG BINUTILS_VERSION
+ENV MY_BINUTILS_VERSION=${BINUTILS_VERSION}
+RUN cd /3rd_party/mingw64 && sha256sum -c ./binutils-${MY_BINUTILS_VERSION}.tar.xz.sha256 && cd - \ 
+    && tar xvJf /3rd_party/mingw64/binutils-${MY_BINUTILS_VERSION}.tar.xz \
+    && cd binutils-${MY_BINUTILS_VERSION} \
+    && ./configure \
+        --disable-lto \
+        --disable-multilib \
+        --disable-nls \
+        --disable-plugins \
+        --disable-shared \
+        --disable-werror \
+        --enable-static \
+        --prefix=/usr/local \
+        --target=${MY_MINGW_PREFIX} \
+        --with-system-zlib \
+    && make -j${MY_NUM_JOBS} \
+    && make install \
+    && cd ${MY_WORKDIR} \
+    && rm -r binutils-${MY_BINUTILS_VERSION}
+
+ARG MINGW_VERSION
+ENV MY_MINGW_VERSION=${MINGW_VERSION}
+RUN cd /3rd_party/mingw64 && sha256sum -c ./mingw-w64-v${MY_MINGW_VERSION}.tar.bz2.sha256 && cd - \
+    && tar xvjf /3rd_party/mingw64/mingw-w64-v${MY_MINGW_VERSION}.tar.bz2 \
+    && mkdir mingw-w64 \
+    && cd mingw-w64 \
+    && ../mingw-w64-v${MY_MINGW_VERSION}/mingw-w64-headers/configure \
+        --enable-sdk=all \
+        --host=${MY_MINGW_PREFIX} \
+        --prefix=/usr/local/${MY_MINGW_PREFIX} \
+    && make install
+
+ARG GCC_VERSION
+ENV MY_GCC_VERSION=${GCC_VERSION}
+RUN cd /3rd_party/mingw64 && sha256sum -c ./gcc-${MY_GCC_VERSION}.tar.gz.sha256 && cd - \
+    && tar xvzf /3rd_party/mingw64/gcc-${MY_GCC_VERSION}.tar.gz \
+    && (mv gcc-releases-gcc-${MY_GCC_VERSION} gcc-${MY_GCC_VERSION} || echo "") \
+    && mkdir gcc \
+    && cd gcc \
+    && ../gcc-${MY_GCC_VERSION}/configure \
+        --disable-libssp \
+        --disable-libstdcxx-debug \
+        --disable-libstdcxx-pch \
+        --disable-multilib \
+        --disable-nls \
+        --disable-rpath \
+        --disable-symvers \
+        --disable-werror \
+        --disable-win32-registry \
+        --enable-checking=release \
+        --enable-fully-dynamic-string \
+        --enable-graphite \
+        --enable-languages=c,c++ \
+        --enable-libatomic \
+        --enable-libgomp \
+        --enable-libstdcxx-filesystem-ts \
+        --enable-libstdcxx-time \
+        --enable-lto \
+        --enable-shared \
+        --enable-static \
+        --enable-threads=posix \
+        --libexecdir=/usr/local/lib \
+        --prefix=/usr/local \
+        --target=${MY_MINGW_PREFIX} \
+        --with-arch=nocona \
+        --with-boot-ldflags="-static-libstdc++" \
+        --with-gnu-as \
+        --with-gnu-ld \
+        --with-libiconv \
+        --with-native-system-header-dir=/usr/local/include \
+        --with-stage1-ldflags="-static-libstdc++" \
+        --with-system-zlib \
+        --with-tune=generic \
+        --with-{gmp,mpfr,mpc,isl}=/usr/local \
+    && make -j${MY_NUM_JOBS} all-gcc \
+    && make install-gcc
+
+RUN cd mingw-w64 \
+    && ../mingw-w64-v${MY_MINGW_VERSION}/mingw-w64-crt/configure \
+        --disable-lib32 \
+        --enable-lib64 \
+        --enable-wildcard \
+        --host=${MY_MINGW_PREFIX} \
+        --prefix=/usr/local/${MY_MINGW_PREFIX} \
+    && (make || make || make || make) \
+    && make install
+
+RUN cd mingw-w64 \
+    && ../mingw-w64-v${MY_MINGW_VERSION}/mingw-w64-libraries/winpthreads/configure \
+        --enable-shared \
+        --enable-static \
+        --host=${MY_MINGW_PREFIX} \
+        --prefix=/usr/local/${MY_MINGW_PREFIX} \
+    && make -j${MY_NUM_JOBS} \
+    && make install
+
+RUN cd gcc \
+    && make -j${MY_NUM_JOBS} \
+    && make install
+
+RUN cp /usr/local/${MY_MINGW_PREFIX}/lib/*.dll ${MY_MINGW_DIR}/bin \
+    && cp /usr/local/${MY_MINGW_PREFIX}/bin/*.dll ${MY_MINGW_DIR}/bin \
+    && rm -r gcc gcc-${MY_GCC_VERSION} \
+    && rm -r mingw-w64 mingw-w64-v${MY_MINGW_VERSION}
+
+ARG PKG_CONFIG_VERSION
+ENV MY_PKG_CONFIG_VERSION=${PKG_CONFIG_VERSION}
+RUN cd /3rd_party/mingw64 && sha256sum -c ./pkg-config-${MY_PKG_CONFIG_VERSION}.tar.gz.sha256 && cd - \
+    && tar xvzf /3rd_party/mingw64/pkg-config-${MY_PKG_CONFIG_VERSION}.tar.gz \
+    && cd pkg-config-${MY_PKG_CONFIG_VERSION} \
+    && ./configure \
+        --disable-nls \
+        --disable-shared \
+        --prefix=/usr/local \
+        --with-internal-glib \
+        --with-pc-path=${MY_MINGW_DIR}/lib/pkgconfig \
+    && make -j${MY_NUM_JOBS} \
+    && make install \
+    && cd ${MY_WORKDIR} \
+    && rm -r pkg-config-${MY_PKG_CONFIG_VERSION}
+
+RUN python3 -m pip install --break-system-packages -U mako
+RUN python3 -m pip install --break-system-packages -U meson
+RUN python3 -m pip install --break-system-packages -U packaging
+
+ENV CXXFLAGS="-std=gnu++20"
+ENV LDFLAGS="-L${MY_MINGW_DIR}/lib -L${MY_MINGW_DIR}/lib64"
+ENV PATH="${MY_MINGW_DIR}/bin:/usr/local/bin:${PATH}"
+ENV PKG_CONFIG_PATH="${MY_MINGW_DIR}/lib/pkgconfig:${MY_MINGW_DIR}/lib64/pkgconfig"
+
+ARG ZLIB_VERSION
+ENV MY_ZLIB_VERSION=${ZLIB_VERSION}
+RUN cd /3rd_party/mingw64 && sha256sum -c ./zlib-${MY_ZLIB_VERSION}.tar.gz.sha256 && cd - \
+    && tar xvzf /3rd_party/mingw64/zlib-${MY_ZLIB_VERSION}.tar.gz \
+    && cd zlib-${MY_ZLIB_VERSION} \
+    && mkdir build \
+    && cd build \
+    && cmake .. \
+      -DBUILD_SHARED_LIBS=ON \
+      -DBUILD_STATIC_LIBS=ON \
+      -DCMAKE_CXX_STANDARD=${MY_CXX_STANDARD} \
+      -DCMAKE_INSTALL_PREFIX=${MY_MINGW_DIR} \
+      -DCMAKE_TOOLCHAIN_FILE=${MY_TOOLCHAIN_FILE_CMAKE} \
+    && make -j${MY_NUM_JOBS} \
+    && make install \
+    && cd ${MY_WORKDIR} \
+    && rm -r zlib-${MY_ZLIB_VERSION}
+
+ARG LIBJPEG_TURBO_VERSION
+ENV MY_LIBJPEG_TURBO_VERSION=${LIBJPEG_TURBO_VERSION}
+RUN if [ -f "/3rd_party/libjpeg_turbo-${MY_LIBJPEG_TURBO_VERSION}.tar.gz" ]; then \
+      cd /3rd_party && sha256sum -c ./libjpeg_turbo-${MY_LIBJPEG_TURBO_VERSION}.tar.gz.sha256 && cd - \
+      && tar xvzf /3rd_party/libjpeg_turbo-${MY_LIBJPEG_TURBO_VERSION}.tar.gz \
+      && cd libjpeg-turbo-${MY_LIBJPEG_TURBO_VERSION} \
+      && mkdir _build \
+      && cd _build \
+      && cmake .. \
+        -DBUILD_SHARED_LIBS=ON \
+        -DBUILD_STATIC_LIBS=ON \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_CXX_STANDARD=${MY_CXX_STANDARD} \
+        -DCMAKE_INSTALL_PREFIX=${MY_MINGW_DIR} \
+        -DCMAKE_SYSTEM_PROCESSOR=AMD64 \
+        -DCMAKE_TOOLCHAIN_FILE=${MY_TOOLCHAIN_FILE_CMAKE} \
+        -DENABLE_SHARED=ON \
+        -DENABLE_STATIC=ON \
+      && make -j${MY_NUM_JOBS} \
+      && make install \
+      && cd ${MY_WORKDIR} \
+      && rm -r libjpeg-turbo-${MY_LIBJPEG_TURBO_VERSION} \
+    ; fi
+
+ARG LIBPNG_VERSION
+ENV MY_LIBPNG_VERSION=${LIBPNG_VERSION} 
+RUN if [ -f "/3rd_party/libpng-v${MY_LIBPNG_VERSION}.tar.gz" ]; then \
+      cd /3rd_party && sha256sum -c ./libpng-v${MY_LIBPNG_VERSION}.tar.gz.sha256 && cd - \
+      && tar xvzf /3rd_party/libpng-v${MY_LIBPNG_VERSION}.tar.gz \
+      && cd libpng-${MY_LIBPNG_VERSION} \
+      && mkdir _build \
+      && cd _build \
+      && cmake .. \
+        -DBUILD_SHARED_LIBS=ON \
+        -DBUILD_STATIC_LIBS=ON \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_CXX_STANDARD=${MY_CXX_STANDARD} \
+        -DCMAKE_INSTALL_PREFIX=${MY_MINGW_DIR} \
+        -DCMAKE_TOOLCHAIN_FILE=${MY_TOOLCHAIN_FILE_CMAKE} \
+        -DPNG_SHARED=ON \
+        -DPNG_STATIC=ON \
+        -DPNG_TESTS=OFF \
+        -DPNG_TOOLS=OFF \
+      && make -j${MY_NUM_JOBS} \
+      && make install \
+      && cd ${MY_WORKDIR} \
+      && rm -r libpng-${MY_LIBPNG_VERSION} \
+    ; fi
+
+ARG FREETYPE2_VERSION
+ENV MY_FREETYPE2_VERSION=${FREETYPE2_VERSION}
+RUN if [ -f "/3rd_party/freetype-${MY_FREETYPE2_VERSION}.tar.gz" ]; then \
+      cd /3rd_party && sha256sum -c ./freetype-${MY_FREETYPE2_VERSION}.tar.gz.sha256 && cd - \ 
+      && tar xvzf /3rd_party/freetype-${MY_FREETYPE2_VERSION}.tar.gz \ 
+      && cd freetype-${MY_FREETYPE2_VERSION} \
+      && meson setup \
+        --cross-file ${MY_TOOLCHAIN_FILE_MESON} \
+        --prefix=${MY_MINGW_DIR} \
+        _build \
+      && meson compile \
+        -C _build \
+      && meson install \
+        -C _build \
+      && cd ${MY_WORKDIR} \
+      && rm -r freetype-${MY_FREETYPE2_VERSION} \
+    ; fi
+
+ARG EXPAT_VERSION
+ENV MY_EXPAT_VERSION=${EXPAT_VERSION}
+RUN cd /3rd_party/mingw64 && sha256sum -c ./expat-${MY_EXPAT_VERSION}.tar.gz.sha256 && cd - \ 
+    && tar xvzf /3rd_party/mingw64/expat-${MY_EXPAT_VERSION}.tar.gz \
+    && cd libexpat-*/expat \
+    && mkdir build \
+    && cd build \
+    && cmake .. \
+      -DBUILD_SHARED_LIBS=ON \
+      -DBUILD_STATIC_LIBS=ON \
+      -DCMAKE_CXX_STANDARD=${MY_CXX_STANDARD} \
+      -DCMAKE_INSTALL_PREFIX=${MY_MINGW_DIR} \
+      -DCMAKE_TOOLCHAIN_FILE=${MY_TOOLCHAIN_FILE_CMAKE} \
+      -DEXPAT_BUILD_DOCS=OFF \
+      -DEXPAT_BUILD_EXAMPLES=OFF \
+      -DEXPAT_BUILD_TESTS=OFF \
+    && make -j${MY_NUM_JOBS} \
+    && make install \
+    && cd ${MY_WORKDIR} \
+    && rm -r libexpat-*
+
+ARG FONTCONFIG_VERSION
+ENV MY_FONTCONFIG_VERSION=${FONTCONFIG_VERSION}
+RUN if [ -f "/3rd_party/fontconfig-${MY_FONTCONFIG_VERSION}.tar.gz" ]; then \
+      cd /3rd_party && sha256sum -c ./fontconfig-${MY_FONTCONFIG_VERSION}.tar.gz.sha256 && cd - \
+      && tar xvzf /3rd_party/fontconfig-${MY_FONTCONFIG_VERSION}.tar.gz \
+      && cd fontconfig-${MY_FONTCONFIG_VERSION} \
+      && meson setup \
+        --cross-file ${MY_TOOLCHAIN_FILE_MESON} \
+        --prefix=${MY_MINGW_DIR} \
+        -Ddoc=disabled \
+        -Dtests=disabled \
+        -Dtools=disabled \
+        _build \
+      && meson compile \
+        -C _build \
+      && meson install \
+        -C _build \
+      && cd ${MY_WORKDIR} \
+      && rm -r fontconfig-${MY_FONTCONFIG_VERSION} \
+    ; fi
+
+ARG OPENAL_VERSION
+ENV MY_OPENAL_VERSION=${OPENAL_VERSION}
+RUN if [ -f "/3rd_party/openal-${MY_OPENAL_VERSION}.tar.gz" ]; then \
+      cd /3rd_party && sha256sum -c ./openal-${MY_OPENAL_VERSION}.tar.gz.sha256 && cd - \
+      && tar xvzf /3rd_party/openal-${MY_OPENAL_VERSION}.tar.gz \
+      && cd openal-soft-${MY_OPENAL_VERSION} \
+      && mkdir _build \
+      && cd _build \
+      && cmake .. \
+        -DCMAKE_CXX_STANDARD=${MY_CXX_STANDARD} \
+        -DCMAKE_INSTALL_PREFIX=${MY_MINGW_DIR} \
+        -DCMAKE_TOOLCHAIN_FILE=${MY_TOOLCHAIN_FILE_CMAKE} \
+      && make -j${MY_NUM_JOBS} \
+      && make install \
+      && mv ${MY_MINGW_DIR}/bin/OpenAL32.dll ${MY_MINGW_DIR}/bin/openal32.dll \
+      && cd ${MY_WORKDIR} \
+      && rm -r openal-soft-${MY_OPENAL_VERSION} \
+    ; fi
+
+ARG ICU_VERSION
+ENV MY_ICU_VERSION=${ICU_VERSION}
+RUN cd /3rd_party/mingw64 && sha256sum -c ./icu-release-${MY_ICU_VERSION}.tar.gz.sha256 && cd - \
+    && tar xvzf /3rd_party/mingw64/icu-release-${MY_ICU_VERSION}.tar.gz \
+    && cp -r icu-release-${MY_ICU_VERSION} icu-release-${MY_ICU_VERSION}-cross \
+    && cd icu-release-${MY_ICU_VERSION}-cross/icu4c/source \
+    && CXXFLAGS="-std=gnu++17" ./configure \
+        --disable-samples \
+        --disable-tests \
+        --enable-shared \
+        --enable-static \
+        --prefix=/usr/local \
+    && make -j${MY_NUM_JOBS} \
+    && make install
+
+RUN cd ${MY_WORKDIR} \
+    && cd icu-release-${MY_ICU_VERSION}/icu4c/source \
+    && CXXFLAGS="-std=gnu++17" ./configure \
+        --build=x86_64-alpine-linux-musl \
+        --disable-samples \
+        --disable-tests \
+        --enable-shared \
+        --enable-static \
+        --host=${MY_MINGW_PREFIX} \
+        --prefix=${MY_MINGW_DIR} \
+        --with-cross-build=${MY_WORKDIR}/icu-release-${MY_ICU_VERSION}-cross/icu4c/source \
+    && make -j${MY_NUM_JOBS} \
+    && make install
+
+RUN cd ${MY_WORKDIR} \
+    && rm -r icu-release-${MY_ICU_VERSION} \
+    && rm -r icu-release-${MY_ICU_VERSION}-cross
+
+ARG OPENSSL_VERSION
+ENV MY_OPENSSL_VERSION=${OPENSSL_VERSION}
+RUN if [ -f "/3rd_party/openssl-${MY_OPENSSL_VERSION}.tar.gz" ]; then \
+      cd /3rd_party && sha256sum -c ./openssl-${MY_OPENSSL_VERSION}.tar.gz.sha256 && cd - \
+      && tar xvzf /3rd_party/openssl-${MY_OPENSSL_VERSION}.tar.gz \
+      && cd openssl-${MY_OPENSSL_VERSION} \
+      && ./Configure \
+        --cross-compile-prefix=${MY_MINGW_PREFIX}- \
+        --prefix=${MY_MINGW_DIR} \
+        mingw64 \
+        no-shared \
+        no-apps \
+        no-docs \
+      && make -j${MY_NUM_JOBS} \
+      && make install \
+      && cd ${MY_WORKDIR} \
+      && rm -r openssl-${MY_OPENSSL_VERSION} \
+    ; fi
+
+ARG BOOST2_MAJOR_VERSION
+ENV MY_BOOST2_MAJOR_VERSION=${BOOST2_MAJOR_VERSION}
+ARG BOOST2_MINOR_VERSION
+ENV MY_BOOST2_MINOR_VERSION=${BOOST2_MINOR_VERSION}
+ARG BOOST2_PATCH_VERSION
+ENV MY_BOOST2_PATCH_VERSION=${BOOST2_PATCH_VERSION}
+ENV MY_BOOST2_VERSION=${MY_BOOST2_MAJOR_VERSION}_${MY_BOOST2_MINOR_VERSION}_${MY_BOOST2_PATCH_VERSION}
+RUN if [ -f "/3rd_party/boost_${MY_BOOST2_MAJOR_VERSION}_${MY_BOOST2_MINOR_VERSION}_${MY_BOOST2_PATCH_VERSION}.tar.gz" ]; then \
+      cd /3rd_party && sha256sum -c ./boost_${MY_BOOST2_MAJOR_VERSION}_${MY_BOOST2_MINOR_VERSION}_${MY_BOOST2_PATCH_VERSION}.tar.gz.sha256 && cd - \
+      && tar xvzf /3rd_party/boost_${MY_BOOST2_MAJOR_VERSION}_${MY_BOOST2_MINOR_VERSION}_${MY_BOOST2_PATCH_VERSION}.tar.gz \
+      && cd boost_${MY_BOOST2_VERSION} \
+      && ./bootstrap.sh \
+        --with-libraries=atomic,chrono,date_time,filesystem,iostreams,locale,log,program_options,random,regex,serialization,system,test,thread \
+        address-model=64 \
+        cxxstd=${MY_CXX_STANDARD} \
+        cxxstd-dialect=gnu \
+        architecture=x86 \
+        link=static,shared \
+        target-os=windows \
+        threading=multi \
+        variant=release \
+      && echo "using gcc : mingw : ${MY_MINGW_PREFIX}-g++ ;" \
+        >> ./project-config.jam \
+      && ./b2 \
+        --openssldir=${MY_MINGW_DIR} \
+        --prefix=${MY_MINGW_DIR} \
+        -j${MY_NUM_JOBS} \
+        address-model=64 \
+        cxxstd=${MY_CXX_STANDARD} \
+        cxxstd-dialect=gnu \
+        architecture=x86 \
+        link=static,shared \
+        target-os=windows \
+        toolset=gcc-mingw \
+        threading=multi \
+        variant=release \
+        install \
+      && cd ${MY_WORKDIR} \
+      && rm -r boost_${MY_BOOST2_VERSION} \
+    ; fi
+
+ARG BOOST_MAJOR_VERSION
+ENV MY_BOOST_MAJOR_VERSION=${BOOST_MAJOR_VERSION}
+ARG BOOST_MINOR_VERSION
+ENV MY_BOOST_MINOR_VERSION=${BOOST_MINOR_VERSION}
+ARG BOOST_PATCH_VERSION
+ENV MY_BOOST_PATCH_VERSION=${BOOST_PATCH_VERSION}
+ENV MY_BOOST_VERSION=${MY_BOOST_MAJOR_VERSION}_${MY_BOOST_MINOR_VERSION}_${MY_BOOST_PATCH_VERSION}
+RUN if [ -f "/3rd_party/boost_${MY_BOOST_MAJOR_VERSION}_${MY_BOOST_MINOR_VERSION}_${MY_BOOST_PATCH_VERSION}.tar.gz" ]; then \
+      cd /3rd_party && sha256sum -c ./boost_${MY_BOOST_MAJOR_VERSION}_${MY_BOOST_MINOR_VERSION}_${MY_BOOST_PATCH_VERSION}.tar.gz.sha256 && cd - \
+      && tar xvzf /3rd_party/boost_${MY_BOOST_MAJOR_VERSION}_${MY_BOOST_MINOR_VERSION}_${MY_BOOST_PATCH_VERSION}.tar.gz \
+      && cd boost_${MY_BOOST_VERSION} \
+      && echo "using gcc : gcc : ${MY_MINGW_PREFIX}-g++ ;" \
+        >./user-config.jam \
+      && ./bootstrap.sh \
+        --with-libraries=atomic,chrono,date_time,filesystem,iostreams,locale,log,program_options,random,regex,serialization,system,test,thread \
+        address-model=64 \
+        architecture=x86 \
+	cxxstd=${MY_CXX_STANDARD} \
+	cxxstd-dialect=gnu \
+        link=static,shared \
+        target-os=windows \
+        threading=multi \
+        variant=release \
+      && ./b2 \
+        --openssldir=${MY_MINGW_DIR} \
+        --prefix=${MY_MINGW_DIR} \
+        --user-config=./user-config.jam \
+        -j${MY_NUM_JOBS} \
+        address-model=64 \
+        architecture=x86 \
+	cxxstd=${MY_CXX_STANDARD} \
+	cxxstd-dialect=gnu \
+        link=static,shared \
+        target-os=windows \
+        threading=multi \
+        variant=release \
+        install \
+      && cd ${MY_WORKDIR} \
+      && rm -r boost_${MY_BOOST_VERSION} \
+    ; fi
+
+ARG OGG_VERSION
+ENV MY_OGG_VERSION=${OGG_VERSION}
+RUN if [ -f "/3rd_party/ogg-v${MY_OGG_VERSION}.tar.gz" ]; then \
+      cd /3rd_party && sha256sum -c ./ogg-v${MY_OGG_VERSION}.tar.gz.sha256 && cd - \
+      && tar xvzf /3rd_party/ogg-v${MY_OGG_VERSION}.tar.gz \
+      && cd libogg-${MY_OGG_VERSION} \
+      && mkdir build \
+      && cd build \
+      && cmake .. \
+        -DBUILD_SHARED_LIBS=ON \
+        -DBUILD_STATIC_LIBS=ON \
+        -DCMAKE_CXX_STANDARD=${MY_CXX_STANDARD} \
+        -DCMAKE_INSTALL_PREFIX=${MY_MINGW_DIR} \
+        -DCMAKE_TOOLCHAIN_FILE=${MY_TOOLCHAIN_FILE_CMAKE} \
+      && make -j${MY_NUM_JOBS} \
+      && make install \
+      && cd ${MY_WORKDIR} \
+      && rm -r libogg-${MY_OGG_VERSION} \
+    ; fi
+
+ARG VORBIS_VERSION
+ENV MY_VORBIS_VERSION=${VORBIS_VERSION}
+RUN if [ -f "/3rd_party/vorbis-v${MY_VORBIS_VERSION}.tar.gz" ]; then \
+      cd /3rd_party && sha256sum -c ./vorbis-v${MY_VORBIS_VERSION}.tar.gz.sha256 && cd - \
+      && tar xvzf /3rd_party/vorbis-v${MY_VORBIS_VERSION}.tar.gz \
+      && cd vorbis-${MY_VORBIS_VERSION} \
+      && /3rd_party/vorbis_patch.sh /3rd_party . \
+      && mkdir build \
+      && cd build \
+      && cmake .. \
+        -DBUILD_SHARED_LIBS=OFF \
+        -DCMAKE_CXX_STANDARD=${MY_CXX_STANDARD} \
+        -DCMAKE_INSTALL_PREFIX=${MY_MINGW_DIR} \
+        -DCMAKE_TOOLCHAIN_FILE=${MY_TOOLCHAIN_FILE_CMAKE} \
+      && make -j${MY_NUM_JOBS} \
+      && make install \
+      && cd ${MY_WORKDIR} \
+      && rm -r vorbis-${MY_VORBIS_VERSION} \
+    ; fi
+
+ARG FLAC_VERSION
+ENV MY_FLAC_VERSION=${FLAC_VERSION}
+RUN if [ -f "/3rd_party/flac-${MY_FLAC_VERSION}.tar.gz" ]; then \
+      cd /3rd_party && sha256sum -c ./flac-${MY_FLAC_VERSION}.tar.gz.sha256 && cd - \
+      && tar xvzf /3rd_party/flac-${MY_FLAC_VERSION}.tar.gz \
+      && cd flac-${MY_FLAC_VERSION} \
+      && mkdir build \
+      && cd build \
+      && cmake .. \
+        -DBUILD_DOCS=OFF \
+        -DBUILD_EXAMPLES=OFF \
+        -DBUILD_PROGRAMS=OFF \
+        -DBUILD_SHARED_LIBS=ON \
+        -DBUILD_STATIC_LIBS=ON \
+        -DBUILD_TESTING=OFF \
+        -DCMAKE_CXX_STANDARD=${MY_CXX_STANDARD} \
+        -DCMAKE_INSTALL_PREFIX=${MY_MINGW_DIR} \
+        -DCMAKE_TOOLCHAIN_FILE=${MY_TOOLCHAIN_FILE_CMAKE} \
+        -DINSTALL_MANPAGES=OFF \
+      && make -j${MY_NUM_JOBS} \
+      && make install \
+      && cd ${MY_WORKDIR} \
+      && rm -r flac-${MY_FLAC_VERSION} \
+    ; fi
+
+ARG SFML_VERSION
+ENV MY_SFML_VERSION=${SFML_VERSION}
+RUN if [ -f "/3rd_party/SFML-${MY_SFML_VERSION}.tar.gz" ]; then \
+      cd /3rd_party && sha256sum -c ./SFML-${MY_SFML_VERSION}.tar.gz.sha256 && cd - \
+      && tar xvzf /3rd_party/SFML-${MY_SFML_VERSION}.tar.gz \
+      && cd SFML-${MY_SFML_VERSION} \
+      && sed -i s/set_target_properties\(\$\{target\}\ PROPERTIES\ PREFIX\ \"\"\)// \
+        cmake/Macros.cmake \
+      && sed -i s/set_target_properties\(\$\{target\}\ PROPERTIES\ IMPORT_SUFFIX\ \"\.a\"\)// \
+        cmake/Macros.cmake \
+      && mkdir build \
+      && cd build \
+      && cmake .. \
+        -DBUILD_SHARED_LIBS=ON \
+        -DBUILD_STATIC_LIBS=ON \
+        -DCMAKE_CXX_STANDARD=${MY_CXX_STANDARD} \
+        -DCMAKE_INSTALL_PREFIX=${MY_MINGW_DIR} \
+        -DCMAKE_SYSTEM_PROCESSOR=AMD64 \
+        -DCMAKE_TOOLCHAIN_FILE=${MY_TOOLCHAIN_FILE_CMAKE} \
+      && make -j${MY_NUM_JOBS} \
+      && make install \
+      && cd ${MY_WORKDIR} \
+      && rm -r SFML-${MY_SFML_VERSION} \
+   ; fi
+
+ARG SPDLOG_VERSION
+ENV MY_SPDLOG_VERSION=${SPDLOG_VERSION}
+RUN if [ -f "/3rd_party/spdlog-${MY_SPDLOG_VERSION}.tar.gz" ]; then \
+      cd /3rd_party && sha256sum -c ./spdlog-${MY_SPDLOG_VERSION}.tar.gz.sha256 && cd - \
+      && tar xvzf /3rd_party/spdlog-${MY_SPDLOG_VERSION}.tar.gz \
+      && cd spdlog-${MY_SPDLOG_VERSION} \
+      && mkdir build \
+      && cd build \
+      && cmake .. \
+        -DBUILD_SHARED_LIBS=OFF \
+        -DCMAKE_CXX_STANDARD=${MY_CXX_STANDARD} \
+        -DCMAKE_INSTALL_PREFIX=${MY_MINGW_DIR} \
+        -DCMAKE_TOOLCHAIN_FILE=${MY_TOOLCHAIN_FILE_CMAKE} \
+        -DSPDLOG_BUILD_EXAMPLE=OFF \
+        -DSPDLOG_FMT_EXTERNAL=OFF \
+        -DSPDLOG_FMT_EXTERNAL_HO=OFF \
+      && make -j${MY_NUM_JOBS} \
+      && make install \
+      && cd ${MY_WORKDIR} \
+      && rm -r spdlog-${MY_SPDLOG_VERSION} \
+   ; fi
+
+ARG CLI11_VERSION
+ENV MY_CLI11_VERSION=${CLI11_VERSION}
+RUN if [ -f "/3rd_party/CLI11-${MY_CLI11_VERSION}.tar.gz" ]; then \
+      cd /3rd_party && sha256sum -c ./CLI11-${MY_CLI11_VERSION}.tar.gz.sha256 && cd - \
+      && tar xvzf /3rd_party/CLI11-${MY_CLI11_VERSION}.tar.gz \
+      && cd CLI11-${MY_CLI11_VERSION} \
+      && mkdir build \
+      && cd build \
+      && cmake .. \
+        -DCLI11_BUILD_DOCS=OFF \
+        -DCLI11_BUILD_EXAMPLES=OFF \
+        -DCLI11_BUILD_TESTS=OFF \
+        -DCLI11_INSTALL=ON \
+        -DCLI11_SINGLE_FILE=ON \
+        -DCLI11_WARNINGS_AS_ERRORS=OFF \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_CXX_STANDARD=${MY_CXX_STANDARD} \
+        -DCMAKE_INSTALL_PREFIX=${MY_MINGW_DIR} \
+        -DCMAKE_TOOLCHAIN_FILE=${MY_TOOLCHAIN_FILE_CMAKE} \
+      && make -j${MY_NUM_JOBS} \
+      && make install \
+      && cd ${MY_WORKDIR} \
+      && rm -r CLI11-${MY_CLI11_VERSION} \
+   ; fi
+
+ARG CURL_VERSION
+ENV MY_CURL_VERSION=${CURL_VERSION}
+ARG CURL2_VERSION
+ENV MY_CURL2_VERSION=${CURL2_VERSION}
+RUN if [ -f "/3rd_party/curl-${MY_CURL_VERSION}.tar.gz" ]; then \
+      cd /3rd_party && sha256sum -c ./curl-${MY_CURL_VERSION}.tar.gz.sha256 && cd - \
+      && tar xvzf /3rd_party/curl-${MY_CURL_VERSION}.tar.gz \
+      && cd curl-curl-${MY_CURL2_VERSION} \
+      && mkdir build \
+      && cd build \
+      && cmake .. \
+        -DBUILD_CURL_EXE=ON \
+        -DBUILD_SHARED_LIBS=OFF \
+        -DBUILD_STATIC_LIBS=ON \
+        -DBUILD_TESTING=OFF \
+        -DCMAKE_CXX_STANDARD=${MY_CXX_STANDARD} \
+        -DCMAKE_INSTALL_PREFIX=${MY_MINGW_DIR} \
+        -DCMAKE_TOOLCHAIN_FILE=${MY_TOOLCHAIN_FILE_CMAKE} \
+        -DCURL_CA_BUNDLE=./cacert.pem \
+        -DCURL_CA_FALLBACK=ON \
+        -DCURL_DISABLE_LDAP=ON \
+        -DCURL_USE_LIBPSL=OFF \
+        -DCURL_USE_LIBSSH2=OFF \
+        -DCURL_USE_OPENSSL=ON \
+        -DCURL_ZLIB=ON \
+        -DENABLE_THREADED_RESOLVER=ON \
+        -DOPENSSL_USE_STATIC_LIBS=ON \
+        -DUSE_LIBIDN2=OFF \
+        -DUSE_WIN32_CRYPTO=OFF \
+      && make -j${MY_NUM_JOBS} \
+      && make install \
+      && cd ${MY_WORKDIR} \
+      && rm -r curl-curl-${MY_CURL2_VERSION} \
+   ; fi
+
+ARG CPP_HTTPLIB_VERSION
+ENV MY_CPP_HTTPLIB_VERSION=${CPP_HTTPLIB_VERSION}
+RUN if [ -f "/3rd_party/cpp-httplib-${MY_CPP_HTTPLIB_VERSION}.tar.gz" ]; then \
+      cd /3rd_party && sha256sum -c ./cpp-httplib-${MY_CPP_HTTPLIB_VERSION}.tar.gz.sha256 && cd - \
+      && tar xvzf /3rd_party/cpp-httplib-${MY_CPP_HTTPLIB_VERSION}.tar.gz \
+      && cd cpp-httplib-${MY_CPP_HTTPLIB_VERSION} \
+      && mkdir build \
+      && cd build \
+      && cmake .. \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_CXX_STANDARD=${MY_CXX_STANDARD} \
+        -DCMAKE_INSTALL_PREFIX=${MY_MINGW_DIR} \
+        -DCMAKE_TOOLCHAIN_FILE=${MY_TOOLCHAIN_FILE_CMAKE} \
+        -DHTTPLIB_REQUIRE_BROTLI=OFF \
+        -DHTTPLIB_REQUIRE_OPENSSL=ON \
+        -DHTTPLIB_REQUIRE_ZLIB=ON \
+        -DHTTPLIB_TEST=OFF \
+      && make -j${MY_NUM_JOBS} \
+      && make install \
+      && cd ${MY_WORKDIR} \
+      && rm -r cpp-httplib-${MY_CPP_HTTPLIB_VERSION} \
+   ; fi
+
+ARG FMT_VERSION
+ENV MY_FMT_VERSION=${FMT_VERSION}
+RUN if [ -f "/3rd_party/fmt-${MY_FMT_VERSION}.tar.gz" ]; then \
+      cd /3rd_party && sha256sum -c ./fmt-${MY_FMT_VERSION}.tar.gz.sha256 && cd - \
+      && tar xvzf /3rd_party/fmt-${MY_FMT_VERSION}.tar.gz \
+      && cd fmt-${MY_FMT_VERSION} \
+      && mkdir build \
+      && cd build \
+      && cmake .. \
+        -DBUILD_SHARED_LIBS=ON \
+        -DBUILD_STATIC_LIBS=ON \
+        -DCMAKE_CXX_STANDARD=${MY_CXX_STANDARD} \
+        -DCMAKE_INSTALL_PREFIX=${MY_MINGW_DIR} \
+        -DCMAKE_TOOLCHAIN_FILE=${MY_TOOLCHAIN_FILE_CMAKE} \
+        -DFMT_DOC=OFF \
+        -DFMT_TEST=OFF \
+      && make -j${MY_NUM_JOBS} \
+      && make install \
+      && cd ${MY_WORKDIR} \
+      && rm -r fmt-${MY_FMT_VERSION} \
+   ; fi
+
+ARG GTEST_VERSION
+ENV MY_GTEST_VERSION=${GTEST_VERSION}
+RUN if [ -f "/3rd_party/googletest-${MY_GTEST_VERSION}.tar.gz" ]; then \
+      cd /3rd_party && sha256sum -c ./googletest-${MY_GTEST_VERSION}.tar.gz.sha256 && cd - \
+      && tar xvzf /3rd_party/googletest-${MY_GTEST_VERSION}.tar.gz \
+      && cd googletest-${MY_GTEST_VERSION} \
+      && mkdir build \
+      && cd build \
+      && cmake .. \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_CXX_STANDARD=${MY_CXX_STANDARD} \
+        -DCMAKE_INSTALL_PREFIX=${MY_MINGW_DIR} \
+        -DCMAKE_TOOLCHAIN_FILE=${MY_TOOLCHAIN_FILE_CMAKE} \
+      && make -j${MY_NUM_JOBS} \
+      && make install \
+      && cd ${MY_WORKDIR} \
+      && rm -r googletest-${MY_GTEST_VERSION} \
+   ; fi
+
+ARG JSON_VERSION
+ENV MY_JSON_VERSION=${JSON_VERSION}
+RUN if [ -f "/3rd_party/json-${MY_JSON_VERSION}.tar.gz" ]; then \
+      cd /3rd_party && sha256sum -c ./json-${MY_JSON_VERSION}.tar.gz.sha256 && cd - \
+      && tar xvzf /3rd_party/json-${MY_JSON_VERSION}.tar.gz \
+      && cd json-${MY_JSON_VERSION} \
+      && mkdir build \
+      && cd build \
+      && cmake .. \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_CXX_STANDARD=${MY_CXX_STANDARD} \
+        -DCMAKE_INSTALL_PREFIX=${MY_MINGW_DIR} \
+        -DCMAKE_TOOLCHAIN_FILE=${MY_TOOLCHAIN_FILE_CMAKE} \
+        -DJSON_BuildTests=OFF \
+        -DJSON_Install=ON \
+        -DJSON_MultipleHeaders=OFF \
+      && make -j${MY_NUM_JOBS} \
+      && make install \
+      && cd ${MY_WORKDIR} \
+      && rm -r json-${MY_JSON_VERSION} \
+   ; fi
+
+ARG LIBEVENT_VERSION
+ENV MY_LIBEVENT_VERSION=${LIBEVENT_VERSION}
+RUN if [ -f "/3rd_party/libevent-${MY_LIBEVENT_VERSION}-stable.tar.gz" ]; then \
+      cd /3rd_party && sha256sum -c ./libevent-${MY_LIBEVENT_VERSION}-stable.tar.gz.sha256 && cd - \
+      && tar xvzf /3rd_party/libevent-${MY_LIBEVENT_VERSION}-stable.tar.gz \
+      && cd libevent-release-${MY_LIBEVENT_VERSION}-stable \
+      && mkdir build \
+      && cd build \
+      && cmake .. \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_CXX_STANDARD=${MY_CXX_STANDARD} \
+        -DCMAKE_INSTALL_PREFIX=${MY_MINGW_DIR} \
+        -DCMAKE_TOOLCHAIN_FILE=${MY_TOOLCHAIN_FILE_CMAKE} \
+        -DEVENT__DISABLE_OPENSSL=ON \
+        -DEVENT__DISABLE_SAMPLES=ON \
+        -DEVENT__DISABLE_TESTS=ON \
+        -DEVENT__LIBRARY_TYPE=BOTH \
+      && make -j${MY_NUM_JOBS} \
+      && make install \
+      && cd ${MY_WORKDIR} \
+      && rm -r libevent-release-${MY_LIBEVENT_VERSION}-stable \
+   ; fi
+
+ARG LIBSODIUM_VERSION
+ENV MY_LIBSODIUM_VERSION=${LIBSODIUM_VERSION}
+RUN if [ -f "/3rd_party/libsodium-${MY_LIBSODIUM_VERSION}.tar.gz" ]; then \
+      cd /3rd_party && sha256sum -c ./libsodium-${MY_LIBSODIUM_VERSION}.tar.gz.sha256 && cd - \
+      && tar xvzf /3rd_party/libsodium-${MY_LIBSODIUM_VERSION}.tar.gz \
+      && cd libsodium-${MY_LIBSODIUM_VERSION}-RELEASE \
+      && CFLAGS="-O3 -fomit-frame-pointer -m64 -mtune=generic" ./configure \
+        --enable-shared=yes \
+        --enable-static=yes \
+        --host=${MY_MINGW_PREFIX} \
+        --prefix=${MY_MINGW_DIR} \
+      && make -j${MY_NUM_JOBS} \
+      && make install \
+      && cd ${MY_WORKDIR} \
+      && rm -r libsodium-${MY_LIBSODIUM_VERSION}-RELEASE \
+   ; fi
+
+ARG NUSPELL_VERSION
+ENV MY_NUSPELL_VERSION=${NUSPELL_VERSION}
+RUN if [ -f "/3rd_party/nuspell-v${MY_NUSPELL_VERSION}.tar.gz" ]; then \
+      cd /3rd_party && sha256sum -c ./nuspell-v${MY_NUSPELL_VERSION}.tar.gz.sha256 && cd - \
+      && tar xvzf /3rd_party/nuspell-v${MY_NUSPELL_VERSION}.tar.gz \
+      && cd nuspell-${MY_NUSPELL_VERSION} \
+      && mkdir build \
+      && cd build \
+      && cmake .. \
+        -DBUILD_DOCS=OFF \
+        -DBUILD_TESTING=OFF \
+        -DBUILD_TOOLS=OFF \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_CXX_STANDARD=${MY_CXX_STANDARD} \
+        -DCMAKE_INSTALL_PREFIX=${MY_MINGW_DIR} \
+        -DCMAKE_TOOLCHAIN_FILE=${MY_TOOLCHAIN_FILE_CMAKE} \
+      && make -j${MY_NUM_JOBS} \
+      && make install \
+      && cd ${MY_WORKDIR} \
+      && rm -r nuspell-${MY_NUSPELL_VERSION}  \
+    ; fi
+
+ARG PUGIXML_VERSION
+ENV MY_PUGIXML_VERSION=${PUGIXML_VERSION}
+RUN if [ -f "/3rd_party/pugixml-${MY_PUGIXML_VERSION}.tar.gz" ]; then \
+      cd /3rd_party && sha256sum -c ./pugixml-${MY_PUGIXML_VERSION}.tar.gz.sha256 && cd - \
+      && tar xvzf /3rd_party/pugixml-${MY_PUGIXML_VERSION}.tar.gz \
+      && cd pugixml-${MY_PUGIXML_VERSION} \
+      && mkdir build \
+      && cd build \
+      && cmake .. \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_CXX_STANDARD=${MY_CXX_STANDARD} \
+        -DCMAKE_INSTALL_PREFIX=${MY_MINGW_DIR} \
+        -DCMAKE_TOOLCHAIN_FILE=${MY_TOOLCHAIN_FILE_CMAKE} \
+      && make -j${MY_NUM_JOBS} \
+      && make install \
+      && cd ${MY_WORKDIR} \
+      && rm -r pugixml-${MY_PUGIXML_VERSION} \
+   ; fi
+
+ARG ROCKSDB_VERSION
+ENV MY_ROCKSDB_VERSION=${ROCKSDB_VERSION}
+RUN if [ -f "/3rd_party/rocksdb-${MY_ROCKSDB_VERSION}.tar.gz" ]; then \
+      cd /3rd_party && sha256sum -c ./rocksdb-${MY_ROCKSDB_VERSION}.tar.gz.sha256 && cd - \
+      && tar xvzf /3rd_party/rocksdb-${MY_ROCKSDB_VERSION}.tar.gz \
+      && cd rocksdb-${MY_ROCKSDB_VERSION} \
+      && echo -e "add_definitions(-include cstdint)">>CMakeLists.txt \
+      && mkdir build \
+      && cd build \
+      && cmake .. \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_CXX_STANDARD=${MY_CXX_STANDARD} \
+        -DCMAKE_INSTALL_PREFIX=${MY_MINGW_DIR} \
+        -DCMAKE_TOOLCHAIN_FILE=${MY_TOOLCHAIN_FILE_CMAKE} \
+        -DFAIL_ON_WARNINGS=OFF \
+        -DPORTABLE=1 \
+        -DROCKSDB_INSTALL_ON_WINDOWS=ON \
+        -DWITH_BENCHMARK=OFF \
+        -DWITH_BENCHMARK_TOOLS=OFF \
+        -DWITH_CORE_TOOLS=OFF \
+        -DWITH_EXAMPLES=OFF \
+        -DWITH_GFLAGS=OFF \
+        -DWITH_IOSTATS_CONTEXT=OFF \
+        -DWITH_PERF_CONTEXT=OFF \
+        -DWITH_TESTS=OFF \
+        -DWITH_TOOLS=OFF \
+        -DWITH_TRACE_TOOLS=OFF \
+        -DWITH_ZLIB=ON \
+      && make -j${MY_NUM_JOBS} \
+      && make install \
+      && cd ${MY_WORKDIR} \
+      && rm -r rocksdb-${MY_ROCKSDB_VERSION} \
+   ; fi
+
+ARG SECP256K1_VERSION
+ENV MY_SECP256K1_VERSION=${SECP256K1_VERSION}
+RUN if [ -f "/3rd_party/secp256k1-${MY_SECP256K1_VERSION}.tar.gz" ]; then \
+      cd /3rd_party && sha256sum -c ./secp256k1-${MY_SECP256K1_VERSION}.tar.gz.sha256 && cd - \
+      && tar xvzf /3rd_party/secp256k1-${MY_SECP256K1_VERSION}.tar.gz \
+      && cd secp256k1-${MY_SECP256K1_VERSION} \
+      && ./autogen.sh && ./configure \
+        --host=${MY_MINGW_PREFIX} \
+        --enable-shared=no \
+        --enable-static=yes \
+        --enable-module-ecdh \
+        --enable-module-recovery \
+        --prefix=${MY_MINGW_DIR} \
+      && make -j${MY_NUM_JOBS} \
+      && make install \
+      && cd ${MY_WORKDIR} \
+      && rm -r secp256k1-${MY_SECP256K1_VERSION} \
+   ; fi
+
+ARG STDUUID_VERSION
+ENV MY_STDUUID_VERSION=${STDUUID_VERSION}
+RUN if [ -f "/3rd_party/stduuid-${MY_STDUUID_VERSION}.tar.gz" ]; then \
+      cd /3rd_party && sha256sum -c ./stduuid-${MY_STDUUID_VERSION}.tar.gz.sha256 && cd - \
+      && tar xvzf /3rd_party/stduuid-${MY_STDUUID_VERSION}.tar.gz \
+      && cd stduuid-${MY_STDUUID_VERSION} \
+      && mkdir build \
+      && cd build \
+      && cmake .. \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_CXX_STANDARD=${MY_CXX_STANDARD} \
+        -DCMAKE_INSTALL_PREFIX=${MY_MINGW_DIR} \
+        -DCMAKE_TOOLCHAIN_FILE=${MY_TOOLCHAIN_FILE_CMAKE} \
+        -DUUID_BUILD_TESTS=OFF \
+        -DUUID_ENABLE_INSTALL=ON \
+        -DUUID_USING_CXX20_SPAN=ON \
+      && make -j${MY_NUM_JOBS} \
+      && make install \
+      && cd ${MY_WORKDIR} \
+      && rm -r stduuid-${MY_STDUUID_VERSION} \
+   ; fi
+
+RUN if [ -f "/3rd_party/tiny-process-library.tar.gz" ]; then \
+      cd /3rd_party && sha256sum -c ./tiny-process-library.tar.gz.sha256 && cd - \
+      && tar xvzf /3rd_party/tiny-process-library.tar.gz \
+      && cd tiny-process-library-master \
+      && mkdir build \
+      && cd build \
+      && cmake .. \
+        -DBUILD_SHARED_LIBS=ON \ 
+        -DBUILD_STATIC_LIBS=ON \ 
+        -DBUILD_TESTING=OFF \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_CXX_STANDARD=${MY_CXX_STANDARD} \
+        -DCMAKE_INSTALL_PREFIX=${MY_MINGW_DIR} \
+        -DCMAKE_TOOLCHAIN_FILE=${MY_TOOLCHAIN_FILE_CMAKE} \
+      && make -j${MY_NUM_JOBS} \
+      && make install \
+      && cd ${MY_WORKDIR} \
+      && rm -r tiny-process-library-master \
+   ; fi
+
+ARG WXWIDGETS_VERSION
+ENV MY_WXWIDGETS_VERSION=${WXWIDGETS_VERSION}
+RUN if [ -f "/3rd_party/wxWidgets-${MY_WXWIDGETS_VERSION}.tar.bz2" ]; then \
+      cd /3rd_party && sha256sum -c ./wxWidgets-${MY_WXWIDGETS_VERSION}.tar.bz2.sha256 && cd - \
+      && tar xvjf /3rd_party/wxWidgets-${MY_WXWIDGETS_VERSION}.tar.bz2 \
+      && cd wxWidgets-${MY_WXWIDGETS_VERSION} \
+      && mkdir _build \
+      && cd _build \
+      && cmake .. \
+        -DBUILD_SHARED_LIBS=ON \
+        -DBUILD_STATIC_LIBS=ON \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_CXX_STANDARD=${MY_CXX_STANDARD} \
+        -DCMAKE_INSTALL_PREFIX=${MY_MINGW_DIR} \
+        -DCMAKE_TOOLCHAIN_FILE=${MY_TOOLCHAIN_FILE_CMAKE} \
+        -DwxBUILD_MONOLITHIC=OFF \
+        -DwxBUILD_SHARED=ON \
+      && make -j${MY_NUM_JOBS} \
+      && make install \
+      && cd ${MY_WORKDIR} \
+      && rm -r wxWidgets-${MY_WXWIDGETS_VERSION} \
+    ; fi
+
+ARG CXXOPTS_VERSION
+ENV MY_CXXOPTS_VERSION=${CXXOPTS_VERSION}
+RUN if [ -f "/3rd_party/cxxopts-v${MY_CXXOPTS_VERSION}.tar.gz" ]; then \
+      cd /3rd_party && sha256sum -c ./cxxopts-v${MY_CXXOPTS_VERSION}.tar.gz.sha256 && cd - \
+      && tar xvzf /3rd_party/cxxopts-v${MY_CXXOPTS_VERSION}.tar.gz \
+      && cd cxxopts-${MY_CXXOPTS_VERSION} \
+      && mkdir _build \
+      && cd _build \
+      && cmake .. \
+        -DBUILD_SHARED_LIBS=ON \
+        -DBUILD_STATIC_LIBS=ON \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_CXX_STANDARD=${MY_CXX_STANDARD} \
+        -DCMAKE_INSTALL_PREFIX=${MY_MINGW_DIR} \
+        -DCMAKE_TOOLCHAIN_FILE=${MY_TOOLCHAIN_FILE_CMAKE} \
+        -DCXXOPTS_BUILD_EXAMPLES=OFF \
+        -DCXXOPTS_BUILD_TESTS=OFF \
+        -DCXXOPTS_ENABLE_INSTALL=ON \
+        -DCXXOPTS_ENABLE_WARNINGS=OFF \
+        -DCXXOPTS_USE_UNICODE_HELP=ON \
+      && make -j${MY_NUM_JOBS} \
+      && make install \
+      && cd ${MY_WORKDIR} \
+      && rm -r cxxopts-${MY_CXXOPTS_VERSION} \
+    ; fi
+
+ARG NANA_VERSION
+ENV MY_NANA_VERSION=${NANA_VERSION}
+RUN if [ -f "/3rd_party/nana-v${MY_NANA_VERSION}.tar.gz" ]; then \
+      cd /3rd_party && sha256sum -c ./nana-v${MY_NANA_VERSION}.tar.gz.sha256 && cd - \
+      && tar xvzf /3rd_party/nana-v${MY_NANA_VERSION}.tar.gz \
+      && cd nana-${MY_NANA_VERSION} \
+      && /3rd_party/nana_patch.sh /3rd_party . \
+      && mkdir _build \
+      && cd _build \
+      && cmake .. \
+        -DBUILD_SHARED_LIBS=ON \
+        -DBUILD_STATIC_LIBS=ON \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_CXX_STANDARD=${MY_CXX_STANDARD} \
+        -DCMAKE_INSTALL_PREFIX=${MY_MINGW_DIR} \
+        -DCMAKE_TOOLCHAIN_FILE=${MY_TOOLCHAIN_FILE_CMAKE} \
+        -DNANA_CMAKE_ENABLE_AUDIO=OFF \
+        -DNANA_CMAKE_ENABLE_JPEG=ON \
+        -DNANA_CMAKE_ENABLE_PNG=ON \
+        -DNANA_CMAKE_INSTALL=ON \
+      && make -j${MY_NUM_JOBS} \
+      && make install \
+      && cd ${MY_WORKDIR} \
+      && rm -r nana-${MY_NANA_VERSION} \
+    ; fi
+
+ARG SDL_VERSION
+ENV MY_SDL_VERSION=${SDL_VERSION}
+RUN if [ -f "/3rd_party/sdl-${MY_SDL_VERSION}.tar.gz" ]; then \
+      cd /3rd_party && sha256sum -c ./sdl-${MY_SDL_VERSION}.tar.gz.sha256 && cd - \
+      && tar xvzf /3rd_party/sdl-${MY_SDL_VERSION}.tar.gz \
+      && cd SDL-release-${MY_SDL_VERSION} \
+      && ./configure \
+        --host=${MY_MINGW_PREFIX} \
+        --enable-shared=yes \
+        --enable-static=yes \
+        --prefix=${MY_MINGW_DIR} \
+      && make -j${MY_NUM_JOBS} \
+      && make install \
+      && cd ${MY_WORKDIR} \
+      && rm -r SDL-release-${MY_SDL_VERSION} \
+   ; fi
+
+ARG LIBTASN_VERSION
+ENV MY_LIBTASN_VERSION=${LIBTASN_VERSION}
+RUN if [ -f "/3rd_party/libtasn1-${MY_LIBTASN_VERSION}.tar.gz" ]; then \
+      cd /3rd_party && sha256sum -c ./libtasn1-${MY_LIBTASN_VERSION}.tar.gz.sha256 && cd - \
+      && tar xvzf /3rd_party/libtasn1-${MY_LIBTASN_VERSION}.tar.gz \
+      && cd libtasn1-${MY_LIBTASN_VERSION} \
+      && ./configure \
+        --disable-doc \
+        --enable-static=yes \
+        --enable-shared=no \
+        --host=${MY_MINGW_PREFIX} \
+        --prefix=${MY_MINGW_DIR} \
+      && make -j${MY_NUM_JOBS} \
+      && make install \
+      && cd ${MY_WORKDIR} \
+      && rm -r libtasn1-${MY_LIBTASN_VERSION} \
+      && echo -e \
+          "#!/bin/bash\n"\
+          "\n"\
+          "wine ${MY_MINGW_DIR}/bin/asn1Parser.exe \$@\n"\
+            > ${MY_MINGW_DIR}/bin/asn1Parser \
+      && chmod +x ${MY_MINGW_DIR}/bin/asn1Parser \
+    ; fi
+
+ARG LIBICONV_VERSION
+ENV MY_LIBICONV_VERSION=${LIBICONV_VERSION}
+RUN if [ -f "/3rd_party/libiconv-${MY_LIBICONV_VERSION}.tar.gz" ]; then \
+      cd /3rd_party && sha256sum -c ./libiconv-${MY_LIBICONV_VERSION}.tar.gz.sha256 && cd - \
+      && tar xvzf /3rd_party/libiconv-${MY_LIBICONV_VERSION}.tar.gz \
+      && cd libiconv-${MY_LIBICONV_VERSION} \
+      && ./configure \
+        --enable-static=yes \
+        --enable-shared=no \
+        --host=${MY_MINGW_PREFIX} \
+        --prefix=${MY_MINGW_DIR} \
+      && make -j${MY_NUM_JOBS} \
+      && make install \
+      && cd ${MY_WORKDIR} \
+      && rm -r libiconv-${MY_LIBICONV_VERSION} \
+    ; fi
+
+ARG LIBDSM_VERSION
+ENV MY_LIBDSM_VERSION=${LIBDSM_VERSION}
+RUN if [ -f "/3rd_party/libdsm-${MY_LIBDSM_VERSION}.tar.gz" ]; then \
+      cd /3rd_party && sha256sum -c ./libdsm-${MY_LIBDSM_VERSION}.tar.gz.sha256 && cd - \ 
+      && tar xvzf /3rd_party/libdsm-${MY_LIBDSM_VERSION}.tar.gz \ 
+      && cd libdsm-${MY_LIBDSM_VERSION} \
+      && /3rd_party/libdsm_patch.sh /3rd_party . \
+      && meson setup \
+        --bindir=${MY_MINGW_DIR}/bin \
+        --cross-file ${MY_TOOLCHAIN_FILE_MESON} \
+        --prefix=${MY_MINGW_DIR} \
+        -Dbinaries=false \
+        -Ddefault_library=static \
+        _build \
+      && meson compile \
+        -C _build \
+      && meson install \
+        -C _build \
+      && cd ${MY_WORKDIR} \
+      && rm -r libdsm-${MY_LIBDSM_VERSION} \
+    ; fi
+
+RUN (mv ${MY_MINGW_DIR}/lib/*.dll ${MY_MINGW_DIR}/bin || echo "no dll's found") \
+    && chmod 0777 -R ${MY_MINGW_DIR} \
+    && rm -rf /3rd_party

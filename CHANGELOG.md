@@ -1,7 +1,39 @@
 # Changelog
 
-## 2.0.1-rc
+## v2.0.2-rc
 
+### BREAKING CHANGES
+
+* Refactored `config.json` - will need to verify configuration settings prior to mounting
+
+### Issues
+
+* \#12 \[Unit Test\] Complete all providers unit tests
+* \#14 \[Unit Test\] SQLite mini-ORM unit tests and cleanup
+* \#16 Add support for bucket name in Sia provider
+* \#17 Update to common c++ build system
+  * A single 64-bit Linux Jenkins server is used to build all Linux and Windows versions
+  * All dependency sources are now included
+  * MSVC is no longer supported
+  * MSYS2 is required for building Windows binaries on Windows
+  * OS X support is temporarily disabled
+* \#19 \[bug\] Rename file is broken for files that are existing
+* \#23 \[bug\] Incorrect file size displayed while upload is pending
+* \#24 RocksDB implementations should be transactional
+* \#25 Writes should block when maximum cache size is reached
+* \#26 Complete ring buffer and direct download support
+
+### Changes from v2.0.1-rc
+
+* Ability to choose between RocksDB and SQLite databases
+* Added direct reads and implemented download fallback
+* Corrected file times on S3 and Sia providers
+* Corrected handling of `chown()` and `chmod()`
+* Fixed erroneous download of chunks after resize
+
+## v2.0.1-rc
+
+<!-- markdownlint-disable-next-line -->
 ### Issues
 
 * \#10 Address compiler warnings
@@ -9,18 +41,19 @@
 
 ### Changes from v2.0.0-rc
 
-* Refactored Sia, S3 and base provider
 * Fixed intermittent deadlock on file close
+* Refactored Sia, S3 and base provider
 * Removed MSVC compilation support (MinGW-64 should be used)
+* Removed legacy win32 build binaries
 * Require `c++20`
 * Switched to Storj over Filebase for hosting binaries
+* Updated `OpenSSL` to v3.2.0
 * Updated `boost` to v1.83.0
 * Updated `cpp-httplib` to v0.14.2
 * Updated `curl` to v8.4.0
 * Updated `libsodium` to v1.0.19
-* Updated `OpenSSL` to v3.2.0
 
-## 2.0.0-rc
+## v2.0.0-rc
 
 <!-- markdownlint-disable-next-line -->
 ### Issues

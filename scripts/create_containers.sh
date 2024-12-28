@@ -1,30 +1,25 @@
 #!/bin/bash
 
-pushd "$(dirname "$0")"
-CURRENT_DIR=$(pwd)
+PROJECT_SCRIPTS_DIR=$(realpath "$0")
+PROJECT_SCRIPTS_DIR=$(dirname "${PROJECT_SCRIPTS_DIR}")
+. "${PROJECT_SCRIPTS_DIR}/env.sh" "$1" "$2" "$3" "$4" "$5" 1 1>/dev/null 2>&1
 
-pushd "${CURRENT_DIR}/.."
+if [ -f "${PROJECT_SCRIPTS_DIR}/cleanup.sh" ]; then
+  . "${PROJECT_SCRIPTS_DIR}/cleanup.sh" "$1" "$2" "$3" "$4" "$5"
+  rm ${PROJECT_SCRIPTS_DIR}/cleanup.*
+fi
 
 function create_containers() {
-  TYPE=$1
+  BUILD_TYPE=$1
 
-  for FILE in ./docker/${TYPE}/*; do
-    DISTRONAME=$(basename ${FILE})
-    CONTAINER_NAME=repertory_${DISTRONAME}
-    TAG_NAME=repertory:${DISTRONAME}
-    echo Creating Container [${CONTAINER_NAME}]
+  for FILE in "${PROJECT_SOURCE_DIR}/docker/${BUILD_TYPE}/*"; do
+    DOCKER_CREATE_ONLY=1
+    DOCKER_NAME=$(basename ${FILE})
+    DOCKER_TAG=${PROJECT_NAME}:${DOCKER_NAME}
 
-    docker stop ${CONTAINER_NAME}
-    docker rm ${CONTAINER_NAME}
-    docker build -t ${TAG_NAME} - < docker/${TYPE}/${DISTRONAME}
-    docker stop ${CONTAINER_NAME}
-    docker rm ${CONTAINER_NAME}
+    . "${PROJECT_SCRIPTS_DIR}/docker_common.sh"
   done
 }
 
-docker run --rm --privileged multiarch/qemu-user-static --reset -p yes
 create_containers aarch64
-create_containers 64_bit
-
-popd
-popd
+create_containers x86_64
