@@ -1,0 +1,154 @@
+/*
+  Copyright <2018-2024> <scott.e.graves@protonmail.com>
+
+  Permission is hereby granted, free of charge, to any person obtaining a copy
+  of this software and associated documentation files (the "Software"), to deal
+  in the Software without restriction, including without limitation the rights
+  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+  copies of the Software, and to permit persons to whom the Software is
+  furnished to do so, subject to the following conditions:
+
+  The above copyright notice and this permission notice shall be included in all
+  copies or substantial portions of the Software.
+
+  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+  SOFTWARE.
+*/
+#if !defined(_WIN32)
+
+#include "fixtures/fuse_fixture.hpp"
+
+namespace repertory {
+TYPED_TEST_CASE(fuse_test, fuse_provider_types);
+
+TYPED_TEST(fuse_test, rdrw_can_read_and_write_file) {
+  std::string file_name{"create_test"};
+  auto file_path = this->create_file_and_test(file_name);
+
+  auto handle = open(file_path.c_str(), O_RDWR);
+  ASSERT_GT(handle, -1);
+
+  auto write_buffer = utils::generate_secure_random<data_buffer>(8096U);
+  auto bytes_written =
+      pwrite64(handle, write_buffer.data(), write_buffer.size(), 0U);
+  EXPECT_EQ(write_buffer.size(), bytes_written);
+
+  data_buffer read_buffer(write_buffer.size());
+  auto bytes_read = pread64(handle, read_buffer.data(), read_buffer.size(), 0U);
+  EXPECT_EQ(bytes_written, bytes_read);
+
+  EXPECT_EQ(0, std::memcmp(write_buffer.data(), read_buffer.data(),
+                           write_buffer.size()));
+  close(handle);
+
+  this->unlink_file_and_test(file_path);
+}
+
+TYPED_TEST(fuse_test, rdrw_can_read_from_offset) {
+  std::string file_name{"create_test"};
+  auto file_path = this->create_file_and_test(file_name);
+
+  auto handle = open(file_path.c_str(), O_RDWR);
+  ASSERT_GT(handle, -1);
+
+  auto write_buffer = utils::generate_secure_random<data_buffer>(8096U);
+  auto bytes_written =
+      pwrite64(handle, write_buffer.data(), write_buffer.size(), 0U);
+  EXPECT_EQ(write_buffer.size(), bytes_written);
+
+  data_buffer read_buffer(1U);
+  for (std::size_t idx = 0U; idx < write_buffer.size(); ++idx) {
+    auto bytes_read =
+        pread64(handle, read_buffer.data(), read_buffer.size(), idx);
+    EXPECT_EQ(1U, bytes_read);
+
+    EXPECT_EQ(write_buffer.at(idx), read_buffer.at(0U));
+  }
+
+  close(handle);
+
+  this->unlink_file_and_test(file_path);
+}
+
+TYPED_TEST(fuse_test, rdrw_can_read_from_offset_after_eof) {
+  std::string file_name{"create_test"};
+  auto file_path = this->create_file_and_test(file_name);
+
+  auto handle = open(file_path.c_str(), O_RDWR);
+  ASSERT_GT(handle, -1);
+
+  auto write_buffer = utils::generate_secure_random<data_buffer>(8096U);
+  auto bytes_written =
+      pwrite64(handle, write_buffer.data(), write_buffer.size(), 0U);
+  EXPECT_EQ(write_buffer.size(), bytes_written);
+
+  data_buffer read_buffer(1U);
+  for (std::size_t idx = 0U; idx < write_buffer.size() + 1U; ++idx) {
+    auto bytes_read =
+        pread64(handle, read_buffer.data(), read_buffer.size(), idx);
+    if (idx == write_buffer.size()) {
+      EXPECT_EQ(0U, bytes_read);
+    } else {
+      EXPECT_EQ(1U, bytes_read);
+
+      EXPECT_EQ(write_buffer.at(idx), read_buffer.at(0U));
+    }
+  }
+
+  close(handle);
+
+  this->unlink_file_and_test(file_path);
+}
+
+TYPED_TEST(fuse_test, rdrw_can_not_write_to_ro_file) {
+  std::string file_name{"create_test"};
+  auto file_path = this->create_file_and_test(file_name);
+
+  auto handle = open(file_path.c_str(), O_RDONLY);
+  ASSERT_GT(handle, -1);
+
+  auto write_buffer = utils::generate_secure_random<data_buffer>(8096U);
+  auto bytes_written =
+      pwrite64(handle, write_buffer.data(), write_buffer.size(), 0U);
+  EXPECT_EQ(-1, bytes_written);
+  EXPECT_EQ(EBADF, errno);
+
+  auto file_size = utils::file::file{file_path}.size();
+  EXPECT_TRUE(file_size.has_value());
+  EXPECT_EQ(0U, *file_size);
+
+  close(handle);
+
+  this->unlink_file_and_test(file_path);
+}
+
+TYPED_TEST(fuse_test, rdrw_can_not_read_from_wo_file) {
+  std::string file_name{"create_test"};
+  auto file_path = this->create_file_and_test(file_name);
+
+  auto handle = open(file_path.c_str(), O_WRONLY);
+  ASSERT_GT(handle, -1);
+
+  auto write_buffer = utils::generate_secure_random<data_buffer>(8096U);
+  auto bytes_written =
+      pwrite64(handle, write_buffer.data(), write_buffer.size(), 0U);
+  EXPECT_EQ(write_buffer.size(), bytes_written);
+
+  data_buffer read_buffer(1U);
+  auto bytes_read =
+      pread64(handle, read_buffer.data(), read_buffer.size(), idx);
+  EXPECT_EQ(-1, bytes_read);
+  EXPECT_EQ(EBADF, errno);
+
+  close(handle);
+
+  this->unlink_file_and_test(file_path);
+}
+} // namespace repertory
+
+#endif // !defined(_WIN32)

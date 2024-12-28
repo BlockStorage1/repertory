@@ -1,4 +1,4 @@
-FROM         arm64v8/alpine:latest
+FROM         arm64v8/alpine:3.20.3
 MAINTAINER   Scott E. Graves <scott.e.graves@protonmail.com>
 CMD          bash
 
@@ -10,28 +10,70 @@ RUN apk add \
   bash \
   binutils \
   binutils-dev \
+  bison \
+  boost-dev \
+  bzip2-static \
   cmake \
   diffutils \
-  fuse \
-  fuse-dev \
-  fuse-static \
+  elfutils-dev \
+  file \
+  fontconfig-dev \
+  fontconfig-static \
+  freetype \
+  freetype-dev \
+  freetype-static \
   fuse3 \
   fuse3-dev \
   fuse3-static \
   g++ \
   gcc \
+  gflags \
+  gflags-dev \
   git \
+  gtkmm3-dev \
+  icu-dev \
+  icu-libs \
+  icu-static \
+  libogg-dev \
+  libogg-static \
   libtool \
+  libudev-zero \
+  libudev-zero-dev \
   libunwind \
-  libunwind-static \
   libunwind-dev \
+  libunwind-static \
+  liburing \
+  liburing-dev \
+  libvorbis-dev \
+  libvorbis-static \
+  libx11-dev \
+  libx11-static \
+  libxcursor \
+  libxcursor-dev \
+  libxrandr \
+  libxrandr-dev \
   linux-headers \
   make \
+  mesa \
+  mesa-dev \
+  meson \
   musl-dev \
+  ninja \
+  openal-soft-dev \
+  openal-soft-libs \
+  openssl \
   patch \
   perl \
   pkgconfig \
+  rsync \
+  tcl \
+  tcl-dev \
+  texinfo \
+  vlc-dev \
   wget \
+  xz \
+  xz-dev \
+  xz-libs \
   zlib \
   zlib-dev \
   zlib-static \
@@ -39,7 +81,4 @@ RUN apk add \
   zstd-dev \
   zstd-libs \
   zstd-static \
-  xz \
-  xz-dev \
-  xz-libs \
   xz-static
