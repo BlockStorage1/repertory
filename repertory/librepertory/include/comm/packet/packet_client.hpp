@@ -1,5 +1,5 @@
 /*
-  Copyright <2018-2024> <scott.e.graves@protonmail.com>
+  Copyright <2018-2025> <scott.e.graves@protonmail.com>
 
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"), to deal
@@ -69,21 +69,21 @@ private:
 
   void put_client(std::shared_ptr<client> &cli);
 
-  [[nodiscard]] auto read_packet(client &cli, packet &response)
-      -> packet::error_type;
+  [[nodiscard]] auto read_packet(client &cli,
+                                 packet &response) const -> packet::error_type;
 
   void resolve();
 
 public:
-  [[nodiscard]] auto send(std::string_view method, std::uint32_t &service_flags)
-      -> packet::error_type;
+  [[nodiscard]] auto send(std::string_view method,
+                          std::uint32_t &service_flags) -> packet::error_type;
 
   [[nodiscard]] auto send(std::string_view method, packet &request,
                           std::uint32_t &service_flags) -> packet::error_type;
 
   [[nodiscard]] auto send(std::string_view method, packet &request,
-                          packet &response, std::uint32_t &service_flags)
-      -> packet::error_type;
+                          packet &response,
+                          std::uint32_t &service_flags) -> packet::error_type;
 };
 } // namespace repertory
 

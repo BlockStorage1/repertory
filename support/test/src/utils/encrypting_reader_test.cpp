@@ -1,5 +1,5 @@
 /*
- Copyright <2018-2024> <scott.e.graves@protonmail.com>
+ Copyright <2018-2025> <scott.e.graves@protonmail.com>
 
   Permission is hereby granted, free of charge, to any person obtaining a copy
  of this software and associated documentation files (the "Software"), to deal
@@ -23,6 +23,10 @@
 
 #if defined(PROJECT_ENABLE_LIBSODIUM) && defined(PROJECT_ENABLE_BOOST)
 
+namespace {
+const auto get_stop_requested = []() -> bool { return false; };
+} // namespace
+
 namespace repertory {
 TEST(utils_encrypting_reader, read_file_data) {
   const auto token = std::string("moose");
@@ -30,9 +34,8 @@ TEST(utils_encrypting_reader, read_file_data) {
       8U * utils::encryption::encrypting_reader::get_data_chunk_size());
   EXPECT_TRUE(source_file);
   if (source_file) {
-    stop_type stop_requested{false};
     utils::encryption::encrypting_reader reader(
-        "test.dat", source_file.get_path(), stop_requested, token);
+        "test.dat", source_file.get_path(), get_stop_requested, token);
 
     for (std::uint8_t i = 0U; i < 8U; i++) {
       data_buffer buffer(
@@ -70,9 +73,8 @@ TEST(utils_encrypting_reader, read_file_data_in_multiple_chunks) {
       8U * utils::encryption::encrypting_reader::get_data_chunk_size());
   EXPECT_TRUE(source_file);
   if (source_file) {
-    stop_type stop_requested{false};
     utils::encryption::encrypting_reader reader(
-        "test.dat", source_file.get_path(), stop_requested, token);
+        "test.dat", source_file.get_path(), get_stop_requested, token);
 
     for (std::uint8_t i = 0U; i < 8U; i += 2U) {
       data_buffer buffer(
@@ -118,9 +120,8 @@ TEST(utils_encrypting_reader, read_file_data_as_stream) {
       8U * utils::encryption::encrypting_reader::get_data_chunk_size());
   EXPECT_TRUE(source_file);
   if (source_file) {
-    stop_type stop_requested{false};
     utils::encryption::encrypting_reader reader(
-        "test.dat", source_file.get_path(), stop_requested, token);
+        "test.dat", source_file.get_path(), get_stop_requested, token);
     auto io_stream = reader.create_iostream();
     EXPECT_FALSE(io_stream->seekg(0, std::ios_base::end).fail());
     EXPECT_TRUE(io_stream->good());
@@ -171,9 +172,8 @@ TEST(utils_encrypting_reader, read_file_data_in_multiple_chunks_as_stream) {
       8u * utils::encryption::encrypting_reader::get_data_chunk_size());
   EXPECT_TRUE(source_file);
   if (source_file) {
-    stop_type stop_requested{false};
     utils::encryption::encrypting_reader reader(
-        "test.dat", source_file.get_path(), stop_requested, token);
+        "test.dat", source_file.get_path(), get_stop_requested, token);
     auto io_stream = reader.create_iostream();
     EXPECT_FALSE(io_stream->seekg(0, std::ios_base::end).fail());
     EXPECT_TRUE(io_stream->good());

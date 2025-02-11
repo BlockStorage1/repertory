@@ -1,5 +1,5 @@
 /*
-  Copyright <2018-2024> <scott.e.graves@protonmail.com>
+  Copyright <2018-2025> <scott.e.graves@protonmail.com>
 
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"), to deal
@@ -421,19 +421,19 @@ static void get_directory_items(const app_config &cfg, i_provider &provider) {
       decrypt_parts(cfg, dir_item.api_path);
     }
 
-    auto dir = std::find_if(list_decrypted.begin(), list_decrypted.end(),
-                            [](const directory_item &dir_item) -> bool {
-                              return dir_item.directory;
-                            });
+    auto dir =
+        std::ranges::find_if(list_decrypted, [](auto &&dir_item) -> bool {
+          return dir_item.directory;
+        });
     EXPECT_LT(dir, list_decrypted.end());
     EXPECT_STREQ("/sub10", dir->api_path.c_str());
     EXPECT_STREQ("/", dir->api_parent.c_str());
     EXPECT_EQ(std::size_t(0U), dir->size);
 
-    auto file = std::find_if(list_decrypted.begin(), list_decrypted.end(),
-                             [](const directory_item &dir_item) -> bool {
-                               return not dir_item.directory;
-                             });
+    auto file =
+        std::ranges::find_if(list_decrypted, [](auto &&dir_item) -> bool {
+          return not dir_item.directory;
+        });
     EXPECT_LT(file, list_decrypted.end());
     EXPECT_STREQ("/test.txt", file->api_path.c_str());
     EXPECT_STREQ("/", file->api_parent.c_str());
@@ -460,10 +460,10 @@ static void get_directory_items(const app_config &cfg, i_provider &provider) {
       decrypt_parts(cfg, dir_item.api_path);
     }
 
-    auto file2 = std::find_if(list_decrypted2.begin(), list_decrypted2.end(),
-                              [](const directory_item &dir_item) -> bool {
-                                return not dir_item.directory;
-                              });
+    auto file2 =
+        std::ranges::find_if(list_decrypted2, [](auto &&dir_item) -> bool {
+          return not dir_item.directory;
+        });
     EXPECT_LT(file2, list_decrypted2.end());
     EXPECT_STREQ("/sub10/moose.txt", file2->api_path.c_str());
     EXPECT_STREQ("/sub10", file2->api_parent.c_str());
@@ -635,6 +635,7 @@ TEST(providers, encrypt_provider) {
 
   console_consumer consumer{};
   event_system::instance().start();
+
   {
     app_config cfg(provider_type::encrypt, config_path);
 
@@ -668,6 +669,7 @@ TEST(providers, encrypt_provider) {
     provider.stop();
     mgr.stop();
   }
+
   event_system::instance().stop();
 }
 
@@ -677,6 +679,7 @@ TEST(providers, s3_provider) {
 
   console_consumer consumer{};
   event_system::instance().start();
+
   {
     app_config cfg(provider_type::s3, config_path);
     {
@@ -706,6 +709,7 @@ TEST(providers, s3_provider) {
     provider.stop();
     mgr.stop();
   }
+
   event_system::instance().stop();
 }
 
@@ -715,6 +719,7 @@ TEST(providers, sia_provider) {
 
   console_consumer consumer{};
   event_system::instance().start();
+
   {
     app_config cfg(provider_type::sia, config_path);
     {
@@ -744,6 +749,7 @@ TEST(providers, sia_provider) {
     provider.stop();
     mgr.stop();
   }
+
   event_system::instance().stop();
 }
 } // namespace repertory

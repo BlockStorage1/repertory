@@ -1,5 +1,5 @@
 /*
-  Copyright <2018-2024> <scott.e.graves@protonmail.com>
+  Copyright <2018-2025> <scott.e.graves@protonmail.com>
 
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"), to deal
@@ -161,7 +161,7 @@ protected:
 
   void set_source_path(std::string source_path);
 
-  void wait_for_io(stop_type &stop_requested);
+  void wait_for_io(stop_type_callback stop_requested_cb);
 
 public:
   void add(std::uint64_t handle, open_file_data ofd) override;
@@ -186,17 +186,17 @@ public:
 
   [[nodiscard]] auto get_handles() const -> std::vector<std::uint64_t> override;
 
-  [[nodiscard]] auto
-  get_open_data() -> std::map<std::uint64_t, open_file_data> & override;
+  [[nodiscard]] auto get_open_data()
+      -> std::map<std::uint64_t, open_file_data> & override;
 
   [[nodiscard]] auto get_open_data() const
       -> const std::map<std::uint64_t, open_file_data> & override;
 
-  [[nodiscard]] auto
-  get_open_data(std::uint64_t handle) -> open_file_data & override;
+  [[nodiscard]] auto get_open_data(std::uint64_t handle)
+      -> open_file_data & override;
 
-  [[nodiscard]] auto
-  get_open_data(std::uint64_t handle) const -> const open_file_data & override;
+  [[nodiscard]] auto get_open_data(std::uint64_t handle) const
+      -> const open_file_data & override;
 
   [[nodiscard]] auto get_open_file_count() const -> std::size_t override;
 

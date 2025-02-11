@@ -1,5 +1,5 @@
 /*
-  Copyright <2018-2024> <scott.e.graves@protonmail.com>
+  Copyright <2018-2025> <scott.e.graves@protonmail.com>
 
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"), to deal
@@ -22,7 +22,7 @@
 #include "app_config.hpp"
 
 #include "events/event_system.hpp"
-#include "events/events.hpp"
+#include "events/types/event_level_changed.hpp"
 #include "file_manager/cache_size_mgr.hpp"
 #include "platform/platform.hpp"
 #include "types/startup_exception.hpp"
@@ -57,6 +57,12 @@ auto get_value(const json &data, const std::string &name, dest &dst,
 } // namespace
 
 namespace repertory {
+stop_type app_config::stop_requested{false};
+
+auto app_config::get_stop_requested() -> bool { return stop_requested.load(); }
+
+void app_config::set_stop_requested() { stop_requested.store(true); }
+
 app_config::app_config(const provider_type &prov,
                        std::string_view data_directory)
     : prov_(prov),
@@ -1140,9 +1146,10 @@ void app_config::set_enable_mount_manager(bool value) {
 #endif // defined(_WIN32)
 
 void app_config::set_event_level(const event_level &value) {
+  REPERTORY_USES_FUNCTION_NAME();
+
   if (set_value(event_level_, value)) {
-    event_system::instance().raise<event_level_changed>(
-        event_level_to_string(value));
+    event_system::instance().raise<event_level_changed>(function_name, value);
   }
 }
 

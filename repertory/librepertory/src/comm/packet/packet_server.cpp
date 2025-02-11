@@ -1,5 +1,5 @@
 /*
-  Copyright <2018-2024> <scott.e.graves@protonmail.com>
+  Copyright <2018-2025> <scott.e.graves@protonmail.com>
 
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"), to deal
@@ -23,7 +23,10 @@
 
 #include "comm/packet/packet.hpp"
 #include "events/event_system.hpp"
-#include "events/events.hpp"
+#include "events/types/service_start_begin.hpp"
+#include "events/types/service_start_end.hpp"
+#include "events/types/service_stop_begin.hpp"
+#include "events/types/service_stop_end.hpp"
 #include "platform/platform.hpp"
 #include "types/repertory.hpp"
 #include "utils/error_utils.hpp"
@@ -37,12 +40,20 @@ packet_server::packet_server(std::uint16_t port, std::string token,
     : encryption_token_(std::move(token)),
       closed_(std::move(closed)),
       message_handler_(std::move(message_handler)) {
+  REPERTORY_USES_FUNCTION_NAME();
+
+  event_system::instance().raise<service_start_begin>(function_name,
+                                                      "packet_server");
   initialize(port, pool_size);
-  event_system::instance().raise<service_started>("packet_server");
+  event_system::instance().raise<service_start_end>(function_name,
+                                                    "packet_server");
 }
 
 packet_server::~packet_server() {
-  event_system::instance().raise<service_shutdown_begin>("packet_server");
+  REPERTORY_USES_FUNCTION_NAME();
+
+  event_system::instance().raise<service_stop_begin>(function_name,
+                                                     "packet_server");
   std::thread([this]() {
     for (std::size_t i = 0U; i < service_threads_.size(); i++) {
       io_context_.stop();
@@ -51,7 +62,8 @@ packet_server::~packet_server() {
 
   server_thread_->join();
   server_thread_.reset();
-  event_system::instance().raise<service_shutdown_end>("packet_server");
+  event_system::instance().raise<service_stop_end>(function_name,
+                                                   "packet_server");
 }
 
 void packet_server::add_client(connection &conn, const std::string &client_id) {

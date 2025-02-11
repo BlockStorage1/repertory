@@ -1,5 +1,5 @@
 /*
-  Copyright <2018-2024> <scott.e.graves@protonmail.com>
+  Copyright <2018-2025> <scott.e.graves@protonmail.com>
 
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"), to deal
@@ -22,12 +22,14 @@
 #ifndef REPERTORY_INCLUDE_APP_CONFIG_HPP_
 #define REPERTORY_INCLUDE_APP_CONFIG_HPP_
 
-#include "events/event.hpp"
 #include "types/remote.hpp"
 #include "types/repertory.hpp"
 
 namespace repertory {
 class app_config final {
+private:
+  static stop_type stop_requested;
+
 public:
   [[nodiscard]] static auto
   default_agent_name(const provider_type &prov) -> std::string;
@@ -49,6 +51,11 @@ public:
 
   [[nodiscard]] static auto
   get_provider_name(const provider_type &prov) -> std::string;
+
+public:
+  [[nodiscard]] static auto get_stop_requested() -> bool;
+
+  static void set_stop_requested();
 
 public:
   app_config(const provider_type &prov, std::string_view data_directory = "");

@@ -1,5 +1,5 @@
 /*
-  Copyright <2018-2024> <scott.e.graves@protonmail.com>
+  Copyright <2018-2025> <scott.e.graves@protonmail.com>
 
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"), to deal
@@ -45,7 +45,8 @@
 #endif
 
 namespace {
-std::atomic<std::size_t> idx{0U};
+std::atomic<std::size_t> provider_idx{0U};
+
 constexpr const auto SLEEP_SECONDS{1.5s};
 } // namespace
 
@@ -126,6 +127,7 @@ protected:
         });
       }
 
+      config->set_database_type(database_type::sqlite);
       meta = create_meta_db(*config);
       execute_mount(drive_args, mount_location);
     };
@@ -171,6 +173,7 @@ protected:
         });
       }
 
+      config->set_database_type(database_type::sqlite);
       meta = create_meta_db(*config);
       execute_mount(drive_args, mount_location);
     };
@@ -197,6 +200,7 @@ protected:
             std::make_unique<app_config>(provider_type::remote, cfg_directory);
         config2->set_enable_drive_events(true);
         config2->set_event_level(event_level::trace);
+        config2->set_database_type(database_type::sqlite);
 
         drive_args2 = std::vector<std::string>({
             "-dd",
@@ -259,14 +263,14 @@ protected:
 
 public:
   static auto create_file_path(std::string &file_name) {
-    file_name += std::to_string(++idx);
+    file_name += std::to_string(++provider_idx);
     auto file_path = utils::path::combine(mount_location, {file_name});
     return file_path;
   }
 
-  static auto create_file_and_test(std::string &file_name, mode_t perms)
-      -> std::string {
-    file_name += std::to_string(++idx);
+  static auto create_file_and_test(std::string &file_name,
+                                   mode_t perms) -> std::string {
+    file_name += std::to_string(++provider_idx);
     auto file_path = utils::path::combine(mount_location, {file_name});
 
     auto handle = open(file_path.c_str(), O_CREAT | O_EXCL | O_RDWR, perms);
@@ -283,7 +287,7 @@ public:
     EXPECT_TRUE(utils::file::file(file_path).exists());
     EXPECT_FALSE(utils::file::directory(file_path).exists());
 
-    struct stat64 unix_st{};
+    struct stat64 unix_st {};
     EXPECT_EQ(0, stat64(file_path.c_str(), &unix_st));
     EXPECT_EQ(getgid(), unix_st.st_gid);
     EXPECT_EQ(getuid(), unix_st.st_uid);
@@ -295,9 +299,9 @@ public:
     return create_file_and_test(file_name, ACCESSPERMS);
   }
 
-  static auto create_directory_and_test(std::string &dir_name, mode_t perms)
-      -> std::string {
-    dir_name += std::to_string(++idx);
+  static auto create_directory_and_test(std::string &dir_name,
+                                        mode_t perms) -> std::string {
+    dir_name += std::to_string(++provider_idx);
 
     auto dir_path = utils::path::combine(mount_location, {dir_name});
     mkdir(dir_path.c_str(), perms);
@@ -305,7 +309,7 @@ public:
     EXPECT_TRUE(utils::file::directory(dir_path).exists());
     EXPECT_FALSE(utils::file::file(dir_path).exists());
 
-    struct stat64 unix_st{};
+    struct stat64 unix_st {};
     EXPECT_EQ(0, stat64(dir_path.c_str(), &unix_st));
     EXPECT_EQ(getgid(), unix_st.st_gid);
     EXPECT_EQ(getuid(), unix_st.st_uid);

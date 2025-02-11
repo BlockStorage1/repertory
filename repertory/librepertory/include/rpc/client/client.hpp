@@ -1,5 +1,5 @@
 /*
-  Copyright <2018-2024> <scott.e.graves@protonmail.com>
+  Copyright <2018-2025> <scott.e.graves@protonmail.com>
 
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"), to deal
@@ -31,18 +31,18 @@ public:
 
 private:
   const rpc_host_info host_info_;
-  std::atomic<std::uint32_t> request_id_;
+  std::atomic<std::uint32_t> request_id_{0U};
 
 public:
   [[nodiscard]] auto get_drive_information() -> rpc_response;
 
   [[nodiscard]] auto get_config() -> rpc_response;
 
-  [[nodiscard]] auto
-  get_config_value_by_name(const std::string &name) -> rpc_response;
+  [[nodiscard]] auto get_config_value_by_name(const std::string &name)
+      -> rpc_response;
 
-  [[nodiscard]] auto
-  get_directory_items(const std::string &api_path) -> rpc_response;
+  [[nodiscard]] auto get_directory_items(const std::string &api_path)
+      -> rpc_response;
 
   [[nodiscard]] auto get_open_files() -> rpc_response;
 
@@ -52,9 +52,9 @@ public:
 
   [[nodiscard]] auto pinned_status(const std::string &api_file) -> rpc_response;
 
-  [[nodiscard]] auto
-  set_config_value_by_name(const std::string &name,
-                           const std::string &value) -> rpc_response;
+  [[nodiscard]] auto set_config_value_by_name(const std::string &name,
+                                              const std::string &value)
+      -> rpc_response;
 
   [[nodiscard]] auto unmount() -> rpc_response;
 

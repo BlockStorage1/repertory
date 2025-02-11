@@ -1,5 +1,5 @@
 /*
-  Copyright <2018-2024> <scott.e.graves@protonmail.com>
+  Copyright <2018-2025> <scott.e.graves@protonmail.com>
 
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"), to deal
@@ -24,7 +24,7 @@
 #if !defined(_WIN32)
 
 #include "events/event_system.hpp"
-#include "utils/path.hpp"
+#include "types/repertory.hpp"
 
 namespace repertory {
 class app_config;
@@ -51,8 +51,8 @@ private:
   std::string mount_location_;
 
 protected:
-  bool atime_enabled_ = true;
-  bool console_enabled_ = false;
+  bool atime_enabled_{true};
+  bool console_enabled_{false};
   std::optional<gid_t> forced_gid_;
   std::optional<uid_t> forced_uid_;
   std::optional<mode_t> forced_umask_;

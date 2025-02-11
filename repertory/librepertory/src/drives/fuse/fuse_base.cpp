@@ -1,5 +1,5 @@
 /*
-  Copyright <2018-2024> <scott.e.graves@protonmail.com>
+  Copyright <2018-2025> <scott.e.graves@protonmail.com>
 
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"), to deal
@@ -24,9 +24,11 @@
 #include "drives/fuse/fuse_base.hpp"
 
 #include "app_config.hpp"
-#include "drives/fuse/events.hpp"
 #include "events/event_system.hpp"
-#include "events/events.hpp"
+#include "events/types/fuse_args_parsed.hpp"
+#include "events/types/fuse_event.hpp"
+#include "events/types/unmount_requested.hpp"
+#include "events/types/unmount_result.hpp"
 #include "initialize.hpp"
 #include "platform/platform.hpp"
 #include "utils/collection.hpp"
@@ -90,7 +92,7 @@ fuse_base::fuse_base(app_config &config) : config_(config) {
   fuse_ops_.flag_reserved = 0;
 #endif // FUSE_USE_VERSION < 30
 
-  E_SUBSCRIBE_EXACT(unmount_requested, [this](const unmount_requested &) {
+  E_SUBSCRIBE(unmount_requested, [this](const unmount_requested &) {
     std::thread([this]() { this->shutdown(); }).detach();
   });
 }
@@ -118,8 +120,8 @@ auto fuse_base::chflags_(const char *path, uint32_t flags) -> int {
 #endif // __APPLE__
 
 #if FUSE_USE_VERSION >= 30
-auto fuse_base::chmod_(const char *path, mode_t mode,
-                       struct fuse_file_info *fi) -> int {
+auto fuse_base::chmod_(const char *path, mode_t mode, struct fuse_file_info *fi)
+    -> int {
   REPERTORY_USES_FUNCTION_NAME();
 
   return instance().execute_callback(
@@ -186,7 +188,7 @@ void fuse_base::display_options(
 #if FUSE_USE_VERSION >= 30
   fuse_cmdline_help();
 #else
-  struct fuse_operations fuse_ops {};
+  struct fuse_operations fuse_ops{};
   fuse_main(args.size(),
             reinterpret_cast<char **>(const_cast<char **>(args.data())),
             &fuse_ops, nullptr);
@@ -196,7 +198,7 @@ void fuse_base::display_options(
 }
 
 void fuse_base::display_version_information(std::vector<const char *> args) {
-  struct fuse_operations fuse_ops {};
+  struct fuse_operations fuse_ops{};
   fuse_main(static_cast<int>(args.size()),
             reinterpret_cast<char **>(const_cast<char **>(args.data())),
             &fuse_ops, nullptr);
@@ -334,8 +336,8 @@ auto fuse_base::getxtimes_(const char *path, struct timespec *bkuptime,
 #endif // __APPLE__
 
 #if FUSE_USE_VERSION >= 30
-auto fuse_base::init_(struct fuse_conn_info *conn,
-                      struct fuse_config *cfg) -> void * {
+auto fuse_base::init_(struct fuse_conn_info *conn, struct fuse_config *cfg)
+    -> void * {
   REPERTORY_USES_FUNCTION_NAME();
 
   return execute_void_pointer_callback(function_name, [&]() -> void * {
@@ -408,7 +410,7 @@ auto fuse_base::mount(std::vector<std::string> args) -> int {
 
       char *mount_location{nullptr};
 #if FUSE_USE_VERSION >= 30
-      struct fuse_cmdline_opts opts {};
+      struct fuse_cmdline_opts opts{};
       fuse_parse_cmdline(&fa, &opts);
       mount_location = opts.mountpoint;
 #else
@@ -477,8 +479,8 @@ auto fuse_base::read_(const char *path, char *buffer, size_t read_size,
 #if FUSE_USE_VERSION >= 30
 auto fuse_base::readdir_(const char *path, void *buf,
                          fuse_fill_dir_t fuse_fill_dir, off_t offset,
-                         struct fuse_file_info *fi,
-                         fuse_readdir_flags flags) -> int {
+                         struct fuse_file_info *fi, fuse_readdir_flags flags)
+    -> int {
   REPERTORY_USES_FUNCTION_NAME();
 
   return instance().execute_callback(
@@ -510,8 +512,8 @@ auto fuse_base::release_(const char *path, struct fuse_file_info *fi) -> int {
       });
 }
 
-auto fuse_base::releasedir_(const char *path,
-                            struct fuse_file_info *fi) -> int {
+auto fuse_base::releasedir_(const char *path, struct fuse_file_info *fi)
+    -> int {
   REPERTORY_USES_FUNCTION_NAME();
 
   return instance().execute_callback(
@@ -521,8 +523,8 @@ auto fuse_base::releasedir_(const char *path,
 }
 
 #if FUSE_USE_VERSION >= 30
-auto fuse_base::rename_(const char *from, const char *to,
-                        unsigned int flags) -> int {
+auto fuse_base::rename_(const char *from, const char *to, unsigned int flags)
+    -> int {
   REPERTORY_USES_FUNCTION_NAME();
 
   return instance().execute_callback(
@@ -601,12 +603,17 @@ auto fuse_base::listxattr_(const char *path, char *buffer, size_t size) -> int {
 }
 
 void fuse_base::notify_fuse_args_parsed(const std::vector<std::string> &args) {
-  event_system::instance().raise<fuse_args_parsed>(std::accumulate(
-      args.begin(), args.end(), std::string(),
-      [](std::string command_line, const auto &arg) {
-        command_line += (command_line.empty() ? arg : (" " + std::string(arg)));
-        return command_line;
-      }));
+  REPERTORY_USES_FUNCTION_NAME();
+
+  event_system::instance().raise<fuse_args_parsed>(
+      std::accumulate(args.begin(), args.end(), std::string(),
+                      [](auto &&command_line, auto &&arg) -> auto {
+                        command_line +=
+                            (command_line.empty() ? arg
+                                                  : (" " + std::string(arg)));
+                        return command_line;
+                      }),
+      function_name);
 }
 
 auto fuse_base::parse_args(std::vector<std::string> &args) -> int {
@@ -632,7 +639,7 @@ auto fuse_base::parse_args(std::vector<std::string> &args) -> int {
       }
 
       const auto option_parts = utils::string::split(options, ',', true);
-      for (auto &&option : option_parts) {
+      for (const auto &option : option_parts) {
         if (option.find("gid") == 0) {
           const auto parts = utils::string::split(option, '=', true);
           if (parts.size() == 2u) {
@@ -701,7 +708,7 @@ void fuse_base::raise_fuse_event(std::string_view function_name,
       (config_.get_event_level() >= event_level::trace)) {
     std::string func{function_name};
     event_system::instance().raise<fuse_event>(
-        utils::string::right_trim(func, '_'), std::string{api_path}, ret);
+        api_path, ret, utils::string::right_trim(func, '_'));
   }
 }
 
@@ -750,9 +757,11 @@ auto fuse_base::setxattr_(const char *path, const char *name, const char *value,
 #endif // HAS_SETXATTR
 
 void fuse_base::shutdown() {
-  const auto res = unmount(get_mount_location());
-  event_system::instance().raise<unmount_result>(get_mount_location(),
-                                                 std::to_string(res));
+  REPERTORY_USES_FUNCTION_NAME();
+
+  auto res = unmount(get_mount_location());
+  event_system::instance().raise<unmount_result>(function_name,
+                                                 get_mount_location(), res);
 }
 
 #if defined(__APPLE__)
@@ -765,8 +774,8 @@ auto fuse_base::setattr_x_(const char *path, struct setattr_x *attr) -> int {
       });
 }
 
-auto fuse_base::setbkuptime_(const char *path,
-                             const struct timespec *bkuptime) -> int {
+auto fuse_base::setbkuptime_(const char *path, const struct timespec *bkuptime)
+    -> int {
   REPERTORY_USES_FUNCTION_NAME();
 
   return instance().execute_callback(
@@ -775,8 +784,8 @@ auto fuse_base::setbkuptime_(const char *path,
       });
 }
 
-auto fuse_base::setchgtime_(const char *path,
-                            const struct timespec *chgtime) -> int {
+auto fuse_base::setchgtime_(const char *path, const struct timespec *chgtime)
+    -> int {
   REPERTORY_USES_FUNCTION_NAME();
 
   return instance().execute_callback(
@@ -785,8 +794,8 @@ auto fuse_base::setchgtime_(const char *path,
       });
 }
 
-auto fuse_base::setcrtime_(const char *path,
-                           const struct timespec *crtime) -> int {
+auto fuse_base::setcrtime_(const char *path, const struct timespec *crtime)
+    -> int {
   REPERTORY_USES_FUNCTION_NAME();
 
   return instance().execute_callback(

@@ -1,5 +1,5 @@
 /*
-  Copyright <2018-2024> <scott.e.graves@protonmail.com>
+  Copyright <2018-2025> <scott.e.graves@protonmail.com>
 
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"), to deal
@@ -47,8 +47,8 @@ private:
 private:
   bool cancelled_{false};
   api_error error_{api_error::success};
-  std::unique_ptr<std::thread> thread_;
   stop_type stop_requested_{false};
+  std::unique_ptr<std::thread> thread_;
 
 private:
   void upload_thread();

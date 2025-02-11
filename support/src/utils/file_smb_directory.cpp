@@ -1,5 +1,5 @@
 /*
-  Copyright <2018-2024> <scott.e.graves@protonmail.com>
+  Copyright <2018-2025> <scott.e.graves@protonmail.com>
 
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"), to deal
@@ -127,7 +127,7 @@ auto smb_directory::open(std::wstring_view host, std::wstring_view user,
 }
 
 auto smb_directory::copy_to(std::string_view new_path,
-                            bool overwrite) const -> bool {
+                            bool /* overwrite */) const -> bool {
   REPERTORY_USES_FUNCTION_NAME();
 
   try {

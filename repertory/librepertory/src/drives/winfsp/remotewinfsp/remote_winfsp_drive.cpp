@@ -1,5 +1,5 @@
 /*
-  Copyright <2018-2024> <scott.e.graves@protonmail.com>
+  Copyright <2018-2025> <scott.e.graves@protonmail.com>
 
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"), to deal
@@ -26,7 +26,10 @@
 #include "app_config.hpp"
 #include "events/consumers/console_consumer.hpp"
 #include "events/consumers/logging_consumer.hpp"
-#include "events/events.hpp"
+#include "events/event_system.hpp"
+#include "events/types/drive_mount_failed.hpp"
+#include "events/types/drive_mount_result.hpp"
+#include "events/types/unmount_requested.hpp"
 #include "platform/platform.hpp"
 #include "rpc/server/server.hpp"
 #include "utils/collection.hpp"
@@ -74,8 +77,8 @@ auto remote_winfsp_drive::winfsp_service::OnStart(ULONG, PWSTR *) -> NTSTATUS {
   }
 
   if (ret != STATUS_SUCCESS) {
-    event_system::instance().raise<drive_mount_failed>(mount_location,
-                                                       std::to_string(ret));
+    event_system::instance().raise<drive_mount_failed>(ret, function_name,
+                                                       mount_location);
     if (not lock_.set_mount_state(false, "", -1)) {
       utils::error::raise_error(function_name, "failed to set mount state");
     }
@@ -102,7 +105,7 @@ remote_winfsp_drive::remote_winfsp_drive(app_config &config,
       config_(config),
       lock_(lock),
       factory_(std::move(factory)) {
-  E_SUBSCRIBE_EXACT(unmount_requested, [this](const unmount_requested &) {
+  E_SUBSCRIBE(unmount_requested, [this](const unmount_requested &) {
     std::thread([this]() { this->shutdown(); }).detach();
   });
 }
@@ -233,12 +236,14 @@ auto remote_winfsp_drive::Init(PVOID host) -> NTSTATUS {
 
 auto remote_winfsp_drive::mount(const std::vector<std::string> &drive_args)
     -> int {
+  REPERTORY_USES_FUNCTION_NAME();
+
   std::vector<std::string> parsed_drive_args;
 
   auto force_no_console = utils::collection::includes(drive_args, "-nc");
 
   auto enable_console = false;
-  for (auto &&arg : drive_args) {
+  for (const auto &arg : drive_args) {
     if (arg == "-f") {
       if (not force_no_console) {
         enable_console = true;
@@ -254,8 +259,11 @@ auto remote_winfsp_drive::mount(const std::vector<std::string> &drive_args)
     c = std::make_unique<console_consumer>(config_.get_event_level());
   }
   event_system::instance().start();
+
   auto ret = winfsp_service(lock_, *this, parsed_drive_args, config_).Run();
-  event_system::instance().raise<drive_mount_result>(std::to_string(ret));
+
+  event_system::instance().raise<drive_mount_result>(function_name, "",
+                                                     std::to_string(ret));
   event_system::instance().stop();
   c.reset();
   return static_cast<int>(ret);
@@ -352,7 +360,7 @@ auto remote_winfsp_drive::ReadDirectory(PVOID /*file_node*/, PVOID file_desc,
               directory_buffer, static_cast<BOOLEAN>(nullptr == marker),
               &ret)) {
         auto item_found = false;
-        for (auto &&item : item_list) {
+        for (const auto &item : item_list) {
           auto item_path = item["path"].get<std::string>();
           auto display_name = utils::string::from_utf8(
               utils::path::strip_to_file_name(item_path));

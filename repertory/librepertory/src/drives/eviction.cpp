@@ -1,5 +1,5 @@
 /*
-  Copyright <2018-2024> <scott.e.graves@protonmail.com>
+  Copyright <2018-2025> <scott.e.graves@protonmail.com>
 
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"), to deal
@@ -30,7 +30,6 @@
 #include "utils/file_utils.hpp"
 #include "utils/time.hpp"
 #include "utils/utils.hpp"
-#include <spdlog/fmt/bundled/base.h>
 
 namespace repertory {
 auto eviction::check_minimum_requirements(const std::string &file_path)

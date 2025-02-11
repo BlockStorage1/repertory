@@ -1,5 +1,5 @@
 /*
-  Copyright <2018-2024> <scott.e.graves@protonmail.com>
+  Copyright <2018-2025> <scott.e.graves@protonmail.com>
 
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"), to deal
@@ -21,7 +21,8 @@
 */
 #include "events/consumers/logging_consumer.hpp"
 
-#include "events/events.hpp"
+#include "events/i_event.hpp"
+#include "events/types/event_level_changed.hpp"
 #include "spdlog/async.h"
 #include "spdlog/sinks/rotating_file_sink.h"
 #include "spdlog/spdlog.h"
@@ -66,35 +67,32 @@ logging_consumer::logging_consumer(event_level level,
   set_level(level);
 
   E_SUBSCRIBE_ALL(process_event);
-  E_SUBSCRIBE_EXACT(event_level_changed,
-                    [](const event_level_changed &changed) {
-                      set_level(event_level_from_string(
-                          changed.get_new_event_level().get<std::string>()));
-                    });
+  E_SUBSCRIBE(event_level_changed,
+                    [](auto &&event) { set_level(event.new_level); });
 }
 
 logging_consumer::~logging_consumer() { E_CONSUMER_RELEASE(); }
 
-void logging_consumer::process_event(const event &event) const {
-  switch (event.get_event_level()) {
+void logging_consumer::process_event(const i_event &evt) {
+  switch (evt.get_event_level()) {
   case event_level::critical:
-    spdlog::get("file")->critical(event.get_single_line());
+    spdlog::get("file")->critical(evt.get_single_line());
     break;
   case event_level::error:
-    spdlog::get("file")->error(event.get_single_line());
+    spdlog::get("file")->error(evt.get_single_line());
     break;
   case event_level::warn:
-    spdlog::get("file")->warn(event.get_single_line());
+    spdlog::get("file")->warn(evt.get_single_line());
     break;
   case event_level::info:
-    spdlog::get("file")->info(event.get_single_line());
+    spdlog::get("file")->info(evt.get_single_line());
     break;
   case event_level::debug:
-    spdlog::get("file")->debug(event.get_single_line());
+    spdlog::get("file")->debug(evt.get_single_line());
     break;
   case event_level::trace:
   default:
-    spdlog::get("file")->trace(event.get_single_line());
+    spdlog::get("file")->trace(evt.get_single_line());
     break;
   }
 }

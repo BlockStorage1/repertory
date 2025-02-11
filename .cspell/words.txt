@@ -26,6 +26,7 @@ cppvsdbg
 create_notraverse
 crypto_aead_xchacha20poly1305_ietf_npubbytes
 cstdint
+curlopt_aws_sigv4
 cxxflags
 cxxstd
 d_largefile64_source
@@ -127,6 +128,7 @@ libcurl
 libdsm
 libevent
 libexample
+libexpat
 libfuse3
 libgmock
 libgtest
@@ -139,10 +141,12 @@ libuuid
 libuuid_include_dirs
 libvlc
 linkflags
+localappdata
 lptr
 lpwstr
 markdownlint
 mbig
+minio
 msvc
 msvcr120
 msys2
@@ -154,6 +158,7 @@ nlohmann_json
 nmakeprg
 nominmax
 ntstatus
+nullptr
 nuspell_version
 oleaut32
 openal_version
@@ -198,6 +203,7 @@ stduuid_project
 strequal
 ularge_integer
 uring
+url
 userenv
 utimens_impl
 utimensat

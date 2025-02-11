@@ -1,5 +1,5 @@
 /*
-  Copyright <2018-2024> <scott.e.graves@protonmail.com>
+  Copyright <2018-2025> <scott.e.graves@protonmail.com>
 
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"), to deal
@@ -35,6 +35,9 @@ private:
   CURL *curl_handle_;
   stop_type &stop_requested_;
   CURLM *multi_handle_;
+
+private:
+  [[nodiscard]] auto get_stop_requested() const -> bool;
 
 public:
   void get_result(CURLcode &curl_code, long &http_code);

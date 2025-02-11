@@ -1,5 +1,5 @@
 /*
-  Copyright <2018-2024> <scott.e.graves@protonmail.com>
+  Copyright <2018-2025> <scott.e.graves@protonmail.com>
 
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"), to deal
@@ -22,52 +22,55 @@
 #include "file_manager/cache_size_mgr.hpp"
 
 #include "app_config.hpp"
-#include "events/event.hpp"
 #include "events/event_system.hpp"
+#include "events/types/invalid_cache_size.hpp"
+#include "events/types/max_cache_size_reached.hpp"
 #include "types/startup_exception.hpp"
 #include "utils/file_utils.hpp"
 
 namespace repertory {
-// clang-format off
-E_SIMPLE2(invalid_cache_size, warn, true,
-  std::uint64_t, cache_size, sz, E_FROM_UINT64,
-  std::uint64_t, by, by, E_FROM_UINT64 
-);
-
-E_SIMPLE2(max_cache_size_reached, warn, true,
-  std::uint64_t, cache_size, sz, E_FROM_UINT64,
-  std::uint64_t, max_cache_size, max, E_FROM_UINT64 
-);
-// clang-format on
-
 cache_size_mgr cache_size_mgr::instance_{};
 
-// TODO add timeout
 auto cache_size_mgr::expand(std::uint64_t size) -> api_error {
-  if (size == 0U) {
-    return api_error::success;
-  }
+  REPERTORY_USES_FUNCTION_NAME();
 
   unique_mutex_lock lock(mtx_);
+
   if (cfg_ == nullptr) {
+    notify_.notify_all();
     return api_error::cache_not_initialized;
   }
 
+  if (size == 0U) {
+    notify_.notify_all();
+    return api_error::success;
+  }
+
+  auto last_cache_size{cache_size_};
   cache_size_ += size;
 
-  auto max_cache_size = cfg_->get_max_cache_size_bytes();
+  auto max_cache_size{cfg_->get_max_cache_size_bytes()};
 
-  auto cache_dir = utils::file::directory{cfg_->get_cache_directory()};
-  while (not stop_requested_ && cache_size_ > max_cache_size &&
+  auto cache_dir{
+      utils::file::directory{cfg_->get_cache_directory()},
+  };
+  while (not get_stop_requested() && cache_size_ > max_cache_size &&
          cache_dir.count() > 1U) {
-    event_system::instance().raise<max_cache_size_reached>(cache_size_,
-                                                           max_cache_size);
-    notify_.wait(lock);
+    if (last_cache_size != cache_size_) {
+      event_system::instance().raise<max_cache_size_reached>(
+          cache_size_, function_name, max_cache_size);
+      last_cache_size = cache_size_;
+    }
+    notify_.wait_for(lock, cache_wait_secs);
   }
 
   notify_.notify_all();
 
-  return api_error::success;
+  return get_stop_requested() ? api_error::error : api_error::success;
+}
+
+auto cache_size_mgr::get_stop_requested() const -> bool {
+  return stop_requested_ || app_config::get_stop_requested();
 }
 
 void cache_size_mgr::initialize(app_config *cfg) {
@@ -80,7 +83,9 @@ void cache_size_mgr::initialize(app_config *cfg) {
 
   stop_requested_ = false;
 
-  auto cache_dir = utils::file::directory{cfg_->get_cache_directory()};
+  auto cache_dir{
+      utils::file::directory{cfg_->get_cache_directory()},
+  };
   if (not cache_dir.create_directory()) {
     throw startup_exception(fmt::format("failed to create cache directory|{}",
                                         cache_dir.get_path()));
@@ -92,6 +97,8 @@ void cache_size_mgr::initialize(app_config *cfg) {
 }
 
 auto cache_size_mgr::shrink(std::uint64_t size) -> api_error {
+  REPERTORY_USES_FUNCTION_NAME();
+
   mutex_lock lock(mtx_);
   if (size == 0U) {
     notify_.notify_all();
@@ -101,7 +108,8 @@ auto cache_size_mgr::shrink(std::uint64_t size) -> api_error {
   if (cache_size_ >= size) {
     cache_size_ -= size;
   } else {
-    event_system::instance().raise<invalid_cache_size>(cache_size_, size);
+    event_system::instance().raise<invalid_cache_size>(cache_size_,
+                                                       function_name, size);
     cache_size_ = 0U;
   }
 

@@ -1,5 +1,5 @@
 /*
-  Copyright <2018-2024> <scott.e.graves@protonmail.com>
+  Copyright <2018-2025> <scott.e.graves@protonmail.com>
 
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"), to deal
@@ -103,7 +103,7 @@ TYPED_TEST(fuse_test, access_directory_permutations_test) {
   std::string dir_name{"access_test"};
   auto dir_path = this->create_directory_and_test(dir_name);
 
-  for (auto &&permutation : access_permutations) {
+  for (const auto &permutation : access_permutations) {
     perform_access_test(permutation, dir_path);
   }
 
@@ -114,7 +114,7 @@ TYPED_TEST(fuse_test, access_file_permutations_test) {
   std::string file_name{"access_test"};
   auto file_path = this->create_file_and_test(file_name);
 
-  for (auto &&permutation : access_permutations) {
+  for (const auto &permutation : access_permutations) {
     perform_access_test(permutation, file_path);
   }
 

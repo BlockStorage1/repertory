@@ -1,5 +1,5 @@
 /*
-  Copyright <2018-2024> <scott.e.graves@protonmail.com>
+  Copyright <2018-2025> <scott.e.graves@protonmail.com>
 
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"), to deal
@@ -149,6 +149,54 @@ auto rdb_file_db::count() const -> std::uint64_t {
   return ret;
 }
 
+void rdb_file_db::enumerate_item_list(
+    std::function<void(const std::vector<i_file_db::file_info> &)> callback,
+    stop_type_callback stop_requested_cb) const {
+  std::vector<i_file_db::file_info> list;
+  {
+    auto iter = create_iterator(file_family_);
+    for (iter->SeekToFirst(); not stop_requested_cb() && iter->Valid();
+         iter->Next()) {
+      auto json_data = json::parse(iter->value().ToString());
+      list.emplace_back(i_file_db::file_info{
+          iter->key().ToString(),
+          false,
+          json_data.at("source_path").get<std::string>(),
+      });
+
+      if (list.size() < 100U) {
+        continue;
+      }
+
+      callback(list);
+      list.clear();
+    }
+  }
+
+  {
+    auto iter = create_iterator(directory_family_);
+    for (iter->SeekToFirst(); not stop_requested_cb() && iter->Valid();
+         iter->Next()) {
+      list.emplace_back(i_file_db::file_info{
+          iter->key().ToString(),
+          true,
+          iter->value().ToString(),
+      });
+
+      if (list.size() < 100U) {
+        continue;
+      }
+
+      callback(list);
+      list.clear();
+    }
+  }
+
+  if (not list.empty()) {
+    callback(list);
+  }
+}
+
 auto rdb_file_db::get_api_path(const std::string &source_path,
                                std::string &api_path) const -> api_error {
   REPERTORY_USES_FUNCTION_NAME();
@@ -264,11 +312,13 @@ auto rdb_file_db::get_file_source_path(
   return result;
 }
 
-auto rdb_file_db::get_item_list() const -> std::vector<i_file_db::file_info> {
+auto rdb_file_db::get_item_list(stop_type_callback stop_requested_cb) const
+    -> std::vector<i_file_db::file_info> {
   std::vector<i_file_db::file_info> ret{};
   {
     auto iter = create_iterator(directory_family_);
-    for (iter->SeekToFirst(); iter->Valid(); iter->Next()) {
+    for (iter->SeekToFirst(); not stop_requested_cb() && iter->Valid();
+         iter->Next()) {
       ret.emplace_back(i_file_db::file_info{
           iter->key().ToString(),
           true,
@@ -279,11 +329,12 @@ auto rdb_file_db::get_item_list() const -> std::vector<i_file_db::file_info> {
 
   {
     auto iter = create_iterator(file_family_);
-    for (iter->SeekToFirst(); iter->Valid(); iter->Next()) {
+    for (iter->SeekToFirst(); not stop_requested_cb() && iter->Valid();
+         iter->Next()) {
       auto json_data = json::parse(iter->value().ToString());
       ret.emplace_back(i_file_db::file_info{
           iter->key().ToString(),
-          true,
+          false,
           json_data.at("source_path").get<std::string>(),
       });
     }

@@ -1,5 +1,5 @@
 /*
-  Copyright <2018-2024> <scott.e.graves@protonmail.com>
+  Copyright <2018-2025> <scott.e.graves@protonmail.com>
 
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"), to deal
@@ -22,7 +22,10 @@
 #include "file_manager/open_file_base.hpp"
 
 #include "events/event_system.hpp"
-#include "file_manager/events.hpp"
+#include "events/types/filesystem_item_closed.hpp"
+#include "events/types/filesystem_item_handle_closed.hpp"
+#include "events/types/filesystem_item_handle_opened.hpp"
+#include "events/types/filesystem_item_opened.hpp"
 #include "providers/i_provider.hpp"
 #include "utils/path.hpp"
 
@@ -90,15 +93,17 @@ open_file_base::open_file_base(
 }
 
 void open_file_base::add(std::uint64_t handle, open_file_data ofd) {
+  REPERTORY_USES_FUNCTION_NAME();
+
   recur_mutex_lock file_lock(file_mtx_);
   open_data_[handle] = ofd;
   if (open_data_.size() == 1U) {
     event_system::instance().raise<filesystem_item_opened>(
-        fsi_.api_path, fsi_.source_path, fsi_.directory);
+        fsi_.api_path, fsi_.directory, function_name, fsi_.source_path);
   }
 
   event_system::instance().raise<filesystem_item_handle_opened>(
-      fsi_.api_path, handle, fsi_.source_path, fsi_.directory);
+      fsi_.api_path, fsi_.directory, function_name, handle, fsi_.source_path);
 }
 
 auto open_file_base::can_close() const -> bool {
@@ -309,6 +314,8 @@ void open_file_base::notify_io() {
 }
 
 void open_file_base::remove(std::uint64_t handle) {
+  REPERTORY_USES_FUNCTION_NAME();
+
   recur_mutex_lock file_lock(file_mtx_);
   if (open_data_.find(handle) == open_data_.end()) {
     return;
@@ -316,16 +323,20 @@ void open_file_base::remove(std::uint64_t handle) {
 
   open_data_.erase(handle);
   event_system::instance().raise<filesystem_item_handle_closed>(
-      fsi_.api_path, handle, fsi_.source_path, fsi_.directory, modified_);
+      fsi_.api_path, modified_, fsi_.directory, function_name, handle,
+      fsi_.source_path);
   if (not open_data_.empty()) {
     return;
   }
 
   event_system::instance().raise<filesystem_item_closed>(
-      fsi_.api_path, fsi_.source_path, fsi_.directory, modified_);
+      fsi_.api_path, modified_, fsi_.directory, function_name,
+      fsi_.source_path);
 }
 
 void open_file_base::remove_all() {
+  REPERTORY_USES_FUNCTION_NAME();
+
   recur_mutex_lock file_lock(file_mtx_);
   if (open_data_.empty()) {
     return;
@@ -336,11 +347,13 @@ void open_file_base::remove_all() {
 
   for (const auto &data : open_data) {
     event_system::instance().raise<filesystem_item_handle_closed>(
-        fsi_.api_path, data.first, fsi_.source_path, fsi_.directory, modified_);
+        fsi_.api_path, modified_, fsi_.directory, function_name, data.first,
+        fsi_.source_path);
   }
 
   event_system::instance().raise<filesystem_item_closed>(
-      fsi_.api_path, fsi_.source_path, fsi_.directory, modified_);
+      fsi_.api_path, modified_, fsi_.directory, function_name,
+      fsi_.source_path);
 }
 
 void open_file_base::reset_timeout() {
@@ -366,9 +379,9 @@ void open_file_base::set_api_path(const std::string &api_path) {
   fsi_.api_parent = utils::path::get_parent_api_path(api_path);
 }
 
-void open_file_base::wait_for_io(stop_type &stop_requested) {
+void open_file_base::wait_for_io(stop_type_callback stop_requested_cb) {
   unique_mutex_lock io_lock(io_thread_mtx_);
-  if (not stop_requested && io_thread_queue_.empty()) {
+  if (not stop_requested_cb() && io_thread_queue_.empty()) {
     io_thread_notify_.wait(io_lock);
   }
   io_thread_notify_.notify_all();

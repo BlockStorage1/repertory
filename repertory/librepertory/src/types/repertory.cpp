@@ -1,5 +1,5 @@
 /*
-  Copyright <2018-2024> <scott.e.graves@protonmail.com>
+  Copyright <2018-2025> <scott.e.graves@protonmail.com>
 
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"), to deal
@@ -25,8 +25,8 @@
 #include "utils/string.hpp"
 
 namespace repertory {
-auto database_type_from_string(std::string type,
-                               database_type default_type) -> database_type {
+auto database_type_from_string(std::string type, database_type default_type)
+    -> database_type {
   type = utils::string::to_lower(utils::string::trim(type));
   if (type == "rocksdb") {
     return database_type::rocksdb;
@@ -50,8 +50,8 @@ auto database_type_to_string(const database_type &type) -> std::string {
   }
 }
 
-auto download_type_from_string(std::string type,
-                               download_type default_type) -> download_type {
+auto download_type_from_string(std::string type, download_type default_type)
+    -> download_type {
   type = utils::string::to_lower(utils::string::trim(type));
   if (type == "default") {
     return download_type::default_;
@@ -81,6 +81,54 @@ auto download_type_to_string(const download_type &type) -> std::string {
   }
 }
 
+auto event_level_from_string(std::string level, event_level default_level)
+    -> event_level {
+  level = utils::string::to_lower(level);
+  if (level == "critical" || level == "event_level::critical") {
+    return event_level::critical;
+  }
+
+  if (level == "debug" || level == "event_level::debug") {
+    return event_level::debug;
+  }
+
+  if (level == "warn" || level == "event_level::warn") {
+    return event_level::warn;
+  }
+
+  if (level == "info" || level == "event_level::info") {
+    return event_level::info;
+  }
+
+  if (level == "error" || level == "event_level::error") {
+    return event_level::error;
+  }
+
+  if (level == "trace" || level == "event_level::trace") {
+    return event_level::trace;
+  }
+
+  return default_level;
+}
+
+auto event_level_to_string(event_level level) -> std::string {
+  switch (level) {
+  case event_level::critical:
+    return "critical";
+  case event_level::debug:
+    return "debug";
+  case event_level::error:
+    return "error";
+  case event_level::info:
+    return "info";
+  case event_level::warn:
+    return "warn";
+  case event_level::trace:
+    return "trace";
+  default:
+    return "info";
+  }
+}
 static const std::unordered_map<api_error, std::string> LOOKUP = {
     {api_error::success, "success"},
     {api_error::access_denied, "access_denied"},
@@ -112,6 +160,7 @@ static const std::unordered_map<api_error, std::string> LOOKUP = {
     {api_error::item_exists, "item_exists"},
     {api_error::item_not_found, "item_not_found"},
     {api_error::more_data, "more_data"},
+    {api_error::name_too_long, "name_too_long"},
     {api_error::no_disk_space, "no_disk_space"},
     {api_error::not_implemented, "not_implemented"},
     {api_error::not_supported, "not_supported"},
@@ -130,11 +179,8 @@ auto api_error_from_string(std::string_view str) -> api_error {
     throw startup_exception("undefined api_error strings");
   }
 
-  const auto iter = std::find_if(
-      LOOKUP.begin(), LOOKUP.end(),
-      [&str](const std::pair<api_error, std::string> &item) -> bool {
-        return item.second == str;
-      });
+  const auto iter = std::ranges::find_if(
+      LOOKUP, [&str](auto &&item) -> bool { return item.second == str; });
   return iter == LOOKUP.end() ? api_error::error : iter->first;
 }
 

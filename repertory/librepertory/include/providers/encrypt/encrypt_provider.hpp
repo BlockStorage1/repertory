@@ -1,5 +1,5 @@
 /*
-  Copyright <2018-2024> <scott.e.graves@protonmail.com>
+  Copyright <2018-2025> <scott.e.graves@protonmail.com>
 
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"), to deal
@@ -82,7 +82,7 @@ private:
                                const encrypt_config &cfg,
                                std::string &api_path) const -> bool;
 
-  void remove_deleted_files(const stop_type &stop_requested);
+  void remove_deleted_files(stop_type &stop_requested);
 
 public:
   [[nodiscard]] auto create_directory(const std::string &api_path,

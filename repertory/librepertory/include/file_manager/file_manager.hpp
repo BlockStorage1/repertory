@@ -1,5 +1,5 @@
 /*
-  Copyright <2018-2024> <scott.e.graves@protonmail.com>
+  Copyright <2018-2025> <scott.e.graves@protonmail.com>
 
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"), to deal
@@ -24,7 +24,7 @@
 
 #include "db/i_file_mgr_db.hpp"
 #include "events/event_system.hpp"
-#include "events/events.hpp"
+#include "events/types/file_upload_completed.hpp"
 #include "file_manager/i_file_manager.hpp"
 #include "file_manager/i_open_file.hpp"
 #include "file_manager/i_upload_manager.hpp"
@@ -38,6 +38,11 @@ class i_provider;
 
 class file_manager final : public i_file_manager, public i_upload_manager {
   E_CONSUMER();
+
+private:
+  static constexpr const std::chrono::seconds queue_wait_secs{
+      5s,
+  };
 
 public:
   file_manager(app_config &config, i_provider &provider);
@@ -72,15 +77,19 @@ private:
 
   void close_timed_out_files();
 
-  auto get_open_file_by_handle(std::uint64_t handle) const
+  [[nodiscard]] auto get_open_file_by_handle(std::uint64_t handle) const
       -> std::shared_ptr<i_closeable_open_file>;
 
-  auto get_open_file_count(const std::string &api_path) const -> std::size_t;
+  [[nodiscard]] auto get_open_file_count(const std::string &api_path) const
+      -> std::size_t;
 
-  auto open(const std::string &api_path, bool directory,
-            const open_file_data &ofd, std::uint64_t &handle,
-            std::shared_ptr<i_open_file> &file,
-            std::shared_ptr<i_closeable_open_file> closeable_file) -> api_error;
+  [[nodiscard]] auto get_stop_requested() const -> bool;
+
+  [[nodiscard]] auto open(const std::string &api_path, bool directory,
+                          const open_file_data &ofd, std::uint64_t &handle,
+                          std::shared_ptr<i_open_file> &file,
+                          std::shared_ptr<i_closeable_open_file> closeable_file)
+      -> api_error;
 
   void queue_upload(const std::string &api_path, const std::string &source_path,
                     bool no_lock);

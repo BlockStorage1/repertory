@@ -1,5 +1,5 @@
 /*
-  Copyright <2018-2024> <scott.e.graves@protonmail.com>
+  Copyright <2018-2025> <scott.e.graves@protonmail.com>
 
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"), to deal
@@ -23,9 +23,25 @@
 
 #include "app_config.hpp"
 #include "db/file_mgr_db.hpp"
+#include "events/types/download_restore_failed.hpp"
+#include "events/types/download_restored.hpp"
+#include "events/types/download_resume_add_failed.hpp"
+#include "events/types/download_resume_added.hpp"
+#include "events/types/download_resume_removed.hpp"
+#include "events/types/download_type_selected.hpp"
+#include "events/types/file_upload_failed.hpp"
+#include "events/types/file_upload_not_found.hpp"
+#include "events/types/file_upload_queued.hpp"
+#include "events/types/file_upload_removed.hpp"
+#include "events/types/file_upload_retry.hpp"
+#include "events/types/filesystem_item_evicted.hpp"
+#include "events/types/item_timeout.hpp"
+#include "events/types/service_start_begin.hpp"
+#include "events/types/service_start_end.hpp"
+#include "events/types/service_stop_begin.hpp"
+#include "events/types/service_stop_end.hpp"
 #include "file_manager/cache_size_mgr.hpp"
 #include "file_manager/direct_open_file.hpp"
-#include "file_manager/events.hpp"
 #include "file_manager/open_file.hpp"
 #include "file_manager/open_file_base.hpp"
 #include "file_manager/ring_buffer_open_file.hpp"
@@ -49,10 +65,8 @@ file_manager::file_manager(app_config &config, i_provider &provider)
     return;
   }
 
-  E_SUBSCRIBE_EXACT(file_upload_completed,
-                    [this](const file_upload_completed &completed) {
-                      this->upload_completed(completed);
-                    });
+  E_SUBSCRIBE(file_upload_completed,
+              [this](auto &&event) { this->upload_completed(event); });
 }
 
 file_manager::~file_manager() {
@@ -93,11 +107,13 @@ auto file_manager::close_all(const std::string &api_path) -> bool {
 }
 
 void file_manager::close_timed_out_files() {
+  REPERTORY_USES_FUNCTION_NAME();
+
   unique_recur_mutex_lock file_lock(open_file_mtx_);
   auto closeable_list =
       std::accumulate(open_file_lookup_.begin(), open_file_lookup_.end(),
                       std::vector<std::shared_ptr<i_closeable_open_file>>{},
-                      [](auto items, const auto &item) -> auto {
+                      [](auto &&items, auto &&item) -> auto {
                         if (item.second->get_open_file_count() == 0U &&
                             item.second->can_close()) {
                           items.push_back(item.second);
@@ -111,8 +127,8 @@ void file_manager::close_timed_out_files() {
 
   for (auto &closeable_file : closeable_list) {
     closeable_file->close();
-    event_system::instance().raise<item_timeout>(
-        closeable_file->get_api_path());
+    event_system::instance().raise<item_timeout>(closeable_file->get_api_path(),
+                                                 function_name);
   }
   closeable_list.clear();
 }
@@ -187,8 +203,8 @@ auto file_manager::evict_file(const std::string &api_path) -> bool {
   auto removed = remove_source_and_shrink_cache(api_path, fsi.source_path,
                                                 fsi.size, allocated);
   if (removed) {
-    event_system::instance().raise<filesystem_item_evicted>(api_path,
-                                                            fsi.source_path);
+    event_system::instance().raise<filesystem_item_evicted>(
+        api_path, function_name, fsi.source_path);
   }
 
   return removed;
@@ -218,10 +234,9 @@ auto file_manager::get_next_handle() -> std::uint64_t {
 auto file_manager::get_open_file_by_handle(std::uint64_t handle) const
     -> std::shared_ptr<i_closeable_open_file> {
   auto file_iter =
-      std::find_if(open_file_lookup_.begin(), open_file_lookup_.end(),
-                   [&handle](auto &&item) -> bool {
-                     return item.second->has_handle(handle);
-                   });
+      std::ranges::find_if(open_file_lookup_, [&handle](auto &&item) -> bool {
+        return item.second->has_handle(handle);
+      });
   return (file_iter == open_file_lookup_.end()) ? nullptr : file_iter->second;
 }
 
@@ -235,6 +250,10 @@ auto file_manager::get_open_file_count(const std::string &api_path) const
 
 auto file_manager::get_open_file(std::uint64_t handle, bool write_supported,
                                  std::shared_ptr<i_open_file> &file) -> bool {
+  if (write_supported && provider_.is_read_only()) {
+    return false;
+  }
+
   unique_recur_mutex_lock open_lock(open_file_mtx_);
   auto file_ptr = get_open_file_by_handle(handle);
   if (not file_ptr) {
@@ -265,23 +284,26 @@ auto file_manager::get_open_file_count() const -> std::size_t {
 
 auto file_manager::get_open_files() const
     -> std::unordered_map<std::string, std::size_t> {
-  std::unordered_map<std::string, std::size_t> ret;
-
   recur_mutex_lock open_lock(open_file_mtx_);
-  for (const auto &item : open_file_lookup_) {
-    ret[item.first] = item.second->get_open_file_count();
-  }
-
-  return ret;
+  return std::accumulate(open_file_lookup_.begin(), open_file_lookup_.end(),
+                         std::unordered_map<std::string, std::size_t>{},
+                         [](auto &&map, auto &&item) -> auto {
+                           map[item.first] = item.second->get_open_file_count();
+                           return map;
+                         });
 }
 
 auto file_manager::get_open_handle_count() const -> std::size_t {
   recur_mutex_lock open_lock(open_file_mtx_);
-  return std::accumulate(
-      open_file_lookup_.begin(), open_file_lookup_.end(), std::size_t(0U),
-      [](std::size_t count, const auto &item) -> std::size_t {
-        return count + item.second->get_open_file_count();
-      });
+  return std::accumulate(open_file_lookup_.begin(), open_file_lookup_.end(),
+                         std::size_t(0U),
+                         [](auto &&count, auto &&item) -> auto {
+                           return count + item.second->get_open_file_count();
+                         });
+}
+
+auto file_manager::get_stop_requested() const -> bool {
+  return stop_requested_ || app_config::get_stop_requested();
 }
 
 auto file_manager::get_stored_downloads() const
@@ -380,10 +402,11 @@ auto file_manager::open(const std::string &api_path, bool directory,
   return open(api_path, directory, ofd, handle, file, nullptr);
 }
 
-auto file_manager::open(
-    const std::string &api_path, bool directory, const open_file_data &ofd,
-    std::uint64_t &handle, std::shared_ptr<i_open_file> &file,
-    std::shared_ptr<i_closeable_open_file> closeable_file) -> api_error {
+auto file_manager::open(const std::string &api_path, bool directory,
+                        const open_file_data &ofd, std::uint64_t &handle,
+                        std::shared_ptr<i_open_file> &file,
+                        std::shared_ptr<i_closeable_open_file> closeable_file)
+    -> api_error {
   REPERTORY_USES_FUNCTION_NAME();
 
   const auto create_and_add_handle =
@@ -435,6 +458,10 @@ auto file_manager::open(
     auto ring_size{ring_buffer_file_size / chunk_size};
 
     const auto get_download_type = [&](download_type type) -> download_type {
+      if (not directory && provider_.is_read_only()) {
+        return download_type::direct;
+      }
+
       if (directory || fsi.size == 0U || is_processing(api_path)) {
         return download_type::default_;
       }
@@ -479,7 +506,7 @@ auto file_manager::open(
                                       : preferred_type);
     if (not directory) {
       event_system::instance().raise<download_type_selected>(
-          fsi.api_path, fsi.source_path, type);
+          fsi.api_path, fsi.source_path, function_name, type);
     }
 
     switch (type) {
@@ -512,6 +539,8 @@ void file_manager::queue_upload(const i_open_file &file) {
 
 void file_manager::queue_upload(const std::string &api_path,
                                 const std::string &source_path, bool no_lock) {
+  REPERTORY_USES_FUNCTION_NAME();
+
   if (provider_.is_read_only()) {
     return;
   }
@@ -528,10 +557,11 @@ void file_manager::queue_upload(const std::string &api_path,
           source_path,
       })) {
     remove_resume(api_path, source_path, true);
-    event_system::instance().raise<file_upload_queued>(api_path, source_path);
+    event_system::instance().raise<file_upload_queued>(api_path, function_name,
+                                                       source_path);
   } else {
     event_system::instance().raise<file_upload_failed>(
-        api_path, source_path, "failed to queue upload");
+        api_path, "failed to queue upload", function_name, source_path);
   }
 
   if (not no_lock) {
@@ -575,6 +605,8 @@ void file_manager::remove_resume(const std::string &api_path,
 
 void file_manager::remove_resume(const std::string &api_path,
                                  const std::string &source_path, bool no_lock) {
+  REPERTORY_USES_FUNCTION_NAME();
+
   if (provider_.is_read_only()) {
     return;
   }
@@ -585,8 +617,8 @@ void file_manager::remove_resume(const std::string &api_path,
   }
 
   if (mgr_db_->remove_resume(api_path)) {
-    event_system::instance().raise<download_resume_removed>(api_path,
-                                                            source_path);
+    event_system::instance().raise<download_resume_removed>(
+        api_path, source_path, function_name);
   }
 
   if (not no_lock) {
@@ -662,7 +694,8 @@ void file_manager::remove_upload(const std::string &api_path, bool no_lock) {
   }
 
   if (removed) {
-    event_system::instance().raise<file_upload_removed>(api_path);
+    event_system::instance().raise<file_upload_removed>(api_path,
+                                                        function_name);
   }
 
   if (not no_lock) {
@@ -747,8 +780,8 @@ auto file_manager::rename_directory(const std::string &from_api_path,
 }
 
 auto file_manager::rename_file(const std::string &from_api_path,
-                               const std::string &to_api_path,
-                               bool overwrite) -> api_error {
+                               const std::string &to_api_path, bool overwrite)
+    -> api_error {
   if (not provider_.is_rename_supported()) {
     return api_error::not_implemented;
   }
@@ -826,6 +859,8 @@ void file_manager::start() {
     return;
   }
 
+  event_system::instance().raise<service_start_begin>(function_name,
+                                                      "file_manager");
   stop_requested_ = false;
 
   polling::instance().set_callback({
@@ -836,6 +871,8 @@ void file_manager::start() {
 
   if (provider_.is_read_only()) {
     stop_requested_ = false;
+    event_system::instance().raise<service_start_end>(function_name,
+                                                      "file_manager");
     return;
   }
 
@@ -850,15 +887,18 @@ void file_manager::start() {
       if (res != api_error::success) {
         event_system::instance().raise<download_restore_failed>(
             entry.api_path, entry.source_path,
-            "failed to get filesystem item|" + api_error_to_string(res));
+            fmt::format("failed to get filesystem item|{}",
+                        api_error_to_string(res)),
+            function_name);
         continue;
       }
 
       if (entry.source_path != fsi.source_path) {
         event_system::instance().raise<download_restore_failed>(
             fsi.api_path, fsi.source_path,
-            "source path mismatch|expected|" + entry.source_path + "|actual|" +
-                fsi.source_path);
+            fmt::format("source path mismatch|expected|{}|actual|{}",
+                        entry.source_path, fsi.source_path),
+            function_name);
         continue;
       }
 
@@ -866,8 +906,9 @@ void file_manager::start() {
       if (not opt_size.has_value()) {
         event_system::instance().raise<download_restore_failed>(
             fsi.api_path, fsi.source_path,
-            "failed to get file size: " +
-                std::to_string(utils::get_last_error_code()));
+            fmt::format("failed to get file size|{}",
+                        utils::get_last_error_code()),
+            function_name);
         continue;
       }
 
@@ -875,8 +916,9 @@ void file_manager::start() {
       if (file_size != fsi.size) {
         event_system::instance().raise<download_restore_failed>(
             fsi.api_path, fsi.source_path,
-            "file size mismatch|expected|" + std::to_string(fsi.size) +
-                "|actual|" + std::to_string(file_size));
+            fmt::format("file size mismatch|expected|{}|actual|{}", fsi.size,
+                        file_size),
+            function_name);
         continue;
       }
 
@@ -887,23 +929,27 @@ void file_manager::start() {
                                           : 0U,
                                       fsi, provider_, entry.read_state, *this);
       open_file_lookup_[entry.api_path] = closeable_file;
-      event_system::instance().raise<download_restored>(fsi.api_path,
-                                                        fsi.source_path);
+      event_system::instance().raise<download_restored>(
+          fsi.api_path, fsi.source_path, function_name);
     } catch (const std::exception &ex) {
       utils::error::raise_error(function_name, ex, "query error");
     }
   }
 
   upload_thread_ = std::make_unique<std::thread>([this] { upload_handler(); });
-  event_system::instance().raise<service_started>("file_manager");
+  event_system::instance().raise<service_start_end>(function_name,
+                                                    "file_manager");
 }
 
 void file_manager::stop() {
+  REPERTORY_USES_FUNCTION_NAME();
+
   if (stop_requested_) {
     return;
   }
 
-  event_system::instance().raise<service_shutdown_begin>("file_manager");
+  event_system::instance().raise<service_stop_begin>(function_name,
+                                                     "file_manager");
 
   stop_requested_ = true;
 
@@ -937,10 +983,13 @@ void file_manager::stop() {
 
   upload_thread_.reset();
 
-  event_system::instance().raise<service_shutdown_end>("file_manager");
+  event_system::instance().raise<service_stop_end>(function_name,
+                                                   "file_manager");
 }
 
 void file_manager::store_resume(const i_open_file &file) {
+  REPERTORY_USES_FUNCTION_NAME();
+
   if (provider_.is_read_only()) {
     return;
   }
@@ -952,12 +1001,13 @@ void file_manager::store_resume(const i_open_file &file) {
           file.get_source_path(),
       })) {
     event_system::instance().raise<download_resume_added>(
-        file.get_api_path(), file.get_source_path());
+        file.get_api_path(), file.get_source_path(), function_name);
     return;
   }
 
   event_system::instance().raise<download_resume_add_failed>(
-      file.get_api_path(), file.get_source_path(), "failed to store resume");
+      file.get_api_path(), file.get_source_path(), "failed to store resume",
+      function_name);
 }
 
 void file_manager::swap_renamed_items(std::string from_api_path,
@@ -990,32 +1040,29 @@ void file_manager::upload_completed(const file_upload_completed &evt) {
 
   unique_mutex_lock upload_lock(upload_mtx_);
 
-  if (not utils::string::to_bool(evt.get_cancelled().get<std::string>())) {
-    auto err = api_error_from_string(evt.get_result().get<std::string>());
-    if (err == api_error::success) {
-      if (not mgr_db_->remove_upload_active(
-              evt.get_api_path().get<std::string>())) {
+  if (not evt.cancelled) {
+    if (evt.error == api_error::success) {
+      if (not mgr_db_->remove_upload_active(evt.api_path)) {
         utils::error::raise_api_path_error(
-            function_name, evt.get_api_path().get<std::string>(),
-            evt.get_source().get<std::string>(),
+            function_name, evt.api_path, evt.source_path, evt.error,
             "failed to remove from upload_active table");
       }
 
-      upload_lookup_.erase(evt.get_api_path());
+      upload_lookup_.erase(evt.api_path);
     } else {
       bool exists{};
-      auto res = provider_.is_file(evt.get_api_path(), exists);
+      auto res = provider_.is_file(evt.api_path, exists);
       if ((res == api_error::success && not exists) ||
-          not utils::file::file(evt.get_source().get<std::string>()).exists()) {
+          not utils::file::file(evt.source_path).exists()) {
         event_system::instance().raise<file_upload_not_found>(
-            evt.get_api_path(), evt.get_source());
-        remove_upload(evt.get_api_path(), true);
+            evt.api_path, function_name, evt.source_path);
+        remove_upload(evt.api_path, true);
       } else {
         event_system::instance().raise<file_upload_retry>(
-            evt.get_api_path(), evt.get_source(), err);
+            evt.api_path, evt.error, function_name, evt.source_path);
 
-        queue_upload(evt.get_api_path(), evt.get_source(), true);
-        upload_notify_.wait_for(upload_lock, 5s);
+        queue_upload(evt.api_path, evt.source_path, true);
+        upload_notify_.wait_for(upload_lock, queue_wait_secs);
       }
     }
   }
@@ -1026,10 +1073,10 @@ void file_manager::upload_completed(const file_upload_completed &evt) {
 void file_manager::upload_handler() {
   REPERTORY_USES_FUNCTION_NAME();
 
-  while (not stop_requested_) {
+  while (not get_stop_requested()) {
     auto should_wait{true};
     unique_mutex_lock upload_lock(upload_mtx_);
-    if (stop_requested_) {
+    if (get_stop_requested()) {
       upload_notify_.notify_all();
       continue;
     }
@@ -1044,7 +1091,7 @@ void file_manager::upload_handler() {
           case api_error::item_not_found: {
             should_wait = false;
             event_system::instance().raise<file_upload_not_found>(
-                entry->api_path, entry->source_path);
+                entry->api_path, function_name, entry->source_path);
             remove_upload(entry->api_path, true);
           } break;
 
@@ -1068,7 +1115,7 @@ void file_manager::upload_handler() {
 
           default: {
             event_system::instance().raise<file_upload_retry>(
-                entry->api_path, entry->source_path, res);
+                entry->api_path, res, function_name, entry->source_path);
             queue_upload(entry->api_path, entry->source_path, true);
           } break;
           }
@@ -1079,7 +1126,7 @@ void file_manager::upload_handler() {
     }
 
     if (should_wait) {
-      upload_notify_.wait_for(upload_lock, 5s);
+      upload_notify_.wait_for(upload_lock, queue_wait_secs);
     }
 
     upload_notify_.notify_all();

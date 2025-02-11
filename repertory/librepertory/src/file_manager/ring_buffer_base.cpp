@@ -1,5 +1,5 @@
 /*
-  Copyright <2018-2024> <scott.e.graves@protonmail.com>
+  Copyright <2018-2025> <scott.e.graves@protonmail.com>
 
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"), to deal
@@ -21,8 +21,11 @@
 */
 #include "file_manager/ring_buffer_base.hpp"
 
+#include "app_config.hpp"
 #include "events/event_system.hpp"
-#include "file_manager/events.hpp"
+#include "events/types/download_begin.hpp"
+#include "events/types/download_end.hpp"
+#include "events/types/download_progress.hpp"
 #include "file_manager/open_file_base.hpp"
 #include "platform/platform.hpp"
 #include "providers/i_provider.hpp"
@@ -65,8 +68,8 @@ auto ring_buffer_base::check_start() -> api_error {
       return api_error::success;
     }
 
-    event_system::instance().raise<download_begin>(get_api_path(),
-                                                   get_source_path());
+    event_system::instance().raise<download_begin>(
+        get_api_path(), get_source_path(), function_name);
     reader_thread_ =
         std::make_unique<std::thread>([this]() { reader_thread(); });
     return api_error::success;
@@ -97,6 +100,8 @@ auto ring_buffer_base::close() -> bool {
 
 auto ring_buffer_base::download_chunk(std::size_t chunk,
                                       bool skip_active) -> api_error {
+  REPERTORY_USES_FUNCTION_NAME();
+
   unique_mutex_lock chunk_lock(chunk_mtx_);
   const auto unlock_and_notify = [this, &chunk_lock]() {
     chunk_notify_.notify_all();
@@ -157,7 +162,7 @@ auto ring_buffer_base::download_chunk(std::size_t chunk,
                          static_cast<double>(total_chunks_)) *
                         100.0;
         event_system::instance().raise<download_progress>(
-            get_api_path(), get_source_path(), progress);
+            get_api_path(), get_source_path(), function_name, progress);
       }
     }
 
@@ -181,6 +186,10 @@ auto ring_buffer_base::get_read_state() const -> boost::dynamic_bitset<> {
 auto ring_buffer_base::get_read_state(std::size_t chunk) const -> bool {
   recur_mutex_lock file_lock(get_mutex());
   return read_state_[chunk % read_state_.size()];
+}
+
+auto ring_buffer_base::get_stop_requested() const -> bool {
+  return stop_requested_ || app_config::get_stop_requested();
 }
 
 auto ring_buffer_base::read(std::size_t read_size, std::uint64_t read_offset,
@@ -207,7 +216,8 @@ auto ring_buffer_base::read(std::size_t read_size, std::uint64_t read_offset,
   }
 
   for (std::size_t chunk = begin_chunk;
-       not stop_requested_ && (res == api_error::success) && (read_size > 0U);
+       not get_stop_requested() && (res == api_error::success) &&
+       (read_size > 0U);
        ++chunk) {
     reset_timeout();
 
@@ -247,21 +257,23 @@ auto ring_buffer_base::read(std::size_t read_size, std::uint64_t read_offset,
     read_offset = 0U;
   }
 
-  return stop_requested_ ? api_error::download_stopped : res;
+  return get_stop_requested() ? api_error::download_stopped : res;
 }
 
 void ring_buffer_base::reader_thread() {
+  REPERTORY_USES_FUNCTION_NAME();
+
   unique_mutex_lock chunk_lock(chunk_mtx_);
   auto next_chunk{ring_pos_};
   chunk_notify_.notify_all();
   chunk_lock.unlock();
 
-  while (not stop_requested_) {
+  while (not get_stop_requested()) {
     chunk_lock.lock();
 
     next_chunk = next_chunk + 1U > ring_end_ ? ring_begin_ : next_chunk + 1U;
     const auto check_and_wait = [this, &chunk_lock, &next_chunk]() {
-      if (stop_requested_) {
+      if (get_stop_requested()) {
         chunk_notify_.notify_all();
         chunk_lock.unlock();
         return;
@@ -288,7 +300,8 @@ void ring_buffer_base::reader_thread() {
   }
 
   event_system::instance().raise<download_end>(
-      get_api_path(), get_source_path(), api_error::download_stopped);
+      get_api_path(), get_source_path(), api_error::download_stopped,
+      function_name);
 }
 
 void ring_buffer_base::reverse(std::size_t count) {

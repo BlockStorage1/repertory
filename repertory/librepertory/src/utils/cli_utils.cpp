@@ -1,5 +1,5 @@
 /*
-  Copyright <2018-2024> <scott.e.graves@protonmail.com>
+  Copyright <2018-2025> <scott.e.graves@protonmail.com>
 
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"), to deal
@@ -69,10 +69,9 @@ void get_api_authentication_data(std::string &user, std::string &password,
 
 auto has_option(std::vector<const char *> args, const std::string &option_name)
     -> bool {
-  return std::find_if(args.begin(), args.end(),
-                      [&option_name](const auto &value) -> bool {
-                        return option_name == value;
-                      }) != args.end();
+  return std::ranges::find_if(args, [&option_name](auto &&value) -> bool {
+           return option_name == value;
+         }) != args.end();
 }
 
 auto has_option(std::vector<const char *> args, const option &opt) -> bool {
@@ -128,10 +127,9 @@ auto parse_drive_options(std::vector<const char *> args,
   std::vector<std::string> drive_args;
   for (std::size_t i = 0U; i < args.size(); i++) {
     const auto &arg = args.at(i);
-    if (std::find_if(option_list.begin(), option_list.end(),
-                     [&arg](const auto &pair) -> bool {
-                       return ((pair.at(0U) == arg) || (pair.at(1U) == arg));
-                     }) == option_list.end()) {
+    if (std::ranges::find_if(option_list, [&arg](auto &&pair) -> bool {
+          return ((pair.at(0U) == arg) || (pair.at(1U) == arg));
+        }) == option_list.end()) {
       drive_args.emplace_back(args.at(i));
       continue;
     }

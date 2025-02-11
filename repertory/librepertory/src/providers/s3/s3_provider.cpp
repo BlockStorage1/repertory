@@ -1,5 +1,5 @@
 /*
-  Copyright <2018-2024> <scott.e.graves@protonmail.com>
+  Copyright <2018-2025> <scott.e.graves@protonmail.com>
 
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"), to deal
@@ -24,7 +24,10 @@
 #include "app_config.hpp"
 #include "comm/i_http_comm.hpp"
 #include "events/event_system.hpp"
-#include "events/events.hpp"
+#include "events/types/service_start_begin.hpp"
+#include "events/types/service_start_end.hpp"
+#include "events/types/service_stop_begin.hpp"
+#include "events/types/service_stop_end.hpp"
 #include "file_manager/i_file_manager.hpp"
 #include "types/repertory.hpp"
 #include "types/s3.hpp"
@@ -39,6 +42,19 @@
 #include "utils/string.hpp"
 #include "utils/time.hpp"
 
+namespace {
+[[nodiscard]] auto
+set_request_path(auto &request,
+                 const std::string &object_name) -> repertory::api_error {
+  request.path = object_name;
+  if (request.path.substr(1U).size() > repertory::max_s3_object_name_length) {
+    return repertory::api_error::name_too_long;
+  }
+
+  return repertory::api_error::success;
+}
+} // namespace
+
 namespace repertory {
 s3_provider::s3_provider(app_config &config, i_http_comm &comm)
     : base_provider(config, comm) {}
@@ -46,29 +62,31 @@ s3_provider::s3_provider(app_config &config, i_http_comm &comm)
 auto s3_provider::add_if_not_found(
     api_file &file, const std::string &object_name) const -> api_error {
   api_meta_map meta{};
-  if (get_item_meta(file.api_path, meta) == api_error::item_not_found) {
-    auto err = create_path_directories(
-        file.api_parent, utils::path::get_parent_api_path(object_name));
-    if (err != api_error::success) {
-      return err;
+  auto res{get_item_meta(file.api_path, meta)};
+  if (res == api_error::item_not_found) {
+    res = create_directory_paths(file.api_parent,
+                                 utils::path::get_parent_api_path(object_name));
+    if (res != api_error::success) {
+      return res;
     }
 
     get_api_item_added()(false, file);
   }
 
-  return api_error::success;
+  return res;
 }
 
 auto s3_provider::convert_api_date(std::string_view date) -> std::uint64_t {
   // 2009-10-12T17:50:30.000Z
-  auto date_parts = utils::string::split(date, '.', true);
-  auto date_time = date_parts.at(0U);
-  auto nanos =
+  auto date_parts{utils::string::split(date, '.', true)};
+  auto date_time{date_parts.at(0U)};
+  auto nanos{
       (date_parts.size() <= 1U)
           ? 0U
           : utils::string::to_uint64(
                 utils::string::split(date_parts.at(1U), 'Z', true).at(0U)) *
-                1000000UL;
+                1000000UL,
+  };
 
   struct tm tm1 {};
 #if defined(_WIN32)
@@ -81,44 +99,31 @@ auto s3_provider::convert_api_date(std::string_view date) -> std::uint64_t {
 #endif // defined(_WIN32)
 }
 
-auto s3_provider::create_directory_impl(const std::string &api_path,
-                                        api_meta_map &meta) -> api_error {
+auto s3_provider::create_directory_object(const std::string &api_path,
+                                          const std::string &object_name) const
+    -> api_error {
   REPERTORY_USES_FUNCTION_NAME();
 
-  const auto &cfg = get_s3_config();
-  auto is_encrypted = not cfg.encryption_token.empty();
-  stop_type stop_requested{false};
+  const auto &cfg{get_s3_config()};
 
-  if (is_encrypted) {
-    std::string encrypted_file_path;
-    auto res = get_item_meta(utils::path::get_parent_api_path(api_path),
-                             META_KEY, encrypted_file_path);
-    if (res != api_error::success) {
-      utils::error::raise_api_path_error(function_name, api_path, res,
-                                         "failed to create file");
-      return res;
-    }
+  std::string response_data;
+  curl::requests::http_put_file put_dir{};
+  put_dir.allow_timeout = true;
+  put_dir.aws_service = "aws:amz:" + cfg.region + ":s3";
+  put_dir.response_handler = [&response_data](auto &&data,
 
-    data_buffer result;
-    utils::encryption::encrypt_data(
-        cfg.encryption_token,
-        *(utils::string::split(api_path, '/', false).end() - 1U), result);
+                                              long /*response_code*/) {
+    response_data = std::string(data.begin(), data.end());
+  };
 
-    meta[META_KEY] = utils::path::create_api_path(
-        utils::path::combine(utils::path::create_api_path(encrypted_file_path),
-                             {utils::collection::to_hex_string(result)}));
+  auto res{set_request_path(put_dir, object_name + '/')};
+  if (res != api_error::success) {
+    return res;
   }
 
-  auto object_name =
-      utils::path::create_api_path(is_encrypted ? meta[META_KEY] : api_path);
-
-  curl::requests::http_put_file put_file{};
-  put_file.allow_timeout = true;
-  put_file.aws_service = "aws:amz:" + cfg.region + ":s3";
-  put_file.path = object_name + '/';
-
+  stop_type stop_requested{false};
   long response_code{};
-  if (not get_comm().make_request(put_file, response_code, stop_requested)) {
+  if (not get_comm().make_request(put_dir, response_code, stop_requested)) {
     utils::error::raise_api_path_error(function_name, api_path,
                                        api_error::comm_error,
                                        "failed to create directory");
@@ -126,43 +131,33 @@ auto s3_provider::create_directory_impl(const std::string &api_path,
   }
 
   if (response_code != http_error_codes::ok) {
-    utils::error::raise_api_path_error(function_name, api_path, response_code,
-                                       "failed to create directory");
+    utils::error::raise_api_path_error(
+        function_name, api_path, response_code,
+        fmt::format("failed to create directory|response|{}", response_data));
     return api_error::comm_error;
   }
 
   return api_error::success;
 }
 
-auto s3_provider::create_file_extra(const std::string &api_path,
-                                    api_meta_map &meta) -> api_error {
+auto s3_provider::create_directory_impl(const std::string &api_path,
+                                        api_meta_map &meta) -> api_error {
   REPERTORY_USES_FUNCTION_NAME();
 
-  const auto &cfg = get_s3_config();
-  if (not cfg.encryption_token.empty()) {
-    std::string encrypted_file_path;
-    auto res = get_item_meta(utils::path::get_parent_api_path(api_path),
-                             META_KEY, encrypted_file_path);
-    if (res != api_error::success) {
-      utils::error::raise_api_path_error(function_name, api_path, res,
-                                         "failed to create file");
-      return res;
-    }
-
-    data_buffer result;
-    utils::encryption::encrypt_data(
-        cfg.encryption_token,
-        *(utils::string::split(api_path, '/', false).end() - 1U), result);
-
-    meta[META_KEY] = utils::path::create_api_path(
-        utils::path::combine(utils::path::create_api_path(encrypted_file_path),
-                             {utils::collection::to_hex_string(result)}));
+  auto res{set_meta_key(api_path, meta)};
+  if (res != api_error::success) {
+    return res;
   }
 
-  return api_error::success;
+  const auto &cfg{get_s3_config()};
+  auto is_encrypted{not cfg.encryption_token.empty()};
+
+  return create_directory_object(
+      api_path,
+      utils::path::create_api_path(is_encrypted ? meta[META_KEY] : api_path));
 }
 
-auto s3_provider::create_path_directories(
+auto s3_provider::create_directory_paths(
     const std::string &api_path, const std::string &key) const -> api_error {
   REPERTORY_USES_FUNCTION_NAME();
 
@@ -170,12 +165,12 @@ auto s3_provider::create_path_directories(
     return api_error::success;
   }
 
-  const auto &cfg = get_s3_config();
-  auto encryption_token = cfg.encryption_token;
-  auto is_encrypted = not encryption_token.empty();
+  const auto &cfg{get_s3_config()};
+  auto encryption_token{cfg.encryption_token};
+  auto is_encrypted{not encryption_token.empty()};
 
-  auto path_parts = utils::string::split(api_path, '/', false);
-  auto key_parts = utils::string::split(key, '/', false);
+  auto path_parts{utils::string::split(api_path, '/', false)};
+  auto key_parts{utils::string::split(key, '/', false)};
 
   if (is_encrypted && key_parts.size() != path_parts.size()) {
     return api_error::error;
@@ -191,44 +186,36 @@ auto s3_provider::create_path_directories(
     cur_path = utils::path::create_api_path(
         utils::path::combine(cur_path, {path_parts.at(idx)}));
 
-    auto exists{false};
-    auto res = is_directory(cur_path, exists);
-    if (res != api_error::success) {
-      return res;
-    }
-
-    if (not exists) {
-      curl::requests::http_put_file put_file{};
-      put_file.allow_timeout = true;
-      put_file.aws_service = "aws:amz:" + cfg.region + ":s3";
-      put_file.path = (is_encrypted ? cur_key : cur_path) + '/';
-
-      stop_type stop_requested{false};
-      long response_code{};
-      if (not get_comm().make_request(put_file, response_code,
-                                      stop_requested)) {
-        utils::error::raise_api_path_error(function_name, cur_path,
-                                           api_error::comm_error,
-                                           "failed to create directory object");
-        return api_error::comm_error;
+    std::string value;
+    auto res{get_item_meta(cur_path, META_DIRECTORY, value)};
+    if (res == api_error::success) {
+      if (not utils::string::to_bool(value)) {
+        return api_error::item_exists;
       }
-
-      if (response_code != http_error_codes::ok) {
-        utils::error::raise_api_path_error(function_name, cur_path,
-                                           response_code,
-                                           "failed to create directory object");
-        return api_error::comm_error;
-      }
-    }
-
-    api_meta_map meta{};
-    res = get_item_meta(cur_path, meta);
-    if (res == api_error::item_not_found) {
-      auto dir = create_api_file(cur_path, cur_key, 0U,
-                                 get_last_modified(true, cur_path));
-      get_api_item_added()(true, dir);
-
       continue;
+    }
+
+    if (res == api_error::item_not_found) {
+      auto exists{false};
+      res = is_directory(cur_path, exists);
+      if (res != api_error::success) {
+        return res;
+      }
+
+      if (not exists) {
+        res = create_directory_object(api_path,
+                                      (is_encrypted ? cur_key : cur_path));
+        if (res != api_error::success) {
+          return res;
+        }
+      }
+
+      auto dir{
+          create_api_file(cur_path, cur_key, 0U,
+                          exists ? get_last_modified(true, cur_path)
+                                 : utils::time::get_time_now()),
+      };
+      get_api_item_added()(true, dir);
     }
 
     if (res != api_error::success) {
@@ -239,18 +226,19 @@ auto s3_provider::create_path_directories(
   return api_error::success;
 }
 
+auto s3_provider::create_file_extra(const std::string &api_path,
+                                    api_meta_map &meta) -> api_error {
+  return set_meta_key(api_path, meta);
+}
+
 auto s3_provider::decrypt_object_name(std::string &object_name) const
     -> api_error {
-  auto parts = utils::string::split(object_name, '/', false);
-  for (auto &part : parts) {
-    if (not utils::encryption::decrypt_file_name(
-            get_s3_config().encryption_token, part)) {
-      return api_error::decryption_error;
-    }
+  if (utils::encryption::decrypt_file_path(get_s3_config().encryption_token,
+                                           object_name)) {
+    return api_error::success;
   }
 
-  object_name = utils::string::join(parts, '/');
-  return api_error::success;
+  return api_error::decryption_error;
 }
 
 auto s3_provider::get_directory_item_count(const std::string &api_path) const
@@ -258,24 +246,26 @@ auto s3_provider::get_directory_item_count(const std::string &api_path) const
   REPERTORY_USES_FUNCTION_NAME();
 
   try {
-    const auto &cfg = get_s3_config();
-    auto is_encrypted = not cfg.encryption_token.empty();
+    const auto &cfg{get_s3_config()};
+    auto is_encrypted{not cfg.encryption_token.empty()};
+
     std::string key;
     if (is_encrypted) {
-      auto res = get_item_meta(api_path, META_KEY, key);
+      auto res{get_item_meta(api_path, META_KEY, key)};
       if (res != api_error::success) {
         return 0U;
       }
     }
 
-    auto object_name =
+    auto object_name{
         api_path == "/"
             ? ""
-            : utils::path::create_api_path(is_encrypted ? key : api_path);
+            : utils::path::create_api_path(is_encrypted ? key : api_path),
+    };
 
     std::string response_data{};
     long response_code{};
-    auto prefix = object_name.empty() ? object_name : object_name + "/";
+    auto prefix{object_name.empty() ? object_name : object_name + "/"};
 
     auto grab_more{true};
     std::string token{};
@@ -295,7 +285,7 @@ auto s3_provider::get_directory_item_count(const std::string &api_path) const
       }
 
       pugi::xml_document doc;
-      auto res = doc.load_string(response_data.c_str());
+      auto res{doc.load_string(response_data.c_str())};
       if (res.status != pugi::xml_parse_status::status_ok) {
         return total_count;
       }
@@ -311,8 +301,9 @@ auto s3_provider::get_directory_item_count(const std::string &api_path) const
                     .as_string();
       }
 
-      auto node_list =
-          doc.select_nodes("/ListBucketResult/CommonPrefixes/Prefix");
+      auto node_list{
+          doc.select_nodes("/ListBucketResult/CommonPrefixes/Prefix"),
+      };
       total_count += node_list.size();
 
       node_list = doc.select_nodes("/ListBucketResult/Contents");
@@ -334,30 +325,96 @@ auto s3_provider::get_directory_items_impl(
     const std::string &api_path, directory_item_list &list) const -> api_error {
   REPERTORY_USES_FUNCTION_NAME();
 
-  const auto &cfg = get_s3_config();
-  auto is_encrypted = not cfg.encryption_token.empty();
+  const auto &cfg{get_s3_config()};
+  auto is_encrypted{not cfg.encryption_token.empty()};
 
-  auto ret = api_error::success;
+  const auto add_diretory_item =
+      [this, &is_encrypted, &list](const std::string &child_object_name,
+                                   bool directory, auto node) -> api_error {
+    auto res{api_error::success};
+
+    directory_item dir_item{};
+    dir_item.api_path = child_object_name;
+    dir_item.directory = directory;
+    if (is_encrypted) {
+      res = decrypt_object_name(dir_item.api_path);
+      if (res != api_error::success) {
+        return res;
+      }
+    }
+    dir_item.api_path = utils::path::create_api_path(dir_item.api_path);
+    dir_item.api_parent = utils::path::get_parent_api_path(dir_item.api_path);
+
+    if (directory) {
+      res = get_item_meta(dir_item.api_path, dir_item.meta);
+      if (res == api_error::item_not_found) {
+        res = create_directory_paths(dir_item.api_path, child_object_name);
+      }
+    } else {
+      std::string size_str;
+      if (get_item_meta(dir_item.api_path, META_SIZE, size_str) ==
+          api_error::success) {
+        dir_item.size = utils::string::to_uint64(size_str);
+      } else {
+        auto size{node.select_node("Size").node().text().as_ullong()};
+
+        dir_item.size = is_encrypted ? utils::encryption::encrypting_reader::
+                                           calculate_decrypted_size(size)
+                                     : size;
+      }
+
+      res = get_item_meta(dir_item.api_path, dir_item.meta);
+      if (res == api_error::item_not_found) {
+        auto last_modified{
+            convert_api_date(
+                node.select_node("LastModified").node().text().as_string()),
+        };
+
+        api_file file{};
+        file.api_path = dir_item.api_path;
+        file.api_parent = dir_item.api_parent;
+        file.accessed_date = file.changed_date = file.creation_date =
+            file.modified_date = last_modified;
+        file.file_size = dir_item.size;
+        if (is_encrypted) {
+          file.key = child_object_name;
+        }
+
+        res = add_if_not_found(file, child_object_name);
+      }
+    }
+
+    if (res != api_error::success) {
+      return res;
+    }
+
+    list.push_back(std::move(dir_item));
+    return api_error::success;
+  };
+
   std::string key;
   if (is_encrypted) {
-    ret = get_item_meta(api_path, META_KEY, key);
-    if (ret != api_error::success) {
-      return ret;
+    auto res{get_item_meta(api_path, META_KEY, key)};
+    if (res != api_error::success) {
+      return res;
     }
   }
 
-  auto object_name =
+  auto object_name{
       api_path == "/"
           ? ""
-          : utils::path::create_api_path(is_encrypted ? key : api_path);
+          : utils::path::create_api_path(is_encrypted ? key : api_path),
+  };
 
-  std::string response_data{};
-  long response_code{};
-  auto prefix = object_name.empty() ? object_name : object_name + "/";
+  auto prefix{
+      object_name.empty() ? object_name : object_name + "/",
+  };
 
   auto grab_more{true};
   std::string token{};
   while (grab_more) {
+    std::string response_data{};
+    long response_code{};
     if (not get_object_list(response_data, response_code, "/", prefix, token)) {
       return api_error::comm_error;
     }
@@ -373,7 +430,7 @@ auto s3_provider::get_directory_items_impl(
     }
 
     pugi::xml_document doc;
-    auto parse_res = doc.load_string(response_data.c_str());
+    auto parse_res{doc.load_string(response_data.c_str())};
     if (parse_res.status != pugi::xml_parse_status::status_ok) {
       return api_error::error;
     }
@@ -389,91 +446,38 @@ auto s3_provider::get_directory_items_impl(
                   .as_string();
     }
 
-    const auto add_directory_item =
-        [&](bool directory, const std::string &name,
-            std::uint64_t last_modified,
-            std::function<std::uint64_t(const directory_item &)> get_size)
-        -> api_error {
-      auto child_api_path =
-          utils::path::create_api_path(utils::path::combine("/", {name}));
-      std::string child_object_name;
-      if (is_encrypted) {
-        child_object_name = child_api_path;
-        if (not utils::encryption::decrypt_file_path(cfg.encryption_token,
-                                                     child_api_path)) {
-          return api_error::decryption_error;
-        }
-      }
-
-      directory_item dir_item{};
-      dir_item.api_path = child_api_path;
-      dir_item.api_parent = utils::path::get_parent_api_path(dir_item.api_path);
-      dir_item.directory = directory;
-      dir_item.size = get_size(dir_item);
-      ret = get_item_meta(child_api_path, dir_item.meta);
-      if (ret == api_error::item_not_found) {
-        if (directory) {
-          ret = create_path_directories(child_api_path, child_object_name);
-          if (ret != api_error::success) {
-            return ret;
-          }
-        } else {
-          auto file = create_api_file(child_api_path, child_object_name,
-                                      dir_item.size, last_modified);
-          ret = add_if_not_found(file, child_object_name);
-          if (ret != api_error::success) {
-            return ret;
-          }
-        }
-
-        ret = get_item_meta(child_api_path, dir_item.meta);
-      }
-
-      if (ret != api_error::success) {
-        return ret;
-      }
-
-      list.push_back(std::move(dir_item));
-      return api_error::success;
+    auto node_list{
+        doc.select_nodes("/ListBucketResult/CommonPrefixes/Prefix"),
     };
-
-    auto node_list =
-        doc.select_nodes("/ListBucketResult/CommonPrefixes/Prefix");
     for (const auto &node : node_list) {
-      add_directory_item(
-          true, node.node().text().as_string(), 0U,
-          [](const directory_item &) -> std::uint64_t { return 0U; });
+      auto child_object_name{
+          utils::path::create_api_path(
+              utils::path::combine("/", {node.node().text().as_string()})),
+      };
+      auto res{add_diretory_item(child_object_name, true, node.node())};
+      if (res != api_error::success) {
+        return res;
+      }
     }
 
     node_list = doc.select_nodes("/ListBucketResult/Contents");
     for (const auto &node : node_list) {
-      auto child_object_name = utils::path::create_api_path(
-          node.node().select_node("Key").node().text().as_string());
+      auto child_object_name{
+          utils::path::create_api_path(
+              node.node().select_node("Key").node().text().as_string()),
+      };
       if (child_object_name == utils::path::create_api_path(prefix)) {
         continue;
       }
 
-      auto size = node.node().select_node("Size").node().text().as_ullong();
-      auto last_modified = convert_api_date(
-          node.node().select_node("LastModified").node().text().as_string());
-      add_directory_item(false, child_object_name, last_modified,
-                         [this, &is_encrypted, &size](
-                             const directory_item &dir_item) -> std::uint64_t {
-                           std::string size_str;
-                           if (get_item_meta(dir_item.api_path, META_SIZE,
-                                             size_str) == api_error::success) {
-                             return utils::string::to_uint64(size_str);
-                           }
-
-                           return is_encrypted
-                                      ? utils::encryption::encrypting_reader::
-                                            calculate_decrypted_size(size)
-                                      : size;
-                         });
+      auto res{add_diretory_item(child_object_name, false, node.node())};
+      if (res != api_error::success) {
+        return res;
+      }
     }
   }
 
-  return ret;
+  return api_error::success;
 }
 
 auto s3_provider::get_file(const std::string &api_path,
@@ -484,8 +488,9 @@ auto s3_provider::get_file(const std::string &api_path,
     bool is_encrypted{};
     std::string object_name;
     head_object_result result{};
-    auto res =
-        get_object_info(false, api_path, is_encrypted, object_name, result);
+    auto res{
+        get_object_info(false, api_path, is_encrypted, object_name, result),
+    };
     if (res != api_error::success) {
       return res;
     }
@@ -520,76 +525,91 @@ auto s3_provider::get_file_list(api_file_list &list,
                                 std::string &marker) const -> api_error {
   REPERTORY_USES_FUNCTION_NAME();
 
-  std::string response_data;
-  long response_code{};
-  if (not get_object_list(response_data, response_code, std::nullopt,
-                          std::nullopt, marker)) {
-    return api_error::comm_error;
-  }
-
-  if (response_code != http_error_codes::ok) {
-    utils::error::raise_error(function_name, response_code,
-                              "failed to get file list");
-    return api_error::comm_error;
-  }
-
-  pugi::xml_document doc;
-  auto res = doc.load_string(response_data.c_str());
-  if (res.status != pugi::xml_parse_status::status_ok) {
-    utils::error::raise_error(function_name, res.status,
-                              "failed to parse xml document");
-    return api_error::comm_error;
-  }
-
-  auto grab_more =
-      doc.select_node("/ListBucketResult/IsTruncated").node().text().as_bool();
-  if (grab_more) {
-    marker = doc.select_node("/ListBucketResult/NextContinuationToken")
-                 .node()
-                 .text()
-                 .as_string();
-  }
-
-  auto node_list = doc.select_nodes("/ListBucketResult/Contents");
-  for (const auto &node : node_list) {
-    auto object_name =
-        std::string{node.node().select_node("Key").node().text().as_string()};
-    auto api_path{object_name};
-    if (utils::string::ends_with(api_path, "/")) {
-      continue;
+  try {
+    std::string response_data;
+    long response_code{};
+    if (not get_object_list(response_data, response_code, std::nullopt,
+                            std::nullopt, marker)) {
+      return api_error::comm_error;
     }
 
-    auto is_encrypted = not get_s3_config().encryption_token.empty();
-    if (is_encrypted) {
-      auto err = decrypt_object_name(api_path);
-      if (err != api_error::success) {
-        return err;
+    if (response_code != http_error_codes::ok) {
+      utils::error::raise_error(function_name, response_code,
+                                "failed to get file list");
+      return api_error::comm_error;
+    }
+
+    pugi::xml_document doc;
+    auto result{doc.load_string(response_data.c_str())};
+    if (result.status != pugi::xml_parse_status::status_ok) {
+      utils::error::raise_error(function_name, result.status,
+                                "failed to parse xml document");
+      return api_error::comm_error;
+    }
+
+    auto grab_more{
+        doc.select_node("/ListBucketResult/IsTruncated")
+            .node()
+            .text()
+            .as_bool(),
+    };
+    if (grab_more) {
+      marker = doc.select_node("/ListBucketResult/NextContinuationToken")
+                   .node()
+                   .text()
+                   .as_string();
+    }
+
+    auto node_list{doc.select_nodes("/ListBucketResult/Contents")};
+    for (const auto &node : node_list) {
+      auto object_name{
+          std::string(node.node().select_node("Key").node().text().as_string()),
+      };
+      if (utils::string::ends_with(object_name, "/")) {
+        continue;
       }
+
+      auto api_path{object_name};
+      auto is_encrypted{not get_s3_config().encryption_token.empty()};
+
+      if (is_encrypted) {
+        auto res{decrypt_object_name(api_path)};
+        if (res != api_error::success) {
+          return res;
+        }
+      }
+
+      auto size{node.node().select_node("Size").node().text().as_ullong()};
+
+      api_file file{};
+      file.api_path = utils::path::create_api_path(api_path);
+      file.api_parent = utils::path::get_parent_api_path(file.api_path);
+      file.accessed_date = file.changed_date = file.creation_date =
+          file.modified_date = convert_api_date(node.node()
+                                                    .select_node("LastModified")
+                                                    .node()
+                                                    .text()
+                                                    .as_string());
+      file.file_size =
+          is_encrypted
+              ? utils::encryption::encrypting_reader::calculate_decrypted_size(
+                    size)
+              : size;
+      file.key = is_encrypted ? utils::path::create_api_path(object_name) : "";
+      auto res{add_if_not_found(file, file.key)};
+      if (res != api_error::success) {
+        return res;
+      }
+
+      list.push_back(std::move(file));
     }
 
-    auto size = node.node().select_node("Size").node().text().as_ullong();
-
-    api_file file{};
-    file.api_path = utils::path::create_api_path(api_path);
-    file.api_parent = utils::path::get_parent_api_path(file.api_path);
-    file.accessed_date = file.changed_date = file.creation_date =
-        file.modified_date = convert_api_date(
-            node.node().select_node("LastModified").node().text().as_string());
-    file.file_size =
-        is_encrypted
-            ? utils::encryption::encrypting_reader::calculate_decrypted_size(
-                  size)
-            : size;
-    file.key = is_encrypted ? utils::path::create_api_path(object_name) : "";
-    auto err = add_if_not_found(file, file.key);
-    if (err != api_error::success) {
-      return err;
-    }
-
-    list.push_back(std::move(file));
+    return grab_more ? api_error::more_data : api_error::success;
+  } catch (const std::exception &e) {
+    utils::error::raise_error(function_name, e, "exception occurred");
   }
 
-  return grab_more ? api_error::more_data : api_error::success;
+  return api_error::error;
 }
 
 auto s3_provider::get_last_modified(
@@ -609,12 +629,12 @@ auto s3_provider::get_object_info(
   REPERTORY_USES_FUNCTION_NAME();
 
   try {
-    const auto &cfg = get_s3_config();
+    const auto &cfg{get_s3_config()};
     is_encrypted = not cfg.encryption_token.empty();
 
     std::string key;
     if (is_encrypted) {
-      auto res = get_item_meta(api_path, META_KEY, key);
+      auto res{get_item_meta(api_path, META_KEY, key)};
       if (res != api_error::success) {
         return res;
       }
@@ -622,11 +642,21 @@ auto s3_provider::get_object_info(
 
     object_name = utils::path::create_api_path(is_encrypted ? key : api_path);
 
+    std::string response_data;
     curl::requests::http_head head{};
     head.allow_timeout = true;
     head.aws_service = "aws:amz:" + cfg.region + ":s3";
-    head.path = directory ? object_name + '/' : object_name;
     head.response_headers = http_headers{};
+    head.response_handler = [&response_data](auto &&data,
+                                             long /*response_code*/) {
+      response_data = std::string(data.begin(), data.end());
+    };
+    auto res{
+        set_request_path(head, directory ? object_name + '/' : object_name),
+    };
+    if (res != api_error::success) {
+      return res;
+    }
 
     stop_type stop_requested{false};
     long response_code{};
@@ -639,8 +669,9 @@ auto s3_provider::get_object_info(
     }
 
     if (response_code != http_error_codes::ok) {
-      utils::error::raise_api_path_error(function_name, api_path, response_code,
-                                         "failed to get object info");
+      utils::error::raise_api_path_error(
+          function_name, api_path, response_code,
+          fmt::format("failed to get object info|response|{}", response_data));
       return api_error::comm_error;
     }
 
@@ -673,8 +704,7 @@ auto s3_provider::get_object_list(
   if (token.has_value() && not token.value().empty()) {
     get.query["continuation-token"] = token.value();
   }
-  get.response_handler = [&response_data](const data_buffer &data,
-                                          long /*response_code*/) {
+  get.response_handler = [&response_data](auto &&data, long /*response_code*/) {
     response_data = std::string(data.begin(), data.end());
   };
 
@@ -690,18 +720,19 @@ auto s3_provider::is_directory(const std::string &api_path,
                                bool &exists) const -> api_error {
   REPERTORY_USES_FUNCTION_NAME();
 
-  exists = false;
-  if (api_path == "/") {
-    exists = true;
-    return api_error::success;
-  }
-
   try {
+    exists = false;
+    if (api_path == "/") {
+      exists = true;
+      return api_error::success;
+    }
+
     bool is_encrypted{};
     std::string object_name;
     head_object_result result{};
-    auto res =
-        get_object_info(true, api_path, is_encrypted, object_name, result);
+    auto res{
+        get_object_info(true, api_path, is_encrypted, object_name, result),
+    };
     if (res != api_error::item_not_found && res != api_error::success) {
       return res;
     }
@@ -718,17 +749,18 @@ auto s3_provider::is_file(const std::string &api_path,
                           bool &exists) const -> api_error {
   REPERTORY_USES_FUNCTION_NAME();
 
-  exists = false;
-  if (api_path == "/") {
-    return api_error::success;
-  }
-
   try {
+    exists = false;
+    if (api_path == "/") {
+      return api_error::success;
+    }
+
     bool is_encrypted{};
     std::string object_name;
     head_object_result result{};
-    auto res =
-        get_object_info(false, api_path, is_encrypted, object_name, result);
+    auto res{
+        get_object_info(false, api_path, is_encrypted, object_name, result),
+    };
     if (res != api_error::item_not_found && res != api_error::success) {
       return res;
     }
@@ -752,40 +784,46 @@ auto s3_provider::read_file_bytes(const std::string &api_path, std::size_t size,
   REPERTORY_USES_FUNCTION_NAME();
 
   try {
-    const auto &cfg = get_s3_config();
-    auto is_encrypted = not cfg.encryption_token.empty();
+    const auto &cfg{get_s3_config()};
+    auto is_encrypted{not cfg.encryption_token.empty()};
+
     std::string key;
     if (is_encrypted) {
-      auto res = get_item_meta(api_path, META_KEY, key);
+      auto res{get_item_meta(api_path, META_KEY, key)};
       if (res != api_error::success) {
         return res;
       }
     }
 
-    auto object_name =
-        utils::path::create_api_path(is_encrypted ? key : api_path);
+    auto object_name{
+        utils::path::create_api_path(is_encrypted ? key : api_path),
+    };
 
     const auto read_bytes =
         [this, &api_path, &cfg, &object_name,
          &stop_requested](std::size_t read_size, std::size_t read_offset,
                           data_buffer &read_buffer) -> api_error {
-      auto res = api_error::error;
+      auto res{api_error::error};
       for (std::uint32_t idx = 0U;
-           not stop_requested && res != api_error::success &&
+           not(stop_requested || app_config::get_stop_requested()) &&
+           res != api_error::success &&
            idx < get_config().get_retry_read_count() + 1U;
            ++idx) {
         curl::requests::http_get get{};
         get.aws_service = "aws:amz:" + cfg.region + ":s3";
         get.headers["response-content-type"] = "binary/octet-stream";
-        get.path = object_name;
         get.range = {{
             read_offset,
             read_offset + read_size - 1U,
         }};
-        get.response_handler = [&read_buffer](const data_buffer &response_data,
+        get.response_handler = [&read_buffer](auto &&response_data,
                                               long /*response_code*/) {
           read_buffer = response_data;
         };
+        res = set_request_path(get, object_name);
+        if (res != api_error::success) {
+          return res;
+        }
 
         long response_code{};
         const auto notify_retry = [&]() {
@@ -827,12 +865,12 @@ auto s3_provider::read_file_bytes(const std::string &api_path, std::size_t size,
     }
 
     std::string temp;
-    auto res = get_item_meta(api_path, META_SIZE, temp);
+    auto res{get_item_meta(api_path, META_SIZE, temp)};
     if (res != api_error::success) {
       return res;
     }
 
-    auto total_size = utils::string::to_uint64(temp);
+    auto total_size{utils::string::to_uint64(temp)};
     return utils::encryption::read_encrypted_range(
                {offset, offset + size - 1U},
                utils::encryption::generate_key<utils::encryption::hash_256_t>(
@@ -858,28 +896,38 @@ auto s3_provider::remove_directory_impl(const std::string &api_path)
     -> api_error {
   REPERTORY_USES_FUNCTION_NAME();
 
-  const auto &cfg = get_s3_config();
-  auto is_encrypted = not cfg.encryption_token.empty();
+  const auto &cfg{get_s3_config()};
+  auto is_encrypted{not cfg.encryption_token.empty()};
 
   std::string key;
   if (is_encrypted) {
-    auto res = get_item_meta(api_path, META_KEY, key);
+    auto res{get_item_meta(api_path, META_KEY, key)};
     if (res != api_error::success) {
       return res;
     }
   }
 
-  auto object_name =
-      utils::path::create_api_path(is_encrypted ? key : api_path);
+  auto object_name{
+      utils::path::create_api_path(is_encrypted ? key : api_path),
+  };
 
-  curl::requests::http_delete del{};
-  del.allow_timeout = true;
-  del.aws_service = "aws:amz:" + cfg.region + ":s3";
-  del.path = object_name + '/';
+  std::string response_data;
+  curl::requests::http_delete del_dir{};
+  del_dir.allow_timeout = true;
+  del_dir.aws_service = "aws:amz:" + cfg.region + ":s3";
+  del_dir.response_handler = [&response_data](auto &&data,
+                                              long /*response_code*/) {
+    response_data = std::string(data.begin(), data.end());
+  };
+
+  auto res{set_request_path(del_dir, object_name + '/')};
+  if (res != api_error::success) {
+    return res;
+  }
 
   long response_code{};
   stop_type stop_requested{};
-  if (not get_comm().make_request(del, response_code, stop_requested)) {
+  if (not get_comm().make_request(del_dir, response_code, stop_requested)) {
     utils::error::raise_api_path_error(function_name, api_path,
                                        api_error::comm_error,
                                        "failed to remove directory");
@@ -889,8 +937,9 @@ auto s3_provider::remove_directory_impl(const std::string &api_path)
   if ((response_code < http_error_codes::ok ||
        response_code >= http_error_codes::multiple_choices) &&
       response_code != http_error_codes::not_found) {
-    utils::error::raise_api_path_error(function_name, api_path, response_code,
-                                       "failed to remove directory");
+    utils::error::raise_api_path_error(
+        function_name, api_path, response_code,
+        fmt::format("failed to remove directory|response|{}", response_data));
     return api_error::comm_error;
   }
 
@@ -900,28 +949,37 @@ auto s3_provider::remove_directory_impl(const std::string &api_path)
 auto s3_provider::remove_file_impl(const std::string &api_path) -> api_error {
   REPERTORY_USES_FUNCTION_NAME();
 
-  const auto &cfg = get_s3_config();
-  auto is_encrypted = not cfg.encryption_token.empty();
+  const auto &cfg{get_s3_config()};
+  auto is_encrypted{not cfg.encryption_token.empty()};
 
   std::string key;
   if (is_encrypted) {
-    auto res = get_item_meta(api_path, META_KEY, key);
+    auto res{get_item_meta(api_path, META_KEY, key)};
     if (res != api_error::success) {
       return res;
     }
   }
 
-  auto object_name =
-      utils::path::create_api_path(is_encrypted ? key : api_path);
+  auto object_name{
+      utils::path::create_api_path(is_encrypted ? key : api_path),
+  };
 
-  curl::requests::http_delete del{};
-  del.allow_timeout = true;
-  del.aws_service = "aws:amz:" + cfg.region + ":s3";
-  del.path = object_name;
+  std::string response_data;
+  curl::requests::http_delete del_file{};
+  del_file.allow_timeout = true;
+  del_file.aws_service = "aws:amz:" + cfg.region + ":s3";
+  del_file.response_handler = [&response_data](auto &&data,
+                                               long /*response_code*/) {
+    response_data = std::string(data.begin(), data.end());
+  };
+  auto res{set_request_path(del_file, object_name)};
+  if (res != api_error::success) {
+    return res;
+  }
 
   long response_code{};
   stop_type stop_requested{};
-  if (not get_comm().make_request(del, response_code, stop_requested)) {
+  if (not get_comm().make_request(del_file, response_code, stop_requested)) {
     utils::error::raise_api_path_error(function_name, api_path,
                                        api_error::comm_error,
                                        "failed to remove file");
@@ -931,8 +989,9 @@ auto s3_provider::remove_file_impl(const std::string &api_path) -> api_error {
   if ((response_code < http_error_codes::ok ||
        response_code >= http_error_codes::multiple_choices) &&
       response_code != http_error_codes::not_found) {
-    utils::error::raise_api_path_error(function_name, api_path, response_code,
-                                       "failed to remove file");
+    utils::error::raise_api_path_error(
+        function_name, api_path, response_code,
+        fmt::format("failed to remove file|response|{}", response_data));
     return api_error::comm_error;
   }
 
@@ -945,18 +1004,62 @@ auto s3_provider::rename_file(const std::string & /* from_api_path */,
   return api_error::not_implemented;
 }
 
+auto s3_provider::set_meta_key(const std::string &api_path,
+                               api_meta_map &meta) -> api_error {
+  REPERTORY_USES_FUNCTION_NAME();
+
+  const auto &cfg{get_s3_config()};
+  auto is_encrypted{not cfg.encryption_token.empty()};
+  if (not is_encrypted) {
+    return api_error::success;
+  }
+
+  std::string encrypted_parent_path;
+  auto res{
+      get_item_meta(utils::path::get_parent_api_path(api_path), META_KEY,
+                    encrypted_parent_path),
+  };
+  if (res != api_error::success) {
+    utils::error::raise_api_path_error(function_name, api_path, res,
+                                       "failed to create file");
+    return res;
+  }
+
+  data_buffer result;
+  utils::encryption::encrypt_data(
+      cfg.encryption_token,
+      *(utils::string::split(api_path, '/', false).end() - 1U), result);
+
+  meta[META_KEY] = utils::path::create_api_path(
+      utils::path::combine(utils::path::create_api_path(encrypted_parent_path),
+                           {
+                               utils::collection::to_hex_string(result),
+                           }));
+  return api_error::success;
+}
+
 auto s3_provider::start(api_item_added_callback api_item_added,
                         i_file_manager *mgr) -> bool {
-  event_system::instance().raise<service_started>("s3_provider");
+  REPERTORY_USES_FUNCTION_NAME();
+
+  event_system::instance().raise<service_start_begin>(function_name,
+                                                      "s3_provider");
   s3_config_ = get_config().get_s3_config();
   get_comm().enable_s3_path_style(s3_config_.use_path_style);
-  return base_provider::start(api_item_added, mgr);
+  auto ret = base_provider::start(api_item_added, mgr);
+  event_system::instance().raise<service_start_end>(function_name,
+                                                    "s3_provider");
+  return ret;
 }
 
 void s3_provider::stop() {
-  event_system::instance().raise<service_shutdown_begin>("s3_provider");
+  REPERTORY_USES_FUNCTION_NAME();
+
+  event_system::instance().raise<service_stop_begin>(function_name,
+                                                     "s3_provider");
   base_provider::stop();
-  event_system::instance().raise<service_shutdown_end>("s3_provider");
+  event_system::instance().raise<service_stop_end>(function_name,
+                                                   "s3_provider");
 }
 
 auto s3_provider::upload_file_impl(const std::string &api_path,
@@ -966,37 +1069,47 @@ auto s3_provider::upload_file_impl(const std::string &api_path,
 
   std::uint64_t file_size{};
   if (utils::file::file{source_path}.exists()) {
-    auto opt_size = utils::file::file{source_path}.size();
+    auto opt_size{utils::file::file{source_path}.size()};
     if (not opt_size.has_value()) {
       return api_error::comm_error;
     }
     file_size = opt_size.value();
   }
 
-  const auto &cfg = get_s3_config();
-  auto is_encrypted = not cfg.encryption_token.empty();
+  const auto &cfg{get_s3_config()};
+  auto is_encrypted{not cfg.encryption_token.empty()};
 
   std::string key;
   if (is_encrypted) {
-    auto res = get_item_meta(api_path, META_KEY, key);
+    auto res{get_item_meta(api_path, META_KEY, key)};
     if (res != api_error::success) {
       return res;
     }
   }
 
-  auto object_name =
-      utils::path::create_api_path(is_encrypted ? key : api_path);
+  auto object_name{
+      utils::path::create_api_path(is_encrypted ? key : api_path),
+  };
 
+  std::string response_data;
   curl::requests::http_put_file put_file{};
   put_file.aws_service = "aws:amz:" + cfg.region + ":s3";
-  put_file.path = object_name;
+  put_file.response_handler = [&response_data](auto &&data,
+                                               long /*response_code*/) {
+    response_data = std::string(data.begin(), data.end());
+  };
   put_file.source_path = source_path;
 
-  if (is_encrypted && file_size > 0U) {
-    static stop_type no_stop{false};
+  auto res{set_request_path(put_file, object_name)};
+  if (res != api_error::success) {
+    return res;
+  }
 
+  if (is_encrypted && file_size > 0U) {
     put_file.reader = std::make_shared<utils::encryption::encrypting_reader>(
-        object_name, source_path, no_stop, cfg.encryption_token, -1);
+        object_name, source_path,
+        []() -> bool { return app_config::get_stop_requested(); },
+        cfg.encryption_token, -1);
   }
 
   long response_code{};
@@ -1005,8 +1118,9 @@ auto s3_provider::upload_file_impl(const std::string &api_path,
   }
 
   if (response_code != http_error_codes::ok) {
-    utils::error::raise_api_path_error(function_name, api_path, response_code,
-                                       "failed to get upload file");
+    utils::error::raise_api_path_error(
+        function_name, api_path, response_code,
+        fmt::format("failed to upload file|response|{}", response_data));
     return api_error::comm_error;
   }
 

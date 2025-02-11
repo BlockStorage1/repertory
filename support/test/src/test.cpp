@@ -1,5 +1,5 @@
 /*
-  Copyright <2018-2024> <scott.e.graves@protonmail.com>
+  Copyright <2018-2025> <scott.e.graves@protonmail.com>
 
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"), to deal
@@ -57,8 +57,10 @@ auto create_random_file(std::size_t size) -> utils::file::i_file & {
 #if defined(PROJECT_ENABLE_LIBSODIUM)
     randombytes_buf(buf.data(), buf.size());
 #else  // !defined(PROJECT_ENABLE_LIBSODIUM)
-    thread_local std::mt19937 gen(static_cast<unsigned long>(
-        std::time(nullptr) ^ std::random_device{}()));
+    thread_local std::mt19937 gen{
+        static_cast<std::uint_fast32_t>(std::time(nullptr)) ^
+            static_cast<std::uint_fast32_t>(std::random_device{}()),
+    };
     std::uniform_int_distribution<std::uint8_t> dis(0U, 255U);
     std::generate(buf.begin(), buf.end(), [&]() -> auto { return dis(gen); });
 #endif // defined(PROJECT_ENABLE_LIBSODIUM)

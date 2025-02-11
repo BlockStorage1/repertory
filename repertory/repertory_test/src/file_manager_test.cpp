@@ -1,5 +1,5 @@
 /*
-  Copyright <2018-2024> <scott.evt.graves@protonmail.com>
+  Copyright <2018-2025> <scott.evt.graves@protonmail.com>
 
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"), to deal
@@ -22,8 +22,21 @@
 #include "test_common.hpp"
 
 #include "app_config.hpp"
+#include "events/types/download_restored.hpp"
+#include "events/types/download_resume_added.hpp"
+#include "events/types/download_resume_removed.hpp"
+#include "events/types/file_upload_completed.hpp"
+#include "events/types/file_upload_queued.hpp"
+#include "events/types/filesystem_item_closed.hpp"
+#include "events/types/filesystem_item_handle_closed.hpp"
+#include "events/types/filesystem_item_handle_opened.hpp"
+#include "events/types/filesystem_item_opened.hpp"
+#include "events/types/item_timeout.hpp"
+#include "events/types/service_start_begin.hpp"
+#include "events/types/service_start_end.hpp"
+#include "events/types/service_stop_begin.hpp"
+#include "events/types/service_stop_end.hpp"
 #include "file_manager/cache_size_mgr.hpp"
-#include "file_manager/events.hpp"
 #include "file_manager/file_manager.hpp"
 #include "file_manager/i_open_file.hpp"
 #include "mocks/mock_open_file.hpp"
@@ -80,23 +93,28 @@ std::atomic<std::size_t> file_manager_test::inst{0U};
 TEST_F(file_manager_test, can_start_and_stop) {
   EXPECT_CALL(mp, is_read_only()).WillRepeatedly(Return(false));
 
-  event_consumer consumer("service_started", [](const event &evt) {
-    const auto &evt2 = dynamic_cast<const service_started &>(evt);
-    EXPECT_STREQ("file_manager", evt2.get_service().get<std::string>().c_str());
+  event_consumer consumer(service_start_begin::name, [](const i_event &evt) {
+    const auto &evt2 = dynamic_cast<const service_start_begin &>(evt);
+    EXPECT_STREQ("file_manager", evt2.service_name.c_str());
   });
-  event_consumer consumer2("service_shutdown_begin", [](const event &evt) {
-    const auto &evt2 = dynamic_cast<const service_shutdown_begin &>(evt);
-    EXPECT_STREQ("file_manager", evt2.get_service().get<std::string>().c_str());
+  event_consumer consumer2(service_start_end::name, [](const i_event &evt) {
+    const auto &evt2 = dynamic_cast<const service_start_end &>(evt);
+    EXPECT_STREQ("file_manager", evt2.service_name.c_str());
   });
-  event_consumer consumer3("service_shutdown_end", [](const event &evt) {
-    const auto &evt2 = dynamic_cast<const service_shutdown_end &>(evt);
-    EXPECT_STREQ("file_manager", evt2.get_service().get<std::string>().c_str());
+  event_consumer consumer3(service_stop_begin::name, [](const i_event &evt) {
+    const auto &evt2 = dynamic_cast<const service_stop_begin &>(evt);
+    EXPECT_STREQ("file_manager", evt2.service_name.c_str());
+  });
+  event_consumer consumer4(service_stop_end::name, [](const i_event &evt) {
+    const auto &evt2 = dynamic_cast<const service_stop_end &>(evt);
+    EXPECT_STREQ("file_manager", evt2.service_name.c_str());
   });
 
   event_capture capture({
-      "service_started",
-      "service_shutdown_begin",
-      "service_shutdown_end",
+      service_start_begin::name,
+      service_start_end::name,
+      service_stop_begin::name,
+      service_stop_end::name,
   });
 
   file_manager mgr(*cfg, mp);
@@ -117,11 +135,11 @@ TEST_F(file_manager_test, can_create_and_close_file) {
   mgr.start();
 
   event_capture capture({
-      "item_timeout",
-      "filesystem_item_opened",
-      "filesystem_item_handle_opened",
-      "filesystem_item_handle_closed",
-      "filesystem_item_closed",
+      item_timeout::name,
+      filesystem_item_opened::name,
+      filesystem_item_handle_opened::name,
+      filesystem_item_handle_closed::name,
+      filesystem_item_closed::name,
   });
 
   auto source_path = utils::path::combine(cfg->get_cache_directory(),
@@ -151,25 +169,23 @@ TEST_F(file_manager_test, can_create_and_close_file) {
           return api_error::success;
         });
 
-    event_consumer consumer("filesystem_item_opened", [&](const event &evt) {
-      const auto &evt2 = dynamic_cast<const filesystem_item_opened &>(evt);
-      EXPECT_STREQ("/test_create.txt",
-                   evt2.get_api_path().get<std::string>().c_str());
-      EXPECT_STREQ(source_path.c_str(),
-                   evt2.get_source().get<std::string>().c_str());
-      EXPECT_STREQ("0", evt2.get_directory().get<std::string>().c_str());
-    });
+    event_consumer consumer(
+        filesystem_item_opened::name, [&](const i_event &evt) {
+          const auto &evt2 = dynamic_cast<const filesystem_item_opened &>(evt);
+          EXPECT_STREQ("/test_create.txt", evt2.api_path.c_str());
+          EXPECT_STREQ(source_path.c_str(), evt2.source_path.c_str());
+          EXPECT_FALSE(evt2.directory);
+        });
 
-    event_consumer ec2("filesystem_item_handle_opened", [&](const event &evt) {
-      const auto &evt2 =
-          dynamic_cast<const filesystem_item_handle_opened &>(evt);
-      EXPECT_STREQ("/test_create.txt",
-                   evt2.get_api_path().get<std::string>().c_str());
-      EXPECT_STREQ(source_path.c_str(),
-                   evt2.get_source().get<std::string>().c_str());
-      EXPECT_STREQ("0", evt2.get_directory().get<std::string>().c_str());
-      EXPECT_STREQ("1", evt2.get_handle().get<std::string>().c_str());
-    });
+    event_consumer ec2(
+        filesystem_item_handle_opened::name, [&](const i_event &evt) {
+          const auto &evt2 =
+              dynamic_cast<const filesystem_item_handle_opened &>(evt);
+          EXPECT_STREQ("/test_create.txt", evt2.api_path.c_str());
+          EXPECT_STREQ(source_path.c_str(), evt2.source_path.c_str());
+          EXPECT_FALSE(evt2.directory);
+          EXPECT_EQ(std::uint64_t(1U), evt2.handle);
+        });
 
 #if defined(_WIN32)
     EXPECT_EQ(api_error::success,
@@ -183,24 +199,22 @@ TEST_F(file_manager_test, can_create_and_close_file) {
     EXPECT_EQ(std::uint64_t(1U), handle);
   }
 
-  event_consumer ec3("filesystem_item_closed", [&](const event &evt) {
+  event_consumer ec3(filesystem_item_closed::name, [&](const i_event &evt) {
     const auto &evt2 = dynamic_cast<const filesystem_item_closed &>(evt);
-    EXPECT_STREQ("/test_create.txt",
-                 evt2.get_api_path().get<std::string>().c_str());
-    EXPECT_STREQ(source_path.c_str(),
-                 evt2.get_source().get<std::string>().c_str());
-    EXPECT_STREQ("0", evt2.get_directory().get<std::string>().c_str());
+    EXPECT_STREQ("/test_create.txt", evt2.api_path.c_str());
+    EXPECT_STREQ(source_path.c_str(), evt2.source_path.c_str());
+    EXPECT_FALSE(evt2.directory);
   });
 
-  event_consumer ec4("filesystem_item_handle_closed", [&](const event &evt) {
-    const auto &evt2 = dynamic_cast<const filesystem_item_handle_closed &>(evt);
-    EXPECT_STREQ("/test_create.txt",
-                 evt2.get_api_path().get<std::string>().c_str());
-    EXPECT_STREQ(source_path.c_str(),
-                 evt2.get_source().get<std::string>().c_str());
-    EXPECT_STREQ("0", evt2.get_directory().get<std::string>().c_str());
-    EXPECT_STREQ("1", evt2.get_handle().get<std::string>().c_str());
-  });
+  event_consumer ec4(
+      filesystem_item_handle_closed::name, [&](const i_event &evt) {
+        const auto &evt2 =
+            dynamic_cast<const filesystem_item_handle_closed &>(evt);
+        EXPECT_STREQ("/test_create.txt", evt2.api_path.c_str());
+        EXPECT_STREQ(source_path.c_str(), evt2.source_path.c_str());
+        EXPECT_FALSE(evt2.directory);
+        EXPECT_EQ(std::uint64_t(1U), evt2.handle);
+      });
 
   mgr.close(handle);
 
@@ -226,11 +240,11 @@ TEST_F(file_manager_test, can_open_and_close_file) {
   mgr.start();
 
   event_capture capture({
-      "item_timeout",
-      "filesystem_item_opened",
-      "filesystem_item_handle_opened",
-      "filesystem_item_handle_closed",
-      "filesystem_item_closed",
+      item_timeout::name,
+      filesystem_item_opened::name,
+      filesystem_item_handle_opened::name,
+      filesystem_item_handle_closed::name,
+      filesystem_item_closed::name,
   });
   auto source_path = utils::path::combine(cfg->get_cache_directory(),
                                           {utils::create_uuid_string()});
@@ -258,25 +272,23 @@ TEST_F(file_manager_test, can_open_and_close_file) {
           return api_error::success;
         });
 
-    event_consumer consumer("filesystem_item_opened", [&](const event &evt) {
-      const auto &evt2 = dynamic_cast<const filesystem_item_opened &>(evt);
-      EXPECT_STREQ("/test_open.txt",
-                   evt2.get_api_path().get<std::string>().c_str());
-      EXPECT_STREQ(source_path.c_str(),
-                   evt2.get_source().get<std::string>().c_str());
-      EXPECT_STREQ("0", evt2.get_directory().get<std::string>().c_str());
-    });
+    event_consumer consumer(
+        filesystem_item_opened::name, [&](const i_event &evt) {
+          const auto &evt2 = dynamic_cast<const filesystem_item_opened &>(evt);
+          EXPECT_STREQ("/test_open.txt", evt2.api_path.c_str());
+          EXPECT_STREQ(source_path.c_str(), evt2.source_path.c_str());
+          EXPECT_FALSE(evt2.directory);
+        });
 
-    event_consumer ec2("filesystem_item_handle_opened", [&](const event &evt) {
-      const auto &evt2 =
-          dynamic_cast<const filesystem_item_handle_opened &>(evt);
-      EXPECT_STREQ("/test_open.txt",
-                   evt2.get_api_path().get<std::string>().c_str());
-      EXPECT_STREQ(source_path.c_str(),
-                   evt2.get_source().get<std::string>().c_str());
-      EXPECT_STREQ("0", evt2.get_directory().get<std::string>().c_str());
-      EXPECT_STREQ("1", evt2.get_handle().get<std::string>().c_str());
-    });
+    event_consumer ec2(
+        filesystem_item_handle_opened::name, [&](const i_event &evt) {
+          const auto &evt2 =
+              dynamic_cast<const filesystem_item_handle_opened &>(evt);
+          EXPECT_STREQ("/test_open.txt", evt2.api_path.c_str());
+          EXPECT_STREQ(source_path.c_str(), evt2.source_path.c_str());
+          EXPECT_FALSE(evt2.directory);
+          EXPECT_EQ(std::uint64_t(1U), evt2.handle);
+        });
 
     std::shared_ptr<i_open_file> open_file;
 #if defined(_WIN32)
@@ -291,24 +303,22 @@ TEST_F(file_manager_test, can_open_and_close_file) {
     EXPECT_EQ(std::uint64_t(1U), handle);
   }
 
-  event_consumer ec3("filesystem_item_closed", [&](const event &evt) {
+  event_consumer ec3(filesystem_item_closed::name, [&](const i_event &evt) {
     const auto &evt2 = dynamic_cast<const filesystem_item_closed &>(evt);
-    EXPECT_STREQ("/test_open.txt",
-                 evt2.get_api_path().get<std::string>().c_str());
-    EXPECT_STREQ(source_path.c_str(),
-                 evt2.get_source().get<std::string>().c_str());
-    EXPECT_STREQ("0", evt2.get_directory().get<std::string>().c_str());
+    EXPECT_STREQ("/test_open.txt", evt2.api_path.c_str());
+    EXPECT_STREQ(source_path.c_str(), evt2.source_path.c_str());
+    EXPECT_FALSE(evt2.directory);
   });
 
-  event_consumer ec4("filesystem_item_handle_closed", [&](const event &evt) {
-    const auto &evt2 = dynamic_cast<const filesystem_item_handle_closed &>(evt);
-    EXPECT_STREQ("/test_open.txt",
-                 evt2.get_api_path().get<std::string>().c_str());
-    EXPECT_STREQ(source_path.c_str(),
-                 evt2.get_source().get<std::string>().c_str());
-    EXPECT_STREQ("0", evt2.get_directory().get<std::string>().c_str());
-    EXPECT_STREQ("1", evt2.get_handle().get<std::string>().c_str());
-  });
+  event_consumer ec4(
+      filesystem_item_handle_closed::name, [&](const i_event &evt) {
+        const auto &evt2 =
+            dynamic_cast<const filesystem_item_handle_closed &>(evt);
+        EXPECT_STREQ("/test_open.txt", evt2.api_path.c_str());
+        EXPECT_STREQ(source_path.c_str(), evt2.source_path.c_str());
+        EXPECT_FALSE(evt2.directory);
+        EXPECT_EQ(std::uint64_t(1U), evt2.handle);
+      });
 
   mgr.close(handle);
 
@@ -396,18 +406,17 @@ TEST_F(file_manager_test,
                                           {utils::create_uuid_string()});
 
   event_consumer consumer(
-      "download_resume_added", [&source_path](const event &evt) {
+      download_resume_added::name, [&source_path](const i_event &evt) {
         const auto &evt2 = dynamic_cast<const download_resume_added &>(evt);
-        EXPECT_STREQ("/test_write_partial_download.txt",
-                     evt2.get_api_path().get<std::string>().c_str());
-        EXPECT_STREQ(source_path.c_str(),
-                     evt2.get_dest_path().get<std::string>().c_str());
+        EXPECT_STREQ("/test_write_partial_download.txt", evt2.api_path.c_str());
+        EXPECT_STREQ(source_path.c_str(), evt2.dest_path.c_str());
       });
 
-  event_capture capture({"download_resume_added"}, {
-                                                       "file_upload_completed",
-                                                       "file_upload_queued",
-                                                   });
+  event_capture capture({download_resume_added::name},
+                        {
+                            file_upload_completed::name,
+                            file_upload_queued::name,
+                        });
 
   auto now = utils::time::get_time_now();
   auto meta = create_meta_attributes(
@@ -494,10 +503,10 @@ TEST_F(file_manager_test,
   mgr.stop();
   capture.wait_for_empty();
 
-  event_capture ec2({"download_restored", "download_resume_added"},
+  event_capture ec2({download_restored::name, download_resume_added::name},
                     {
-                        "file_upload_completed",
-                        "file_upload_queued",
+                        file_upload_completed::name,
+                        file_upload_queued::name,
                     });
   EXPECT_EQ(std::size_t(0u), mgr.get_open_file_count());
   EXPECT_EQ(std::size_t(0u), mgr.get_open_handle_count());
@@ -518,13 +527,12 @@ TEST_F(file_manager_test,
 
   mgr.start();
 
-  event_consumer es2("download_restored", [&source_path](const event &evt) {
-    const auto &evt2 = dynamic_cast<const download_restored &>(evt);
-    EXPECT_STREQ("/test_write_partial_download.txt",
-                 evt2.get_api_path().get<std::string>().c_str());
-    EXPECT_STREQ(source_path.c_str(),
-                 evt2.get_dest_path().get<std::string>().c_str());
-  });
+  event_consumer es2(
+      download_restored::name, [&source_path](const i_event &evt) {
+        const auto &evt2 = dynamic_cast<const download_restored &>(evt);
+        EXPECT_STREQ("/test_write_partial_download.txt", evt2.api_path.c_str());
+        EXPECT_STREQ(source_path.c_str(), evt2.dest_path.c_str());
+      });
 
   EXPECT_EQ(std::size_t(1u), mgr.get_open_file_count());
   EXPECT_EQ(std::size_t(0u), mgr.get_open_handle_count());
@@ -551,20 +559,17 @@ TEST_F(file_manager_test, upload_occurs_after_write_if_fully_downloaded) {
                                           {utils::create_uuid_string()});
 
   event_consumer consumer(
-      "file_upload_queued", [&source_path](const event &evt) {
+      "file_upload_queued", [&source_path](const i_event &evt) {
         const auto &evt2 = dynamic_cast<const file_upload_queued &>(evt);
-        EXPECT_STREQ("/test_write_full_download.txt",
-                     evt2.get_api_path().get<std::string>().c_str());
-        EXPECT_STREQ(source_path.c_str(),
-                     evt2.get_source().get<std::string>().c_str());
+        EXPECT_STREQ("/test_write_full_download.txt", evt2.api_path.c_str());
+        EXPECT_STREQ(source_path.c_str(), evt2.source_path.c_str());
       });
-  event_consumer es2("file_upload_completed", [&source_path](const event &evt) {
-    const auto &evt2 = dynamic_cast<const file_upload_completed &>(evt);
-    EXPECT_STREQ("/test_write_full_download.txt",
-                 evt2.get_api_path().get<std::string>().c_str());
-    EXPECT_STREQ(source_path.c_str(),
-                 evt2.get_source().get<std::string>().c_str());
-  });
+  event_consumer es2(
+      file_upload_completed::name, [&source_path](const i_event &evt) {
+        const auto &evt2 = dynamic_cast<const file_upload_completed &>(evt);
+        EXPECT_STREQ("/test_write_full_download.txt", evt2.api_path.c_str());
+        EXPECT_STREQ(source_path.c_str(), evt2.source_path.c_str());
+      });
 
   auto now = utils::time::get_time_now();
   auto meta = create_meta_attributes(
@@ -625,9 +630,9 @@ TEST_F(file_manager_test, upload_occurs_after_write_if_fully_downloaded) {
   }
 
   event_capture capture({
-      "item_timeout",
-      "file_upload_queued",
-      "file_upload_completed",
+      item_timeout::name,
+      file_upload_queued::name,
+      file_upload_completed::name,
   });
 
   EXPECT_CALL(mp, upload_file("/test_write_full_download.txt", source_path, _))
@@ -664,11 +669,11 @@ TEST_F(file_manager_test, can_evict_file) {
   mgr.start();
 
   event_capture capture({
-      "filesystem_item_opened",
-      "filesystem_item_handle_opened",
-      "filesystem_item_handle_closed",
-      "filesystem_item_closed",
-      "file_upload_completed",
+      filesystem_item_opened::name,
+      filesystem_item_handle_opened::name,
+      filesystem_item_handle_closed::name,
+      filesystem_item_closed::name,
+      file_upload_completed::name,
   });
 
   auto source_path = utils::path::combine(cfg->get_cache_directory(),
@@ -855,11 +860,11 @@ TEST_F(file_manager_test, evict_file_fails_if_file_is_uploading) {
   mgr.start();
 
   event_capture capture({
-      "filesystem_item_opened",
-      "filesystem_item_handle_opened",
-      "filesystem_item_handle_closed",
-      "filesystem_item_closed",
-      "file_upload_completed",
+      filesystem_item_opened::name,
+      filesystem_item_handle_opened::name,
+      filesystem_item_handle_closed::name,
+      filesystem_item_closed::name,
+      file_upload_completed::name,
   });
 
   auto source_path = utils::path::combine(cfg->get_cache_directory(),
@@ -1041,11 +1046,15 @@ TEST_F(file_manager_test, can_get_directory_items) {
                                       "..",
                                       "",
                                       true,
+                                      0U,
+                                      {},
                                   });
         list.insert(list.begin(), directory_item{
                                       ".",
                                       "",
                                       true,
+                                      0U,
+                                      {},
                                   });
         return api_error::success;
       });
@@ -1405,8 +1414,8 @@ TEST_F(file_manager_test, can_remove_file) {
 
 TEST_F(file_manager_test, can_queue_and_remove_upload) {
   event_capture capture({
-      "file_upload_queued",
-      "download_resume_removed",
+      file_upload_queued::name,
+      download_resume_removed::name,
   });
 
   EXPECT_CALL(mp, is_read_only()).WillRepeatedly(Return(false));
@@ -1441,10 +1450,9 @@ TEST_F(file_manager_test, file_is_closed_after_download_timeout) {
   auto source_path = utils::path::combine(cfg->get_cache_directory(),
                                           {utils::create_uuid_string()});
 
-  event_consumer consumer("item_timeout", [](const event &evt) {
+  event_consumer consumer(item_timeout::name, [](const i_event &evt) {
     const auto &evt2 = dynamic_cast<const item_timeout &>(evt);
-    EXPECT_STREQ("/test_download_timeout.txt",
-                 evt2.get_api_path().get<std::string>().c_str());
+    EXPECT_STREQ("/test_download_timeout.txt", evt2.api_path.c_str());
   });
 
   auto now = utils::time::get_time_now();
@@ -1467,7 +1475,7 @@ TEST_F(file_manager_test, file_is_closed_after_download_timeout) {
         return api_error::success;
       });
 
-  event_capture capture({"item_timeout"});
+  event_capture capture({item_timeout::name});
 
   EXPECT_CALL(mp, read_file_bytes)
       .WillRepeatedly([](const std::string & /* api_path */, std::size_t size,
@@ -1568,11 +1576,11 @@ TEST_F(file_manager_test,
   mgr.start();
 
   event_capture capture({
-      "item_timeout",
-      "filesystem_item_opened",
-      "filesystem_item_handle_opened",
-      "filesystem_item_handle_closed",
-      "filesystem_item_closed",
+      item_timeout::name,
+      filesystem_item_opened::name,
+      filesystem_item_handle_opened::name,
+      filesystem_item_handle_closed::name,
+      filesystem_item_closed::name,
   });
 
   std::uint64_t handle{};

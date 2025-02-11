@@ -1,5 +1,5 @@
 /*
-  Copyright <2018-2024> <scott.e.graves@protonmail.com>
+  Copyright <2018-2025> <scott.e.graves@protonmail.com>
 
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"), to deal
@@ -42,9 +42,8 @@ private:
   std::string mount_location_;
 
 public:
-  [[nodiscard]] auto
-  get_directory_item_count(const std::string & /*api_path*/) const
-      -> std::uint64_t override {
+  [[nodiscard]] auto get_directory_item_count(
+      const std::string & /*api_path*/) const -> std::uint64_t override {
     return 1;
   }
 
@@ -85,10 +84,10 @@ public:
     return api_error::error;
   }
 
-  auto get_security_by_name(PWSTR /*file_name*/, PUINT32 attributes,
-                            PSECURITY_DESCRIPTOR descriptor,
-                            std::uint64_t *descriptor_size)
-      -> NTSTATUS override {
+  auto
+  get_security_by_name(PWSTR /*file_name*/, PUINT32 attributes,
+                       PSECURITY_DESCRIPTOR descriptor,
+                       std::uint64_t *descriptor_size) -> NTSTATUS override {
     auto ret = STATUS_SUCCESS;
 
     if (attributes != nullptr) {
@@ -135,9 +134,9 @@ public:
     volume_label = "TestVolumeLabel";
   }
 
-  auto populate_file_info(const std::string &api_path,
-                          remote::file_info &file_info) const
-      -> api_error override {
+  auto
+  populate_file_info(const std::string &api_path,
+                     remote::file_info &file_info) const -> api_error override {
     auto file_path = utils::path::combine(mount_location_, {api_path});
     auto directory = utils::file::directory(file_path).exists();
     auto attributes =

@@ -1,5 +1,5 @@
 /*
-  Copyright <2018-2024> <scott.e.graves@protonmail.com>
+  Copyright <2018-2025> <scott.e.graves@protonmail.com>
 
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"), to deal
@@ -33,7 +33,7 @@
 #include "drives/remote/remote_open_file_table.hpp"
 #include "drives/winfsp/remotewinfsp/i_remote_instance.hpp"
 #include "events/event_system.hpp"
-#include "events/events.hpp"
+#include "events/types/remote_server_event.hpp"
 #include "platform/platform.hpp"
 #include "types/remote.hpp"
 #include "types/repertory.hpp"
@@ -42,23 +42,15 @@
 #include "utils/file_utils.hpp"
 #include "utils/path.hpp"
 #include "utils/time.hpp"
+#include "utils/utils.hpp"
 
 namespace repertory::remote_winfsp {
 #define RAISE_REMOTE_WINFSP_SERVER_EVENT(func, file, ret)                      \
   if (config_.get_enable_drive_events() &&                                     \
-      (((config_.get_event_level() >= remote_winfsp_server_event::level) &&    \
-        (ret != STATUS_SUCCESS)) ||                                            \
+      (((config_.get_event_level() >= remote_server_event::level) &&           \
+        ((ret) != STATUS_SUCCESS)) ||                                          \
        (config_.get_event_level() >= event_level::trace)))                     \
-  event_system::instance().raise<remote_winfsp_server_event>(                  \
-      std::string{func}, file, ret)
-
-// clang-format off
-E_SIMPLE3(remote_winfsp_server_event, debug, true,
-  std::string, function, FUNC, E_FROM_STRING,
-  std::string, api_path, AP, E_FROM_STRING,
-  packet::error_type, result, RES, E_FROM_INT32
-);
-// clang-format on
+  event_system::instance().raise<remote_server_event>(file, ret, func)
 
 auto remote_server::get_next_handle() -> std::uint64_t {
   if (++next_handle_ == 0U) {

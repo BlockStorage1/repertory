@@ -1,5 +1,5 @@
 /*
-  Copyright <2018-2024> <scott.e.graves@protonmail.com>
+  Copyright <2018-2025> <scott.e.graves@protonmail.com>
 
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"), to deal
@@ -26,12 +26,10 @@
 #include "utils/utils.hpp"
 
 namespace repertory {
-client::client(rpc_host_info host_info) : host_info_(std::move(host_info)) {
-  request_id_ = 0u;
-}
+client::client(rpc_host_info host_info) : host_info_(std::move(host_info)) {}
 
 auto client::get_drive_information() -> rpc_response {
-  const auto base_url =
+  auto base_url =
       "http://" + host_info_.host + ":" + std::to_string(host_info_.port);
 
   httplib::Client cli{base_url};
@@ -39,19 +37,26 @@ auto client::get_drive_information() -> rpc_response {
 
   auto resp = cli.Get("/api/v1/" + rpc_method::get_drive_information);
   if (resp.error() != httplib::Error::Success) {
-    return rpc_response{rpc_response_type::http_error,
-                        {{"error", httplib::to_string(resp.error())}}};
+    return rpc_response{
+        rpc_response_type::http_error,
+        {{"error", httplib::to_string(resp.error())}},
+    };
   }
-  if (resp->status != 200) {
-    return rpc_response{rpc_response_type::http_error,
-                        {{"error", std::to_string(resp->status)}}};
+  if (resp->status != http_error_codes::ok) {
+    return rpc_response{
+        rpc_response_type::http_error,
+        {{"error", std::to_string(resp->status)}},
+    };
   }
 
-  return rpc_response{rpc_response_type::success, json::parse(resp->body)};
+  return rpc_response{
+      rpc_response_type::success,
+      json::parse(resp->body),
+  };
 }
 
 auto client::get_config() -> rpc_response {
-  const auto base_url =
+  auto base_url =
       "http://" + host_info_.host + ":" + std::to_string(host_info_.port);
 
   httplib::Client cli{base_url};
@@ -59,19 +64,26 @@ auto client::get_config() -> rpc_response {
 
   auto resp = cli.Get("/api/v1/" + rpc_method::get_config);
   if (resp.error() != httplib::Error::Success) {
-    return rpc_response{rpc_response_type::http_error,
-                        {{"error", httplib::to_string(resp.error())}}};
+    return rpc_response{
+        rpc_response_type::http_error,
+        {{"error", httplib::to_string(resp.error())}},
+    };
   }
-  if (resp->status != 200) {
-    return rpc_response{rpc_response_type::http_error,
-                        {{"error", std::to_string(resp->status)}}};
+  if (resp->status != http_error_codes::ok) {
+    return rpc_response{
+        rpc_response_type::http_error,
+        {{"error", std::to_string(resp->status)}},
+    };
   }
 
-  return rpc_response{rpc_response_type::success, json::parse(resp->body)};
+  return rpc_response{
+      rpc_response_type::success,
+      json::parse(resp->body),
+  };
 }
 
 auto client::get_config_value_by_name(const std::string &name) -> rpc_response {
-  const auto base_url =
+  auto base_url =
       "http://" + host_info_.host + ":" + std::to_string(host_info_.port);
 
   httplib::Params params{{"name", name}};
@@ -81,19 +93,26 @@ auto client::get_config_value_by_name(const std::string &name) -> rpc_response {
   auto resp =
       cli.Get("/api/v1/" + rpc_method::get_config_value_by_name, params, {});
   if (resp.error() != httplib::Error::Success) {
-    return rpc_response{rpc_response_type::http_error,
-                        {{"error", httplib::to_string(resp.error())}}};
+    return rpc_response{
+        rpc_response_type::http_error,
+        {{"error", httplib::to_string(resp.error())}},
+    };
   }
-  if (resp->status != 200) {
-    return rpc_response{rpc_response_type::http_error,
-                        {{"error", std::to_string(resp->status)}}};
+  if (resp->status != http_error_codes::ok) {
+    return rpc_response{
+        rpc_response_type::http_error,
+        {{"error", std::to_string(resp->status)}},
+    };
   }
 
-  return rpc_response{rpc_response_type::success, json::parse(resp->body)};
+  return rpc_response{
+      rpc_response_type::success,
+      json::parse(resp->body),
+  };
 }
 
 auto client::get_directory_items(const std::string &api_path) -> rpc_response {
-  const auto base_url =
+  auto base_url =
       "http://" + host_info_.host + ":" + std::to_string(host_info_.port);
 
   httplib::Params params{{"api_path", api_path}};
@@ -102,19 +121,26 @@ auto client::get_directory_items(const std::string &api_path) -> rpc_response {
 
   auto resp = cli.Get("/api/v1/" + rpc_method::get_directory_items, params, {});
   if (resp.error() != httplib::Error::Success) {
-    return rpc_response{rpc_response_type::http_error,
-                        {{"error", httplib::to_string(resp.error())}}};
+    return rpc_response{
+        rpc_response_type::http_error,
+        {{"error", httplib::to_string(resp.error())}},
+    };
   }
-  if (resp->status != 200) {
-    return rpc_response{rpc_response_type::http_error,
-                        {{"error", std::to_string(resp->status)}}};
+  if (resp->status != http_error_codes::ok) {
+    return rpc_response{
+        rpc_response_type::http_error,
+        {{"error", std::to_string(resp->status)}},
+    };
   }
 
-  return rpc_response{rpc_response_type::success, json::parse(resp->body)};
+  return rpc_response{
+      rpc_response_type::success,
+      json::parse(resp->body),
+  };
 }
 
 auto client::get_open_files() -> rpc_response {
-  const auto base_url =
+  auto base_url =
       "http://" + host_info_.host + ":" + std::to_string(host_info_.port);
 
   httplib::Client cli{base_url};
@@ -122,19 +148,26 @@ auto client::get_open_files() -> rpc_response {
 
   auto resp = cli.Get("/api/v1/" + rpc_method::get_open_files);
   if (resp.error() != httplib::Error::Success) {
-    return rpc_response{rpc_response_type::http_error,
-                        {{"error", httplib::to_string(resp.error())}}};
+    return rpc_response{
+        rpc_response_type::http_error,
+        {{"error", httplib::to_string(resp.error())}},
+    };
   }
-  if (resp->status != 200) {
-    return rpc_response{rpc_response_type::http_error,
-                        {{"error", std::to_string(resp->status)}}};
+  if (resp->status != http_error_codes::ok) {
+    return rpc_response{
+        rpc_response_type::http_error,
+        {{"error", std::to_string(resp->status)}},
+    };
   }
 
-  return rpc_response{rpc_response_type::success, json::parse(resp->body)};
+  return rpc_response{
+      rpc_response_type::success,
+      json::parse(resp->body),
+  };
 }
 
 auto client::get_pinned_files() -> rpc_response {
-  const auto base_url =
+  auto base_url =
       "http://" + host_info_.host + ":" + std::to_string(host_info_.port);
 
   httplib::Client cli{base_url};
@@ -142,19 +175,26 @@ auto client::get_pinned_files() -> rpc_response {
 
   auto resp = cli.Get("/api/v1/" + rpc_method::get_pinned_files);
   if (resp.error() != httplib::Error::Success) {
-    return rpc_response{rpc_response_type::http_error,
-                        {{"error", httplib::to_string(resp.error())}}};
+    return rpc_response{
+        rpc_response_type::http_error,
+        {{"error", httplib::to_string(resp.error())}},
+    };
   }
-  if (resp->status != 200) {
-    return rpc_response{rpc_response_type::http_error,
-                        {{"error", std::to_string(resp->status)}}};
+  if (resp->status != http_error_codes::ok) {
+    return rpc_response{
+        rpc_response_type::http_error,
+        {{"error", std::to_string(resp->status)}},
+    };
   }
 
-  return rpc_response{rpc_response_type::success, json::parse(resp->body)};
+  return rpc_response{
+      rpc_response_type::success,
+      json::parse(resp->body),
+  };
 }
 
 auto client::pin_file(const std::string &api_path) -> rpc_response {
-  const auto base_url =
+  auto base_url =
       "http://" + host_info_.host + ":" + std::to_string(host_info_.port);
 
   httplib::Params params{{"api_path", api_path}};
@@ -163,19 +203,26 @@ auto client::pin_file(const std::string &api_path) -> rpc_response {
 
   auto resp = cli.Post("/api/v1/" + rpc_method::pin_file, params);
   if (resp.error() != httplib::Error::Success) {
-    return rpc_response{rpc_response_type::http_error,
-                        {{"error", httplib::to_string(resp.error())}}};
+    return rpc_response{
+        rpc_response_type::http_error,
+        {{"error", httplib::to_string(resp.error())}},
+    };
   }
-  if (resp->status != 200) {
-    return rpc_response{rpc_response_type::http_error,
-                        {{"error", std::to_string(resp->status)}}};
+  if (resp->status != http_error_codes::ok) {
+    return rpc_response{
+        rpc_response_type::http_error,
+        {{"error", std::to_string(resp->status)}},
+    };
   }
 
-  return rpc_response{rpc_response_type::success, {}};
+  return rpc_response{
+      rpc_response_type::success,
+      {},
+  };
 }
 
 auto client::pinned_status(const std::string &api_path) -> rpc_response {
-  const auto base_url =
+  auto base_url =
       "http://" + host_info_.host + ":" + std::to_string(host_info_.port);
 
   httplib::Params params{{"api_path", api_path}};
@@ -184,20 +231,28 @@ auto client::pinned_status(const std::string &api_path) -> rpc_response {
 
   auto resp = cli.Get("/api/v1/" + rpc_method::pinned_status, params, {});
   if (resp.error() != httplib::Error::Success) {
-    return rpc_response{rpc_response_type::http_error,
-                        {{"error", httplib::to_string(resp.error())}}};
+    return rpc_response{
+        rpc_response_type::http_error,
+        {{"error", httplib::to_string(resp.error())}},
+    };
   }
-  if (resp->status != 200) {
-    return rpc_response{rpc_response_type::http_error,
-                        {{"error", std::to_string(resp->status)}}};
+  if (resp->status != http_error_codes::ok) {
+    return rpc_response{
+        rpc_response_type::http_error,
+        {{"error", std::to_string(resp->status)}},
+    };
   }
 
-  return rpc_response{rpc_response_type::success, json::parse(resp->body)};
+  return rpc_response{
+      rpc_response_type::success,
+      json::parse(resp->body),
+  };
 }
 
-auto client::set_config_value_by_name(
-    const std::string &name, const std::string &value) -> rpc_response {
-  const auto base_url =
+auto client::set_config_value_by_name(const std::string &name,
+                                      const std::string &value)
+    -> rpc_response {
+  auto base_url =
       "http://" + host_info_.host + ":" + std::to_string(host_info_.port);
 
   httplib::Params params{
@@ -211,20 +266,26 @@ auto client::set_config_value_by_name(
   auto resp =
       cli.Post("/api/v1/" + rpc_method::set_config_value_by_name, params);
   if (resp.error() != httplib::Error::Success) {
-    return rpc_response{rpc_response_type::http_error,
-                        {{"error", httplib::to_string(resp.error())}}};
+    return rpc_response{
+        rpc_response_type::http_error,
+        {{"error", httplib::to_string(resp.error())}},
+    };
   }
-  if (resp->status != 200) {
-    return rpc_response{rpc_response_type::http_error,
-                        {{"error", std::to_string(resp->status)}}};
+  if (resp->status != http_error_codes::ok) {
+    return rpc_response{
+        rpc_response_type::http_error,
+        {{"error", std::to_string(resp->status)}},
+    };
   };
 
-  return rpc_response{rpc_response_type::success,
-                      nlohmann::json::parse(resp->body)};
+  return rpc_response{
+      rpc_response_type::success,
+      nlohmann::json::parse(resp->body),
+  };
 }
 
 auto client::unmount() -> rpc_response {
-  const auto base_url =
+  auto base_url =
       "http://" + host_info_.host + ":" + std::to_string(host_info_.port);
 
   httplib::Client cli{base_url};
@@ -232,19 +293,26 @@ auto client::unmount() -> rpc_response {
 
   auto resp = cli.Post("/api/v1/" + rpc_method::unmount);
   if (resp.error() != httplib::Error::Success) {
-    return rpc_response{rpc_response_type::http_error,
-                        {{"error", httplib::to_string(resp.error())}}};
+    return rpc_response{
+        rpc_response_type::http_error,
+        {{"error", httplib::to_string(resp.error())}},
+    };
   }
-  if (resp->status != 200) {
-    return rpc_response{rpc_response_type::http_error,
-                        {{"error", std::to_string(resp->status)}}};
+  if (resp->status != http_error_codes::ok) {
+    return rpc_response{
+        rpc_response_type::http_error,
+        {{"error", std::to_string(resp->status)}},
+    };
   }
 
-  return rpc_response{rpc_response_type::success, {}};
+  return rpc_response{
+      rpc_response_type::success,
+      {},
+  };
 }
 
 auto client::unpin_file(const std::string &api_path) -> rpc_response {
-  const auto base_url =
+  auto base_url =
       "http://" + host_info_.host + ":" + std::to_string(host_info_.port);
 
   httplib::Params params{{"api_path", api_path}};
@@ -253,14 +321,21 @@ auto client::unpin_file(const std::string &api_path) -> rpc_response {
 
   auto resp = cli.Post("/api/v1/" + rpc_method::unpin_file, params);
   if (resp.error() != httplib::Error::Success) {
-    return rpc_response{rpc_response_type::http_error,
-                        {{"error", httplib::to_string(resp.error())}}};
+    return rpc_response{
+        rpc_response_type::http_error,
+        {{"error", httplib::to_string(resp.error())}},
+    };
   }
-  if (resp->status != 200) {
-    return rpc_response{rpc_response_type::http_error,
-                        {{"error", std::to_string(resp->status)}}};
+  if (resp->status != http_error_codes::ok) {
+    return rpc_response{
+        rpc_response_type::http_error,
+        {{"error", std::to_string(resp->status)}},
+    };
   }
 
-  return rpc_response{rpc_response_type::success, {}};
+  return rpc_response{
+      rpc_response_type::success,
+      {},
+  };
 }
 } // namespace repertory

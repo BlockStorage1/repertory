@@ -1,5 +1,5 @@
 /*
-  Copyright <2018-2024> <scott.e.graves@protonmail.com>
+  Copyright <2018-2025> <scott.e.graves@protonmail.com>
 
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"), to deal
@@ -21,45 +21,70 @@
 */
 #include "utils/single_thread_service_base.hpp"
 
+#include "app_config.hpp"
 #include "events/event_system.hpp"
-#include "events/events.hpp"
+#include "events/types/service_start_begin.hpp"
+#include "events/types/service_start_end.hpp"
+#include "events/types/service_stop_begin.hpp"
+#include "events/types/service_stop_end.hpp"
 #include "types/repertory.hpp"
 
 namespace repertory {
+auto single_thread_service_base::get_stop_requested() const -> bool {
+  return stop_requested_ || app_config::get_stop_requested();
+}
+
 void single_thread_service_base::notify_all() const {
   mutex_lock lock(get_mutex());
   notify_.notify_all();
 }
 
 void single_thread_service_base::start() {
+  REPERTORY_USES_FUNCTION_NAME();
+
   mutex_lock lock(mtx_);
-  if (not thread_) {
-    stop_requested_ = false;
-    on_start();
-    thread_ = std::make_unique<std::thread>([this]() {
-      event_system::instance().raise<service_started>(service_name_);
-      while (not stop_requested_) {
-        service_function();
-      }
-    });
+  if (thread_) {
+    return;
   }
+
+  stop_requested_ = false;
+  on_start();
+  thread_ = std::make_unique<std::thread>([this]() {
+    event_system::instance().raise<service_start_begin>(function_name,
+                                                        service_name_);
+    event_system::instance().raise<service_start_end>(function_name,
+                                                      service_name_);
+    while (not get_stop_requested()) {
+      service_function();
+    }
+  });
 }
 
 void single_thread_service_base::stop() {
-  if (thread_) {
-    event_system::instance().raise<service_shutdown_begin>(service_name_);
-    unique_mutex_lock lock(mtx_);
-    if (thread_) {
-      stop_requested_ = true;
-      notify_.notify_all();
-      lock.unlock();
+  REPERTORY_USES_FUNCTION_NAME();
 
-      thread_->join();
-      thread_.reset();
-
-      on_stop();
-    }
-    event_system::instance().raise<service_shutdown_end>(service_name_);
+  unique_mutex_lock lock(mtx_);
+  if (not thread_) {
+    return;
   }
+
+  event_system::instance().raise<service_stop_begin>(function_name,
+                                                     service_name_);
+
+  stop_requested_ = true;
+
+  std::unique_ptr<std::thread> thread{nullptr};
+  std::swap(thread, thread_);
+
+  notify_.notify_all();
+  lock.unlock();
+
+  thread->join();
+  thread.reset();
+
+  on_stop();
+
+  event_system::instance().raise<service_stop_end>(function_name,
+                                                   service_name_);
 }
 } // namespace repertory

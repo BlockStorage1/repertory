@@ -3,6 +3,10 @@ cmake_minimum_required(VERSION 3.27)
 cmake_policy(SET CMP0135 NEW)
 cmake_policy(SET CMP0144 NEW)
 
+if (NOT PROJECT_INTERFACE) 
+  message(FATAL_ERROR "Project must be compiled via 'make_win32.cmd'/'make_win32.sh' or 'make_unix.sh' build scripts. Invoking 'cmake' directly is not supported.")
+endif()
+
 project(${PROJECT_NAME}
   DESCRIPTION ${PROJECT_DESC}
   HOMEPAGE_URL ${PROJECT_URL}
@@ -158,6 +162,7 @@ endif()
       -DPROJECT_FUSE=${PROJECT_FUSE}
       -DPROJECT_FUSE_INCLUDE_DIRS=${PROJECT_FUSE_INCLUDE_DIRS}
       -DPROJECT_GIT_REV=${PROJECT_GIT_REV}
+      -DPROJECT_INTERFACE=1
       -DPROJECT_IS_ALPINE=${PROJECT_IS_ALPINE}
       -DPROJECT_IS_ARM64=${PROJECT_IS_ARM64}
       -DPROJECT_IS_MINGW=${PROJECT_IS_MINGW}

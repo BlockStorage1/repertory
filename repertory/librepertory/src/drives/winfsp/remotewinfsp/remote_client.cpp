@@ -1,5 +1,5 @@
 /*
-  Copyright <2018-2024> <scott.e.graves@protonmail.com>
+  Copyright <2018-2025> <scott.e.graves@protonmail.com>
 
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"), to deal
@@ -24,28 +24,14 @@
 #include "app_config.hpp"
 #include "drives/winfsp/remotewinfsp/i_remote_instance.hpp"
 #include "events/event_system.hpp"
-#include "events/events.hpp"
+#include "events/types/drive_mounted.hpp"
+#include "events/types/drive_unmount_pending.hpp"
+#include "events/types/drive_unmounted.hpp"
 #include "types/repertory.hpp"
 #include "utils/path.hpp"
 #include "version.hpp"
 
 namespace repertory::remote_winfsp {
-#define RAISE_REMOTE_WINFSP_CLIENT_EVENT(func, file, ret)                      \
-  if (config_.get_enable_drive_events() &&                                     \
-      (((config_.get_event_level() >= remote_winfsp_client_event::level) &&    \
-        (ret != STATUS_SUCCESS)) ||                                            \
-       (config_.get_event_level() >= event_level::trace)))                     \
-  event_system::instance().raise<remote_winfsp_client_event>(                  \
-      std::string{func}, file, ret)
-
-// clang-format off
-E_SIMPLE3(remote_winfsp_client_event, debug, true,
-  std::string, function, func, E_FROM_STRING,
-  std::string, api_path, ap, E_FROM_STRING,
-  packet::error_type, result, res, E_FROM_INT32
-);
-// clang-format on
-
 remote_client::remote_client(const app_config &config)
     : config_(config), packet_client_(config.get_remote_config()) {}
 
@@ -62,9 +48,6 @@ auto remote_client::winfsp_can_delete(PVOID file_desc, PWSTR file_name)
       packet_client_.send(function_name, request, service_flags),
   };
 
-  RAISE_REMOTE_WINFSP_CLIENT_EVENT(
-      function_name,
-      utils::path::create_api_path(utils::string::to_utf8(file_name)), ret);
   return ret;
 }
 
@@ -85,7 +68,6 @@ auto remote_client::json_create_directory_snapshot(const std::string &path,
     ret = packet::decode_json(response, json_data);
   }
 
-  RAISE_REMOTE_WINFSP_CLIENT_EVENT(function_name, path, ret);
   return ret;
 }
 
@@ -108,7 +90,6 @@ auto remote_client::json_read_directory_snapshot(
     ret = packet::decode_json(response, json_data);
   }
 
-  RAISE_REMOTE_WINFSP_CLIENT_EVENT(function_name, path, ret);
   return ret;
 }
 
@@ -126,7 +107,6 @@ auto remote_client::json_release_directory_snapshot(
       packet_client_.send(function_name, request, service_flags),
   };
 
-  RAISE_REMOTE_WINFSP_CLIENT_EVENT(function_name, path, ret);
   return ret;
 }
 
@@ -161,7 +141,6 @@ auto remote_client::winfsp_cleanup(PVOID file_desc, PWSTR file_name,
     remove_all(file_path);
   }
 
-  RAISE_REMOTE_WINFSP_CLIENT_EVENT(function_name, file_path, ret);
   return ret;
 }
 
@@ -186,7 +165,6 @@ auto remote_client::winfsp_close(PVOID file_desc) -> packet::error_type {
     if ((ret == STATUS_SUCCESS) ||
         (ret == static_cast<packet::error_type>(STATUS_INVALID_HANDLE))) {
       remove_open_info(handle);
-      RAISE_REMOTE_WINFSP_CLIENT_EVENT(function_name, file_path, ret);
     }
   }
 
@@ -237,8 +215,6 @@ auto remote_client::winfsp_create(PWSTR file_name, UINT32 create_options,
     }
   }
 
-  RAISE_REMOTE_WINFSP_CLIENT_EVENT(
-      function_name, get_open_file_path(to_handle(*file_desc)), ret);
   return ret;
 }
 
@@ -256,8 +232,6 @@ auto remote_client::winfsp_flush(PVOID file_desc, remote::file_info *file_info)
   };
   DECODE_OR_IGNORE(&response, *file_info);
 
-  RAISE_REMOTE_WINFSP_CLIENT_EVENT(
-      function_name, get_open_file_path(to_handle(file_desc)), ret);
   return ret;
 }
 
@@ -287,8 +261,6 @@ auto remote_client::winfsp_get_file_info(PVOID file_desc,
   };
   DECODE_OR_IGNORE(&response, *file_info);
 
-  RAISE_REMOTE_WINFSP_CLIENT_EVENT(
-      function_name, get_open_file_path(to_handle(file_desc)), ret);
   return ret;
 }
 
@@ -321,8 +293,6 @@ auto remote_client::winfsp_get_security_by_name(PWSTR file_name,
     DECODE_OR_IGNORE(&response, *attributes);
   }
 
-  RAISE_REMOTE_WINFSP_CLIENT_EVENT(function_name,
-                                   utils::string::to_utf8(file_name), ret);
   return ret;
 }
 
@@ -361,9 +331,8 @@ auto remote_client::winfsp_mounted(const std::wstring &location)
   auto mount_location{
       utils::string::to_utf8(location),
   };
-  event_system::instance().raise<drive_mounted>(mount_location);
+  event_system::instance().raise<drive_mounted>(function_name, mount_location);
 
-  RAISE_REMOTE_WINFSP_CLIENT_EVENT(function_name, mount_location, ret);
   return ret;
 }
 
@@ -402,8 +371,6 @@ auto remote_client::winfsp_open(PWSTR file_name, UINT32 create_options,
     }
   }
 
-  RAISE_REMOTE_WINFSP_CLIENT_EVENT(
-      function_name, get_open_file_path(to_handle(*file_desc)), ret);
   return ret;
 }
 
@@ -427,8 +394,6 @@ auto remote_client::winfsp_overwrite(PVOID file_desc, UINT32 attributes,
   };
   DECODE_OR_IGNORE(&response, *file_info);
 
-  RAISE_REMOTE_WINFSP_CLIENT_EVENT(
-      function_name, get_open_file_path(to_handle(file_desc)), ret);
   return ret;
 }
 
@@ -458,11 +423,6 @@ auto remote_client::winfsp_read(PVOID file_desc, PVOID buffer, UINT64 offset,
 #endif
   }
 
-  if (ret != STATUS_SUCCESS) {
-    RAISE_REMOTE_WINFSP_CLIENT_EVENT(
-        function_name, get_open_file_path(to_handle(file_desc)), ret);
-  }
-
   return ret;
 }
 
@@ -485,8 +445,6 @@ auto remote_client::winfsp_read_directory(PVOID file_desc, PWSTR pattern,
     ret = packet::decode_json(response, item_list);
   }
 
-  RAISE_REMOTE_WINFSP_CLIENT_EVENT(
-      function_name, get_open_file_path(to_handle(file_desc)), ret);
   return ret;
 }
 
@@ -507,11 +465,6 @@ auto remote_client::winfsp_rename(PVOID file_desc, PWSTR file_name,
       packet_client_.send(function_name, request, service_flags),
   };
 
-  RAISE_REMOTE_WINFSP_CLIENT_EVENT(
-      function_name,
-      utils::path::create_api_path(utils::string::to_utf8(file_name)) + "|" +
-          utils::path::create_api_path(utils::string::to_utf8(new_file_name)),
-      ret);
   return ret;
 }
 
@@ -536,8 +489,6 @@ auto remote_client::winfsp_set_basic_info(
   };
   DECODE_OR_IGNORE(&response, *file_info);
 
-  RAISE_REMOTE_WINFSP_CLIENT_EVENT(
-      function_name, get_open_file_path(to_handle(file_desc)), ret);
   return ret;
 }
 
@@ -559,8 +510,6 @@ auto remote_client::winfsp_set_file_size(PVOID file_desc, UINT64 new_size,
   };
   DECODE_OR_IGNORE(&response, *file_info);
 
-  RAISE_REMOTE_WINFSP_CLIENT_EVENT(
-      function_name, get_open_file_path(to_handle(file_desc)), ret);
   return ret;
 }
 
@@ -571,7 +520,8 @@ auto remote_client::winfsp_unmounted(const std::wstring &location)
   auto mount_location{
       utils::string::to_utf8(location),
   };
-  event_system::instance().raise<drive_unmount_pending>(mount_location);
+  event_system::instance().raise<drive_unmount_pending>(function_name,
+                                                        mount_location);
   packet request;
   request.encode(location);
 
@@ -579,9 +529,9 @@ auto remote_client::winfsp_unmounted(const std::wstring &location)
   auto ret{
       packet_client_.send(function_name, request, service_flags),
   };
-  event_system::instance().raise<drive_unmounted>(mount_location);
+  event_system::instance().raise<drive_unmounted>(function_name,
+                                                  mount_location);
 
-  RAISE_REMOTE_WINFSP_CLIENT_EVENT(function_name, mount_location, ret);
   return ret;
 }
 
@@ -611,10 +561,6 @@ auto remote_client::winfsp_write(PVOID file_desc, PVOID buffer, UINT64 offset,
   DECODE_OR_IGNORE(&response, *bytes_transferred);
   DECODE_OR_IGNORE(&response, *file_info);
 
-  if (ret != STATUS_SUCCESS) {
-    RAISE_REMOTE_WINFSP_CLIENT_EVENT(
-        function_name, get_open_file_path(to_handle(file_desc)), ret);
-  }
   return ret;
 }
 

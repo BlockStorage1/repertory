@@ -1,5 +1,5 @@
 /*
-  Copyright <2018-2024> <scott.e.graves@protonmail.com>
+  Copyright <2018-2025> <scott.e.graves@protonmail.com>
 
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"), to deal
@@ -33,102 +33,102 @@ auto directory_iterator::fill_buffer(const remote::file_offset &offset,
     -> int {
   REPERTORY_USES_FUNCTION_NAME();
 
-  if (offset < items_.size()) {
-    try {
-      std::string item_name;
-      struct stat st{};
-      struct stat *pst = nullptr;
-      switch (offset) {
-      case 0: {
-        item_name = ".";
-      } break;
+  if (offset >= items_.size()) {
+    errno = 120;
+    return -1;
+  }
 
-      case 1: {
-        item_name = "..";
-      } break;
+  try {
+    std::string item_name;
+    struct stat st{};
+    struct stat *pst = nullptr;
+    switch (offset) {
+    case 0: {
+      item_name = ".";
+    } break;
 
-      default: {
-        const auto &item = items_[offset];
-        item_name = utils::path::strip_to_file_name(item.api_path);
-        populate_stat(item.api_path, item.size, item.meta, item.directory, &st);
-        pst = &st;
-      } break;
-      }
+    case 1: {
+      item_name = "..";
+    } break;
 
-#if FUSE_USE_VERSION >= 30
-      if (filler_function(buffer, item_name.data(), pst,
-                          static_cast<off_t>(offset + 1),
-                          FUSE_FILL_DIR_PLUS) != 0) {
-#else
-      if (filler_function(buffer, item_name.data(), pst,
-                          static_cast<off_t>(offset + 1)) != 0) {
-#endif
-        errno = ENOMEM;
-        return -1;
-      }
-    } catch (const std::exception &e) {
-      utils::error::raise_error(function_name, e,
-                                "failed to fill fuse directory buffer");
+    default: {
+      const auto &item = items_[offset];
+      item_name = utils::path::strip_to_file_name(item.api_path);
+      populate_stat(item.api_path, item.size, item.meta, item.directory, &st);
+      pst = &st;
+    } break;
     }
 
-    return 0;
+#if FUSE_USE_VERSION >= 30
+    if (filler_function(buffer, item_name.data(), pst,
+                        static_cast<off_t>(offset + 1),
+                        FUSE_FILL_DIR_PLUS) != 0)
+#else  // FUSE_USE_VERSION < 30
+    if (filler_function(buffer, item_name.data(), pst,
+                        static_cast<off_t>(offset + 1)) != 0)
+#endif // FUSE_USE_VERSION >= 30
+    {
+      errno = ENOMEM;
+      return -1;
+    }
+  } catch (const std::exception &e) {
+    utils::error::raise_error(function_name, e,
+                              "failed to fill fuse directory buffer");
   }
 
-  errno = 120;
-  return -1;
+  return 0;
 }
-#endif // !_WIN32
+#endif // !defined(_WIN32)
 
 auto directory_iterator::get(std::size_t offset, std::string &item) -> int {
-  if (offset < items_.size()) {
-    item = items_[offset].api_path;
-    return 0;
+  if (offset >= items_.size()) {
+    errno = 120;
+    return -1;
   }
 
-  errno = 120;
-  return -1;
+  item = items_[offset].api_path;
+  return 0;
 }
 
 auto directory_iterator::get_directory_item(std::size_t offset,
                                             directory_item &di) -> api_error {
-  if (offset < items_.size()) {
-    di = items_[offset];
-    return api_error::success;
+  if (offset >= items_.size()) {
+    return api_error::directory_end_of_files;
   }
 
-  return api_error::directory_end_of_files;
+  di = items_[offset];
+  return api_error::success;
 }
 
 auto directory_iterator::get_directory_item(const std::string &api_path,
                                             directory_item &di) -> api_error {
-  auto iter =
-      std::find_if(items_.begin(), items_.end(), [&](const auto &item) -> bool {
-        return api_path == item.api_path;
-      });
-  if (iter != items_.end()) {
-    di = *iter;
-    return api_error::success;
+  auto iter = std::ranges::find_if(items_, [&api_path](auto &&item) -> bool {
+    return api_path == item.api_path;
+  });
+  if (iter == items_.end()) {
+    return api_error::item_not_found;
   }
 
-  return api_error::item_not_found;
+  di = *iter;
+  return api_error::success;
 }
 
 auto directory_iterator::get_json(std::size_t offset, json &item) -> int {
-  if (offset < items_.size()) {
-    item = json(items_.at(offset));
-    return 0;
+  if (offset >= items_.size()) {
+    errno = 120;
+    return -1;
   }
 
-  errno = 120;
-  return -1;
+  item = json(items_.at(offset));
+  return 0;
 }
 
 auto directory_iterator::get_next_directory_offset(
     const std::string &api_path) const -> std::size_t {
-  const auto iter = std::find_if(items_.begin(), items_.end(),
-                                 [&api_path](const auto &dir_item) -> bool {
-                                   return api_path == dir_item.api_path;
-                                 });
+  const auto iter =
+      std::ranges::find_if(items_, [&api_path](auto &&dir_item) -> bool {
+        return api_path == dir_item.api_path;
+      });
 
   return (iter == items_.end()) ? 0U
                                 : static_cast<std::size_t>(

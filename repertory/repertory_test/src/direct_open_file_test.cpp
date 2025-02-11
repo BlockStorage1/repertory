@@ -1,5 +1,5 @@
 /*
-  Copyright <2018-2024> <scott.e.graves@protonmail.com>
+  Copyright <2018-2025> <scott.e.graves@protonmail.com>
 
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"), to deal
@@ -35,9 +35,13 @@ public:
   mock_provider provider;
 
 protected:
-  void SetUp() override { event_system::instance().start(); }
+  void SetUp() override {
+    event_system::instance().start();
+  }
 
-  void TearDown() override { event_system::instance().stop(); }
+  void TearDown() override {
+    event_system::instance().stop();
+  }
 };
 
 TEST_F(direct_open_file_test, read_full_file) {

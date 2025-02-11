@@ -1,5 +1,5 @@
 /*
-  Copyright <2018-2024> <scott.e.graves@protonmail.com>
+  Copyright <2018-2025> <scott.e.graves@protonmail.com>
 
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"), to deal
@@ -67,10 +67,43 @@ public:
   thread_file(thread_file &&move_file) noexcept
       : file_(std::move(move_file.file_)) {}
 
-  ~thread_file() override { close(); }
+  ~thread_file() override;
+
+private:
+  using action_t = std::function<bool()>;
+
+  struct io_item final {
+    action_t action;
+    bool complete{false};
+    std::unique_ptr<std::mutex> mtx{
+        std::make_unique<std::mutex>(),
+    };
+    mutable std::unique_ptr<std::condition_variable> notify{
+        std::make_unique<std::condition_variable>(),
+    };
+    bool success{false};
+
+    void done(bool result);
+
+    void wait() const;
+  };
 
 private:
   fs_file_t file_;
+
+private:
+  mutable std::vector<std::shared_ptr<io_item>> actions_;
+  mutable std::unique_ptr<std::thread> io_thread_;
+  mutable std::unique_ptr<std::mutex> mtx_{std::make_unique<std::mutex>()};
+  mutable std::unique_ptr<std::condition_variable> notify_{
+      std::make_unique<std::condition_variable>(),
+  };
+  stop_type stop_requested_{false};
+
+private:
+  auto do_io(action_t action) const -> bool;
+
+  void thread_func() const;
 
 public:
   void close() override;

@@ -1,5 +1,5 @@
 /*
-  Copyright <2018-2024> <scott.e.graves@protonmail.com>
+  Copyright <2018-2025> <scott.e.graves@protonmail.com>
 
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"), to deal
@@ -32,13 +32,13 @@ public:
 
 public:
   timeout(std::function<void()> timeout_callback,
-          const std::chrono::system_clock::duration &duration = 10s);
+          std::chrono::system_clock::duration duration);
 
   ~timeout() { disable(); }
 
 private:
-  bool timeout_killed_;
-  std::unique_ptr<std::thread> timeout_thread_;
+  std::atomic<bool> timeout_killed_;
+  std::unique_ptr<std::thread> timeout_thread_{nullptr};
   std::mutex timeout_mutex_;
   std::condition_variable timeout_notify_;
 

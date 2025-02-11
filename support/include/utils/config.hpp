@@ -1,5 +1,5 @@
 /*
-  Copyright <2018-2024> <scott.e.graves@protonmail.com>
+  Copyright <2018-2025> <scott.e.graves@protonmail.com>
 
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"), to deal
@@ -416,6 +416,7 @@ using data_buffer = std::vector<unsigned char>;
 using mutex_lock = std::lock_guard<std::mutex>;
 using recur_mutex_lock = std::lock_guard<std::recursive_mutex>;
 using stop_type = std::atomic_bool;
+using stop_type_callback = std::function<std::atomic_bool()>;
 using unique_mutex_lock = std::unique_lock<std::mutex>;
 using unique_recur_mutex_lock = std::unique_lock<std::recursive_mutex>;
 
@@ -462,16 +463,14 @@ struct file_deleter final {
 };
 using file_t = std::unique_ptr<FILE, file_deleter>;
 
-#if defined(PROJECT_ENABLE_CURL)
 struct http_range final {
   std::uint64_t begin{};
   std::uint64_t end{};
 };
 
-using http_headers = std::unordered_map<std::string, std::string>;
+using http_headers = std::map<std::string, std::string>;
 using http_query_parameters = std::map<std::string, std::string>;
 using http_ranges = std::vector<http_range>;
-#endif // defined(PROJECT_ENABLE_CURL)
 } // namespace repertory
 #endif // defined(__cplusplus)
 

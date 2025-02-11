@@ -1,5 +1,5 @@
 /*
-  Copyright <2018-2024> <scott.e.graves@protonmail.com>
+  Copyright <2018-2025> <scott.e.graves@protonmail.com>
 
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"), to deal
@@ -23,6 +23,7 @@
 #define REPERTORY_INCLUDE_EVENTS_CONSUMERS_CONSOLE_CONSUMER_HPP_
 
 #include "events/event_system.hpp"
+#include "types/repertory.hpp"
 
 namespace repertory {
 class console_consumer final {
@@ -36,7 +37,7 @@ public:
   ~console_consumer();
 
 private:
-  void process_event(const event &e) const;
+  static void process_event(const i_event &evt);
 };
 } // namespace repertory
 

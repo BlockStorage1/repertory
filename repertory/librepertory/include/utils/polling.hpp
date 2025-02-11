@@ -1,5 +1,5 @@
 /*
-  Copyright <2018-2024> <scott.e.graves@protonmail.com>
+  Copyright <2018-2025> <scott.e.graves@protonmail.com>
 
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"), to deal
@@ -40,7 +40,7 @@ public:
   struct polling_item final {
     std::string name;
     frequency freq;
-    std::function<void(const stop_type &stop_requested)> action;
+    std::function<void(stop_type &stop_requested)> action;
   };
 
 public:
@@ -74,6 +74,8 @@ private:
 private:
   void frequency_thread(std::function<std::uint32_t()> get_frequency_seconds,
                         frequency freq);
+
+  [[nodiscard]] auto get_stop_requested() const -> bool;
 
 public:
   void remove_callback(const std::string &name);

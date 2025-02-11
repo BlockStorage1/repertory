@@ -1,5 +1,5 @@
 /*
-  Copyright <2018-2024> <scott.e.graves@protonmail.com>
+  Copyright <2018-2025> <scott.e.graves@protonmail.com>
 
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"), to deal
@@ -22,6 +22,10 @@
 #include "test_common.hpp"
 
 #include "app_config.hpp"
+#include "events/types/filesystem_item_closed.hpp"
+#include "events/types/filesystem_item_handle_closed.hpp"
+#include "events/types/filesystem_item_handle_opened.hpp"
+#include "events/types/filesystem_item_opened.hpp"
 #include "file_manager/cache_size_mgr.hpp"
 #include "file_manager/open_file.hpp"
 #include "mocks/mock_provider.hpp"
@@ -601,24 +605,21 @@ TEST_F(open_file_test, can_add_handle) {
   fsi.size = test_chunk_size * 4u;
   fsi.source_path = source_path;
 
-  event_consumer ec("filesystem_item_opened", [&fsi](const event &e) {
+  event_consumer ec(filesystem_item_opened::name, [&fsi](const i_event &e) {
     const auto &ee = dynamic_cast<const filesystem_item_opened &>(e);
-    EXPECT_STREQ(fsi.api_path.c_str(),
-                 ee.get_api_path().get<std::string>().c_str());
-    EXPECT_STREQ(fsi.source_path.c_str(),
-                 ee.get_source().get<std::string>().c_str());
-    EXPECT_STREQ("0", ee.get_directory().get<std::string>().c_str());
+    EXPECT_STREQ(fsi.api_path.c_str(), ee.api_path.c_str());
+    EXPECT_STREQ(fsi.source_path.c_str(), ee.source_path.c_str());
+    EXPECT_FALSE(ee.directory);
   });
 
-  event_consumer ec2("filesystem_item_handle_opened", [&fsi](const event &e) {
-    const auto &ee = dynamic_cast<const filesystem_item_handle_opened &>(e);
-    EXPECT_STREQ(fsi.api_path.c_str(),
-                 ee.get_api_path().get<std::string>().c_str());
-    EXPECT_STREQ(fsi.source_path.c_str(),
-                 ee.get_source().get<std::string>().c_str());
-    EXPECT_STREQ("0", ee.get_directory().get<std::string>().c_str());
-    EXPECT_STREQ("1", ee.get_handle().get<std::string>().c_str());
-  });
+  event_consumer ec2(
+      filesystem_item_handle_opened::name, [&fsi](const i_event &e) {
+        const auto &ee = dynamic_cast<const filesystem_item_handle_opened &>(e);
+        EXPECT_STREQ(fsi.api_path.c_str(), ee.api_path.c_str());
+        EXPECT_STREQ(fsi.source_path.c_str(), ee.source_path.c_str());
+        EXPECT_FALSE(ee.directory);
+        EXPECT_EQ(std::uint64_t(1U), ee.handle);
+      });
 
   EXPECT_CALL(provider, set_item_meta(fsi.api_path, META_SOURCE, _))
       .WillOnce(Return(api_error::success));
@@ -629,8 +630,10 @@ TEST_F(open_file_test, can_add_handle) {
             EXPECT_EQ(fsi.source_path, source_path2);
           });
 
-  event_capture capture(
-      {"filesystem_item_opened", "filesystem_item_handle_opened"});
+  event_capture capture({
+      filesystem_item_opened::name,
+      filesystem_item_handle_opened::name,
+  });
 
   open_file o(test_chunk_size, 0U, fsi, provider, upload_mgr);
 #if defined(_WIN32)
@@ -647,8 +650,9 @@ TEST_F(open_file_test, can_add_handle) {
 }
 
 TEST_F(open_file_test, can_remove_handle) {
-  event_system::instance().start();
   console_consumer c;
+
+  event_system::instance().start();
 
   const auto source_path =
       test::generate_test_file_name("file_manager_open_file_test");
@@ -660,24 +664,21 @@ TEST_F(open_file_test, can_remove_handle) {
   fsi.size = test_chunk_size * 4u;
   fsi.source_path = source_path;
 
-  event_consumer ec("filesystem_item_closed", [&fsi](const event &e) {
+  event_consumer ec(filesystem_item_closed::name, [&fsi](const i_event &e) {
     const auto &ee = dynamic_cast<const filesystem_item_closed &>(e);
-    EXPECT_STREQ(fsi.api_path.c_str(),
-                 ee.get_api_path().get<std::string>().c_str());
-    EXPECT_STREQ(fsi.source_path.c_str(),
-                 ee.get_source().get<std::string>().c_str());
-    EXPECT_STREQ("0", ee.get_directory().get<std::string>().c_str());
+    EXPECT_STREQ(fsi.api_path.c_str(), ee.api_path.c_str());
+    EXPECT_STREQ(fsi.source_path.c_str(), ee.source_path.c_str());
+    EXPECT_FALSE(ee.directory);
   });
 
-  event_consumer ec2("filesystem_item_handle_closed", [&fsi](const event &e) {
-    const auto &ee = dynamic_cast<const filesystem_item_handle_closed &>(e);
-    EXPECT_STREQ(fsi.api_path.c_str(),
-                 ee.get_api_path().get<std::string>().c_str());
-    EXPECT_STREQ(fsi.source_path.c_str(),
-                 ee.get_source().get<std::string>().c_str());
-    EXPECT_STREQ("0", ee.get_directory().get<std::string>().c_str());
-    EXPECT_STREQ("1", ee.get_handle().get<std::string>().c_str());
-  });
+  event_consumer ec2(
+      filesystem_item_handle_closed::name, [&fsi](const i_event &e) {
+        const auto &ee = dynamic_cast<const filesystem_item_handle_closed &>(e);
+        EXPECT_STREQ(fsi.api_path.c_str(), ee.api_path.c_str());
+        EXPECT_STREQ(fsi.source_path.c_str(), ee.source_path.c_str());
+        EXPECT_FALSE(ee.directory);
+        EXPECT_EQ(std::uint64_t(1U), ee.handle);
+      });
 
   EXPECT_CALL(upload_mgr, remove_resume)
       .WillOnce(
@@ -689,10 +690,10 @@ TEST_F(open_file_test, can_remove_handle) {
       .WillOnce(Return(api_error::success));
 
   event_capture capture({
-      "filesystem_item_opened",
-      "filesystem_item_handle_opened",
-      "filesystem_item_handle_closed",
-      "filesystem_item_closed",
+      filesystem_item_opened::name,
+      filesystem_item_handle_opened::name,
+      filesystem_item_handle_closed::name,
+      filesystem_item_closed::name,
   });
 
   open_file o(test_chunk_size, 0U, fsi, provider, upload_mgr);

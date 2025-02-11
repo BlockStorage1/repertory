@@ -1,5 +1,5 @@
 /*
-  Copyright <2018-2024> <scott.e.graves@protonmail.com>
+  Copyright <2018-2025> <scott.e.graves@protonmail.com>
 
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"), to deal
@@ -41,7 +41,7 @@ using repertory_drive = repertory::winfsp_drive;
 using remote_client = repertory::remote_winfsp::remote_client;
 using remote_drive = repertory::remote_winfsp::remote_winfsp_drive;
 using remote_instance = repertory::remote_winfsp::i_remote_instance;
-#else
+#else // !defined(_WIN32)
 #include "drives/fuse/fuse_drive.hpp"
 #include "drives/fuse/remotefuse/remote_client.hpp"
 #include "drives/fuse/remotefuse/remote_fuse_drive.hpp"
@@ -50,7 +50,7 @@ using repertory_drive = repertory::fuse_drive;
 using remote_client = repertory::remote_fuse::remote_client;
 using remote_drive = repertory::remote_fuse::remote_fuse_drive;
 using remote_instance = repertory::remote_fuse::i_remote_instance;
-#endif
+#endif // defined(_WIN32)
 
 namespace repertory::cli::actions {
 [[nodiscard]] inline auto
@@ -77,7 +77,8 @@ mount(std::vector<const char *> args, std::string data_directory,
         config.set_remote_config(cfg);
       } else if (prov == provider_type::sia &&
                  config.get_sia_config().bucket.empty()) {
-        config.set_value_by_name("SiaConfig.Bucket", unique_id);
+        [[maybe_unused]] auto bucket =
+            config.set_value_by_name("SiaConfig.Bucket", unique_id);
       }
 
       std::cout << "Generated " << app_config::get_provider_display_name(prov)
@@ -157,7 +158,8 @@ mount(std::vector<const char *> args, std::string data_directory,
       } else {
         if (prov == provider_type::sia &&
             config.get_sia_config().bucket.empty()) {
-          config.set_value_by_name("SiaConfig.Bucket", unique_id);
+          [[maybe_unused]] auto bucket =
+              config.set_value_by_name("SiaConfig.Bucket", unique_id);
         }
 
         try {

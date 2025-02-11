@@ -1,5 +1,5 @@
 /*
-  Copyright <2018-2024> <scott.e.graves@protonmail.com>
+  Copyright <2018-2025> <scott.e.graves@protonmail.com>
 
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"), to deal
@@ -45,12 +45,13 @@ public:
 
 private:
   fs_file_t file_;
+  std::string encryption_token_;
 
 public:
   void close() override;
 
-  [[nodiscard]] auto copy_to(std::string_view new_path,
-                             bool overwrite) const -> bool override;
+  [[nodiscard]] auto copy_to(std::string_view new_path, bool overwrite) const
+      -> bool override;
 
   [[nodiscard]] auto exists() const -> bool override { return file_->exists(); }
 
@@ -68,8 +69,8 @@ public:
     return file_->get_read_buffer_size();
   }
 
-  [[nodiscard]] auto
-  get_time(time_type type) const -> std::optional<std::uint64_t> override {
+  [[nodiscard]] auto get_time(time_type type) const
+      -> std::optional<std::uint64_t> override {
     return file_->get_time(type);
   }
 
@@ -97,9 +98,10 @@ public:
 
   [[nodiscard]] auto truncate(std::size_t size) -> bool override;
 
-  [[nodiscard]] auto
-  write(const unsigned char *data, std::size_t to_write, std::size_t offset,
-        std::size_t *total_written = nullptr) -> bool override;
+  [[nodiscard]] auto write(const unsigned char *data, std::size_t to_write,
+                           std::size_t offset,
+                           std::size_t *total_written = nullptr)
+      -> bool override;
 
 public:
   [[nodiscard]] operator bool() const override {

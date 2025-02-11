@@ -1,5 +1,5 @@
 /*
-  Copyright <2018-2024> <scott.e.graves@protonmail.com>
+  Copyright <2018-2025> <scott.e.graves@protonmail.com>
 
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"), to deal
@@ -22,6 +22,10 @@
 
 #include "fixtures/file_db_fixture.hpp"
 
+namespace {
+const auto get_stop_requested = []() -> bool { return false; };
+} // namespace
+
 namespace repertory {
 TYPED_TEST_CASE(file_db_test, file_db_types);
 
@@ -30,12 +34,15 @@ TYPED_TEST(file_db_test, can_add_and_remove_directory) {
 
   EXPECT_EQ(api_error::success, this->file_db->add_directory("/", "c:\\test"));
 
-  auto list = this->file_db->get_item_list();
+  auto list = this->file_db->get_item_list(get_stop_requested);
   EXPECT_EQ(1U, list.size());
+  EXPECT_STREQ("/", list.at(0U).api_path.c_str());
+  EXPECT_TRUE(list.at(0U).directory);
+  EXPECT_STREQ("c:\\test", list.at(0U).source_path.c_str());
 
   EXPECT_EQ(api_error::success, this->file_db->remove_item("/"));
 
-  list = this->file_db->get_item_list();
+  list = this->file_db->get_item_list(get_stop_requested);
   EXPECT_EQ(0U, list.size());
 }
 
@@ -49,12 +56,15 @@ TYPED_TEST(file_db_test, can_add_and_remove_file) {
                                     "c:\\test\\file.txt",
                                 }));
 
-  auto list = this->file_db->get_item_list();
+  auto list = this->file_db->get_item_list(get_stop_requested);
   EXPECT_EQ(1U, list.size());
+  EXPECT_STREQ("/file", list.at(0U).api_path.c_str());
+  EXPECT_FALSE(list.at(0U).directory);
+  EXPECT_STREQ("c:\\test\\file.txt", list.at(0U).source_path.c_str());
 
   EXPECT_EQ(api_error::success, this->file_db->remove_item("/file"));
 
-  list = this->file_db->get_item_list();
+  list = this->file_db->get_item_list(get_stop_requested);
   EXPECT_EQ(0U, list.size());
 }
 
@@ -329,4 +339,30 @@ TYPED_TEST(file_db_test, item_not_found_is_returned_for_non_existing_api_path) {
             this->file_db->get_source_path("/file", source_path));
   EXPECT_TRUE(source_path.empty());
 }
+
+TYPED_TEST(file_db_test, can_enumerate_item_list) {
+  this->file_db->clear();
+
+  EXPECT_EQ(api_error::success,
+            this->file_db->add_directory("/", std::filesystem::current_path().string()));
+  EXPECT_EQ(api_error::success, this->file_db->add_or_update_file({
+                                    "/file",
+                                    0U,
+                                    {},
+                                    "c:\\test\\file.txt",
+                                }));
+
+  auto call_count{0U};
+  const auto get_stop_requested = []() -> bool { return false; };
+
+  this->file_db->enumerate_item_list(
+      [&call_count](auto &&list) {
+        EXPECT_EQ(std::size_t(2U), list.size());
+        ++call_count;
+      },
+      get_stop_requested);
+
+  EXPECT_EQ(std::size_t(1U), call_count);
+}
+
 } // namespace repertory

@@ -1,5 +1,5 @@
 /*
-  Copyright <2018-2024> <scott.e.graves@protonmail.com>
+  Copyright <2018-2025> <scott.e.graves@protonmail.com>
 
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"), to deal
@@ -30,7 +30,7 @@ class app_config;
 class tasks final {
 public:
   struct task final {
-    std::function<void(const stop_type &task_stopped)> action;
+    std::function<void(stop_type &task_stopped)> action;
   };
 
   class i_task {
@@ -103,6 +103,8 @@ private:
 
 private:
   void task_thread();
+
+  [[nodiscard]] auto get_stop_requested() const -> bool;
 
 public:
   auto schedule(task item) -> task_ptr;

@@ -1,5 +1,5 @@
 /*
-  Copyright <2018-2024> <scott.e.graves@protonmail.com>
+  Copyright <2018-2025> <scott.e.graves@protonmail.com>
 
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"), to deal
@@ -22,10 +22,11 @@
 #ifndef REPERTORY_INCLUDE_COMM_CURL_CURL_COMM_HPP_
 #define REPERTORY_INCLUDE_COMM_CURL_CURL_COMM_HPP_
 
+#include "app_config.hpp"
 #include "comm/curl/multi_request.hpp"
 #include "comm/i_http_comm.hpp"
 #include "events/event_system.hpp"
-#include "events/events.hpp"
+#include "events/types/curl_error.hpp"
 #include "utils/encryption.hpp"
 
 namespace repertory {
@@ -42,7 +43,7 @@ private:
 
   struct read_write_info final {
     data_buffer data{};
-    stop_type &stop_requested;
+    stop_type_callback stop_requested_cb;
   };
 
   static const write_callback write_data;
@@ -61,13 +62,14 @@ public:
   [[nodiscard]] static auto reset_curl(CURL *curl_handle) -> CURL *;
 
 public:
-  [[nodiscard]] static auto
-  construct_url(CURL *curl, const std::string &relative_path,
-                const host_config &cfg) -> std::string;
+  [[nodiscard]] static auto construct_url(CURL *curl,
+                                          const std::string &relative_path,
+                                          const host_config &cfg)
+      -> std::string;
 
-  [[nodiscard]] static auto
-  create_host_config(const s3_config &cfg,
-                     bool use_s3_path_style) -> host_config;
+  [[nodiscard]] static auto create_host_config(const s3_config &cfg,
+                                               bool use_s3_path_style)
+      -> host_config;
 
   [[nodiscard]] static auto url_encode(CURL *curl, const std::string &data,
                                        bool allow_slash) -> std::string;
@@ -75,8 +77,8 @@ public:
   template <typename request_type>
   [[nodiscard]] static auto
   make_encrypted_request(const host_config &cfg, const request_type &request,
-                         long &response_code,
-                         stop_type &stop_requested) -> bool {
+                         long &response_code, stop_type &stop_requested)
+      -> bool {
     response_code = 0;
 
     if (not request.decryption_token.has_value() ||
@@ -114,7 +116,7 @@ public:
                 return false;
               }
 
-              if (response_code != 200) {
+              if (response_code != http_error_codes::ok) {
                 return false;
               }
 
@@ -135,6 +137,8 @@ public:
   [[nodiscard]] static auto
   make_request(const host_config &cfg, const request_type &request,
                long &response_code, stop_type &stop_requested) -> bool {
+    REPERTORY_USES_FUNCTION_NAME();
+
     if (request.decryption_token.has_value() &&
         not request.decryption_token.value().empty()) {
       return make_encrypted_request(cfg, request, response_code,
@@ -169,7 +173,12 @@ public:
       curl_easy_setopt(curl, CURLOPT_HEADERFUNCTION, write_headers);
     }
 
-    read_write_info write_info{{}, stop_requested};
+    read_write_info write_info{
+        {},
+        [&stop_requested]() -> bool {
+          return stop_requested || app_config::get_stop_requested();
+        },
+    };
     if (request.response_handler.has_value()) {
       curl_easy_setopt(curl, CURLOPT_WRITEDATA, &write_info);
       curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_data);
@@ -193,6 +202,16 @@ public:
                        request.aws_service.value().c_str());
     }
 
+    curl_slist *header_list{nullptr};
+    if (not request.headers.empty()) {
+      for (const auto &header : request.headers) {
+        header_list = curl_slist_append(
+            header_list,
+            fmt::format("{}: {}", header.first, header.second).c_str());
+      }
+      curl_easy_setopt(curl, CURLOPT_HTTPHEADER, header_list);
+    }
+
     auto url = construct_url(curl, request.get_path(), cfg) + parameters;
     curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
 
@@ -200,8 +219,14 @@ public:
 
     CURLcode curl_code{};
     curl_request.get_result(curl_code, response_code);
+
+    if (header_list != nullptr) {
+      curl_slist_free_all(header_list);
+    }
+
     if (curl_code != CURLE_OK) {
-      event_system::instance().raise<curl_error>(url, curl_code);
+      event_system::instance().raise<curl_error>(curl_code, function_name,
+                                                  url);
       return false;
     }
 
@@ -215,26 +240,30 @@ public:
 public:
   void enable_s3_path_style(bool enable) override;
 
-  [[nodiscard]] auto
-  make_request(const curl::requests::http_delete &del, long &response_code,
-               stop_type &stop_requested) const -> bool override;
+  [[nodiscard]] auto make_request(const curl::requests::http_delete &del,
+                                  long &response_code,
+                                  stop_type &stop_requested) const
+      -> bool override;
 
-  [[nodiscard]] auto
-  make_request(const curl::requests::http_get &get, long &response_code,
-               stop_type &stop_requested) const -> bool override;
+  [[nodiscard]] auto make_request(const curl::requests::http_get &get,
+                                  long &response_code,
+                                  stop_type &stop_requested) const
+      -> bool override;
 
-  [[nodiscard]] auto
-  make_request(const curl::requests::http_head &head, long &response_code,
-               stop_type &stop_requested) const -> bool override;
+  [[nodiscard]] auto make_request(const curl::requests::http_head &head,
+                                  long &response_code,
+                                  stop_type &stop_requested) const
+      -> bool override;
 
-  [[nodiscard]] auto
-  make_request(const curl::requests::http_post &post_file, long &response_code,
-               stop_type &stop_requested) const -> bool override;
+  [[nodiscard]] auto make_request(const curl::requests::http_post &post_file,
+                                  long &response_code,
+                                  stop_type &stop_requested) const
+      -> bool override;
 
-  [[nodiscard]] auto
-  make_request(const curl::requests::http_put_file &put_file,
-               long &response_code,
-               stop_type &stop_requested) const -> bool override;
+  [[nodiscard]] auto make_request(const curl::requests::http_put_file &put_file,
+                                  long &response_code,
+                                  stop_type &stop_requested) const
+      -> bool override;
 };
 } // namespace repertory
 

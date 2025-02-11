@@ -1,5 +1,5 @@
 /*
-  Copyright <2018-2024> <scott.e.graves@protonmail.com>
+  Copyright <2018-2025> <scott.e.graves@protonmail.com>
 
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"), to deal
@@ -22,7 +22,10 @@
 #include "comm/packet/client_pool.hpp"
 
 #include "events/event_system.hpp"
-#include "events/events.hpp"
+#include "events/types/service_start_begin.hpp"
+#include "events/types/service_start_end.hpp"
+#include "events/types/service_stop_begin.hpp"
+#include "events/types/service_stop_end.hpp"
 #include "platform/platform.hpp"
 #include "utils/error_utils.hpp"
 
@@ -43,7 +46,8 @@ void client_pool::pool::execute(
 client_pool::pool::pool(std::uint8_t pool_size) {
   REPERTORY_USES_FUNCTION_NAME();
 
-  event_system::instance().raise<service_started>("client_pool");
+  event_system::instance().raise<service_start_begin>(function_name,
+                                                      "client_pool");
 
   for (std::uint8_t i = 0U; i < pool_size; i++) {
     pool_queues_.emplace_back(std::make_unique<work_queue>());
@@ -105,6 +109,9 @@ client_pool::pool::pool(std::uint8_t pool_size) {
       queue_lock.unlock();
     });
   }
+
+  event_system::instance().raise<service_start_end>(function_name,
+                                                    "client_pool");
 }
 
 void client_pool::pool::shutdown() {
@@ -146,18 +153,24 @@ void client_pool::remove_client(const std::string &client_id) {
 }
 
 void client_pool::shutdown() {
-  if (not shutdown_) {
-    event_system::instance().raise<service_shutdown_begin>("client_pool");
-    unique_mutex_lock pool_lock(pool_mutex_);
-    if (not shutdown_) {
-      shutdown_ = true;
-      for (auto &pool_entry : pool_lookup_) {
-        pool_entry.second->shutdown();
-      }
-      pool_lookup_.clear();
-    }
-    pool_lock.unlock();
-    event_system::instance().raise<service_shutdown_end>("client_pool");
+  REPERTORY_USES_FUNCTION_NAME();
+
+  if (shutdown_) {
+    return;
   }
+
+  event_system::instance().raise<service_stop_begin>(function_name,
+                                                     "client_pool");
+  unique_mutex_lock pool_lock(pool_mutex_);
+  if (not shutdown_) {
+    shutdown_ = true;
+    for (auto &pool_entry : pool_lookup_) {
+      pool_entry.second->shutdown();
+    }
+    pool_lookup_.clear();
+  }
+  pool_lock.unlock();
+  event_system::instance().raise<service_stop_end>(function_name,
+                                                   "client_pool");
 }
 } // namespace repertory

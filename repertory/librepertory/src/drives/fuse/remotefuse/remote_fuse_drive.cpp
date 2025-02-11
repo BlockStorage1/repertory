@@ -1,5 +1,5 @@
 /*
-  Copyright <2018-2024> <scott.e.graves@protonmail.com>
+  Copyright <2018-2025> <scott.e.graves@protonmail.com>
 
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"), to deal
@@ -24,11 +24,14 @@
 #include "drives/fuse/remotefuse/remote_fuse_drive.hpp"
 
 #include "app_config.hpp"
-#include "drives/fuse/events.hpp"
 #include "events/consumers/console_consumer.hpp"
 #include "events/consumers/logging_consumer.hpp"
 #include "events/event_system.hpp"
-#include "events/events.hpp"
+#include "events/types/drive_mount_result.hpp"
+#include "events/types/drive_mounted.hpp"
+#include "events/types/drive_unmount_pending.hpp"
+#include "events/types/drive_unmounted.hpp"
+#include "events/types/unmount_requested.hpp"
 #include "platform/platform.hpp"
 #include "rpc/server/server.hpp"
 #include "types/remote.hpp"
@@ -90,7 +93,8 @@ auto remote_fuse_drive::create_impl(std::string api_path, mode_t mode,
 void remote_fuse_drive::destroy_impl(void *ptr) {
   REPERTORY_USES_FUNCTION_NAME();
 
-  event_system::instance().raise<drive_unmount_pending>(get_mount_location());
+  event_system::instance().raise<drive_unmount_pending>(function_name,
+                                                         get_mount_location());
 
   if (server_) {
     server_->stop();
@@ -111,7 +115,8 @@ void remote_fuse_drive::destroy_impl(void *ptr) {
     utils::error::raise_error(function_name, "failed to set mount state");
   }
 
-  event_system::instance().raise<drive_unmounted>(get_mount_location());
+  event_system::instance().raise<drive_unmounted>(function_name,
+                                                   get_mount_location());
 
   fuse_base::destroy_impl(ptr);
 }
@@ -257,7 +262,8 @@ auto remote_fuse_drive::init_impl(struct fuse_conn_info *conn) -> void * {
   } else {
     server_ = std::make_shared<server>(config_);
     server_->start();
-    event_system::instance().raise<drive_mounted>(get_mount_location());
+    event_system::instance().raise<drive_mounted>(function_name,
+                                                   get_mount_location());
   }
 
   return ret;
@@ -270,8 +276,11 @@ auto remote_fuse_drive::mkdir_impl(std::string api_path,
 }
 
 void remote_fuse_drive::notify_fuse_main_exit(int &ret) {
+  REPERTORY_USES_FUNCTION_NAME();
+
   if (was_mounted_) {
-    event_system::instance().raise<drive_mount_result>(std::to_string(ret));
+    event_system::instance().raise<drive_mount_result>(
+        function_name, get_mount_location(), std::to_string(ret));
     event_system::instance().stop();
     logging_consumer_.reset();
     console_consumer_.reset();
@@ -300,10 +309,15 @@ auto remote_fuse_drive::opendir_impl(
 void remote_fuse_drive::populate_stat(const remote::stat &r_stat,
                                       bool directory, struct stat &unix_st) {
   std::memset(&unix_st, 0, sizeof(struct stat));
+  unix_st.st_blksize = r_stat.st_blksize;
+  unix_st.st_blocks = static_cast<blkcnt_t>(r_stat.st_blocks);
+  unix_st.st_gid = r_stat.st_gid;
+  unix_st.st_mode = (directory ? S_IFDIR : S_IFREG) | r_stat.st_mode;
+  unix_st.st_nlink = r_stat.st_nlink;
+  unix_st.st_size = static_cast<off_t>(r_stat.st_size);
+  unix_st.st_uid = r_stat.st_uid;
 
 #if defined(__APPLE__)
-  unix_st.st_blksize = 0;
-
   unix_st.st_atimespec.tv_nsec =
       r_stat.st_atimespec % utils::time::NANOS_PER_SECOND;
   unix_st.st_atimespec.tv_sec =
@@ -326,8 +340,6 @@ void remote_fuse_drive::populate_stat(const remote::stat &r_stat,
 
   unix_st.st_flags = r_stat.st_flags;
 #else  // !defined(__APPLE__)
-  unix_st.st_blksize = 4096;
-
   unix_st.st_atim.tv_nsec = static_cast<suseconds_t>(
       r_stat.st_atimespec % utils::time::NANOS_PER_SECOND);
   unix_st.st_atim.tv_sec = static_cast<suseconds_t>(
@@ -343,25 +355,6 @@ void remote_fuse_drive::populate_stat(const remote::stat &r_stat,
   unix_st.st_mtim.tv_sec = static_cast<suseconds_t>(
       r_stat.st_mtimespec / utils::time::NANOS_PER_SECOND);
 #endif // defined(__APPLE__)
-
-  if (not directory) {
-    const auto block_size_stat = static_cast<std::uint64_t>(512U);
-    const auto block_size = static_cast<std::uint64_t>(4096U);
-    const auto size =
-        utils::divide_with_ceiling(static_cast<std::uint64_t>(unix_st.st_size),
-                                   block_size) *
-        block_size;
-    unix_st.st_blocks = static_cast<blkcnt_t>(
-        std::max(block_size / block_size_stat,
-                 utils::divide_with_ceiling(size, block_size_stat)));
-  }
-
-  unix_st.st_gid = r_stat.st_gid;
-  unix_st.st_mode = (directory ? S_IFDIR : S_IFREG) | r_stat.st_mode;
-
-  unix_st.st_nlink = r_stat.st_nlink;
-  unix_st.st_size = static_cast<off_t>(r_stat.st_size);
-  unix_st.st_uid = r_stat.st_uid;
 }
 
 auto remote_fuse_drive::read_impl(std::string api_path, char *buffer,

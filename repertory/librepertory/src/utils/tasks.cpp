@@ -1,5 +1,5 @@
 /*
-  Copyright <2018-2024> <scott.e.graves@protonmail.com>
+  Copyright <2018-2025> <scott.e.graves@protonmail.com>
 
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"), to deal
@@ -27,6 +27,10 @@
 namespace repertory {
 tasks tasks::instance_;
 
+auto tasks::get_stop_requested() const -> bool {
+  return stop_requested_ || app_config::get_stop_requested();
+}
+
 void tasks::task_wait::set_result(bool result) {
   unique_mutex_lock lock(mtx);
   if (complete) {
@@ -50,7 +54,7 @@ auto tasks::task_wait::wait() const -> bool {
 
 auto tasks::schedule(task item) -> task_ptr {
   ++count_;
-  while (not stop_requested_ && (count_ >= task_threads_.size())) {
+  while (not get_stop_requested() && (count_ >= task_threads_.size())) {
     std::this_thread::sleep_for(
         std::chrono::milliseconds(config_->get_task_wait_ms()));
   }
@@ -58,7 +62,7 @@ auto tasks::schedule(task item) -> task_ptr {
   scheduled_task runnable{item};
 
   unique_mutex_lock lock(mutex_);
-  if (stop_requested_) {
+  if (get_stop_requested()) {
     runnable.wait->set_result(false);
     notify_.notify_all();
     return runnable.wait;
@@ -80,7 +84,7 @@ void tasks::start(app_config *config) {
   stop_requested_ = false;
   tasks_.clear();
 
-  for (std::uint32_t idx = 0U; idx < std::thread::hardware_concurrency();
+  for (std::uint32_t idx = 0U; idx < std::thread::hardware_concurrency() * 2U;
        ++idx) {
     task_threads_.emplace_back(
         std::make_unique<std::jthread>([this]() { task_thread(); }));
@@ -96,15 +100,17 @@ void tasks::stop() {
   stop_requested_ = true;
 
   unique_mutex_lock lock(mutex_);
+  std::vector<std::unique_ptr<std::jthread>> threads;
+  std::swap(threads, task_threads_);
+
+  std::deque<scheduled_task> task_list;
+  std::swap(task_list, tasks_);
+
   notify_.notify_all();
   lock.unlock();
 
-  task_threads_.clear();
-
-  lock.lock();
-  tasks_.clear();
-  notify_.notify_all();
-  lock.unlock();
+  threads.clear();
+  task_list.clear();
 }
 
 void tasks::task_thread() {
@@ -119,14 +125,14 @@ void tasks::task_thread() {
 
   release();
 
-  while (not stop_requested_) {
+  while (not get_stop_requested()) {
     lock.lock();
 
-    while (not stop_requested_ && tasks_.empty()) {
+    while (not get_stop_requested() && tasks_.empty()) {
       notify_.wait(lock);
     }
 
-    if (stop_requested_) {
+    if (get_stop_requested()) {
       release();
       return;
     }

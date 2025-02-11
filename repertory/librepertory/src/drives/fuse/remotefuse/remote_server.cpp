@@ -1,5 +1,5 @@
 /*
-  Copyright <2018-2024> <scott.e.graves@protonmail.com>
+  Copyright <2018-2025> <scott.e.graves@protonmail.com>
 
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"), to deal
@@ -28,6 +28,7 @@
 #include "drives/directory_iterator.hpp"
 #include "drives/remote/remote_open_file_table.hpp"
 #include "events/event_system.hpp"
+#include "events/types/remote_server_event.hpp"
 #include "platform/platform.hpp"
 #include "types/remote.hpp"
 #include "types/repertory.hpp"
@@ -36,23 +37,15 @@
 #include "utils/file.hpp"
 #include "utils/path.hpp"
 #include "utils/time.hpp"
+#include "utils/utils.hpp"
 
 namespace repertory::remote_fuse {
 #define RAISE_REMOTE_FUSE_SERVER_EVENT(func, file, ret)                        \
   if (config_.get_enable_drive_events() &&                                     \
-      (((config_.get_event_level() >= remote_fuse_server_event::level) &&      \
-        (ret < 0)) ||                                                          \
+      (((config_.get_event_level() >= remote_server_event::level) &&           \
+        ((ret) < 0)) ||                                                        \
        (config_.get_event_level() >= event_level::trace)))                     \
-  event_system::instance().raise<remote_fuse_server_event>(std::string{func},  \
-                                                           file, ret)
-
-// clang-format off
-E_SIMPLE3(remote_fuse_server_event, debug, true,
-  std::string, function, func, E_FROM_STRING,
-  std::string, api_path, ap, E_FROM_STRING,
-  packet::error_type, result, res, E_FROM_INT32
-);
-// clang-format on
+  event_system::instance().raise<remote_server_event>(file, ret, func)
 
 remote_server::remote_server(app_config &config, i_fuse_drive &drive,
                              const std::string &mount_location)
@@ -208,8 +201,8 @@ auto remote_server::fuse_access(const char *path, const std::int32_t &mask)
   return ret;
 }
 
-auto remote_server::fuse_chflags(const char *path,
-                                 std::uint32_t flags) -> packet::error_type {
+auto remote_server::fuse_chflags(const char *path, std::uint32_t flags)
+    -> packet::error_type {
   REPERTORY_USES_FUNCTION_NAME();
 
   const auto api_path = utils::path::create_api_path(path);
@@ -321,9 +314,10 @@ length); ret = ((res < 0) ? -errno : 0); #endif
   return ret;
 }*/
 
-auto remote_server::fuse_fgetattr(
-    const char *path, remote::stat &r_stat, bool &directory,
-    const remote::file_handle &handle) -> packet::error_type {
+auto remote_server::fuse_fgetattr(const char *path, remote::stat &r_stat,
+                                  bool &directory,
+                                  const remote::file_handle &handle)
+    -> packet::error_type {
   REPERTORY_USES_FUNCTION_NAME();
 
   r_stat = {};
@@ -333,7 +327,7 @@ auto remote_server::fuse_fgetattr(
   auto res = has_open_info(static_cast<native_handle>(handle), EBADF);
   if (res == 0) {
     directory = utils::file::directory(file_path).exists();
-    struct stat64 unix_st {};
+    struct stat64 unix_st{};
     res = fstat64(static_cast<native_handle>(handle), &unix_st);
     if (res == 0) {
       populate_stat(unix_st, r_stat);
@@ -345,9 +339,10 @@ auto remote_server::fuse_fgetattr(
   return ret;
 }
 
-auto remote_server::fuse_fsetattr_x(
-    const char *path, const remote::setattr_x &attr,
-    const remote::file_handle &handle) -> packet::error_type {
+auto remote_server::fuse_fsetattr_x(const char *path,
+                                    const remote::setattr_x &attr,
+                                    const remote::file_handle &handle)
+    -> packet::error_type {
   REPERTORY_USES_FUNCTION_NAME();
 
   const auto api_path = utils::path::create_api_path(path);
@@ -463,9 +458,10 @@ auto remote_server::fuse_fsync(const char *path, const std::int32_t &datasync,
   return ret;
 }
 
-auto remote_server::fuse_ftruncate(
-    const char *path, const remote::file_offset &size,
-    const remote::file_handle &handle) -> packet::error_type {
+auto remote_server::fuse_ftruncate(const char *path,
+                                   const remote::file_offset &size,
+                                   const remote::file_handle &handle)
+    -> packet::error_type {
   REPERTORY_USES_FUNCTION_NAME();
 
   const auto file_path = construct_path(path);
@@ -493,7 +489,7 @@ auto remote_server::fuse_getattr(const char *path, remote::stat &r_stat,
 
   directory = utils::file::directory(file_path).exists();
 
-  struct stat64 unix_st {};
+  struct stat64 unix_st{};
   auto res = stat64(file_path.c_str(), &unix_st);
   if (res == 0) {
     populate_stat(unix_st, r_stat);
@@ -558,9 +554,10 @@ STATUS_NOT_IMPLEMENTED; #endif RAISE_REMOTE_FUSE_SERVER_EVENT(function_name,
 file_path, ret); return ret;
 }*/
 
-auto remote_server::fuse_getxtimes(
-    const char *path, remote::file_time &bkuptime,
-    remote::file_time &crtime) -> packet::error_type {
+auto remote_server::fuse_getxtimes(const char *path,
+                                   remote::file_time &bkuptime,
+                                   remote::file_time &crtime)
+    -> packet::error_type {
   REPERTORY_USES_FUNCTION_NAME();
 
   const auto api_path = utils::path::create_api_path(path);
@@ -665,10 +662,11 @@ auto remote_server::fuse_opendir(const char *path, remote::file_handle &handle)
   return ret;
 }
 
-auto remote_server::fuse_read(
-    const char *path, char *buffer, const remote::file_size &read_size,
-    const remote::file_offset &read_offset,
-    const remote::file_handle &handle) -> packet::error_type {
+auto remote_server::fuse_read(const char *path, char *buffer,
+                              const remote::file_size &read_size,
+                              const remote::file_offset &read_offset,
+                              const remote::file_handle &handle)
+    -> packet::error_type {
   REPERTORY_USES_FUNCTION_NAME();
 
   const auto file_path = construct_path(path);
@@ -689,8 +687,8 @@ auto remote_server::fuse_read(
   return static_cast<packet::error_type>(ret);
 }
 
-auto remote_server::fuse_rename(const char *from,
-                                const char *to) -> packet::error_type {
+auto remote_server::fuse_rename(const char *from, const char *to)
+    -> packet::error_type {
   REPERTORY_USES_FUNCTION_NAME();
 
   const auto from_path = utils::path::combine(mount_location_, {from});
@@ -728,8 +726,9 @@ auto remote_server::fuse_readdir(const char *path,
   return ret;
 }
 
-auto remote_server::fuse_release(
-    const char *path, const remote::file_handle &handle) -> packet::error_type {
+auto remote_server::fuse_release(const char *path,
+                                 const remote::file_handle &handle)
+    -> packet::error_type {
   REPERTORY_USES_FUNCTION_NAME();
 
   packet::error_type ret = 0;
@@ -746,8 +745,9 @@ auto remote_server::fuse_release(
   return ret;
 }
 
-auto remote_server::fuse_releasedir(
-    const char *path, const remote::file_handle &handle) -> packet::error_type {
+auto remote_server::fuse_releasedir(const char *path,
+                                    const remote::file_handle &handle)
+    -> packet::error_type {
   REPERTORY_USES_FUNCTION_NAME();
 
   const auto file_path = construct_path(path);
@@ -774,13 +774,7 @@ auto remote_server::fuse_rmdir(const char *path) -> packet::error_type {
   const auto file_path = construct_path(path);
   const auto res = rmdir(file_path.c_str());
   if (res == 0) {
-    auto iter =
-        directory_cache_.remove_directory(utils::path::create_api_path(path));
-    if (iter == nullptr) {
-      utils::error::raise_error(
-          function_name,
-          "unexpected nullptr for directory iterator|sp|" + file_path);
-    }
+    directory_cache_.remove_directory(utils::path::create_api_path(path));
   }
   auto ret = ((res < 0) ? -errno : 0);
   RAISE_REMOTE_FUSE_SERVER_EVENT(function_name, file_path, ret);
@@ -798,8 +792,9 @@ auto remote_server::fuse_setattr_x(const char *path, remote::setattr_x &attr)
   return ret;
 }
 
-auto remote_server::fuse_setbkuptime(
-    const char *path, const remote::file_time &bkuptime) -> packet::error_type {
+auto remote_server::fuse_setbkuptime(const char *path,
+                                     const remote::file_time &bkuptime)
+    -> packet::error_type {
   REPERTORY_USES_FUNCTION_NAME();
 
   const auto api_path = utils::path::create_api_path(path);
@@ -818,8 +813,9 @@ auto remote_server::fuse_setbkuptime(
   return ret;
 }
 
-auto remote_server::fuse_setchgtime(
-    const char *path, const remote::file_time &chgtime) -> packet::error_type {
+auto remote_server::fuse_setchgtime(const char *path,
+                                    const remote::file_time &chgtime)
+    -> packet::error_type {
   REPERTORY_USES_FUNCTION_NAME();
 
   const auto api_path = utils::path::create_api_path(path);
@@ -838,8 +834,9 @@ auto remote_server::fuse_setchgtime(
   return ret;
 }
 
-auto remote_server::fuse_setcrtime(
-    const char *path, const remote::file_time &crtime) -> packet::error_type {
+auto remote_server::fuse_setcrtime(const char *path,
+                                   const remote::file_time &crtime)
+    -> packet::error_type {
   REPERTORY_USES_FUNCTION_NAME();
 
   const auto api_path = utils::path::create_api_path(path);
@@ -930,8 +927,9 @@ auto remote_server::fuse_statfs_x(const char *path, std::uint64_t bsize,
   return 0;
 }
 
-auto remote_server::fuse_truncate(
-    const char *path, const remote::file_offset &size) -> packet::error_type {
+auto remote_server::fuse_truncate(const char *path,
+                                  const remote::file_offset &size)
+    -> packet::error_type {
   REPERTORY_USES_FUNCTION_NAME();
 
   const auto file_path = construct_path(path);
@@ -952,8 +950,8 @@ auto remote_server::fuse_unlink(const char *path) -> packet::error_type {
 }
 
 auto remote_server::fuse_utimens(const char *path, const remote::file_time *tv,
-                                 std::uint64_t op0,
-                                 std::uint64_t op1) -> packet::error_type {
+                                 std::uint64_t op0, std::uint64_t op1)
+    -> packet::error_type {
   REPERTORY_USES_FUNCTION_NAME();
 
   const auto file_path = construct_path(path);
@@ -980,10 +978,11 @@ auto remote_server::fuse_utimens(const char *path, const remote::file_time *tv,
   return ret;
 }
 
-auto remote_server::fuse_write(
-    const char *path, const char *buffer, const remote::file_size &write_size,
-    const remote::file_offset &write_offset,
-    const remote::file_handle &handle) -> packet::error_type {
+auto remote_server::fuse_write(const char *path, const char *buffer,
+                               const remote::file_size &write_size,
+                               const remote::file_offset &write_offset,
+                               const remote::file_handle &handle)
+    -> packet::error_type {
   REPERTORY_USES_FUNCTION_NAME();
 
   const auto file_path = construct_path(path);
@@ -1013,8 +1012,8 @@ auto remote_server::fuse_write_base64(
 }
 
 // WinFSP Layer
-auto remote_server::winfsp_can_delete(PVOID file_desc,
-                                      PWSTR file_name) -> packet::error_type {
+auto remote_server::winfsp_can_delete(PVOID file_desc, PWSTR file_name)
+    -> packet::error_type {
   REPERTORY_USES_FUNCTION_NAME();
 
   const auto relative_path = utils::string::to_utf8(file_name);
@@ -1039,8 +1038,8 @@ auto remote_server::winfsp_can_delete(PVOID file_desc,
 }
 
 auto remote_server::winfsp_cleanup(PVOID /*file_desc*/, PWSTR file_name,
-                                   UINT32 flags,
-                                   BOOLEAN &was_deleted) -> packet::error_type {
+                                   UINT32 flags, BOOLEAN &was_deleted)
+    -> packet::error_type {
   REPERTORY_USES_FUNCTION_NAME();
 
   const auto relative_path = utils::string::to_utf8(file_name);
@@ -1117,8 +1116,8 @@ auto remote_server::winfsp_create(PWSTR file_name, UINT32 create_options,
                                   UINT32 granted_access, UINT32 attributes,
                                   UINT64 /*allocation_size*/, PVOID *file_desc,
                                   remote::file_info *file_info,
-                                  std::string &normalized_name,
-                                  BOOLEAN &exists) -> packet::error_type {
+                                  std::string &normalized_name, BOOLEAN &exists)
+    -> packet::error_type {
   REPERTORY_USES_FUNCTION_NAME();
 
   const auto relative_path = utils::string::to_utf8(file_name);
@@ -1190,8 +1189,9 @@ auto remote_server::winfsp_flush(PVOID file_desc, remote::file_info *file_info)
   return ret;
 }
 
-auto remote_server::winfsp_get_file_info(
-    PVOID file_desc, remote::file_info *file_info) -> packet::error_type {
+auto remote_server::winfsp_get_file_info(PVOID file_desc,
+                                         remote::file_info *file_info)
+    -> packet::error_type {
   REPERTORY_USES_FUNCTION_NAME();
 
   const auto handle = reinterpret_cast<remote::file_handle>(file_desc);
@@ -1234,9 +1234,10 @@ auto remote_server::winfsp_get_security_by_name(
   return ret;
 }
 
-auto remote_server::winfsp_get_volume_info(
-    UINT64 &total_size, UINT64 &free_size,
-    std::string &volume_label) -> packet::error_type {
+auto remote_server::winfsp_get_volume_info(UINT64 &total_size,
+                                           UINT64 &free_size,
+                                           std::string &volume_label)
+    -> packet::error_type {
   REPERTORY_USES_FUNCTION_NAME();
 
   drive_.get_volume_info(total_size, free_size, volume_label);
@@ -1253,10 +1254,11 @@ auto remote_server::winfsp_mounted(const std::wstring &location)
   return STATUS_SUCCESS;
 }
 
-auto remote_server::winfsp_open(
-    PWSTR file_name, UINT32 create_options, UINT32 granted_access,
-    PVOID *file_desc, remote::file_info *file_info,
-    std::string &normalized_name) -> packet::error_type {
+auto remote_server::winfsp_open(PWSTR file_name, UINT32 create_options,
+                                UINT32 granted_access, PVOID *file_desc,
+                                remote::file_info *file_info,
+                                std::string &normalized_name)
+    -> packet::error_type {
   REPERTORY_USES_FUNCTION_NAME();
 
   const auto relative_path = utils::string::to_utf8(file_name);
@@ -1297,10 +1299,11 @@ auto remote_server::winfsp_open(
   return ret;
 }
 
-auto remote_server::winfsp_overwrite(
-    PVOID file_desc, UINT32 attributes, BOOLEAN replace_attributes,
-    UINT64 /*allocation_size*/,
-    remote::file_info *file_info) -> packet::error_type {
+auto remote_server::winfsp_overwrite(PVOID file_desc, UINT32 attributes,
+                                     BOOLEAN replace_attributes,
+                                     UINT64 /*allocation_size*/,
+                                     remote::file_info *file_info)
+    -> packet::error_type {
   REPERTORY_USES_FUNCTION_NAME();
 
   const auto handle = reinterpret_cast<remote::file_handle>(file_desc);
@@ -1416,9 +1419,10 @@ auto remote_server::winfsp_read_directory(PVOID file_desc, PWSTR /*pattern*/,
   return ret;
 }
 
-auto remote_server::winfsp_rename(
-    PVOID /*file_desc*/, PWSTR file_name, PWSTR new_file_name,
-    BOOLEAN replace_if_exists) -> packet::error_type {
+auto remote_server::winfsp_rename(PVOID /*file_desc*/, PWSTR file_name,
+                                  PWSTR new_file_name,
+                                  BOOLEAN replace_if_exists)
+    -> packet::error_type {
   REPERTORY_USES_FUNCTION_NAME();
 
   const auto relative_path = utils::string::to_utf8(file_name);
@@ -1512,9 +1516,10 @@ auto remote_server::winfsp_set_basic_info(
   return ret;
 }
 
-auto remote_server::winfsp_set_file_size(
-    PVOID file_desc, UINT64 new_size, BOOLEAN set_allocation_size,
-    remote::file_info *file_info) -> packet::error_type {
+auto remote_server::winfsp_set_file_size(PVOID file_desc, UINT64 new_size,
+                                         BOOLEAN set_allocation_size,
+                                         remote::file_info *file_info)
+    -> packet::error_type {
   REPERTORY_USES_FUNCTION_NAME();
 
   const auto handle = reinterpret_cast<remote::file_handle>(file_desc);
@@ -1550,10 +1555,12 @@ auto remote_server::winfsp_unmounted(const std::wstring &location)
   return STATUS_SUCCESS;
 }
 
-auto remote_server::winfsp_write(
-    PVOID file_desc, PVOID buffer, UINT64 offset, UINT32 length,
-    BOOLEAN write_to_end, BOOLEAN constrained_io, PUINT32 bytes_transferred,
-    remote::file_info *file_info) -> packet::error_type {
+auto remote_server::winfsp_write(PVOID file_desc, PVOID buffer, UINT64 offset,
+                                 UINT32 length, BOOLEAN write_to_end,
+                                 BOOLEAN constrained_io,
+                                 PUINT32 bytes_transferred,
+                                 remote::file_info *file_info)
+    -> packet::error_type {
   REPERTORY_USES_FUNCTION_NAME();
 
   *bytes_transferred = 0;
@@ -1601,8 +1608,9 @@ auto remote_server::winfsp_write(
   return ret;
 }
 
-auto remote_server::json_create_directory_snapshot(
-    const std::string &path, json &json_data) -> packet::error_type {
+auto remote_server::json_create_directory_snapshot(const std::string &path,
+                                                   json &json_data)
+    -> packet::error_type {
   REPERTORY_USES_FUNCTION_NAME();
 
   const auto api_path = utils::path::create_api_path(path);
@@ -1661,8 +1669,8 @@ auto remote_server::json_read_directory_snapshot(
 }
 
 auto remote_server::json_release_directory_snapshot(
-    const std::string &path,
-    const remote::file_handle &handle) -> packet::error_type {
+    const std::string &path, const remote::file_handle &handle)
+    -> packet::error_type {
   REPERTORY_USES_FUNCTION_NAME();
 
   const auto file_path = construct_path(path);

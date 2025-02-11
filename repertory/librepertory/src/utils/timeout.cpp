@@ -1,5 +1,5 @@
 /*
-  Copyright <2018-2024> <scott.e.graves@protonmail.com>
+  Copyright <2018-2025> <scott.e.graves@protonmail.com>
 
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"), to deal
@@ -21,34 +21,37 @@
 */
 #include "utils/timeout.hpp"
 
-#include "types/repertory.hpp"
-
 namespace repertory {
 timeout::timeout(std::function<void()> timeout_callback,
-                 const std::chrono::system_clock::duration &duration)
+                 std::chrono::system_clock::duration duration)
     : timeout_killed_(duration == 0s) {
-  if (not timeout_killed_) {
-    timeout_thread_ =
-        std::make_unique<std::thread>([this, duration, timeout_callback]() {
-          unique_mutex_lock lock(timeout_mutex_);
-          if (not timeout_killed_) {
-            timeout_notify_.wait_for(lock, duration);
-            if (not timeout_killed_) {
-              timeout_callback();
-            }
-          }
-        });
+  if (timeout_killed_) {
+    return;
   }
+
+  timeout_thread_ =
+      std::make_unique<std::thread>([this, duration, timeout_callback]() {
+        unique_mutex_lock lock(timeout_mutex_);
+        if (not timeout_killed_) {
+          timeout_notify_.wait_for(lock, duration);
+          if (not timeout_killed_) {
+            timeout_callback();
+          }
+        }
+      });
 }
 
 void timeout::disable() {
-  if (not timeout_killed_) {
-    timeout_killed_ = true;
-    unique_mutex_lock lock(timeout_mutex_);
-    timeout_notify_.notify_all();
-    lock.unlock();
-    timeout_thread_->join();
-    timeout_thread_.reset();
+  if (timeout_killed_) {
+    return;
   }
+
+  timeout_killed_ = true;
+  unique_mutex_lock lock(timeout_mutex_);
+  timeout_notify_.notify_all();
+  lock.unlock();
+
+  timeout_thread_->join();
+  timeout_thread_.reset();
 }
 } // namespace repertory

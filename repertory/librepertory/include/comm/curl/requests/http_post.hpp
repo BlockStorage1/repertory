@@ -1,5 +1,5 @@
 /*
-  Copyright <2018-2024> <scott.e.graves@protonmail.com>
+  Copyright <2018-2025> <scott.e.graves@protonmail.com>
 
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"), to deal
@@ -32,15 +32,15 @@ struct http_post final : http_request_base {
   auto operator=(const http_post &) -> http_post & = default;
   auto operator=(http_post &&) -> http_post & = default;
 
-  ~http_post() override;
+  ~http_post() override = default;
 
   std::optional<nlohmann::json> json;
 
-  [[nodiscard]] auto
-  set_method(CURL *curl, stop_type & /*stop_requested*/) const -> bool override;
+  [[nodiscard]] auto set_method(CURL *curl,
+                                stop_type & /*stop_requested*/) const
+      -> bool override;
 
 private:
-  mutable curl_slist *headers{nullptr};
   mutable std::optional<std::string> json_str;
 };
 } // namespace repertory::curl::requests

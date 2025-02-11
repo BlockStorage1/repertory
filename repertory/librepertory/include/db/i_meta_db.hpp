@@ -1,5 +1,5 @@
 /*
-  Copyright <2018-2024> <scott.e.graves@protonmail.com>
+  Copyright <2018-2025> <scott.e.graves@protonmail.com>
 
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"), to deal
@@ -30,6 +30,10 @@ class i_meta_db {
 
 public:
   virtual void clear() = 0;
+
+  virtual void enumerate_api_path_list(
+      std::function<void(const std::vector<std::string> &)> callback,
+      stop_type_callback stop_requested_cb) const = 0;
 
   [[nodiscard]] virtual auto get_api_path(const std::string &source_path,
                                           std::string &api_path) const

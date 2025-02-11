@@ -41,8 +41,10 @@ constexpr const auto default_task_wait_ms{100U};
 constexpr const auto default_timeout_ms{60000U};
 constexpr const auto max_orphaned_file_retention_days{std::uint16_t(31U)};
 constexpr const auto max_ring_buffer_file_size{std::uint16_t(1024U)};
+constexpr const auto max_s3_object_name_length{1024U};
 constexpr const auto min_cache_size_bytes{
-    std::uint64_t(100UL * 1024UL * 1024UL)};
+    std::uint64_t(100UL * 1024UL * 1024UL),
+};
 constexpr const auto min_download_timeout_secs{std::uint8_t(5U)};
 constexpr const auto min_online_check_retry_secs{std::uint16_t(15U)};
 constexpr const auto min_orphaned_file_retention_days{std::uint16_t(1U)};
@@ -200,6 +202,7 @@ enum class api_error {
   item_exists,
   item_not_found,
   more_data,
+  name_too_long,
   no_disk_space,
   not_implemented,
   not_supported,
@@ -216,31 +219,49 @@ enum class api_error {
 
 [[nodiscard]] auto api_error_from_string(std::string_view str) -> api_error;
 
-[[nodiscard]] auto
-api_error_to_string(const api_error &error) -> const std::string &;
+[[nodiscard]] auto api_error_to_string(const api_error &error)
+    -> const std::string &;
 
 enum class database_type {
   rocksdb,
   sqlite,
 };
-[[nodiscard]] auto database_type_from_string(
-    std::string type,
-    database_type default_type = database_type::rocksdb) -> database_type;
-
 [[nodiscard]] auto
-database_type_to_string(const database_type &type) -> std::string;
+database_type_from_string(std::string type,
+                          database_type default_type = database_type::rocksdb)
+    -> database_type;
+
+[[nodiscard]] auto database_type_to_string(const database_type &type)
+    -> std::string;
 
 enum class download_type {
   default_,
   direct,
   ring_buffer,
 };
-[[nodiscard]] auto download_type_from_string(
-    std::string type,
-    download_type default_type = download_type::default_) -> download_type;
+[[nodiscard]] auto
+download_type_from_string(std::string type,
+                          download_type default_type = download_type::default_)
+    -> download_type;
+
+[[nodiscard]] auto download_type_to_string(const download_type &type)
+    -> std::string;
+
+enum class event_level {
+  critical,
+  error,
+  warn,
+  info,
+  debug,
+  trace,
+};
 
 [[nodiscard]] auto
-download_type_to_string(const download_type &type) -> std::string;
+event_level_from_string(std::string level,
+                        event_level default_level = event_level::info)
+    -> event_level;
+
+[[nodiscard]] auto event_level_to_string(event_level level) -> std::string;
 
 enum class exit_code : std::int32_t {
   success = 0,
@@ -267,7 +288,9 @@ enum class exit_code : std::int32_t {
 enum http_error_codes : std::int32_t {
   ok = 200,
   multiple_choices = 300,
+  unauthorized = 401,
   not_found = 404,
+  internal_error = 500,
 };
 
 enum class lock_result {
@@ -648,6 +671,18 @@ template <> struct adl_serializer<repertory::download_type> {
 
   static void from_json(const json &data, repertory::download_type &value) {
     value = repertory::download_type_from_string(data.get<std::string>());
+  }
+};
+
+template <> struct adl_serializer<std::atomic<repertory::event_level>> {
+  static void to_json(json &data,
+                      const std::atomic<repertory::event_level> &value) {
+    data = repertory::event_level_to_string(value.load());
+  }
+
+  static void from_json(const json &data,
+                        std::atomic<repertory::event_level> &value) {
+    value.store(repertory::event_level_from_string(data.get<std::string>()));
   }
 };
 NLOHMANN_JSON_NAMESPACE_END

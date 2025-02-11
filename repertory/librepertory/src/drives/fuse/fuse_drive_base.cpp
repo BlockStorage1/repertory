@@ -1,5 +1,5 @@
 /*
-  Copyright <2018-2024> <scott.e.graves@protonmail.com>
+  Copyright <2018-2025> <scott.e.graves@protonmail.com>
 
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"), to deal
@@ -23,10 +23,11 @@
 
 #include "drives/fuse/fuse_drive_base.hpp"
 
-#include "events/events.hpp"
 #include "platform/platform.hpp"
 #include "providers/i_provider.hpp"
 #include "utils/common.hpp"
+#include "utils/path.hpp"
+#include "utils/string.hpp"
 #include "utils/time.hpp"
 
 namespace repertory {

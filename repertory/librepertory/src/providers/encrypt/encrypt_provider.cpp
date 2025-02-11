@@ -1,5 +1,5 @@
 /*
-  Copyright <2018-2024> <scott.e.graves@protonmail.com>
+  Copyright <2018-2025> <scott.e.graves@protonmail.com>
 
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"), to deal
@@ -23,10 +23,17 @@
 
 #include "db/file_db.hpp"
 #include "events/event_system.hpp"
-#include "events/events.hpp"
+#include "events/types/directory_removed_externally.hpp"
+#include "events/types/file_removed_externally.hpp"
+#include "events/types/filesystem_item_added.hpp"
+#include "events/types/service_start_begin.hpp"
+#include "events/types/service_start_end.hpp"
+#include "events/types/service_stop_begin.hpp"
+#include "events/types/service_stop_end.hpp"
 #include "types/repertory.hpp"
 #include "types/startup_exception.hpp"
 #include "utils/collection.hpp"
+#include "utils/config.hpp"
 #include "utils/encrypting_reader.hpp"
 #include "utils/encryption.hpp"
 #include "utils/error_utils.hpp"
@@ -38,10 +45,11 @@ namespace repertory {
 encrypt_provider::encrypt_provider(app_config &config)
     : config_(config), encrypt_config_(config.get_encrypt_config()) {}
 
-auto encrypt_provider::create_api_file(
-    const std::string &api_path, bool directory,
-    const std::string &source_path) -> api_file {
-  auto times = utils::file::get_times(source_path);
+auto encrypt_provider::create_api_file(const std::string &api_path,
+                                       bool directory,
+                                       const std::string &source_path)
+    -> api_file {
+  auto times{utils::file::get_times(source_path)};
   if (not times.has_value()) {
     throw std::runtime_error("failed to get file times");
   }
@@ -66,10 +74,10 @@ auto encrypt_provider::create_api_file(
 void encrypt_provider::create_item_meta(api_meta_map &meta, bool directory,
                                         const api_file &file) {
 #if defined(_WIN32)
-  struct _stat64 buf {};
+  struct _stat64 buf{};
   _stat64(file.source_path.c_str(), &buf);
 #else  // !defined(_WIN32)
-  struct stat buf {};
+  struct stat buf{};
   stat(file.source_path.c_str(), &buf);
 #endif // defined(_WIN32)
 
@@ -112,7 +120,7 @@ auto encrypt_provider::do_fs_operation(
     std::function<api_error(const encrypt_config &cfg,
                             const std::string &source_path)>
         callback) const -> api_error {
-  const auto &cfg = get_encrypt_config();
+  const auto &cfg{get_encrypt_config()};
 
   std::string source_path{api_path};
   if (api_path != "/" && not utils::encryption::decrypt_file_path(
@@ -129,7 +137,7 @@ auto encrypt_provider::do_fs_operation(
                      : api_error::item_not_found;
   }
 
-  auto exists = utils::file::file{source_path}.exists();
+  auto exists{utils::file::file{source_path}.exists()};
   if (exists && directory) {
     return api_error::item_exists;
   }
@@ -149,8 +157,9 @@ auto encrypt_provider::do_fs_operation(
   return callback(cfg, source_path);
 }
 
-auto encrypt_provider::get_api_path_from_source(
-    const std::string &source_path, std::string &api_path) const -> api_error {
+auto encrypt_provider::get_api_path_from_source(const std::string &source_path,
+                                                std::string &api_path) const
+    -> api_error {
   REPERTORY_USES_FUNCTION_NAME();
 
   try {
@@ -168,19 +177,20 @@ auto encrypt_provider::get_directory_item_count(
   REPERTORY_USES_FUNCTION_NAME();
 
   std::uint64_t count{};
-  auto res = do_fs_operation(
-      api_path, true,
-      [&api_path, &count](const encrypt_config & /* cfg */,
-                          const std::string &source_path) -> api_error {
-        try {
-          count = utils::file::directory{source_path}.count();
-        } catch (const std::exception &ex) {
-          utils::error::raise_api_path_error(
-              function_name, api_path, source_path, ex,
-              "failed to get directory item count");
-        }
-        return api_error::success;
-      });
+  auto res{
+      do_fs_operation(api_path, true,
+                      [&api_path, &count](auto && /* cfg */,
+                                          auto &&source_path) -> api_error {
+                        try {
+                          count = utils::file::directory{source_path}.count();
+                        } catch (const std::exception &ex) {
+                          utils::error::raise_api_path_error(
+                              function_name, api_path, source_path, ex,
+                              "failed to get directory item count");
+                        }
+                        return api_error::success;
+                      }),
+  };
   if (res != api_error::success) {
     utils::error::raise_api_path_error(function_name, api_path, res,
                                        "failed to get directory item count");
@@ -189,22 +199,24 @@ auto encrypt_provider::get_directory_item_count(
   return count;
 }
 
-auto encrypt_provider::get_directory_items(
-    const std::string &api_path, directory_item_list &list) const -> api_error {
+auto encrypt_provider::get_directory_items(const std::string &api_path,
+                                           directory_item_list &list) const
+    -> api_error {
   REPERTORY_USES_FUNCTION_NAME();
 
   return do_fs_operation(
       api_path, true,
-      [this, &list](const encrypt_config &cfg,
-                    const std::string &source_path) -> api_error {
+      [this, &list](auto &&cfg, auto &&source_path) -> api_error {
         try {
           for (const auto &dir_entry :
                utils::file::directory{source_path}.get_items()) {
             try {
               std::string current_api_path;
               if (dir_entry->is_directory_item()) {
-                auto result = db_->get_directory_api_path(dir_entry->get_path(),
-                                                          current_api_path);
+                auto result{
+                    db_->get_directory_api_path(dir_entry->get_path(),
+                                                current_api_path),
+                };
                 if (result != api_error::success &&
                     result != api_error::directory_not_found) {
                   // TODO raise error
@@ -224,8 +236,10 @@ auto encrypt_provider::get_directory_items(
                   }
                 }
               } else {
-                auto result = db_->get_file_api_path(dir_entry->get_path(),
-                                                     current_api_path);
+                auto result{
+                    db_->get_file_api_path(dir_entry->get_path(),
+                                           current_api_path),
+                };
                 if (result != api_error::success &&
                     result != api_error::item_not_found) {
                   // TODO raise error
@@ -238,9 +252,11 @@ auto encrypt_provider::get_directory_items(
                 }
               }
 
-              auto file = create_api_file(current_api_path,
-                                          dir_entry->is_directory_item(),
-                                          dir_entry->get_path());
+              auto file{
+                  create_api_file(current_api_path,
+                                  dir_entry->is_directory_item(),
+                                  dir_entry->get_path()),
+              };
 
               directory_item dir_item{};
               dir_item.api_parent = file.api_parent;
@@ -294,7 +310,7 @@ auto encrypt_provider::get_file(const std::string &api_path,
 
   try {
     bool exists{};
-    auto res = is_directory(api_path, exists);
+    auto res{is_directory(api_path, exists)};
     if (res != api_error::success) {
       return res;
     }
@@ -303,7 +319,7 @@ auto encrypt_provider::get_file(const std::string &api_path,
     }
 
     std::string source_path;
-    auto result = db_->get_file_source_path(api_path, source_path);
+    auto result{db_->get_file_source_path(api_path, source_path)};
     if (result != api_error::success) {
       return result;
     }
@@ -318,11 +334,12 @@ auto encrypt_provider::get_file(const std::string &api_path,
   return api_error::error;
 }
 
-auto encrypt_provider::get_file_list(
-    api_file_list &list, std::string & /* marker */) const -> api_error {
+auto encrypt_provider::get_file_list(api_file_list &list,
+                                     std::string & /* marker */) const
+    -> api_error {
   REPERTORY_USES_FUNCTION_NAME();
 
-  const auto &cfg = get_encrypt_config();
+  const auto &cfg{get_encrypt_config()};
 
   try {
     for (const auto &dir_entry : utils::file::directory{cfg.path}.get_items()) {
@@ -342,13 +359,14 @@ auto encrypt_provider::get_file_list(
   return api_error::error;
 }
 
-auto encrypt_provider::get_file_size(
-    const std::string &api_path, std::uint64_t &file_size) const -> api_error {
+auto encrypt_provider::get_file_size(const std::string &api_path,
+                                     std::uint64_t &file_size) const
+    -> api_error {
   REPERTORY_USES_FUNCTION_NAME();
 
   try {
     std::string source_path;
-    auto result = db_->get_file_source_path(api_path, source_path);
+    auto result{db_->get_file_source_path(api_path, source_path)};
     if (result != api_error::success) {
       return result;
     }
@@ -364,12 +382,13 @@ auto encrypt_provider::get_file_size(
   return api_error::error;
 }
 
-auto encrypt_provider::get_filesystem_item(
-    const std::string &api_path, bool directory,
-    filesystem_item &fsi) const -> api_error {
+auto encrypt_provider::get_filesystem_item(const std::string &api_path,
+                                           bool directory,
+                                           filesystem_item &fsi) const
+    -> api_error {
   std::string source_path;
   if (directory) {
-    auto result = db_->get_directory_source_path(api_path, source_path);
+    auto result{db_->get_directory_source_path(api_path, source_path)};
     if (result != api_error::success) {
       return result;
     }
@@ -382,7 +401,7 @@ auto encrypt_provider::get_filesystem_item(
     return api_error::success;
   }
 
-  auto result = db_->get_file_source_path(api_path, source_path);
+  auto result{db_->get_file_source_path(api_path, source_path)};
   if (result != api_error::success) {
     return result;
   }
@@ -400,7 +419,7 @@ auto encrypt_provider::get_filesystem_item(
 auto encrypt_provider::get_filesystem_item_from_source_path(
     const std::string &source_path, filesystem_item &fsi) const -> api_error {
   std::string api_path{};
-  auto res = get_api_path_from_source(source_path, api_path);
+  auto res{get_api_path_from_source(source_path, api_path)};
   if (res != api_error::success) {
     return res;
   }
@@ -417,14 +436,15 @@ auto encrypt_provider::get_filesystem_item_from_source_path(
   return get_filesystem_item(api_path, false, fsi);
 }
 
-auto encrypt_provider::get_filesystem_item_and_file(
-    const std::string &api_path, api_file &file,
-    filesystem_item &fsi) const -> api_error {
+auto encrypt_provider::get_filesystem_item_and_file(const std::string &api_path,
+                                                    api_file &file,
+                                                    filesystem_item &fsi) const
+    -> api_error {
   REPERTORY_USES_FUNCTION_NAME();
 
   try {
     bool exists{};
-    auto res = is_directory(api_path, exists);
+    auto res{is_directory(api_path, exists)};
     if (res != api_error::success) {
       return res;
     }
@@ -432,7 +452,7 @@ auto encrypt_provider::get_filesystem_item_and_file(
       return api_error::directory_exists;
     }
 
-    auto ret = get_filesystem_item(api_path, exists, fsi);
+    auto ret{get_filesystem_item(api_path, exists, fsi)};
     if (ret != api_error::success) {
       return ret;
     }
@@ -457,7 +477,7 @@ auto encrypt_provider::get_item_meta(const std::string &api_path,
 
   try {
     std::string source_path;
-    auto result = db_->get_source_path(api_path, source_path);
+    auto result{db_->get_source_path(api_path, source_path)};
     if (result != api_error::success) {
       return result;
     }
@@ -468,7 +488,7 @@ auto encrypt_provider::get_item_meta(const std::string &api_path,
       return result;
     }
 
-    auto file = create_api_file(api_path, is_dir, source_path);
+    auto file{create_api_file(api_path, is_dir, source_path)};
     create_item_meta(meta, is_dir, file);
     return api_error::success;
   } catch (const std::exception &ex) {
@@ -483,7 +503,7 @@ auto encrypt_provider::get_item_meta(const std::string &api_path,
                                      const std::string &key,
                                      std::string &value) const -> api_error {
   api_meta_map meta{};
-  auto ret = get_item_meta(api_path, meta);
+  auto ret{get_item_meta(api_path, meta)};
   if (ret != api_error::success) {
     return ret;
   }
@@ -511,8 +531,9 @@ auto encrypt_provider::get_total_item_count() const -> std::uint64_t {
 }
 
 auto encrypt_provider::get_used_drive_space() const -> std::uint64_t {
-  auto free_space =
-      utils::file::get_free_drive_space(get_encrypt_config().path);
+  auto free_space{
+      utils::file::get_free_drive_space(get_encrypt_config().path),
+  };
   return free_space.has_value() ? get_total_drive_space() - free_space.value()
                                 : 0U;
 }
@@ -523,7 +544,7 @@ auto encrypt_provider::is_directory(const std::string &api_path,
 
   try {
     std::string source_path;
-    auto result = db_->get_directory_source_path(api_path, source_path);
+    auto result{db_->get_directory_source_path(api_path, source_path)};
 
     if (result != api_error::success) {
       if (result != api_error::directory_not_found) {
@@ -544,13 +565,13 @@ auto encrypt_provider::is_directory(const std::string &api_path,
   return api_error::error;
 }
 
-auto encrypt_provider::is_file(const std::string &api_path,
-                               bool &exists) const -> api_error {
+auto encrypt_provider::is_file(const std::string &api_path, bool &exists) const
+    -> api_error {
   REPERTORY_USES_FUNCTION_NAME();
 
   try {
     std::string source_path;
-    auto result = db_->get_file_source_path(api_path, source_path);
+    auto result{db_->get_file_source_path(api_path, source_path)};
     if (result != api_error::success) {
       if (result != api_error::item_not_found) {
         return result;
@@ -587,8 +608,10 @@ auto encrypt_provider::process_directory_entry(
   try {
     const auto do_add_directory =
         [this, &cfg](std::string_view dir_path) -> std::string {
-      auto encrypted_parts = utils::string::split(
-          utils::path::create_api_path(dir_path), '/', false);
+      auto encrypted_parts{
+          utils::string::split(utils::path::create_api_path(dir_path), '/',
+                               false),
+      };
 
       for (std::size_t part_idx = 1U; part_idx < encrypted_parts.size();
            ++part_idx) {
@@ -611,8 +634,9 @@ auto encrypt_provider::process_directory_entry(
         current_source_path = utils::path::combine(current_source_path, {part});
 
         std::string current_api_path{};
-        auto result =
-            db_->get_directory_api_path(current_source_path, current_api_path);
+        auto result{
+            db_->get_directory_api_path(current_source_path, current_api_path),
+        };
         if (result == api_error::directory_not_found) {
           current_api_path = utils::path::create_api_path(
               current_encrypted_path + '/' + encrypted_parts.at(current_idx));
@@ -625,8 +649,8 @@ auto encrypt_provider::process_directory_entry(
           }
 
           event_system::instance().raise<filesystem_item_added>(
-              current_api_path,
-              utils::path::get_parent_api_path(current_api_path), true);
+              utils::path::get_parent_api_path(current_api_path),
+              current_api_path, true, function_name);
         } else {
           if (result != api_error::success) {
             std::runtime_error(
@@ -652,11 +676,12 @@ auto encrypt_provider::process_directory_entry(
     }
 
     if (dir_entry.is_file_item() && not dir_entry.is_symlink()) {
-      auto relative_path =
-          utils::path::get_relative_path(dir_entry.get_path(), cfg.path);
+      auto relative_path{
+          utils::path::get_relative_path(dir_entry.get_path(), cfg.path),
+      };
 
       i_file_db::file_data data;
-      auto file_res = db_->get_file_data(dir_entry.get_path(), data);
+      auto file_res{db_->get_file_data(dir_entry.get_path(), data)};
       if (file_res != api_error::success &&
           file_res != api_error::item_not_found) {
         // TODO raise error
@@ -664,8 +689,10 @@ auto encrypt_provider::process_directory_entry(
       }
 
       std::string api_parent{};
-      auto parent_res = db_->get_directory_api_path(
-          utils::path::get_parent_path(dir_entry.get_path()), api_parent);
+      auto parent_res{
+          db_->get_directory_api_path(
+              utils::path::get_parent_path(dir_entry.get_path()), api_parent),
+      };
       if (parent_res != api_error::success &&
           parent_res != api_error::directory_not_found) {
         // TODO raise error
@@ -678,11 +705,11 @@ auto encrypt_provider::process_directory_entry(
       }
 
       if (file_res == api_error::item_not_found) {
-        stop_type stop_requested{false};
         utils::encryption::encrypting_reader reader(
             utils::path::strip_to_file_name(relative_path),
-            dir_entry.get_path(), stop_requested, cfg.encryption_token,
-            utils::path::get_parent_path(relative_path));
+            dir_entry.get_path(),
+            []() -> bool { return app_config::get_stop_requested(); },
+            cfg.encryption_token, utils::path::get_parent_path(relative_path));
         api_path = utils::path::create_api_path(
             api_parent + "/" + reader.get_encrypted_file_name());
 
@@ -700,7 +727,7 @@ auto encrypt_provider::process_directory_entry(
         }
 
         event_system::instance().raise<filesystem_item_added>(
-            api_path, api_parent, false);
+            api_parent, api_path, false, function_name);
       }
 
       return true;
@@ -720,29 +747,33 @@ auto encrypt_provider::read_file_bytes(const std::string &api_path,
   REPERTORY_USES_FUNCTION_NAME();
 
   i_file_db::file_data file_data{};
-  auto result = db_->get_file_data(api_path, file_data);
+  auto result{db_->get_file_data(api_path, file_data)};
   if (result != api_error::success) {
     return result;
   }
 
-  auto opt_size = utils::file::file{file_data.source_path}.size();
+  auto opt_size{utils::file::file{file_data.source_path}.size()};
   if (not opt_size.has_value()) {
     return api_error::os_error;
   }
 
   auto file_size{opt_size.value()};
 
-  const auto &cfg = get_encrypt_config();
+  const auto &cfg{get_encrypt_config()};
 
   unique_recur_mutex_lock reader_lookup_lock(reader_lookup_mtx_);
 
   if (file_data.file_size != file_size) {
-    auto relative_path =
-        utils::path::get_relative_path(file_data.source_path, cfg.path);
+    auto relative_path{
+        utils::path::get_relative_path(file_data.source_path, cfg.path),
+    };
 
-    auto info = std::make_shared<reader_info>();
+    auto info{std::make_shared<reader_info>()};
     info->reader = std::make_unique<utils::encryption::encrypting_reader>(
-        relative_path, file_data.source_path, stop_requested,
+        relative_path, file_data.source_path,
+        [&stop_requested]() -> bool {
+          return stop_requested || app_config::get_stop_requested();
+        },
         cfg.encryption_token, utils::path::get_parent_path(relative_path));
     reader_lookup_[file_data.source_path] = info;
     file_data.file_size = file_size;
@@ -758,10 +789,13 @@ auto encrypt_provider::read_file_bytes(const std::string &api_path,
     }
   } else if (reader_lookup_.find(file_data.source_path) ==
              reader_lookup_.end()) {
-    auto info = std::make_shared<reader_info>();
+    auto info{std::make_shared<reader_info>()};
     info->reader = std::make_unique<utils::encryption::encrypting_reader>(
-        api_path, file_data.source_path, stop_requested, cfg.encryption_token,
-        std::move(file_data.iv_list));
+        api_path, file_data.source_path,
+        [&stop_requested]() -> bool {
+          return stop_requested || app_config::get_stop_requested();
+        },
+        cfg.encryption_token, std::move(file_data.iv_list));
     reader_lookup_[file_data.source_path] = info;
   }
 
@@ -769,7 +803,7 @@ auto encrypt_provider::read_file_bytes(const std::string &api_path,
     return api_error::success;
   }
 
-  auto info = reader_lookup_.at(file_data.source_path);
+  auto info{reader_lookup_.at(file_data.source_path)};
   info->last_access_time = std::chrono::system_clock::now();
   reader_lookup_lock.unlock();
 
@@ -777,45 +811,60 @@ auto encrypt_provider::read_file_bytes(const std::string &api_path,
   info->reader->set_read_position(offset);
   data.resize(size);
 
-  auto res =
+  auto res{
       info->reader->reader_function(reinterpret_cast<char *>(data.data()), 1U,
-                                    data.size(), info->reader.get());
-  if (res == 0) {
-    return api_error::os_error;
-  }
-
-  return api_error::success;
+                                    data.size(), info->reader.get()),
+  };
+  return res == 0 ? api_error::os_error : api_error::success;
 }
 
-void encrypt_provider::remove_deleted_files(const stop_type &stop_requested) {
-  std::vector<i_file_db::file_info> removed_list{};
+void encrypt_provider::remove_deleted_files(stop_type &stop_requested) {
+  REPERTORY_USES_FUNCTION_NAME();
 
-  for (const auto &item : db_->get_item_list()) {
-    if (stop_requested) {
-      return;
-    }
+  const auto get_stop_requested = [&stop_requested]() -> bool {
+    return stop_requested || app_config::get_stop_requested();
+  };
 
-    if (not utils::path::exists(item.source_path)) {
-      removed_list.emplace_back(item);
-    }
-  }
+  db_->enumerate_item_list(
+      [this, &get_stop_requested](auto &&list) {
+        std::vector<i_file_db::file_info> removed_list{};
+        for (const auto &item : list) {
+          if (get_stop_requested()) {
+            return;
+          }
 
-  for (const auto &item : removed_list) {
-    if (stop_requested) {
-      return;
-    }
+          if (utils::path::exists(item.source_path)) {
+            continue;
+          }
 
-    // TODO handle error
-    auto del_res = db_->remove_item(item.api_path);
-    if (item.directory) {
-      event_system::instance().raise<directory_removed_externally>(
-          item.api_path, item.source_path);
-      continue;
-    }
+          removed_list.emplace_back(item);
+        }
 
-    event_system::instance().raise<file_removed_externally>(item.api_path,
-                                                            item.source_path);
-  }
+        for (const auto &item : removed_list) {
+          if (get_stop_requested()) {
+            return;
+          }
+
+          auto res{db_->remove_item(item.api_path)};
+          if (res != api_error::success) {
+            utils::error::raise_api_path_error(
+                function_name, item.api_path, item.source_path, res,
+                fmt::format("failed to process externally removed item|dir|{}",
+                            utils::string::from_bool(item.directory)));
+            continue;
+          }
+
+          if (item.directory) {
+            event_system::instance().raise<directory_removed_externally>(
+                item.api_path, function_name, item.source_path);
+            continue;
+          }
+
+          event_system::instance().raise<file_removed_externally>(
+              item.api_path, function_name, item.source_path);
+        }
+      },
+      get_stop_requested);
 }
 
 auto encrypt_provider::start(api_item_added_callback /*api_item_added*/,
@@ -826,23 +875,25 @@ auto encrypt_provider::start(api_item_added_callback /*api_item_added*/,
     return false;
   }
 
+  event_system::instance().raise<service_start_begin>(function_name,
+                                                      "encrypt_provider");
   db_ = create_file_db(config_);
 
   std::string source_path;
-  auto result = db_->get_directory_source_path("/", source_path);
+  auto result{db_->get_directory_source_path("/", source_path)};
   if (result != api_error::success &&
       result != api_error::directory_not_found) {
     throw startup_exception(
         fmt::format("failed to get root|{}", api_error_to_string(result)));
   }
 
-  auto cfg_path = utils::path::absolute(get_encrypt_config().path);
+  auto cfg_path{utils::path::absolute(get_encrypt_config().path)};
   if (result == api_error::success) {
-    auto cur_path = utils::path::absolute(source_path);
+    auto cur_path{utils::path::absolute(source_path)};
 #if defined(_WIN32)
     if (utils::string::to_lower(cur_path) !=
         utils::string::to_lower(cfg_path)) {
-#else  //! defined(_WIN32)
+#else  // !defined(_WIN32)
     if (cur_path != cfg_path) {
 #endif // defined(_WIN32)
       throw startup_exception(fmt::format(
@@ -862,14 +913,19 @@ auto encrypt_provider::start(api_item_added_callback /*api_item_added*/,
       [this](auto &&stop_requested) { remove_deleted_files(stop_requested); },
   });
 
-  event_system::instance().raise<service_started>("encrypt_provider");
+  event_system::instance().raise<service_start_end>(function_name,
+                                                    "encrypt_provider");
   return true;
 }
 
 void encrypt_provider::stop() {
-  event_system::instance().raise<service_shutdown_begin>("encrypt_provider");
+  REPERTORY_USES_FUNCTION_NAME();
+
+  event_system::instance().raise<service_stop_begin>(function_name,
+                                                     "encrypt_provider");
   polling::instance().remove_callback("check_deleted");
   db_.reset();
-  event_system::instance().raise<service_shutdown_end>("encrypt_provider");
+  event_system::instance().raise<service_stop_end>(function_name,
+                                                   "encrypt_provider");
 }
 } // namespace repertory

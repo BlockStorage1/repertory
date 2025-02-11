@@ -1,5 +1,5 @@
 #comment
-FROM alpine:3.20.3
+FROM alpine:3.21.0
 
 RUN apk update
 RUN apk upgrade
@@ -671,6 +671,8 @@ RUN if [ -f "/3rd_party/curl-${MY_CURL_VERSION}.tar.gz" ]; then \
       && cd build \
       && cmake .. \
         -DBUILD_CURL_EXE=ON \
+        -DBUILD_LIBCURL_DOCS=OFF \
+        -DBUILD_MISC_DOCS=OFF \
         -DBUILD_SHARED_LIBS=OFF \
         -DBUILD_STATIC_LIBS=ON \
         -DBUILD_TESTING=OFF \
@@ -684,6 +686,7 @@ RUN if [ -f "/3rd_party/curl-${MY_CURL_VERSION}.tar.gz" ]; then \
         -DCURL_USE_LIBSSH2=OFF \
         -DCURL_USE_OPENSSL=ON \
         -DCURL_ZLIB=ON \
+        -DENABLE_CURL_MANUAL=OFF \
         -DENABLE_THREADED_RESOLVER=ON \
         -DOPENSSL_USE_STATIC_LIBS=ON \
         -DUSE_LIBIDN2=OFF \
