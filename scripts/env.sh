@@ -26,7 +26,7 @@ pushd "${PROJECT_SOURCE_DIR}"
 PROJECT_GIT_REV=$(git rev-parse --short HEAD)
 
 . "${PROJECT_SCRIPTS_DIR}/versions.sh"
-. "${PROJECT_SCRIPTS_DIR}/options.sh"
+. "${PROJECT_SCRIPTS_DIR}/libraries.sh"
 
 for PROJECT_LIBRARY in "${PROJECT_LIBRARIES[@]}"; do
   ENABLE_NAME=PROJECT_ENABLE_${PROJECT_LIBRARY}

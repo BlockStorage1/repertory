@@ -1,5 +1,5 @@
 /*
- Copyright <2018-2024> <scott.e.graves@protonmail.com>
+ Copyright <2018-2025> <scott.e.graves@protonmail.com>
 
   Permission is hereby granted, free of charge, to any person obtaining a copy
  of this software and associated documentation files (the "Software"), to deal
@@ -22,8 +22,48 @@
 #include "test.hpp"
 
 namespace {
-static constexpr const auto file_type_count{1U};
+#if defined(PROJECT_ENABLE_LIBSODIUM) && defined(PROJECT_ENABLE_BOOST)
+#include "utils/file_enc_file.hpp"
+constexpr const auto file_type_count{3U};
+#else
+constexpr const auto file_type_count{2U};
+#endif
+
+[[nodiscard]] auto create_file(auto idx, auto path,
+                               bool read_only = false) -> auto {
+  switch (idx) {
+  case 0U:
+    return repertory::utils::file::file::open_or_create_file(path, read_only);
+  case 1U:
+    return repertory::utils::file::thread_file::open_or_create_file(path,
+                                                                    read_only);
+#if defined(PROJECT_ENABLE_LIBSODIUM) && defined(PROJECT_ENABLE_BOOST)
+  case 2U:
+    return repertory::utils::file::enc_file::attach_file(
+        repertory::utils::file::file::open_or_create_file(path, read_only));
+#endif
+  default:
+    throw std::runtime_error("not supported");
+  }
 }
+
+[[nodiscard]] auto open_file(auto idx, auto path,
+                             bool read_only = false) -> auto {
+  switch (idx) {
+  case 0U:
+    return repertory::utils::file::file::open_file(path, read_only);
+  case 1U:
+    return repertory::utils::file::thread_file::open_file(path, read_only);
+#if defined(PROJECT_ENABLE_LIBSODIUM) && defined(PROJECT_ENABLE_BOOST)
+  case 2U:
+    return repertory::utils::file::enc_file::attach_file(
+        repertory::utils::file::file::open_file(path, read_only));
+#endif
+  default:
+    throw std::runtime_error("not supported");
+  }
+}
+} // namespace
 
 namespace repertory {
 TEST(utils_file, can_create_and_remove_file) {
@@ -32,8 +72,7 @@ TEST(utils_file, can_create_and_remove_file) {
     EXPECT_FALSE(utils::file::file(path).exists() ||
                  utils::file::directory(path).exists());
 
-    auto file = idx == 0U ? utils::file::file::open_or_create_file(path)
-                          : utils::file::thread_file::open_or_create_file(path);
+    auto file{create_file(idx, path)};
     EXPECT_TRUE(*file);
 
     EXPECT_TRUE(utils::file::file(path).exists());
@@ -51,15 +90,12 @@ TEST(utils_file, can_open_file) {
     auto path = test::generate_test_file_name("utils_file");
 
     {
-      auto file = idx == 0U
-                      ? utils::file::file::open_or_create_file(path)
-                      : utils::file::thread_file::open_or_create_file(path);
+      auto file{create_file(idx, path)};
       EXPECT_TRUE(*file);
     }
 
     {
-      auto file = idx == 0U ? utils::file::file::open_file(path)
-                            : utils::file::thread_file::open_file(path);
+      auto file{create_file(idx, path)};
       EXPECT_TRUE(*file);
     }
   }
@@ -69,8 +105,7 @@ TEST(utils_file, open_file_fails_if_not_found) {
   for (auto idx = 0U; idx < file_type_count; ++idx) {
     auto path = test::generate_test_file_name("utils_file");
 
-    auto file = idx == 0U ? utils::file::file::open_file(path)
-                          : utils::file::thread_file::open_file(path);
+    auto file{open_file(idx, path)};
     EXPECT_FALSE(*file);
   }
 }
@@ -79,9 +114,7 @@ TEST(utils_file, write_fails_for_read_only_file) {
   for (auto idx = 0U; idx < file_type_count; ++idx) {
     auto path = test::generate_test_file_name("utils_file");
 
-    auto file = idx == 0U
-                    ? utils::file::file::open_or_create_file(path, true)
-                    : utils::file::thread_file::open_or_create_file(path, true);
+    auto file{create_file(idx, path, true)};
     EXPECT_TRUE(utils::file::file(path).exists());
     EXPECT_TRUE(*file);
     std::size_t bytes_written{};
@@ -188,8 +221,8 @@ TEST(utils_file, read_and_write_json_file_encrypted) {
 
 #if defined(PROJECT_ENABLE_LIBDSM)
 TEST(utils_file, smb_create_smb_path) {
-  auto path = "//server/share";
-  auto rel_path = "test/test.txt";
+  const auto *path = "//server/share";
+  const auto *rel_path = "test/test.txt";
   auto smb_path = utils::file::smb_create_smb_path(path, rel_path);
   EXPECT_STREQ("//server/share/test/test.txt", smb_path.c_str());
 
@@ -207,7 +240,7 @@ TEST(utils_file, smb_create_smb_path) {
 }
 
 TEST(utils_file, smb_create_relative_path) {
-  auto path = "//server/share/test.txt";
+  const auto *path = "//server/share/test.txt";
   auto rel_path = utils::file::smb_create_relative_path(path);
   EXPECT_STREQ("\\test.txt", rel_path.c_str());
 
@@ -225,7 +258,7 @@ TEST(utils_file, smb_create_relative_path) {
 }
 
 TEST(utils_file, smb_create_search_path) {
-  auto path = "//server/share";
+  const auto *path = "//server/share";
   auto search_path = utils::file::smb_create_search_path(path);
   EXPECT_STREQ("\\*", search_path.c_str());
 
@@ -251,8 +284,8 @@ TEST(utils_file, smb_create_search_path) {
 }
 
 TEST(utils_file, smb_parent_is_same) {
-  auto path1 = "//server/share";
-  auto path2 = "//server/share";
+  const auto *path1 = "//server/share";
+  const auto *path2 = "//server/share";
   EXPECT_TRUE(utils::file::smb_parent_is_same(path1, path2));
 
   path1 = "//server/share/";
@@ -269,8 +302,8 @@ TEST(utils_file, smb_parent_is_same) {
 }
 
 TEST(utils_file, smb_parent_is_not_same) {
-  auto path1 = "server/share";
-  auto path2 = "//server/share";
+  const auto *path1 = "server/share";
+  const auto *path2 = "//server/share";
   EXPECT_FALSE(utils::file::smb_parent_is_same(path1, path2));
 
   path1 = "server/share/";

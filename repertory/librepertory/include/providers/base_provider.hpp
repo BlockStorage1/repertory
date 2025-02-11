@@ -1,5 +1,5 @@
 /*
-  Copyright <2018-2024> <scott.e.graves@protonmail.com>
+  Copyright <2018-2025> <scott.e.graves@protonmail.com>
 
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"), to deal
@@ -53,19 +53,19 @@ private:
   i_file_manager *fm_{};
 
 private:
-  void add_all_items(const stop_type &stop_requested);
+  void add_all_items(stop_type &stop_requested);
 
   void process_removed_directories(std::deque<removed_item> removed_list,
-                                   const stop_type &stop_requested);
+                                   stop_type &stop_requested);
 
   void process_removed_files(std::deque<removed_item> removed_list,
-                             const stop_type &stop_requested);
+                             stop_type &stop_requested);
 
-  void process_removed_items(const stop_type &stop_requested);
+  void process_removed_items(stop_type &stop_requested);
 
-  void remove_deleted_items(const stop_type &stop_requested);
+  void remove_deleted_items(stop_type &stop_requested);
 
-  void remove_unmatched_source_files(const stop_type &stop_requested);
+  void remove_unmatched_source_files(stop_type &stop_requested);
 
 protected:
   [[nodiscard]] static auto create_api_file(std::string path, std::string key,

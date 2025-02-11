@@ -1,4 +1,4 @@
-FROM         alpine:3.20.3
+FROM         alpine:3.21.0
 MAINTAINER   Scott E. Graves <scott.e.graves@protonmail.com>
 CMD          bash
 
@@ -80,3 +80,6 @@ RUN apk add \
   zstd-libs \
   zstd-static \
   xz-static
+
+RUN ln -sf /usr/bin/aclocal-1.17 /usr/bin/aclocal-1.16
+RUN ln -sf /usr/bin/automake-1.17 /usr/bin/automake-1.16

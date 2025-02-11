@@ -1,5 +1,5 @@
 /*
-  Copyright <2018-2024> <scott.e.graves@protonmail.com>
+  Copyright <2018-2025> <scott.e.graves@protonmail.com>
 
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"), to deal
@@ -23,7 +23,11 @@
 
 #include "app_config.hpp"
 #include "comm/i_http_comm.hpp"
-#include "events/events.hpp"
+#include "events/event_system.hpp"
+#include "events/types/service_start_begin.hpp"
+#include "events/types/service_start_end.hpp"
+#include "events/types/service_stop_begin.hpp"
+#include "events/types/service_stop_end.hpp"
 #include "file_manager/i_file_manager.hpp"
 #include "providers/base_provider.hpp"
 #include "providers/s3/s3_provider.hpp"
@@ -69,6 +73,15 @@ auto sia_provider::create_directory_impl(const std::string &api_path,
   put_file.path = "/api/worker/objects" + api_path + "/";
   put_file.query["bucket"] = get_bucket(get_sia_config());
 
+  std::string error_data;
+  put_file.response_handler = [&error_data](auto &&data, long response_code) {
+    if (response_code == http_error_codes::ok) {
+      return;
+    }
+
+    error_data = std::string(data.begin(), data.end());
+  };
+
   long response_code{};
   stop_type stop_requested{};
   if (not get_comm().make_request(put_file, response_code, stop_requested)) {
@@ -79,8 +92,9 @@ auto sia_provider::create_directory_impl(const std::string &api_path,
   }
 
   if (response_code != http_error_codes::ok) {
-    utils::error::raise_api_path_error(function_name, api_path, response_code,
-                                       "failed to create directory");
+    utils::error::raise_api_path_error(
+        function_name, api_path, response_code,
+        fmt::format("failed to create directory|response|{}", error_data));
     return api_error::comm_error;
   }
 
@@ -101,8 +115,8 @@ auto sia_provider::get_directory_item_count(const std::string &api_path) const
     if (object_list.contains("entries")) {
       for (const auto &entry : object_list.at("entries")) {
         try {
-          auto name = entry.at("name").get<std::string>();
-          auto entry_api_path = utils::path::create_api_path(name);
+          auto name{entry.at("name").get<std::string>()};
+          auto entry_api_path{utils::path::create_api_path(name)};
           if (utils::string::ends_with(name, "/") &&
               (entry_api_path == api_path)) {
             continue;
@@ -138,10 +152,10 @@ auto sia_provider::get_directory_items_impl(const std::string &api_path,
   if (object_list.contains("entries")) {
     for (const auto &entry : object_list.at("entries")) {
       try {
-        auto name = entry.at("name").get<std::string>();
-        auto entry_api_path = utils::path::create_api_path(name);
+        auto name{entry.at("name").get<std::string>()};
+        auto entry_api_path{utils::path::create_api_path(name)};
 
-        auto directory = utils::string::ends_with(name, "/");
+        auto directory{utils::string::ends_with(name, "/")};
         if (directory && (entry_api_path == api_path)) {
           continue;
         }
@@ -154,10 +168,10 @@ auto sia_provider::get_directory_items_impl(const std::string &api_path,
                                            : entry["size"].get<std::uint64_t>(),
                                  get_last_modified(entry));
           get_api_item_added()(directory, file);
-          auto res = get_item_meta(entry_api_path, meta);
+          auto res{get_item_meta(entry_api_path, meta)};
           if (res != api_error::success) {
-            utils::error::raise_error(function_name, res,
-                                      "failed to get item meta");
+            utils::error::raise_api_path_error(function_name, entry_api_path,
+                                               res, "failed to get item meta");
             continue;
           }
         } else {
@@ -187,30 +201,40 @@ auto sia_provider::get_directory_items_impl(const std::string &api_path,
 
 auto sia_provider::get_file(const std::string &api_path, api_file &file) const
     -> api_error {
-  json file_data{};
-  auto res = get_object_info(api_path, file_data);
-  if (res != api_error::success) {
-    return res;
+  REPERTORY_USES_FUNCTION_NAME();
+
+  try {
+    json file_data{};
+    auto res{get_object_info(api_path, file_data)};
+    if (res != api_error::success) {
+      return res;
+    }
+
+    auto slabs{file_data["object"]["Slabs"]};
+    auto size{
+        std::accumulate(
+            slabs.begin(), slabs.end(), std::uint64_t(0U),
+            [](auto &&total_size, const json &slab) -> std::uint64_t {
+              return total_size + slab["Length"].get<std::uint64_t>();
+            }),
+    };
+
+    api_meta_map meta{};
+    if (get_item_meta(api_path, meta) == api_error::item_not_found) {
+      file = create_api_file(api_path, "", size,
+                             get_last_modified(file_data["object"]));
+      get_api_item_added()(false, file);
+    } else {
+      file = create_api_file(api_path, size, meta);
+    }
+
+    return api_error::success;
+  } catch (const std::exception &e) {
+    utils::error::raise_api_path_error(function_name, api_path, e,
+                                       "failed to get file");
   }
 
-  auto slabs = file_data["object"]["Slabs"];
-  auto size =
-      std::accumulate(slabs.begin(), slabs.end(), std::uint64_t(0U),
-                      [](std::uint64_t total_size,
-                         const nlohmann::json &slab) -> std::uint64_t {
-                        return total_size + slab["Length"].get<std::uint64_t>();
-                      });
-
-  api_meta_map meta{};
-  if (get_item_meta(api_path, meta) == api_error::item_not_found) {
-    file = create_api_file(api_path, "", size,
-                           get_last_modified(file_data["object"]));
-    get_api_item_added()(false, file);
-  } else {
-    file = create_api_file(api_path, size, meta);
-  }
-
-  return api_error::success;
+  return api_error::error;
 }
 
 auto sia_provider::get_file_list(api_file_list &list,
@@ -228,8 +252,8 @@ auto sia_provider::get_file_list(api_file_list &list,
 
       if (object_list.contains("entries")) {
         for (const auto &entry : object_list.at("entries")) {
-          auto name = entry.at("name").get<std::string>();
-          auto entry_api_path = utils::path::create_api_path(name);
+          auto name{entry.at("name").get<std::string>()};
+          auto entry_api_path{utils::path::create_api_path(name)};
 
           if (utils::string::ends_with(name, "/")) {
             if (entry_api_path == utils::path::create_api_path(api_path)) {
@@ -239,12 +263,14 @@ auto sia_provider::get_file_list(api_file_list &list,
             api_meta_map meta{};
             if (get_item_meta(entry_api_path, meta) ==
                 api_error::item_not_found) {
-              auto dir = create_api_file(entry_api_path, "", 0U,
-                                         get_last_modified(entry));
+              auto dir{
+                  create_api_file(entry_api_path, "", 0U,
+                                  get_last_modified(entry)),
+              };
               get_api_item_added()(true, dir);
             }
 
-            auto res = get_files_in_dir(entry_api_path);
+            auto res{get_files_in_dir(entry_api_path)};
             if (res != api_error::success) {
               return res;
             }
@@ -270,8 +296,8 @@ auto sia_provider::get_file_list(api_file_list &list,
 
       return api_error::success;
     } catch (const std::exception &e) {
-      utils::error::raise_error(function_name, e,
-                                "failed to process directory|" + api_path);
+      utils::error::raise_api_path_error(function_name, api_path, e,
+                                         "failed to process directory");
     }
 
     return api_error::error;
@@ -290,11 +316,15 @@ auto sia_provider::get_object_info(const std::string &api_path,
     get.path = "/api/bus/objects" + api_path;
     get.query["bucket"] = get_bucket(get_sia_config());
 
-    get.response_handler = [&object_info](const data_buffer &data,
-                                          long response_code) {
+    std::string error_data;
+    get.response_handler = [&error_data, &object_info](auto &&data,
+                                                       long response_code) {
       if (response_code == http_error_codes::ok) {
         object_info = nlohmann::json::parse(data.begin(), data.end());
+        return;
       }
+
+      error_data = std::string(data.begin(), data.end());
     };
 
     long response_code{};
@@ -308,8 +338,9 @@ auto sia_provider::get_object_info(const std::string &api_path,
     }
 
     if (response_code != http_error_codes::ok) {
-      utils::error::raise_api_path_error(function_name, api_path, response_code,
-                                         "failed to get object info");
+      utils::error::raise_api_path_error(
+          function_name, api_path, response_code,
+          fmt::format("failed to get object info|response|{}", error_data));
       return api_error::comm_error;
     }
 
@@ -326,34 +357,46 @@ auto sia_provider::get_object_list(const std::string &api_path,
                                    nlohmann::json &object_list) const -> bool {
   REPERTORY_USES_FUNCTION_NAME();
 
-  curl::requests::http_get get{};
-  get.allow_timeout = true;
-  get.path = "/api/bus/objects" + api_path + "/";
-  get.query["bucket"] = get_bucket(get_sia_config());
+  try {
+    curl::requests::http_get get{};
+    get.allow_timeout = true;
+    get.path = "/api/bus/objects" + api_path + "/";
+    get.query["bucket"] = get_bucket(get_sia_config());
 
-  get.response_handler = [&object_list](const data_buffer &data,
-                                        long response_code) {
-    if (response_code == http_error_codes::ok) {
-      object_list = nlohmann::json::parse(data.begin(), data.end());
+    std::string error_data;
+    get.response_handler = [&error_data, &object_list](auto &&data,
+                                                       long response_code) {
+      if (response_code == http_error_codes::ok) {
+        object_list = nlohmann::json::parse(data.begin(), data.end());
+        return;
+      }
+
+      error_data = std::string(data.begin(), data.end());
+    };
+
+    long response_code{};
+    stop_type stop_requested{};
+    if (not get_comm().make_request(get, response_code, stop_requested)) {
+      utils::error::raise_api_path_error(function_name, api_path,
+                                         api_error::comm_error,
+                                         "failed to get object list");
+      return false;
     }
-  };
 
-  long response_code{};
-  stop_type stop_requested{};
-  if (not get_comm().make_request(get, response_code, stop_requested)) {
-    utils::error::raise_api_path_error(function_name, api_path,
-                                       api_error::comm_error,
+    if (response_code != http_error_codes::ok) {
+      utils::error::raise_api_path_error(
+          function_name, api_path, response_code,
+          fmt::format("failed to get object list|response|{}", error_data));
+      return false;
+    }
+
+    return true;
+  } catch (const std::exception &e) {
+    utils::error::raise_api_path_error(function_name, api_path, e,
                                        "failed to get object list");
-    return false;
   }
 
-  if (response_code != http_error_codes::ok) {
-    utils::error::raise_api_path_error(function_name, api_path, response_code,
-                                       "failed to get object list");
-    return false;
-  }
-
-  return true;
+  return false;
 }
 
 auto sia_provider::get_total_drive_space() const -> std::uint64_t {
@@ -365,12 +408,16 @@ auto sia_provider::get_total_drive_space() const -> std::uint64_t {
     get.path = "/api/autopilot/config";
     get.query["bucket"] = get_bucket(get_sia_config());
 
-    json config_data{};
-    get.response_handler = [&config_data](const data_buffer &data,
-                                          long response_code) {
+    json config_data;
+    std::string error_data;
+    get.response_handler = [&error_data, &config_data](auto &&data,
+                                                       long response_code) {
       if (response_code == http_error_codes::ok) {
         config_data = nlohmann::json::parse(data.begin(), data.end());
+        return;
       }
+
+      error_data = std::string(data.begin(), data.end());
     };
 
     long response_code{};
@@ -380,8 +427,10 @@ auto sia_provider::get_total_drive_space() const -> std::uint64_t {
     }
 
     if (response_code != http_error_codes::ok) {
-      utils::error::raise_error(function_name, response_code,
-                                "failed to get total drive space");
+      utils::error::raise_error(
+          function_name, response_code,
+          fmt::format("failed to get total drive space|response|{}",
+                      error_data));
       return 0U;
     }
 
@@ -398,14 +447,14 @@ auto sia_provider::is_directory(const std::string &api_path, bool &exists) const
     -> api_error {
   REPERTORY_USES_FUNCTION_NAME();
 
-  if (api_path == "/") {
-    exists = true;
-    return api_error::success;
-  }
-
-  exists = false;
-
   try {
+    if (api_path == "/") {
+      exists = true;
+      return api_error::success;
+    }
+
+    exists = false;
+
     json object_list{};
     if (not get_object_list(utils::path::get_parent_api_path(api_path),
                             object_list)) {
@@ -413,15 +462,14 @@ auto sia_provider::is_directory(const std::string &api_path, bool &exists) const
     }
 
     exists = object_list.contains("entries") &&
-             std::find_if(object_list.at("entries").begin(),
-                          object_list.at("entries").end(),
-                          [&api_path](const auto &entry) -> bool {
-                            return entry.at("name") == (api_path + "/");
-                          }) != object_list.at("entries").end();
+             std::ranges::find_if(object_list.at("entries"),
+                                  [&api_path](auto &&entry) -> bool {
+                                    return entry.at("name") == (api_path + "/");
+                                  }) != object_list.at("entries").end();
     return api_error::success;
   } catch (const std::exception &e) {
-    utils::error::raise_api_path_error(function_name, api_path, e,
-                                       "failed to determine path is directory");
+    utils::error::raise_api_path_error(
+        function_name, api_path, e, "failed to determine if path is directory");
   }
 
   return api_error::error;
@@ -431,14 +479,14 @@ auto sia_provider::is_file(const std::string &api_path, bool &exists) const
     -> api_error {
   REPERTORY_USES_FUNCTION_NAME();
 
-  exists = false;
-  if (api_path == "/") {
-    return api_error::success;
-  }
-
   try {
+    exists = false;
+    if (api_path == "/") {
+      return api_error::success;
+    }
+
     json file_data{};
-    auto res = get_object_info(api_path, file_data);
+    auto res{get_object_info(api_path, file_data)};
     if (res == api_error::item_not_found) {
       return api_error::success;
     }
@@ -451,7 +499,7 @@ auto sia_provider::is_file(const std::string &api_path, bool &exists) const
     return api_error::success;
   } catch (const std::exception &e) {
     utils::error::raise_api_path_error(function_name, api_path, e,
-                                       "failed to determine path is directory");
+                                       "failed to determine if path is file");
   }
 
   return api_error::error;
@@ -466,12 +514,16 @@ auto sia_provider::is_online() const -> bool {
     get.path = "/api/bus/consensus/state";
     get.query["bucket"] = get_bucket(get_sia_config());
 
-    json state_data{};
-    get.response_handler = [&state_data](const data_buffer &data,
-                                         long response_code) {
+    std::string error_data;
+    json state_data;
+    get.response_handler = [&error_data, &state_data](auto &&data,
+                                                      long response_code) {
       if (response_code == http_error_codes::ok) {
         state_data = nlohmann::json::parse(data.begin(), data.end());
+        return;
       }
+
+      error_data = std::string(data.begin(), data.end());
     };
 
     long response_code{};
@@ -483,8 +535,10 @@ auto sia_provider::is_online() const -> bool {
     }
 
     if (response_code != http_error_codes::ok) {
-      utils::error::raise_error(function_name, response_code,
-                                "failed to determine if provider is online");
+      utils::error::raise_error(
+          function_name, response_code,
+          fmt::format("failed to determine if provider is online|response|{}",
+                      error_data));
       return false;
     }
 
@@ -503,54 +557,63 @@ auto sia_provider::read_file_bytes(const std::string &api_path,
                                    stop_type &stop_requested) -> api_error {
   REPERTORY_USES_FUNCTION_NAME();
 
-  curl::requests::http_get get{};
-  get.path = "/api/worker/objects" + api_path;
-  get.query["bucket"] = get_bucket(get_sia_config());
-  get.range = {{
-      offset,
-      offset + size - 1U,
-  }};
-  get.response_handler = [&buffer](const data_buffer &data,
-                                   long /*response_code*/) { buffer = data; };
-
-  auto res = api_error::comm_error;
-  for (std::uint32_t idx = 0U;
-       not stop_requested && res != api_error::success &&
-       idx < get_config().get_retry_read_count() + 1U;
-       ++idx) {
-    long response_code{};
-    const auto notify_retry = [&]() {
-      if (response_code == 0) {
-        utils::error::raise_api_path_error(
-            function_name, api_path, api_error::comm_error,
-            "read file bytes failed|offset|" + std::to_string(offset) +
-                "|size|" + std::to_string(size) + "|retry|" +
-                std::to_string(idx + 1U));
-      } else {
-        utils::error::raise_api_path_error(
-            function_name, api_path, response_code,
-            "read file bytes failed|offset|" + std::to_string(offset) +
-                "|size|" + std::to_string(size) + "|retry|" +
-                std::to_string(idx + 1U));
-      }
-      std::this_thread::sleep_for(1s);
+  try {
+    curl::requests::http_get get{};
+    get.path = "/api/worker/objects" + api_path;
+    get.query["bucket"] = get_bucket(get_sia_config());
+    get.range = {{
+        offset,
+        offset + size - 1U,
+    }};
+    get.response_handler = [&buffer](auto &&data, long /* response_code */) {
+      buffer = data;
     };
 
-    if (not get_comm().make_request(get, response_code, stop_requested)) {
-      notify_retry();
-      continue;
+    auto res{api_error::comm_error};
+    for (std::uint32_t idx = 0U;
+         not(stop_requested || app_config::get_stop_requested()) &&
+         res != api_error::success &&
+         idx < get_config().get_retry_read_count() + 1U;
+         ++idx) {
+      long response_code{};
+      const auto notify_retry = [&]() {
+        if (response_code == 0) {
+          utils::error::raise_api_path_error(
+              function_name, api_path, api_error::comm_error,
+              "read file bytes failed|offset|" + std::to_string(offset) +
+                  "|size|" + std::to_string(size) + "|retry|" +
+                  std::to_string(idx + 1U));
+        } else {
+          utils::error::raise_api_path_error(
+              function_name, api_path, response_code,
+              "read file bytes failed|offset|" + std::to_string(offset) +
+                  "|size|" + std::to_string(size) + "|retry|" +
+                  std::to_string(idx + 1U));
+        }
+        std::this_thread::sleep_for(1s);
+      };
+
+      if (not get_comm().make_request(get, response_code, stop_requested)) {
+        notify_retry();
+        continue;
+      }
+
+      if (response_code < http_error_codes::ok ||
+          response_code >= http_error_codes::multiple_choices) {
+        notify_retry();
+        continue;
+      }
+
+      res = api_error::success;
     }
 
-    if (response_code < http_error_codes::ok ||
-        response_code >= http_error_codes::multiple_choices) {
-      notify_retry();
-      continue;
-    }
-
-    res = api_error::success;
+    return res;
+  } catch (const std::exception &e) {
+    utils::error::raise_api_path_error(function_name, api_path, e,
+                                       "failed to read file bytes");
   }
 
-  return res;
+  return api_error::error;
 }
 
 auto sia_provider::remove_directory_impl(const std::string &api_path)
@@ -562,6 +625,15 @@ auto sia_provider::remove_directory_impl(const std::string &api_path)
   del.path = "/api/bus/objects" + api_path + "/";
   del.query["bucket"] = get_bucket(get_sia_config());
 
+  std::string error_data;
+  del.response_handler = [&error_data](auto &&data, long response_code) {
+    if (response_code == http_error_codes::ok) {
+      return;
+    }
+
+    error_data = std::string(data.begin(), data.end());
+  };
+
   long response_code{};
   stop_type stop_requested{};
   if (not get_comm().make_request(del, response_code, stop_requested)) {
@@ -572,8 +644,9 @@ auto sia_provider::remove_directory_impl(const std::string &api_path)
   }
 
   if (response_code != http_error_codes::ok) {
-    utils::error::raise_api_path_error(function_name, api_path, response_code,
-                                       "failed to remove directory");
+    utils::error::raise_api_path_error(
+        function_name, api_path, response_code,
+        fmt::format("failed to remove directory|response|{}", error_data));
     return api_error::comm_error;
   }
 
@@ -588,6 +661,15 @@ auto sia_provider::remove_file_impl(const std::string &api_path) -> api_error {
   del.path = "/api/bus/objects" + api_path;
   del.query["bucket"] = get_bucket(get_sia_config());
 
+  std::string error_data;
+  del.response_handler = [&error_data](auto &&data, long response_code) {
+    if (response_code == http_error_codes::ok) {
+      return;
+    }
+
+    error_data = std::string(data.begin(), data.end());
+  };
+
   long response_code{};
   stop_type stop_requested{};
   if (not get_comm().make_request(del, response_code, stop_requested)) {
@@ -599,8 +681,9 @@ auto sia_provider::remove_file_impl(const std::string &api_path) -> api_error {
 
   if (response_code != http_error_codes::ok &&
       response_code != http_error_codes::not_found) {
-    utils::error::raise_api_path_error(function_name, api_path, response_code,
-                                       "failed to remove file");
+    utils::error::raise_api_path_error(
+        function_name, api_path, response_code,
+        fmt::format("failed to remove file|response|{}", error_data));
     return api_error::comm_error;
   }
 
@@ -611,46 +694,74 @@ auto sia_provider::rename_file(const std::string &from_api_path,
                                const std::string &to_api_path) -> api_error {
   REPERTORY_USES_FUNCTION_NAME();
 
-  curl::requests::http_post post{};
-  post.json = nlohmann::json({
-      {"from", from_api_path},
-      {"to", to_api_path},
-      {"mode", "single"},
-  });
-  post.path = "/api/bus/objects/rename";
-  post.query["bucket"] = get_bucket(get_sia_config());
+  try {
+    curl::requests::http_post post{};
+    post.json = nlohmann::json({
+        {"from", from_api_path},
+        {"to", to_api_path},
+        {"mode", "single"},
+    });
+    post.path = "/api/bus/objects/rename";
+    post.query["bucket"] = get_bucket(get_sia_config());
 
-  long response_code{};
-  stop_type stop_requested{};
-  if (not get_comm().make_request(post, response_code, stop_requested)) {
+    std::string error_data;
+    post.response_handler = [&error_data](auto &&data, long response_code) {
+      if (response_code == http_error_codes::ok) {
+        return;
+      }
+
+      error_data = std::string(data.begin(), data.end());
+    };
+
+    long response_code{};
+    stop_type stop_requested{};
+    if (not get_comm().make_request(post, response_code, stop_requested)) {
+      utils::error::raise_api_path_error(
+          function_name, fmt::format("{}|{}", from_api_path, to_api_path),
+          api_error::comm_error, "failed to rename file");
+      return api_error::comm_error;
+    }
+
+    if (response_code < http_error_codes::ok ||
+        response_code >= http_error_codes::multiple_choices) {
+      utils::error::raise_api_path_error(
+          function_name, fmt::format("{}|{}", from_api_path, to_api_path),
+          response_code,
+          fmt::format("failed to rename file file|response|{}", error_data));
+      return api_error::comm_error;
+    }
+
+    return get_db().rename_item_meta(from_api_path, to_api_path);
+  } catch (const std::exception &e) {
     utils::error::raise_api_path_error(
-        function_name, from_api_path + '|' + to_api_path, api_error::comm_error,
-        "failed to rename file");
-    return api_error::comm_error;
+        function_name, fmt::format("{}|{}", from_api_path, to_api_path), e,
+        "failed to rename file file|response");
   }
 
-  if (response_code < http_error_codes::ok ||
-      response_code >= http_error_codes::multiple_choices) {
-    utils::error::raise_api_path_error(
-        function_name, from_api_path + '|' + to_api_path, response_code,
-        "failed to rename file file");
-    return api_error::comm_error;
-  }
-
-  return get_db().rename_item_meta(from_api_path, to_api_path);
+  return api_error::error;
 }
 
 auto sia_provider::start(api_item_added_callback api_item_added,
                          i_file_manager *mgr) -> bool {
-  event_system::instance().raise<service_started>("sia_provider");
+  REPERTORY_USES_FUNCTION_NAME();
+
+  event_system::instance().raise<service_start_begin>(function_name,
+                                                      "sia_provider");
   sia_config_ = get_config().get_sia_config();
-  return base_provider::start(api_item_added, mgr);
+  auto ret = base_provider::start(api_item_added, mgr);
+  event_system::instance().raise<service_start_end>(function_name,
+                                                    "sia_provider");
+  return ret;
 }
 
 void sia_provider::stop() {
-  event_system::instance().raise<service_shutdown_begin>("sia_provider");
+  REPERTORY_USES_FUNCTION_NAME();
+
+  event_system::instance().raise<service_stop_begin>(function_name,
+                                                     "sia_provider");
   base_provider::stop();
-  event_system::instance().raise<service_shutdown_end>("sia_provider");
+  event_system::instance().raise<service_stop_end>(function_name,
+                                                   "sia_provider");
 }
 
 auto sia_provider::upload_file_impl(const std::string &api_path,
@@ -663,6 +774,15 @@ auto sia_provider::upload_file_impl(const std::string &api_path,
   put_file.query["bucket"] = get_bucket(get_sia_config());
   put_file.source_path = source_path;
 
+  std::string error_data;
+  put_file.response_handler = [&error_data](auto &&data, long response_code) {
+    if (response_code == http_error_codes::ok) {
+      return;
+    }
+
+    error_data = std::string(data.begin(), data.end());
+  };
+
   long response_code{};
   if (not get_comm().make_request(put_file, response_code, stop_requested)) {
     utils::error::raise_api_path_error(function_name, api_path, source_path,
@@ -672,8 +792,9 @@ auto sia_provider::upload_file_impl(const std::string &api_path,
   }
 
   if (response_code != http_error_codes::ok) {
-    utils::error::raise_api_path_error(function_name, api_path, source_path,
-                                       response_code, "failed to upload file");
+    utils::error::raise_api_path_error(
+        function_name, api_path, response_code,
+        fmt::format("failed to upload file|response|{}", error_data));
     return api_error::comm_error;
   }
 

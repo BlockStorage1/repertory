@@ -1,14 +1,37 @@
 # Changelog
 
+## v2.0.3-rc
+
+### Issues
+
+* \#28 \[bug\] Address slow directory responses in S3 mounts for deeply nested directories
+* \#29 \[bug\] S3 error responses are not being logged
+* \#30 \[bug\] Sia provider error responses are not logged
+* \#31 \[bug\] S3 provider should limit max key size to 1024
+
+### Changes from v2.0.2-rc
+
+* Always use direct for read-only providers
+* Fixed externally removed files not being processed during cleanup
+* Fixed http headers not being added for requests
+* Fixed incorrect `stat` values for remote mounts
+* Fixed invalid directory nullptr error on remote mounts
+* Fixed memory leak in event system
+* Refactored application shutdown
+* Refactored event system
+* Updated build system to Alpine 3.21.0
+* Updated build system to MinGW-w64 12.0.0
+* Updated copyright to 2018-2025
+
 ## v2.0.2-rc
 
 ### BREAKING CHANGES
 
 * Refactored `config.json` - will need to verify configuration settings prior to mounting
 
+<!-- markdownlint-disable-next-line -->
 ### Issues
 
-* \#12 \[Unit Test\] Complete all providers unit tests
 * \#14 \[Unit Test\] SQLite mini-ORM unit tests and cleanup
 * \#16 Add support for bucket name in Sia provider
 * \#17 Update to common c++ build system

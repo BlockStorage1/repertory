@@ -1,5 +1,5 @@
 /*
-  Copyright <2018-2024> <scott.e.graves@protonmail.com>
+  Copyright <2018-2025> <scott.e.graves@protonmail.com>
 
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"), to deal
@@ -21,6 +21,7 @@
 */
 #include "comm/curl/multi_request.hpp"
 
+#include "app_config.hpp"
 #include "utils/utils.hpp"
 
 namespace repertory {
@@ -46,7 +47,7 @@ void multi_request::get_result(CURLcode &curl_code, long &http_code) {
   auto error = false;
   int running_handles = 0;
   curl_multi_perform(multi_handle_, &running_handles);
-  while (not error && (running_handles > 0) && not stop_requested_) {
+  while (not error && (running_handles > 0) && not get_stop_requested()) {
     int ignored{};
     curl_multi_wait(multi_handle_, nullptr, 0, timeout_ms, &ignored);
 
@@ -54,7 +55,7 @@ void multi_request::get_result(CURLcode &curl_code, long &http_code) {
     error = (ret != CURLM_CALL_MULTI_PERFORM) && (ret != CURLM_OK);
   }
 
-  if (not stop_requested_) {
+  if (not get_stop_requested()) {
     int remaining_messages = 0;
     auto *multi_result =
         curl_multi_info_read(multi_handle_, &remaining_messages);
@@ -64,5 +65,9 @@ void multi_request::get_result(CURLcode &curl_code, long &http_code) {
       curl_code = multi_result->data.result;
     }
   }
+}
+
+auto multi_request::get_stop_requested() const -> bool {
+  return stop_requested_ || app_config::get_stop_requested();
 }
 } // namespace repertory

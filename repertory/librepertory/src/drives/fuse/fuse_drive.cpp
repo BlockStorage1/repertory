@@ -1,5 +1,5 @@
 /*
-  Copyright <2018-2024> <scott.e.graves@protonmail.com>
+  Copyright <2018-2025> <scott.e.graves@protonmail.com>
 
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"), to deal
@@ -31,7 +31,11 @@
 #include "events/consumers/console_consumer.hpp"
 #include "events/consumers/logging_consumer.hpp"
 #include "events/event_system.hpp"
-#include "events/events.hpp"
+#include "events/types/drive_mount_result.hpp"
+#include "events/types/drive_mounted.hpp"
+#include "events/types/drive_stop_timed_out.hpp"
+#include "events/types/drive_unmount_pending.hpp"
+#include "events/types/drive_unmounted.hpp"
 #include "platform/platform.hpp"
 #include "providers/i_provider.hpp"
 #include "rpc/server/full_server.hpp"
@@ -246,48 +250,62 @@ auto fuse_drive::create_impl(std::string api_path, mode_t mode,
   return api_error::success;
 }
 
-void fuse_drive::destroy_impl(void *ptr) {
+void fuse_drive::stop_all() {
   REPERTORY_USES_FUNCTION_NAME();
 
-  event_system::instance().raise<drive_unmount_pending>(get_mount_location());
+  mutex_lock lock(stop_all_mtx_);
 
-  remote_server_.reset();
+  auto future = std::async(std::launch::async, [this]() {
+    remote_server_.reset();
 
-  if (server_) {
-    server_->stop();
+    if (server_) {
+      server_->stop();
+    }
+
+    polling::instance().stop();
+
+    if (eviction_) {
+      eviction_->stop();
+    }
+
+    if (fm_) {
+      fm_->stop();
+    }
+
+    provider_.stop();
+
+    directory_cache_.reset();
+    eviction_.reset();
+    server_.reset();
+
+    fm_.reset();
+  });
+
+  if (future.wait_for(30s) == std::future_status::timeout) {
+    event_system::instance().raise<drive_stop_timed_out>(function_name);
+    app_config::set_stop_requested();
+    future.wait();
   }
-
-  polling::instance().stop();
-
-  if (eviction_) {
-    eviction_->stop();
-  }
-
-  if (fm_) {
-    fm_->stop();
-  }
-
-  provider_.stop();
-
-  if (directory_cache_) {
-    directory_cache_->stop();
-  }
-
-  directory_cache_.reset();
-  eviction_.reset();
-  server_.reset();
-
-  fm_.reset();
-
-  event_system::instance().raise<drive_unmounted>(get_mount_location());
-
-  config_.save();
 
   if (not lock_data_.set_mount_state(false, "", -1)) {
     utils::error::raise_error(function_name, "failed to set mount state");
   }
+}
+
+void fuse_drive::destroy_impl(void *ptr) {
+  REPERTORY_USES_FUNCTION_NAME();
+
+  event_system::instance().raise<drive_unmount_pending>(function_name,
+                                                        get_mount_location());
+
+  stop_all();
+
+  config_.save();
 
   fuse_base::destroy_impl(ptr);
+
+  event_system::instance().raise<drive_unmounted>(function_name,
+                                                  get_mount_location());
 }
 
 auto fuse_drive::fallocate_impl(std::string /*api_path*/, int mode,
@@ -363,13 +381,8 @@ auto fuse_drive::fgetattr_impl(std::string api_path, struct stat *unix_st,
     return res;
   }
 
-  bool directory{};
-  res = provider_.is_directory(api_path, directory);
-  if (res != api_error::success) {
-    return res;
-  }
   fuse_drive_base::populate_stat(api_path, open_file->get_file_size(), meta,
-                                 directory, provider_, unix_st);
+                                 open_file->is_directory(), provider_, unix_st);
 
   return api_error::success;
 }
@@ -491,32 +504,15 @@ auto fuse_drive::getattr_impl(std::string api_path,
     return res;
   }
 
-  auto found = false;
-  directory_cache_->execute_action(parent, [&](directory_iterator &iter) {
-    directory_item dir_item{};
-    found = (iter.get_directory_item(api_path, dir_item) == api_error::success);
-    if (found) {
-      fuse_drive_base::populate_stat(api_path, dir_item.size, dir_item.meta,
-                                     dir_item.directory, provider_, unix_st);
-    }
-  });
-
-  if (not found) {
-    api_meta_map meta{};
-    res = provider_.get_item_meta(api_path, meta);
-    if (res != api_error::success) {
-      return res;
-    }
-
-    bool directory{};
-    res = provider_.is_directory(api_path, directory);
-    if (res != api_error::success) {
-      return res;
-    }
-    fuse_drive_base::populate_stat(api_path,
-                                   utils::string::to_uint64(meta[META_SIZE]),
-                                   meta, directory, provider_, unix_st);
+  api_meta_map meta{};
+  res = provider_.get_item_meta(api_path, meta);
+  if (res != api_error::success) {
+    return res;
   }
+
+  fuse_drive_base::populate_stat(
+      api_path, utils::string::to_uint64(meta[META_SIZE]), meta,
+      utils::string::to_bool(meta[META_DIRECTORY]), provider_, unix_st);
 
   return api_error::success;
 }
@@ -578,25 +574,24 @@ void *fuse_drive::init_impl(struct fuse_conn_info *conn) {
   auto *ret = fuse_drive_base::init_impl(conn);
 #endif
 
-  if (console_enabled_) {
-    console_consumer_ =
-        std::make_unique<console_consumer>(config_.get_event_level());
-  }
-
-  logging_consumer_ = std::make_unique<logging_consumer>(
-      config_.get_event_level(), config_.get_log_directory());
-  event_system::instance().start();
-  was_mounted_ = true;
-
-  fm_ = std::make_unique<file_manager>(config_, provider_);
-  server_ = std::make_unique<full_server>(config_, provider_, *fm_);
-  if (not provider_.is_read_only()) {
-    eviction_ = std::make_unique<eviction>(provider_, config_, *fm_);
-  }
-  directory_cache_ = std::make_unique<directory_cache>();
-
   try {
-    directory_cache_->start();
+    if (console_enabled_) {
+      console_consumer_ =
+          std::make_unique<console_consumer>(config_.get_event_level());
+    }
+
+    logging_consumer_ = std::make_unique<logging_consumer>(
+        config_.get_event_level(), config_.get_log_directory());
+    event_system::instance().start();
+    was_mounted_ = true;
+
+    fm_ = std::make_unique<file_manager>(config_, provider_);
+    server_ = std::make_unique<full_server>(config_, provider_, *fm_);
+    if (not provider_.is_read_only()) {
+      eviction_ = std::make_unique<eviction>(provider_, config_, *fm_);
+    }
+
+    directory_cache_ = std::make_unique<directory_cache>();
     server_->start();
 
     if (not provider_.start(
@@ -617,13 +612,14 @@ void *fuse_drive::init_impl(struct fuse_conn_info *conn) {
           config_, *this, get_mount_location());
     }
 
+    polling::instance().start(&config_);
+
     if (not lock_data_.set_mount_state(true, get_mount_location(), getpid())) {
       utils::error::raise_error(function_name, "failed to set mount state");
     }
 
-    polling::instance().start(&config_);
-
-    event_system::instance().raise<drive_mounted>(get_mount_location());
+    event_system::instance().raise<drive_mounted>(function_name,
+                                                  get_mount_location());
   } catch (const std::exception &e) {
     utils::error::raise_error(function_name, e, "exception during fuse init");
 
@@ -670,12 +666,17 @@ auto fuse_drive::mkdir_impl(std::string api_path, mode_t mode) -> api_error {
 }
 
 void fuse_drive::notify_fuse_main_exit(int &ret) {
-  if (was_mounted_) {
-    event_system::instance().raise<drive_mount_result>(std::to_string(ret));
-    event_system::instance().stop();
-    logging_consumer_.reset();
-    console_consumer_.reset();
+  REPERTORY_USES_FUNCTION_NAME();
+
+  if (not was_mounted_) {
+    return;
   }
+
+  event_system::instance().raise<drive_mount_result>(
+      function_name, get_mount_location(), std::to_string(ret));
+  event_system::instance().stop();
+  logging_consumer_.reset();
+  console_consumer_.reset();
 }
 
 auto fuse_drive::open_impl(std::string api_path,
@@ -731,6 +732,9 @@ auto fuse_drive::read_impl(std::string api_path, char *buffer, size_t read_size,
   std::shared_ptr<i_open_file> open_file;
   if (not fm_->get_open_file(file_info->fh, false, open_file)) {
     return api_error::item_not_found;
+  }
+  if (open_file->is_directory()) {
+    return api_error::directory_exists;
   }
 
   auto res = check_readable(open_file->get_open_data(file_info->fh),
@@ -898,19 +902,7 @@ auto fuse_drive::getxattr_common(std::string api_path, const char *name,
   }
 
   api_meta_map meta;
-  auto found{false};
-  directory_cache_->execute_action(
-      utils::path::get_parent_api_path(api_path),
-      [&](directory_iterator &iterator) {
-        directory_item dir_item{};
-        found = (iterator.get_directory_item(api_path, dir_item) ==
-                 api_error::success);
-        if (found) {
-          meta = dir_item.meta;
-        }
-      });
-
-  res = found ? api_error::success : provider_.get_item_meta(api_path, meta);
+  res = provider_.get_item_meta(api_path, meta);
   if (res != api_error::success) {
     return res;
   }
@@ -964,7 +956,7 @@ auto fuse_drive::listxattr_impl(std::string api_path, char *buffer, size_t size,
   api_meta_map meta;
   res = provider_.get_item_meta(api_path, meta);
   if (res == api_error::success) {
-    for (auto &&meta_item : meta) {
+    for (const auto &meta_item : meta) {
       if (utils::collection::excludes(META_USED_NAMES, meta_item.first)) {
         auto attribute_name = meta_item.first;
 #if defined(__APPLE__)
@@ -1399,6 +1391,10 @@ auto fuse_drive::write_impl(std::string /*api_path*/
   std::shared_ptr<i_open_file> open_file;
   if (not fm_->get_open_file(file_info->fh, true, open_file)) {
     return api_error::item_not_found;
+  }
+
+  if (open_file->is_directory()) {
+    return api_error::directory_exists;
   }
 
   auto res = check_writeable(open_file->get_open_data(file_info->fh),

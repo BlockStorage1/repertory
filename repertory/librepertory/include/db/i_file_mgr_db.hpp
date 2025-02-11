@@ -1,5 +1,5 @@
 /*
-  Copyright <2018-2024> <scott.e.graves@protonmail.com>
+  Copyright <2018-2025> <scott.e.graves@protonmail.com>
 
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"), to deal
@@ -41,10 +41,7 @@ public:
     std::string source_path;
   };
 
-  struct upload_entry final {
-    std::string api_path;
-    std::string source_path;
-  };
+  using upload_entry = upload_active_entry;
 
 public:
   [[nodiscard]] virtual auto add_resume(const resume_entry &entry) -> bool = 0;

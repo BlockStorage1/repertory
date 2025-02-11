@@ -1,5 +1,5 @@
 /*
-  Copyright <2018-2024> <scott.e.graves@protonmail.com>
+  Copyright <2018-2025> <scott.e.graves@protonmail.com>
 
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"), to deal
@@ -40,8 +40,8 @@ class encrypting_streambuf final : public encrypting_reader::streambuf {
 public:
   encrypting_streambuf(const encrypting_streambuf &) = default;
   encrypting_streambuf(encrypting_streambuf &&) = delete;
-  auto
-  operator=(const encrypting_streambuf &) -> encrypting_streambuf & = delete;
+  auto operator=(const encrypting_streambuf &)
+      -> encrypting_streambuf & = delete;
   auto operator=(encrypting_streambuf &&) -> encrypting_streambuf & = delete;
 
   explicit encrypting_streambuf(const encrypting_reader &reader)
@@ -93,9 +93,10 @@ protected:
     return encrypting_reader::streambuf::seekoff(off, dir, which);
   }
 
-  auto seekpos(pos_type pos, std::ios_base::openmode which =
-                                 std::ios_base::out |
-                                 std::ios_base::in) -> pos_type override {
+  auto seekpos(pos_type pos,
+               std::ios_base::openmode which = std::ios_base::out |
+                                               std::ios_base::in)
+      -> pos_type override {
     return seekoff(pos, std::ios_base::beg, which);
   }
 
@@ -177,16 +178,16 @@ const std::size_t encrypting_reader::encrypted_chunk_size_ =
 
 encrypting_reader::encrypting_reader(
     std::string_view file_name, std::string_view source_path,
-    stop_type &stop_requested, std::string_view token,
+    stop_type_callback stop_requested_cb, std::string_view token,
     std::optional<std::string> relative_parent_path, std::size_t error_return)
     : key_(utils::encryption::generate_key<utils::encryption::hash_256_t>(
           token)),
-      stop_requested_(stop_requested),
+      stop_requested_cb_(std::move(stop_requested_cb)),
       error_return_(error_return),
       source_file_(utils::file::file::open_or_create_file(source_path, true)) {
   REPERTORY_USES_FUNCTION_NAME();
 
-  if (not *source_file_) {
+  if (not*source_file_) {
     throw utils::error::create_exception(function_name, {
                                                             "file open failed",
                                                             source_path,
@@ -237,17 +238,17 @@ encrypting_reader::encrypting_reader(
 
 encrypting_reader::encrypting_reader(std::string_view encrypted_file_path,
                                      std::string_view source_path,
-                                     stop_type &stop_requested,
+                                     stop_type_callback stop_requested_cb,
                                      std::string_view token,
                                      std::size_t error_return)
     : key_(utils::encryption::generate_key<utils::encryption::hash_256_t>(
           token)),
-      stop_requested_(stop_requested),
+      stop_requested_cb_(std::move(stop_requested_cb)),
       error_return_(error_return),
       source_file_(utils::file::file::open_or_create_file(source_path, true)) {
   REPERTORY_USES_FUNCTION_NAME();
 
-  if (not *source_file_) {
+  if (not*source_file_) {
     throw utils::error::create_exception(function_name, {
                                                             "file open failed",
                                                             source_path,
@@ -283,19 +284,19 @@ encrypting_reader::encrypting_reader(std::string_view encrypted_file_path,
 
 encrypting_reader::encrypting_reader(
     std::string_view encrypted_file_path, std::string_view source_path,
-    stop_type &stop_requested, std::string_view token,
+    stop_type_callback stop_requested_cb, std::string_view token,
     std::vector<
         std::array<unsigned char, crypto_aead_xchacha20poly1305_IETF_NPUBBYTES>>
         iv_list,
     std::size_t error_return)
     : key_(utils::encryption::generate_key<utils::encryption::hash_256_t>(
           token)),
-      stop_requested_(stop_requested),
+      stop_requested_cb_(std::move(stop_requested_cb)),
       error_return_(error_return),
       source_file_(utils::file::file::open_or_create_file(source_path, true)) {
   REPERTORY_USES_FUNCTION_NAME();
 
-  if (not *source_file_) {
+  if (not*source_file_) {
     throw utils::error::create_exception(function_name, {
                                                             "file open failed",
                                                             source_path,
@@ -329,7 +330,7 @@ encrypting_reader::encrypting_reader(
 
 encrypting_reader::encrypting_reader(const encrypting_reader &reader)
     : key_(reader.key_),
-      stop_requested_(reader.stop_requested_),
+      stop_requested_cb_(reader.stop_requested_cb_),
       error_return_(reader.error_return_),
       source_file_(
           utils::file::file::open_file(reader.source_file_->get_path(), true)),
@@ -343,7 +344,7 @@ encrypting_reader::encrypting_reader(const encrypting_reader &reader)
       total_size_(reader.total_size_) {
   REPERTORY_USES_FUNCTION_NAME();
 
-  if (not *source_file_) {
+  if (not*source_file_) {
     throw utils::error::create_exception(
         function_name, {
                            "file open failed",
@@ -403,7 +404,7 @@ auto encrypting_reader::reader_function(char *buffer, size_t size,
     try {
       ret = true;
       auto remain = read_size;
-      while (not stop_requested_ && ret && (remain != 0U)) {
+      while (not get_stop_requested() && ret && (remain != 0U)) {
         if (chunk_buffers_.find(chunk) == chunk_buffers_.end()) {
           auto &chunk_buffer = chunk_buffers_[chunk];
           data_buffer file_data(chunk == last_data_chunk_
@@ -441,9 +442,9 @@ auto encrypting_reader::reader_function(char *buffer, size_t size,
     }
   }
 
-  return stop_requested_ ? static_cast<std::size_t>(CURL_READFUNC_ABORT)
-         : ret           ? total_read
-                         : error_return_;
+  return get_stop_requested() ? static_cast<std::size_t>(CURL_READFUNC_ABORT)
+         : ret                ? total_read
+                              : error_return_;
 }
 } // namespace repertory::utils::encryption
 

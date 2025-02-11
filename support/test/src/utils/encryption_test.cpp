@@ -1,5 +1,5 @@
 /*
- Copyright <2018-2024> <scott.e.graves@protonmail.com>
+ Copyright <2018-2025> <scott.e.graves@protonmail.com>
 
   Permission is hereby granted, free of charge, to any person obtaining a copy
  of this software and associated documentation files (the "Software"), to deal
@@ -22,6 +22,10 @@
 #include "test.hpp"
 
 #if defined(PROJECT_ENABLE_LIBSODIUM)
+
+namespace {
+const auto get_stop_requested = []() -> bool { return false; };
+} // namespace
 
 namespace repertory {
 static constexpr const std::string_view token{"moose"};
@@ -250,9 +254,8 @@ TEST(utils_encryption, decrypt_file_name) {
       8U * utils::encryption::encrypting_reader::get_data_chunk_size());
   EXPECT_TRUE(source_file);
   if (source_file) {
-    stop_type stop_requested{false};
     utils::encryption::encrypting_reader reader(
-        "test.dat", source_file.get_path(), stop_requested, token,
+        "test.dat", source_file.get_path(), get_stop_requested, token,
         std::nullopt);
 
     auto file_name = reader.get_encrypted_file_name();
@@ -267,9 +270,9 @@ TEST(utils_encryption, decrypt_file_path) {
       8U * utils::encryption::encrypting_reader::get_data_chunk_size());
   EXPECT_TRUE(source_file);
   if (source_file) {
-    stop_type stop_requested{false};
     utils::encryption::encrypting_reader reader(
-        "test.dat", source_file.get_path(), stop_requested, token, "moose/cow");
+        "test.dat", source_file.get_path(), get_stop_requested, token,
+        "moose/cow");
 
     auto file_path = reader.get_encrypted_file_path();
 

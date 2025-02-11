@@ -1,5 +1,5 @@
 /*
-  Copyright <2018-2024> <scott.e.graves@protonmail.com>
+  Copyright <2018-2025> <scott.e.graves@protonmail.com>
 
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"), to deal
@@ -30,7 +30,10 @@
 #include "drives/remote/remote_open_file_table.hpp"
 #include "drives/winfsp/remotewinfsp/i_remote_instance.hpp"
 #include "events/event_system.hpp"
-#include "events/events.hpp"
+#include "events/types/service_start_begin.hpp"
+#include "events/types/service_start_end.hpp"
+#include "events/types/service_stop_begin.hpp"
+#include "events/types/service_stop_end.hpp"
 #include "types/remote.hpp"
 #include "types/repertory.hpp"
 #include "utils/base64.hpp"
@@ -55,7 +58,10 @@ public:
         drive_(drv),
         mount_location_(std::move(mount_location)),
         client_pool_(config.get_remote_mount().client_pool_size) {
-    event_system::instance().raise<service_started>("remote_server_base");
+    REPERTORY_USES_FUNCTION_NAME();
+
+    event_system::instance().raise<service_start_begin>(function_name,
+                                                        "remote_server_base");
     handler_lookup_.insert(
         {"::winfsp_can_delete",
          [this](std::uint32_t, const std::string &, std::uint64_t,
@@ -1372,14 +1378,19 @@ public:
                                        method, request, response,
                                        message_complete);
         });
+    event_system::instance().raise<service_start_end>(function_name,
+                                                      "remote_server_base");
   }
 
   ~remote_server_base() override {
-    event_system::instance().raise<service_shutdown_begin>(
-        "remote_server_base");
+    REPERTORY_USES_FUNCTION_NAME();
+
+    event_system::instance().raise<service_stop_begin>(function_name,
+                                                       "remote_server_base");
     client_pool_.shutdown();
     packet_server_.reset();
-    event_system::instance().raise<service_shutdown_end>("remote_server_base");
+    event_system::instance().raise<service_stop_end>(function_name,
+                                                     "remote_server_base");
   }
 
 public:

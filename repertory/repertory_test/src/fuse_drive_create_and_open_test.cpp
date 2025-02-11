@@ -1,5 +1,5 @@
 /*
-  Copyright <2018-2024> <scott.e.graves@protonmail.com>
+  Copyright <2018-2025> <scott.e.graves@protonmail.com>
 
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"), to deal
@@ -41,7 +41,7 @@ TYPED_TEST(fuse_test, create_can_create_directory_with_specific_perms) {
   std::string dir_name{"create_test"};
   auto dir_path = this->create_directory_and_test(dir_name, S_IRUSR);
 
-  struct stat64 unix_st {};
+  struct stat64 unix_st{};
   EXPECT_EQ(0, stat64(dir_path.c_str(), &unix_st));
   EXPECT_EQ(S_IRUSR, unix_st.st_mode & ACCESSPERMS);
 
@@ -52,7 +52,7 @@ TYPED_TEST(fuse_test, create_can_create_file_with_specific_perms) {
   std::string file_name{"create_test"};
   auto file_path = this->create_file_and_test(file_name, S_IRUSR);
 
-  struct stat64 unix_st {};
+  struct stat64 unix_st{};
   EXPECT_EQ(0, stat64(file_path.c_str(), &unix_st));
   EXPECT_EQ(S_IRUSR, unix_st.st_mode & ACCESSPERMS);
 
@@ -376,7 +376,7 @@ TYPED_TEST(fuse_test, create_fails_with_excl_if_path_is_directory) {
   std::string dir_name{"create_test"};
   auto dir_path = this->create_directory_and_test(dir_name);
 
-  for (auto &&flags : ops) {
+  for (const auto &flags : ops) {
     auto handle = open(dir_path.c_str(), flags, ACCESSPERMS);
     EXPECT_EQ(-1, handle);
 
@@ -396,7 +396,7 @@ TYPED_TEST(fuse_test, create_fails_with_excl_if_file_exists) {
   std::string file_name{"create_test"};
   auto file_path = this->create_file_and_test(file_name);
 
-  for (auto &&flags : ops) {
+  for (const auto &flags : ops) {
     auto handle = open(file_path.c_str(), flags, ACCESSPERMS);
     EXPECT_EQ(-1, handle);
 
@@ -420,7 +420,7 @@ TYPED_TEST(fuse_test, create_fails_if_path_is_directory) {
   std::string dir_name{"create_test"};
   auto dir_path = this->create_directory_and_test(dir_name);
 
-  for (auto &&flags : ops) {
+  for (const auto &flags : ops) {
     auto handle = open(dir_path.c_str(), flags, ACCESSPERMS);
     EXPECT_EQ(-1, handle);
 
@@ -447,7 +447,7 @@ TYPED_TEST(fuse_test, create_fails_if_parent_path_does_not_exist) {
   std::string file_name{"no_dir/create_test"};
   auto file_path = this->create_file_path(file_name);
 
-  for (auto &&flags : ops) {
+  for (const auto &flags : ops) {
     auto handle = open(file_path.c_str(), flags, ACCESSPERMS);
     EXPECT_EQ(-1, handle);
 
@@ -463,7 +463,7 @@ TYPED_TEST(fuse_test, create_fails_if_invalid) {
   std::string file_name{"create_test"};
   auto file_path = this->create_file_path(file_name);
 
-  for (auto &&flags : ops) {
+  for (const auto &flags : ops) {
     auto handle = open(file_path.c_str(), flags, ACCESSPERMS);
     EXPECT_EQ(-1, handle);
 
@@ -481,7 +481,7 @@ TYPED_TEST(fuse_test, create_open_fails_if_path_is_directory) {
   std::string dir_name{"create_test"};
   auto dir_path = this->create_directory_and_test(dir_name);
 
-  for (auto &&flags : ops) {
+  for (const auto &flags : ops) {
     auto handle = open(dir_path.c_str(), flags);
     EXPECT_EQ(-1, handle);
     if (handle != -1) {
@@ -510,7 +510,7 @@ TYPED_TEST(fuse_test, create_open_fails_if_path_does_not_exist) {
   std::string file_name{"create_test"};
   auto file_path = this->create_file_path(file_name);
 
-  for (auto &&flags : ops) {
+  for (const auto &flags : ops) {
     auto handle = open(file_path.c_str(), flags);
     EXPECT_EQ(-1, handle);
     EXPECT_EQ(ENOENT, errno);

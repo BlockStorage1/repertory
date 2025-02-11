@@ -1,5 +1,5 @@
 /*
-  Copyright <2018-2024> <scott.e.graves@protonmail.com>
+  Copyright <2018-2025> <scott.e.graves@protonmail.com>
 
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"), to deal
@@ -185,7 +185,6 @@ encrypt_data(const std::array<unsigned char,
                          buf.size(), res);
 }
 
-#if defined(PROJECT_ENABLE_CURL)
 using reader_func_t =
     std::function<bool(data_buffer &cypher_text, std::uint64_t start_offset,
                        std::uint64_t end_offset)>;
@@ -195,7 +194,11 @@ read_encrypted_range(const http_range &range,
                      const utils::encryption::hash_256_t &key,
                      reader_func_t reader_func, std::uint64_t total_size,
                      data_buffer &data) -> bool;
-#endif // defined(PROJECT_ENABLE_CURL)
+
+[[nodiscard]] auto read_encrypted_range(
+    const http_range &range, const utils::encryption::hash_256_t &key,
+    reader_func_t reader_func, std::uint64_t total_size, unsigned char *data,
+    std::size_t size, std::size_t &bytes_read) -> bool;
 #endif // defined(PROJECT_ENABLE_BOOST)
 
 template <typename hash_t>

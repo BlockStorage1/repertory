@@ -1,5 +1,5 @@
 /*
-  Copyright <2018-2024> <scott.e.graves@protonmail.com>
+  Copyright <2018-2025> <scott.e.graves@protonmail.com>
 
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"), to deal
@@ -78,8 +78,8 @@ private:
   stop_type stop_requested_{false};
 
 private:
-  [[nodiscard]] auto adjust_cache_size(std::uint64_t file_size,
-                                       bool shrink) -> api_error;
+  [[nodiscard]] auto adjust_cache_size(std::uint64_t file_size, bool shrink)
+      -> api_error;
 
   [[nodiscard]] auto check_start() -> api_error;
 
@@ -87,6 +87,8 @@ private:
 
   void download_range(std::size_t begin_chunk, std::size_t end_chunk,
                       bool should_reset);
+
+  [[nodiscard]] auto get_stop_requested() const -> bool;
 
   void set_modified();
 
@@ -111,12 +113,12 @@ public:
     return true;
   }
 
-  [[nodiscard]] auto
-  native_operation(native_operation_callback callback) -> api_error override;
+  [[nodiscard]] auto native_operation(native_operation_callback callback)
+      -> api_error override;
 
-  [[nodiscard]] auto
-  native_operation(std::uint64_t new_file_size,
-                   native_operation_callback callback) -> api_error override;
+  [[nodiscard]] auto native_operation(std::uint64_t new_file_size,
+                                      native_operation_callback callback)
+      -> api_error override;
 
   void remove(std::uint64_t handle) override;
 

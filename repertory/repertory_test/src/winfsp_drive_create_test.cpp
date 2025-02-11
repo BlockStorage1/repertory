@@ -1,5 +1,5 @@
 /*
-  Copyright <2018-2024> <scott.e.graves@protonmail.com>
+  Copyright <2018-2025> <scott.e.graves@protonmail.com>
 
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"), to deal
@@ -97,7 +97,7 @@ TYPED_TEST(winfsp_test, cr8_file_can_delete_file_after_close) {
 
 TYPED_TEST(winfsp_test,
            cr8_file_cannot_create_files_with_invalid_characters_in_path) {
-  for (auto &&invalid_char : std::array<std::string, 7U>{
+  for (const auto &invalid_char : std::array<std::string, 7U>{
            {"*", ":", "<", ">", "?", "|", "\""},
        }) {
     auto handle = ::CreateFileA(

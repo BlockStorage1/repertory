@@ -1,5 +1,5 @@
 /*
-  Copyright <2018-2024> <scott.e.graves@protonmail.com>
+  Copyright <2018-2025> <scott.e.graves@protonmail.com>
 
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"), to deal
@@ -28,6 +28,11 @@ namespace repertory {
 class app_config;
 
 class cache_size_mgr final {
+private:
+  static constexpr const std::chrono::seconds cache_wait_secs{
+      5s,
+  };
+
 public:
   cache_size_mgr(const cache_size_mgr &) = delete;
   cache_size_mgr(cache_size_mgr &&) = delete;
@@ -48,6 +53,9 @@ private:
   mutable std::mutex mtx_;
   std::condition_variable notify_;
   stop_type stop_requested_{false};
+
+private:
+  [[nodiscard]] auto get_stop_requested() const -> bool;
 
 public:
   [[nodiscard]] auto expand(std::uint64_t size) -> api_error;

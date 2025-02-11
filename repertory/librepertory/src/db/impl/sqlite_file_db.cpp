@@ -1,5 +1,5 @@
 /*
-  Copyright <2018-2024> <scott.e.graves@protonmail.com>
+  Copyright <2018-2025> <scott.e.graves@protonmail.com>
 
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"), to deal
@@ -65,9 +65,8 @@ sqlite_file_db::sqlite_file_db(const app_config &cfg) {
 
 sqlite_file_db::~sqlite_file_db() { db_.reset(); }
 
-auto sqlite_file_db::add_directory(const std::string &api_path,
-                                   const std::string &source_path)
-    -> api_error {
+auto sqlite_file_db::add_directory(
+    const std::string &api_path, const std::string &source_path) -> api_error {
   REPERTORY_USES_FUNCTION_NAME();
 
   auto result = utils::db::sqlite::db_insert{*db_, file_table}
@@ -133,6 +132,37 @@ auto sqlite_file_db::count() const -> std::uint64_t {
   return 0U;
 }
 
+void sqlite_file_db::enumerate_item_list(
+    std::function<void(const std::vector<i_file_db::file_info> &)> callback,
+    stop_type_callback stop_requested_cb) const {
+  std::vector<i_file_db::file_info> list;
+
+  auto result = utils::db::sqlite::db_select{*db_, file_table}.go();
+  while (not stop_requested_cb() && result.has_row()) {
+    std::optional<utils::db::sqlite::db_result::row> row;
+    if (result.get_row(row) && row.has_value()) {
+      list.emplace_back(i_file_db::file_info{
+          .api_path = row->get_column("api_path").get_value<std::string>(),
+          .directory =
+              row->get_column("directory").get_value<std::int64_t>() == 1,
+          .source_path =
+              row->get_column("source_path").get_value<std::string>(),
+      });
+
+      if (list.size() < 100U) {
+        continue;
+      }
+
+      callback(list);
+      list.clear();
+    }
+  }
+
+  if (not list.empty()) {
+    callback(list);
+  }
+}
+
 auto sqlite_file_db::get_api_path(const std::string &source_path,
                                   std::string &api_path) const -> api_error {
   auto result = utils::db::sqlite::db_select{*db_, file_table}
@@ -152,9 +182,8 @@ auto sqlite_file_db::get_api_path(const std::string &source_path,
   return api_error::item_not_found;
 }
 
-auto sqlite_file_db::get_directory_api_path(const std::string &source_path,
-                                            std::string &api_path) const
-    -> api_error {
+auto sqlite_file_db::get_directory_api_path(
+    const std::string &source_path, std::string &api_path) const -> api_error {
   auto result = utils::db::sqlite::db_select{*db_, file_table}
                     .column("api_path")
                     .where("source_path")
@@ -175,9 +204,8 @@ auto sqlite_file_db::get_directory_api_path(const std::string &source_path,
   return api_error::directory_not_found;
 }
 
-auto sqlite_file_db::get_directory_source_path(const std::string &api_path,
-                                               std::string &source_path) const
-    -> api_error {
+auto sqlite_file_db::get_directory_source_path(
+    const std::string &api_path, std::string &source_path) const -> api_error {
   auto result = utils::db::sqlite::db_select{*db_, file_table}
                     .column("source_path")
                     .where("api_path")
@@ -198,9 +226,8 @@ auto sqlite_file_db::get_directory_source_path(const std::string &api_path,
   return api_error::directory_not_found;
 }
 
-auto sqlite_file_db::get_file_api_path(const std::string &source_path,
-                                       std::string &api_path) const
-    -> api_error {
+auto sqlite_file_db::get_file_api_path(
+    const std::string &source_path, std::string &api_path) const -> api_error {
   auto result = utils::db::sqlite::db_select{*db_, file_table}
                     .column("api_path")
                     .where("source_path")
@@ -259,9 +286,8 @@ auto sqlite_file_db::get_file_data(const std::string &api_path,
   return api_error::item_not_found;
 }
 
-auto sqlite_file_db::get_file_source_path(const std::string &api_path,
-                                          std::string &source_path) const
-    -> api_error {
+auto sqlite_file_db::get_file_source_path(
+    const std::string &api_path, std::string &source_path) const -> api_error {
   auto result = utils::db::sqlite::db_select{*db_, file_table}
                     .column("source_path")
                     .where("api_path")
@@ -282,30 +308,29 @@ auto sqlite_file_db::get_file_source_path(const std::string &api_path,
   return api_error::item_not_found;
 }
 
-auto sqlite_file_db::get_item_list() const
+auto sqlite_file_db::get_item_list(stop_type_callback stop_requested_cb) const
     -> std::vector<i_file_db::file_info> {
   std::vector<i_file_db::file_info> ret;
 
   auto result = utils::db::sqlite::db_select{*db_, file_table}.go();
-  while (result.has_row()) {
+  while (not stop_requested_cb() && result.has_row()) {
     std::optional<utils::db::sqlite::db_result::row> row;
     if (result.get_row(row) && row.has_value()) {
       ret.emplace_back(i_file_db::file_info{
-          row->get_column("api_path").get_value<std::string>(),
-          row->get_column("directory").get_value<std::int64_t>() == 1,
-          row->get_column("source_path").get_value<std::string>(),
+          .api_path = row->get_column("api_path").get_value<std::string>(),
+          .directory =
+              row->get_column("directory").get_value<std::int64_t>() == 1,
+          .source_path =
+              row->get_column("source_path").get_value<std::string>(),
       });
     }
-
-    result.next_row();
   }
 
   return ret;
 }
 
-auto sqlite_file_db::get_source_path(const std::string &api_path,
-                                     std::string &source_path) const
-    -> api_error {
+auto sqlite_file_db::get_source_path(
+    const std::string &api_path, std::string &source_path) const -> api_error {
   auto result = utils::db::sqlite::db_select{*db_, file_table}
                     .column("source_path")
                     .where("api_path")

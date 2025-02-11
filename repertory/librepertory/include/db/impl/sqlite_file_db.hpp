@@ -1,5 +1,5 @@
 /*
-  Copyright <2018-2024> <scott.e.graves@protonmail.com>
+  Copyright <2018-2025> <scott.e.graves@protonmail.com>
 
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"), to deal
@@ -53,6 +53,10 @@ public:
 
   [[nodiscard]] auto count() const -> std::uint64_t override;
 
+  void enumerate_item_list(
+      std::function<void(const std::vector<i_file_db::file_info> &)> callback,
+      stop_type_callback stop_requested_cb) const override;
+
   [[nodiscard]] auto get_api_path(const std::string &source_path,
                                   std::string &api_path) const
       -> api_error override;
@@ -77,7 +81,7 @@ public:
                                           std::string &source_path) const
       -> api_error override;
 
-  [[nodiscard]] auto get_item_list() const
+  [[nodiscard]] auto get_item_list(stop_type_callback stop_requested_cb) const
       -> std::vector<i_file_db::file_info> override;
 
   [[nodiscard]] auto get_source_path(const std::string &api_path,

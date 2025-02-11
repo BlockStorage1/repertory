@@ -1,5 +1,5 @@
 /*
-  Copyright <2018-2024> <scott.e.graves@protonmail.com>
+  Copyright <2018-2025> <scott.e.graves@protonmail.com>
 
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"), to deal
@@ -44,8 +44,8 @@ public:
   ring_buffer_base(const ring_buffer_base &) noexcept = delete;
   ring_buffer_base(ring_buffer_base &&) noexcept = delete;
   auto operator=(ring_buffer_base &&) noexcept -> ring_buffer_base & = delete;
-  auto
-  operator=(const ring_buffer_base &) noexcept -> ring_buffer_base & = delete;
+  auto operator=(const ring_buffer_base &) noexcept
+      -> ring_buffer_base & = delete;
 
 public:
   static constexpr const auto min_ring_size{5U};
@@ -73,6 +73,8 @@ private:
 
   void update_position(std::size_t count, bool is_forward);
 
+  [[nodiscard]] auto get_stop_requested() const -> bool;
+
 protected:
   [[nodiscard]] auto has_reader_thread() const -> bool {
     return reader_thread_ != nullptr;
@@ -84,9 +86,9 @@ protected:
 
   [[nodiscard]] virtual auto on_check_start() -> bool = 0;
 
-  [[nodiscard]] virtual auto
-  on_chunk_downloaded(std::size_t chunk,
-                      const data_buffer &buffer) -> api_error = 0;
+  [[nodiscard]] virtual auto on_chunk_downloaded(std::size_t chunk,
+                                                 const data_buffer &buffer)
+      -> api_error = 0;
 
   [[nodiscard]] virtual auto
   on_read_chunk(std::size_t chunk, std::size_t read_size,
@@ -94,8 +96,8 @@ protected:
                 std::size_t &bytes_read) -> api_error = 0;
 
   [[nodiscard]] virtual auto
-  use_buffer(std::size_t chunk,
-             std::function<api_error(data_buffer &)> func) -> api_error = 0;
+  use_buffer(std::size_t chunk, std::function<api_error(data_buffer &)> func)
+      -> api_error = 0;
 
 public:
   auto close() -> bool override;
@@ -139,9 +141,10 @@ public:
 
   void set_api_path(const std::string &api_path) override;
 
-  [[nodiscard]] auto
-  write(std::uint64_t /* write_offset */, const data_buffer & /* data */,
-        std::size_t & /* bytes_written */) -> api_error override {
+  [[nodiscard]] auto write(std::uint64_t /* write_offset */,
+                           const data_buffer & /* data */,
+                           std::size_t & /* bytes_written */)
+      -> api_error override {
     return api_error::not_supported;
   }
 };

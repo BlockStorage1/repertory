@@ -1,5 +1,5 @@
 /*
-  Copyright <2018-2024> <scott.e.graves@protonmail.com>
+  Copyright <2018-2025> <scott.e.graves@protonmail.com>
 
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"), to deal
@@ -63,10 +63,13 @@ private:
   std::shared_ptr<logging_consumer> logging_consumer_;
   std::shared_ptr<remote_fuse::remote_server> remote_server_;
   std::shared_ptr<full_server> server_;
-  bool was_mounted_ = false;
+  std::mutex stop_all_mtx_;
+  bool was_mounted_{false};
 
 private:
   void update_accessed_time(const std::string &api_path);
+
+  void stop_all();
 
 protected:
 #if defined(__APPLE__)

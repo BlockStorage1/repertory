@@ -1,5 +1,5 @@
 /*
-  Copyright <2018-2024> <scott.e.graves@protonmail.com>
+  Copyright <2018-2025> <scott.e.graves@protonmail.com>
 
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"), to deal
@@ -65,6 +65,8 @@ auto from_api_error(const api_error &e) -> NTSTATUS {
     return STATUS_CLIENT_SERVER_PARAMETERS_INVALID;
   case api_error::item_not_found:
     return STATUS_OBJECT_NAME_NOT_FOUND;
+  case api_error::name_too_long:
+    return STATUS_NAME_TOO_LONG;
   case api_error::no_disk_space:
     return STATUS_DEVICE_INSUFFICIENT_RESOURCES;
   case api_error::os_error:

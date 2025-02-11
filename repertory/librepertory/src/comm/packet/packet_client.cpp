@@ -1,5 +1,5 @@
 /*
-  Copyright <2018-2024> <scott.e.graves@protonmail.com>
+  Copyright <2018-2025> <scott.e.graves@protonmail.com>
 
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"), to deal
@@ -22,6 +22,7 @@
 #include "comm/packet/packet_client.hpp"
 
 #include "events/event_system.hpp"
+#include "events/types/packet_client_timeout.hpp"
 #include "platform/platform.hpp"
 #include "types/repertory.hpp"
 #include "utils/collection.hpp"
@@ -31,13 +32,6 @@
 #include "version.hpp"
 
 namespace repertory {
-// clang-format off
-E_SIMPLE2(packet_client_timeout, error, true,
-  std::string, event_name, en, E_FROM_STRING,
-  std::string, message, msg, E_FROM_STRING
-);
-// clang-format on
-
 packet_client::packet_client(remote::remote_config cfg)
     : cfg_(std::move(cfg)), unique_id_(utils::create_uuid_string()) {}
 
@@ -49,8 +43,10 @@ packet_client::~packet_client() {
 
 void packet_client::close(client &cli) {
   try {
+    cli.socket.shutdown(boost::asio::socket_base::shutdown_both);
+
     boost::system::error_code err;
-    cli.socket.close(err);
+    [[maybe_unused]] auto res = cli.socket.close(err);
   } catch (...) {
   }
 }
@@ -110,7 +106,7 @@ void packet_client::put_client(std::shared_ptr<client> &cli) {
   }
 }
 
-auto packet_client::read_packet(client &cli, packet &response)
+auto packet_client::read_packet(client &cli, packet &response) const
     -> packet::error_type {
   data_buffer buffer(sizeof(std::uint32_t));
   const auto read_buffer = [&]() {
@@ -118,7 +114,7 @@ auto packet_client::read_packet(client &cli, packet &response)
     while (offset < buffer.size()) {
       auto bytes_read = boost::asio::read(
           cli.socket,
-          boost::asio::buffer(&buffer[offset], buffer.size() - offset));
+          boost::asio::buffer(&buffer.at(offset), buffer.size() - offset));
       if (bytes_read <= 0) {
         throw std::runtime_error("read failed|" + std::to_string(bytes_read));
       }
@@ -189,7 +185,7 @@ auto packet_client::send(std::string_view method, packet &request,
         timeout request_timeout(
             [method, current_client]() {
               event_system::instance().raise<packet_client_timeout>(
-                  "request", std::string{method});
+                  "request", function_name, std::string{method});
               packet_client::close(*current_client);
             },
             std::chrono::milliseconds(cfg_.send_timeout_ms));
@@ -211,7 +207,7 @@ auto packet_client::send(std::string_view method, packet &request,
         timeout response_timeout(
             [method, current_client]() {
               event_system::instance().raise<packet_client_timeout>(
-                  "response", std::string{method});
+                  "response", function_name, std::string{method});
               packet_client::close(*current_client);
             },
             std::chrono::milliseconds(cfg_.recv_timeout_ms));

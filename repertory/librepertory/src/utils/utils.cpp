@@ -1,5 +1,5 @@
 /*
-  Copyright <2018-2024> <scott.e.graves@protonmail.com>
+  Copyright <2018-2025> <scott.e.graves@protonmail.com>
 
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"), to deal
@@ -19,6 +19,8 @@
   OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
   SOFTWARE.
 */
+#include "rocksdb/table.h"
+
 #include "utils/utils.hpp"
 
 #include "app_config.hpp"
@@ -38,12 +40,9 @@ void calculate_allocation_size(bool directory, std::uint64_t file_size,
     return;
   }
 
-  if (file_size > allocation_size) {
-    allocation_size = file_size;
-  }
-
   allocation_size =
-      utils::divide_with_ceiling(allocation_size, WINFSP_ALLOCATION_UNIT) *
+      utils::divide_with_ceiling(std::max(file_size, allocation_size),
+                                 WINFSP_ALLOCATION_UNIT) *
       WINFSP_ALLOCATION_UNIT;
   allocation_meta_size = std::to_string(allocation_size);
 }
@@ -51,14 +50,14 @@ void calculate_allocation_size(bool directory, std::uint64_t file_size,
 auto create_rocksdb(
     const app_config &cfg, const std::string &name,
     const std::vector<rocksdb::ColumnFamilyDescriptor> &families,
-    std::vector<rocksdb::ColumnFamilyHandle *> &handles,
-    bool clear) -> std::unique_ptr<rocksdb::TransactionDB> {
+    std::vector<rocksdb::ColumnFamilyHandle *> &handles, bool clear)
+    -> std::unique_ptr<rocksdb::TransactionDB> {
   REPERTORY_USES_FUNCTION_NAME();
 
   auto db_dir = utils::path::combine(cfg.get_data_directory(), {"db"});
   if (not utils::file::directory{db_dir}.create_directory()) {
     throw startup_exception(
-        fmt::format("failed to create db directory|", db_dir));
+        fmt::format("failed to create db directory|{}", db_dir));
   }
 
   auto path = utils::path::combine(db_dir, {name});
@@ -77,8 +76,8 @@ auto create_rocksdb(
   auto status = rocksdb::TransactionDB::Open(
       options, rocksdb::TransactionDBOptions{}, path, families, &handles, &ptr);
   if (not status.ok()) {
-    throw startup_exception(fmt::format("failed to open rocksdb|path{}|error{}",
-                                        path, status.ToString()));
+    throw startup_exception(fmt::format(
+        "failed to open rocksdb|path|{}|error{}", path, status.ToString()));
   }
 
   return std::unique_ptr<rocksdb::TransactionDB>(ptr);

@@ -1,5 +1,5 @@
 /*
-  Copyright <2018-2024> <scott.e.graves@protonmail.com>
+  Copyright <2018-2025> <scott.e.graves@protonmail.com>
 
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"), to deal
@@ -36,7 +36,7 @@ private:
   const std::string service_name_;
   mutable std::mutex mtx_;
   mutable std::condition_variable notify_;
-  stop_type stop_requested_ = false;
+  stop_type stop_requested_{false};
   std::unique_ptr<std::thread> thread_;
 
 protected:
@@ -46,9 +46,7 @@ protected:
     return notify_;
   }
 
-  [[nodiscard]] auto get_stop_requested() const -> bool {
-    return stop_requested_;
-  }
+  [[nodiscard]] auto get_stop_requested() const -> bool;
 
   void notify_all() const;
 

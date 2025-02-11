@@ -1,5 +1,5 @@
 /*
-  Copyright <2018-2024> <scott.e.graves@protonmail.com>
+  Copyright <2018-2025> <scott.e.graves@protonmail.com>
 
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"), to deal
@@ -42,6 +42,7 @@ protected:
     static std::uint64_t idx{};
 
     event_system::instance().start();
+
     auto cfg_directory = utils::path::combine(test::get_test_output_dir(),
                                               {
                                                   "meta_db_test",

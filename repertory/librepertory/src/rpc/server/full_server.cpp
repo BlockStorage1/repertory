@@ -1,5 +1,5 @@
 /*
-  Copyright <2018-2024> <scott.e.graves@protonmail.com>
+  Copyright <2018-2025> <scott.e.graves@protonmail.com>
 
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"), to deal
@@ -23,7 +23,8 @@
 
 #include "app_config.hpp"
 #include "events/event_system.hpp"
-#include "events/events.hpp"
+#include "events/types/file_pinned.hpp"
+#include "events/types/file_unpinned.hpp"
 #include "file_manager/cache_size_mgr.hpp"
 #include "file_manager/i_file_manager.hpp"
 #include "providers/i_provider.hpp"
@@ -46,7 +47,7 @@ void full_server::handle_get_directory_items(const httplib::Request &req,
                        })
                       .dump(),
                   "application/json");
-  res.status = 200;
+  res.status = http_error_codes::ok;
 }
 
 void full_server::handle_get_drive_information(const httplib::Request & /*req*/,
@@ -60,7 +61,7 @@ void full_server::handle_get_drive_information(const httplib::Request & /*req*/,
            })
           .dump(),
       "application/json");
-  res.status = 200;
+  res.status = http_error_codes::ok;
 }
 
 void full_server::handle_get_open_files(const httplib::Request & /*req*/,
@@ -75,7 +76,7 @@ void full_server::handle_get_open_files(const httplib::Request & /*req*/,
     }));
   }
   res.set_content(open_files.dump(), "application/json");
-  res.status = 200;
+  res.status = http_error_codes::ok;
 }
 
 void full_server::handle_get_pinned_files(const httplib::Request & /*req*/,
@@ -85,7 +86,7 @@ void full_server::handle_get_pinned_files(const httplib::Request & /*req*/,
                        })
                       .dump(),
                   "application/json");
-  res.status = 200;
+  res.status = http_error_codes::ok;
 }
 
 void full_server::handle_get_pinned_status(const httplib::Request &req,
@@ -99,7 +100,7 @@ void full_server::handle_get_pinned_status(const httplib::Request &req,
   if (result != api_error::success) {
     utils::error::raise_api_path_error(function_name, api_path, result,
                                        "failed to get pinned status");
-    res.status = 500;
+    res.status = http_error_codes::internal_error;
     return;
   }
 
@@ -110,7 +111,7 @@ void full_server::handle_get_pinned_status(const httplib::Request &req,
            })
           .dump(),
       "application/json");
-  res.status = 200;
+  res.status = http_error_codes::ok;
 }
 
 void full_server::handle_pin_file(const httplib::Request &req,
@@ -124,7 +125,7 @@ void full_server::handle_pin_file(const httplib::Request &req,
   if (result != api_error::success) {
     utils::error::raise_api_path_error(function_name, api_path, result,
                                        "failed to pin file");
-    res.status = 500;
+    res.status = http_error_codes::internal_error;
     return;
   }
 
@@ -135,10 +136,10 @@ void full_server::handle_pin_file(const httplib::Request &req,
   }
 
   if (exists) {
-    event_system::instance().raise<file_pinned>(api_path);
+    event_system::instance().raise<file_pinned>(api_path, function_name);
   }
 
-  res.status = exists ? 200 : 404;
+  res.status = exists ? http_error_codes::ok : http_error_codes::not_found;
 }
 
 void full_server::handle_unpin_file(const httplib::Request &req,
@@ -152,7 +153,7 @@ void full_server::handle_unpin_file(const httplib::Request &req,
   if (result != api_error::success) {
     utils::error::raise_api_path_error(function_name, api_path, result,
                                        "failed to unpin file");
-    res.status = 500;
+    res.status = http_error_codes::internal_error;
     return;
   }
 
@@ -163,10 +164,10 @@ void full_server::handle_unpin_file(const httplib::Request &req,
   }
 
   if (exists) {
-    event_system::instance().raise<file_unpinned>(api_path);
+    event_system::instance().raise<file_unpinned>(api_path, function_name);
   }
 
-  res.status = exists ? 200 : 404;
+  res.status = exists ? http_error_codes::ok : http_error_codes::not_found;
 }
 
 void full_server::initialize(httplib::Server &inst) {

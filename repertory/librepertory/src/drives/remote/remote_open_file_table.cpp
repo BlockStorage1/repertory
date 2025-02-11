@@ -1,5 +1,5 @@
 /*
-  Copyright <2018-2024> <scott.e.graves@protonmail.com>
+  Copyright <2018-2025> <scott.e.graves@protonmail.com>
 
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"), to deal
@@ -22,7 +22,6 @@
 #include "drives/remote/remote_open_file_table.hpp"
 
 #include "events/event_system.hpp"
-#include "events/events.hpp"
 #include "utils/collection.hpp"
 #include "utils/config.hpp"
 #include "utils/utils.hpp"
@@ -42,7 +41,7 @@ void remote_open_file_table::close_all(const std::string &client_id) {
   auto compat_handles =
       std::accumulate(compat_file_lookup_.begin(), compat_file_lookup_.end(),
                       std::vector<remote::file_handle>(),
-                      [&client_id](auto &&list, auto &&value) {
+                      [&client_id](auto &&list, auto &&value) -> auto {
                         auto &&op_info = value.second;
                         if (op_info->client_id == client_id) {
                           list.insert(list.end(), op_info->handles.begin(),
@@ -54,7 +53,7 @@ void remote_open_file_table::close_all(const std::string &client_id) {
 
   auto handles = std::accumulate(
       file_lookup_.begin(), file_lookup_.end(), std::vector<native_handle>(),
-      [&client_id](auto &&list, auto &&value) {
+      [&client_id](auto &&list, auto &&value) -> auto {
         auto &&op_info = value.second;
         if (op_info->client_id == client_id) {
           list.insert(list.end(), op_info->handles.begin(),
@@ -65,7 +64,7 @@ void remote_open_file_table::close_all(const std::string &client_id) {
       });
   lock.unlock();
 
-  for (auto &&handle : compat_handles) {
+  for (const auto &handle : compat_handles) {
 #if defined(_WIN32)
     _close(static_cast<int>(handle));
 #else
@@ -74,7 +73,7 @@ void remote_open_file_table::close_all(const std::string &client_id) {
     remove_compat_open_info(handle);
   }
 
-  for (auto &&handle : handles) {
+  for (const auto &handle : handles) {
 #if defined(_WIN32)
     ::CloseHandle(handle);
 #else  // !defined(_WIN32)
@@ -85,14 +84,14 @@ void remote_open_file_table::close_all(const std::string &client_id) {
 
   std::vector<std::uint64_t> dirs;
   lock.lock();
-  for (auto &&kv : directory_lookup_) {
+  for (const auto &kv : directory_lookup_) {
     if (kv.first == client_id) {
       dirs.insert(dirs.end(), kv.second.begin(), kv.second.end());
     }
   }
   lock.unlock();
 
-  for (auto &&dir : dirs) {
+  for (const auto &dir : dirs) {
     remove_directory(client_id, dir);
   }
 }
@@ -161,21 +160,21 @@ auto remote_open_file_table::has_compat_open_info(
 
 void remote_open_file_table::remove_all(const std::string &file_path) {
   unique_recur_mutex_lock lock(file_mutex_);
-  auto compat_open_list = std::accumulate(
-      compat_file_lookup_.begin(), compat_file_lookup_.end(),
-      std::vector<remote::file_handle>(),
-      [&file_path](auto &&list, auto &&kv) -> std::vector<remote::file_handle> {
-        if (kv.first == file_path) {
-          auto *op_info = kv.second.get();
-          list.insert(list.end(), op_info->handles.begin(),
-                      op_info->handles.end());
-        }
-        return list;
-      });
+  auto compat_open_list =
+      std::accumulate(compat_file_lookup_.begin(), compat_file_lookup_.end(),
+                      std::vector<remote::file_handle>(),
+                      [&file_path](auto &&list, auto &&kv) -> auto {
+                        if (kv.first == file_path) {
+                          auto *op_info = kv.second.get();
+                          list.insert(list.end(), op_info->handles.begin(),
+                                      op_info->handles.end());
+                        }
+                        return list;
+                      });
 
   auto open_list = std::accumulate(
       file_lookup_.begin(), file_lookup_.end(), std::vector<native_handle>(),
-      [&file_path](auto &&list, auto &&kv) -> std::vector<native_handle> {
+      [&file_path](auto &&list, auto &&kv) -> auto {
         if (kv.first == file_path) {
           auto *op_info = kv.second.get();
           list.insert(list.end(), op_info->handles.begin(),
@@ -185,11 +184,11 @@ void remote_open_file_table::remove_all(const std::string &file_path) {
       });
   lock.unlock();
 
-  for (auto &&handle : compat_open_list) {
+  for (const auto &handle : compat_open_list) {
     remove_compat_open_info(handle);
   }
 
-  for (auto &&handle : open_list) {
+  for (const auto &handle : open_list) {
     remove_open_info(handle);
   }
 }
@@ -262,7 +261,7 @@ void remote_open_file_table::remove_and_close_all(const native_handle &handle) {
   auto op_info = *file_lookup_.at(handle_lookup_.at(handle));
   lock.unlock();
 
-  for (auto &&open_handle : op_info.handles) {
+  for (const auto &open_handle : op_info.handles) {
 #if defined(_WIN32)
     ::CloseHandle(open_handle);
 #else  // !defined(_WIN32)

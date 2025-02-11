@@ -1,5 +1,5 @@
 /*
-  Copyright <2018-2024> <scott.e.graves@protonmail.com>
+  Copyright <2018-2025> <scott.e.graves@protonmail.com>
 
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"), to deal
@@ -62,6 +62,29 @@ auto rdb_meta_db::create_iterator(rocksdb::ColumnFamilyHandle *family) const
     -> std::shared_ptr<rocksdb::Iterator> {
   return std::shared_ptr<rocksdb::Iterator>(
       db_->NewIterator(rocksdb::ReadOptions{}, family));
+}
+
+void rdb_meta_db::enumerate_api_path_list(
+    std::function<void(const std::vector<std::string> &)> callback,
+    stop_type_callback stop_requested_cb) const {
+  std::vector<std::string> list{};
+
+  auto iter = create_iterator(meta_family_);
+  for (iter->SeekToFirst(); not stop_requested_cb() && iter->Valid();
+       iter->Next()) {
+    list.push_back(iter->key().ToString());
+
+    if (list.size() < 100U) {
+      continue;
+    }
+
+    callback(list);
+    list.clear();
+  }
+
+  if (not list.empty()) {
+    callback(list);
+  }
 }
 
 auto rdb_meta_db::get_api_path(const std::string &source_path,
@@ -295,10 +318,9 @@ void rdb_meta_db::remove_api_path(const std::string &api_path) {
   }
 }
 
-auto rdb_meta_db::remove_api_path(const std::string &api_path,
-                                  const std::string &source_path,
-                                  rocksdb::Transaction *txn)
-    -> rocksdb::Status {
+auto rdb_meta_db::remove_api_path(
+    const std::string &api_path, const std::string &source_path,
+    rocksdb::Transaction *txn) -> rocksdb::Status {
   auto txn_res = txn->Delete(pinned_family_, api_path);
   if (not txn_res.ok()) {
     return txn_res;

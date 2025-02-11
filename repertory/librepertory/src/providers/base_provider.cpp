@@ -1,5 +1,5 @@
 /*
-  Copyright <2018-2024> <scott.e.graves@protonmail.com>
+  Copyright <2018-2025> <scott.e.graves@protonmail.com>
 
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"), to deal
@@ -24,10 +24,24 @@
 #include "app_config.hpp"
 #include "db/meta_db.hpp"
 #include "events/event_system.hpp"
-#include "events/events.hpp"
+#include "events/types/directory_remove_failed.hpp"
+#include "events/types/directory_removed.hpp"
+#include "events/types/directory_removed_externally.hpp"
+#include "events/types/file_remove_failed.hpp"
+#include "events/types/file_removed.hpp"
+#include "events/types/file_removed_externally.hpp"
+#include "events/types/orphaned_file_detected.hpp"
+#include "events/types/orphaned_file_processing_failed.hpp"
+#include "events/types/orphaned_source_file_detected.hpp"
+#include "events/types/orphaned_source_file_removed.hpp"
+#include "events/types/provider_offline.hpp"
+#include "events/types/provider_upload_begin.hpp"
+#include "events/types/provider_upload_end.hpp"
+#include "events/types/unmount_requested.hpp"
 #include "file_manager/cache_size_mgr.hpp"
 #include "file_manager/i_file_manager.hpp"
 #include "platform/platform.hpp"
+#include "utils/config.hpp"
 #include "utils/error_utils.hpp"
 #include "utils/file_utils.hpp"
 #include "utils/path.hpp"
@@ -36,13 +50,17 @@
 #include "utils/time.hpp"
 
 namespace repertory {
-void base_provider::add_all_items(const stop_type &stop_requested) {
+void base_provider::add_all_items(stop_type &stop_requested) {
+  const auto get_stop_requested = [&stop_requested]() -> bool {
+    return stop_requested || app_config::get_stop_requested();
+  };
+
   REPERTORY_USES_FUNCTION_NAME();
 
   api_file_list list{};
   std::string marker;
   auto res{api_error::more_data};
-  while (not stop_requested && res == api_error::more_data) {
+  while (not get_stop_requested() && res == api_error::more_data) {
     res = get_file_list(list, marker);
     if (res != api_error::success && res != api_error::more_data) {
       utils::error::raise_error(function_name, res, "failed to get file list");
@@ -51,8 +69,8 @@ void base_provider::add_all_items(const stop_type &stop_requested) {
 }
 
 auto base_provider::create_api_file(std::string path, std::string key,
-                                    std::uint64_t size, std::uint64_t file_time)
-    -> api_file {
+                                    std::uint64_t size,
+                                    std::uint64_t file_time) -> api_file {
   api_file file{};
   file.api_path = utils::path::create_api_path(path);
   file.api_parent = utils::path::get_parent_api_path(file.api_path);
@@ -84,8 +102,8 @@ auto base_provider::create_api_file(std::string path, std::uint64_t size,
 }
 
 auto base_provider::create_directory_clone_source_meta(
-    const std::string &source_api_path, const std::string &api_path)
-    -> api_error {
+    const std::string &source_api_path,
+    const std::string &api_path) -> api_error {
   REPERTORY_USES_FUNCTION_NAME();
 
   bool exists{};
@@ -140,76 +158,77 @@ auto base_provider::create_directory(const std::string &api_path,
                                      api_meta_map &meta) -> api_error {
   REPERTORY_USES_FUNCTION_NAME();
 
-  bool exists{};
-  auto res = is_directory(api_path, exists);
-  if (res != api_error::success) {
-    return res;
-  }
-  if (exists) {
-    utils::error::raise_api_path_error(function_name, api_path,
-                                       api_error::directory_exists,
-                                       "failed to create directory");
-    return api_error::directory_exists;
-  }
-
-  res = is_file(api_path, exists);
-  if (res != api_error::success) {
-    utils::error::raise_api_path_error(function_name, api_path, res,
-                                       "failed to create directory");
-    return res;
-  }
-  if (exists) {
-    utils::error::raise_api_path_error(function_name, api_path,
-                                       api_error::item_exists,
-                                       "failed to create directory");
-    return api_error::item_exists;
-  }
-
   try {
+    bool exists{};
+    auto res = is_directory(api_path, exists);
+    if (res != api_error::success) {
+      return res;
+    }
+    if (exists) {
+      utils::error::raise_api_path_error(function_name, api_path,
+                                         api_error::directory_exists,
+                                         "failed to create directory");
+      return api_error::directory_exists;
+    }
+
+    res = is_file(api_path, exists);
+    if (res != api_error::success) {
+      utils::error::raise_api_path_error(function_name, api_path, res,
+                                         "failed to create directory");
+      return res;
+    }
+    if (exists) {
+      utils::error::raise_api_path_error(function_name, api_path,
+                                         api_error::item_exists,
+                                         "failed to create directory");
+      return api_error::item_exists;
+    }
+
     res = create_directory_impl(api_path, meta);
     if (res != api_error::success) {
       utils::error::raise_api_path_error(function_name, api_path, res,
                                          "failed to create directory");
       return res;
     }
+
+    meta[META_DIRECTORY] = utils::string::from_bool(true);
+    return set_item_meta(api_path, meta);
   } catch (const std::exception &e) {
     utils::error::raise_api_path_error(function_name, api_path, e,
                                        "failed to create directory");
-    return api_error::error;
   }
 
-  meta[META_DIRECTORY] = utils::string::from_bool(true);
-  return set_item_meta(api_path, meta);
+  return api_error::error;
 }
 
-auto base_provider::create_file(const std::string &api_path, api_meta_map &meta)
-    -> api_error {
+auto base_provider::create_file(const std::string &api_path,
+                                api_meta_map &meta) -> api_error {
   REPERTORY_USES_FUNCTION_NAME();
 
-  bool exists{};
-  auto res = is_directory(api_path, exists);
-  if (res != api_error::success && res != api_error::item_not_found) {
-    return res;
-  }
-  if (exists) {
-    utils::error::raise_api_path_error(function_name, api_path,
-                                       api_error::directory_exists,
-                                       "failed to create file");
-    return api_error::directory_exists;
-  }
-
-  res = is_file(api_path, exists);
-  if (res != api_error::success && res != api_error::item_not_found) {
-    return res;
-  }
-  if (exists) {
-    utils::error::raise_api_path_error(function_name, api_path,
-                                       api_error::item_exists,
-                                       "failed to create file");
-    return api_error::item_exists;
-  }
-
   try {
+    bool exists{};
+    auto res = is_directory(api_path, exists);
+    if (res != api_error::success && res != api_error::item_not_found) {
+      return res;
+    }
+    if (exists) {
+      utils::error::raise_api_path_error(function_name, api_path,
+                                         api_error::directory_exists,
+                                         "failed to create file");
+      return api_error::directory_exists;
+    }
+
+    res = is_file(api_path, exists);
+    if (res != api_error::success && res != api_error::item_not_found) {
+      return res;
+    }
+    if (exists) {
+      utils::error::raise_api_path_error(function_name, api_path,
+                                         api_error::item_exists,
+                                         "failed to create file");
+      return api_error::item_exists;
+    }
+
     res = create_file_extra(api_path, meta);
     if (res != api_error::success) {
       utils::error::raise_api_path_error(function_name, api_path, res,
@@ -240,9 +259,8 @@ auto base_provider::create_file(const std::string &api_path, api_meta_map &meta)
   return api_error::error;
 }
 
-auto base_provider::get_api_path_from_source(const std::string &source_path,
-                                             std::string &api_path) const
-    -> api_error {
+auto base_provider::get_api_path_from_source(
+    const std::string &source_path, std::string &api_path) const -> api_error {
   REPERTORY_USES_FUNCTION_NAME();
 
   if (source_path.empty()) {
@@ -255,21 +273,20 @@ auto base_provider::get_api_path_from_source(const std::string &source_path,
   return db3_->get_api_path(source_path, api_path);
 }
 
-auto base_provider::get_directory_items(const std::string &api_path,
-                                        directory_item_list &list) const
-    -> api_error {
+auto base_provider::get_directory_items(
+    const std::string &api_path, directory_item_list &list) const -> api_error {
   REPERTORY_USES_FUNCTION_NAME();
 
-  bool exists{};
-  auto res = is_directory(api_path, exists);
-  if (res != api_error::success) {
-    return res;
-  }
-  if (not exists) {
-    return api_error::directory_not_found;
-  }
-
   try {
+    bool exists{};
+    auto res = is_directory(api_path, exists);
+    if (res != api_error::success) {
+      return res;
+    }
+    if (not exists) {
+      return api_error::directory_not_found;
+    }
+
     res = get_directory_items_impl(api_path, list);
     if (res != api_error::success) {
       return res;
@@ -291,11 +308,15 @@ auto base_provider::get_directory_items(const std::string &api_path,
                                 "..",
                                 "",
                                 true,
+                                0U,
+                                {},
                             });
   list.insert(list.begin(), directory_item{
                                 ".",
                                 "",
                                 true,
+                                0U,
+                                {},
                             });
   return api_error::success;
 }
@@ -321,10 +342,9 @@ auto base_provider::get_file_size(const std::string &api_path,
   return api_error::success;
 }
 
-auto base_provider::get_filesystem_item(const std::string &api_path,
-                                        bool directory,
-                                        filesystem_item &fsi) const
-    -> api_error {
+auto base_provider::get_filesystem_item(
+    const std::string &api_path, bool directory,
+    filesystem_item &fsi) const -> api_error {
   bool exists{};
   auto res = is_directory(api_path, exists);
   if (res != api_error::success) {
@@ -357,10 +377,9 @@ auto base_provider::get_filesystem_item(const std::string &api_path,
   return api_error::success;
 }
 
-auto base_provider::get_filesystem_item_and_file(const std::string &api_path,
-                                                 api_file &file,
-                                                 filesystem_item &fsi) const
-    -> api_error {
+auto base_provider::get_filesystem_item_and_file(
+    const std::string &api_path, api_file &file,
+    filesystem_item &fsi) const -> api_error {
   auto res = get_file(api_path, file);
   if (res != api_error::success) {
     return res;
@@ -436,9 +455,15 @@ auto base_provider::is_file_writeable(const std::string &api_path) const
 }
 
 void base_provider::process_removed_directories(
-    std::deque<removed_item> removed_list, const stop_type &stop_requested) {
+    std::deque<removed_item> removed_list, stop_type &stop_requested) {
+  REPERTORY_USES_FUNCTION_NAME();
+
+  const auto get_stop_requested = [&stop_requested]() -> bool {
+    return stop_requested || app_config::get_stop_requested();
+  };
+
   for (const auto &item : removed_list) {
-    if (stop_requested) {
+    if (get_stop_requested()) {
       return;
     }
 
@@ -448,18 +473,23 @@ void base_provider::process_removed_directories(
 
     db3_->remove_api_path(item.api_path);
     event_system::instance().raise<directory_removed_externally>(
-        item.api_path, item.source_path);
+        item.api_path, function_name, item.source_path);
   }
 }
 
 void base_provider::process_removed_files(std::deque<removed_item> removed_list,
-                                          const stop_type &stop_requested) {
+                                          stop_type &stop_requested) {
   REPERTORY_USES_FUNCTION_NAME();
 
-  auto orphaned_directory =
-      utils::path::combine(get_config().get_data_directory(), {"orphaned"});
+  const auto get_stop_requested = [&stop_requested]() -> bool {
+    return stop_requested || app_config::get_stop_requested();
+  };
+
+  auto orphaned_directory{
+      utils::path::combine(get_config().get_data_directory(), {"orphaned"}),
+  };
   for (const auto &item : removed_list) {
-    if (stop_requested) {
+    if (get_stop_requested()) {
       return;
     }
 
@@ -468,6 +498,9 @@ void base_provider::process_removed_files(std::deque<removed_item> removed_list,
     }
 
     if (not utils::file::file{item.source_path}.exists()) {
+      db3_->remove_api_path(item.api_path);
+      event_system::instance().raise<file_removed_externally>(
+          item.api_path, function_name, item.source_path);
       continue;
     }
 
@@ -483,100 +516,118 @@ void base_provider::process_removed_files(std::deque<removed_item> removed_list,
         orphaned_directory, {utils::path::strip_to_file_name(item.source_path) +
                              '_' + parts[parts.size() - 1U]});
 
-    event_system::instance().raise<orphaned_file_detected>(item.source_path);
+    event_system::instance().raise<orphaned_file_detected>(function_name,
+                                                           item.source_path);
     if (not utils::file::reset_modified_time(item.source_path)) {
       event_system::instance().raise<orphaned_file_processing_failed>(
-          item.source_path, orphaned_file,
+          orphaned_file,
           "reset modified failed|" +
-              std::to_string(utils::get_last_error_code()));
+              std::to_string(utils::get_last_error_code()),
+          function_name, item.source_path);
       continue;
     }
 
     if (not utils::file::file(item.source_path).copy_to(orphaned_file, true)) {
       [[maybe_unused]] auto removed = utils::file::file{orphaned_file}.remove();
       event_system::instance().raise<orphaned_file_processing_failed>(
-          item.source_path, orphaned_file,
-          "copy failed|" + std::to_string(utils::get_last_error_code()));
+          orphaned_file,
+          "copy failed|" + std::to_string(utils::get_last_error_code()),
+          function_name, item.source_path);
       continue;
     }
 
     if (not fm_->evict_file(item.api_path)) {
       event_system::instance().raise<orphaned_file_processing_failed>(
-          item.source_path, orphaned_file, "eviction failed");
+          orphaned_file, "eviction failed", function_name, item.source_path);
       continue;
     }
 
     db3_->remove_api_path(item.api_path);
-    event_system::instance().raise<file_removed_externally>(item.api_path,
-                                                            item.source_path);
+    event_system::instance().raise<file_removed_externally>(
+        item.api_path, function_name, item.source_path);
   }
 }
 
-void base_provider::process_removed_items(const stop_type &stop_requested) {
-  auto list = db3_->get_api_path_list();
-  [[maybe_unused]] auto res =
-      std::all_of(list.begin(), list.end(), [&](auto &&api_path) -> bool {
-        if (stop_requested) {
-          return false;
-        }
+void base_provider::process_removed_items(stop_type &stop_requested) {
+  REPERTORY_USES_FUNCTION_NAME();
 
-        tasks::instance().schedule({
-            [this, api_path](auto &&task_stopped) {
-              api_meta_map meta{};
-              if (get_item_meta(api_path, meta) != api_error::success) {
-                return;
+  const auto get_stop_requested = [&stop_requested]() -> bool {
+    return stop_requested || app_config::get_stop_requested();
+  };
+
+  db3_->enumerate_api_path_list(
+      [this, &get_stop_requested](auto &&list) {
+        [[maybe_unused]] auto res =
+            std::all_of(list.begin(), list.end(), [&](auto &&api_path) -> bool {
+              if (get_stop_requested()) {
+                return false;
               }
 
-              if (utils::string::to_bool(meta[META_DIRECTORY])) {
-                return;
-              }
-              //   bool exists{};
-              //   if (is_directory(api_path, exists) != api_error::success) {
-              //     return;
-              //   }
-              //
-              //   if (exists) {
-              //     return;
-              //   }
-              //
-              //   // process_removed_directories(
-              //   //     {
-              //   //         removed_item{api_path, true, ""},
-              //   //     },
-              //   //     stop_requested2);
-              //
-              //   return;
-              // }
+              tasks::instance().schedule({
+                  [this, api_path](auto &&task_stopped) {
+                    api_meta_map meta{};
+                    auto result = get_item_meta(api_path, meta);
+                    if (result != api_error::success) {
+                      return;
+                    }
 
-              bool exists{};
-              if (is_file(api_path, exists) != api_error::success) {
-                return;
-              }
+                    if (utils::string::to_bool(meta[META_DIRECTORY])) {
+                      bool exists{};
+                      if (is_directory(api_path, exists) !=
+                          api_error::success) {
+                        return;
+                      }
 
-              if (exists) {
-                return;
-              }
+                      if (exists) {
+                        return;
+                      }
 
-              process_removed_files(
-                  {
-                      removed_item{api_path, false, meta[META_SOURCE]},
+                      process_removed_directories(
+                          {
+                              removed_item{api_path, true, ""},
+                          },
+                          task_stopped);
+
+                      return;
+                    }
+
+                    bool exists{};
+                    if (is_file(api_path, exists) != api_error::success) {
+                      return;
+                    }
+
+                    if (exists) {
+                      return;
+                    }
+
+                    process_removed_files(
+                        {
+                            removed_item{api_path, false, meta[META_SOURCE]},
+                        },
+                        task_stopped);
                   },
-                  task_stopped);
-            },
-        });
+              });
 
-        return not stop_requested;
-      });
+              return not get_stop_requested();
+            });
+      },
+      get_stop_requested);
 }
 
-void base_provider::remove_deleted_items(const stop_type &stop_requested) {
+void base_provider::remove_deleted_items(stop_type &stop_requested) {
+  REPERTORY_USES_FUNCTION_NAME();
+
+  const auto get_stop_requested = [&stop_requested]() -> bool {
+    return stop_requested || app_config::get_stop_requested();
+  };
+
   add_all_items(stop_requested);
-  if (stop_requested) {
+  if (get_stop_requested()) {
     return;
   }
 
   remove_unmatched_source_files(stop_requested);
-  if (stop_requested) {
+  if (get_stop_requested()) {
     return;
   }
 
@@ -584,12 +635,14 @@ void base_provider::remove_deleted_items(const stop_type &stop_requested) {
 }
 
 auto base_provider::remove_file(const std::string &api_path) -> api_error {
+  REPERTORY_USES_FUNCTION_NAME();
+
   const auto notify_end = [&api_path](api_error error) -> api_error {
     if (error == api_error::success) {
-      event_system::instance().raise<file_removed>(api_path);
+      event_system::instance().raise<file_removed>(api_path, function_name);
     } else {
-      event_system::instance().raise<file_remove_failed>(
-          api_path, api_error_to_string(error));
+      event_system::instance().raise<file_remove_failed>(api_path, error,
+                                                         function_name);
     }
 
     return error;
@@ -618,7 +671,7 @@ auto base_provider::remove_file(const std::string &api_path) -> api_error {
   }
   if (not exists) {
     event_system::instance().raise<file_remove_failed>(
-        api_path, api_error_to_string(api_error::item_not_found));
+        api_path, api_error::item_not_found, function_name);
     return remove_file_meta();
   }
 
@@ -631,12 +684,15 @@ auto base_provider::remove_file(const std::string &api_path) -> api_error {
 }
 
 auto base_provider::remove_directory(const std::string &api_path) -> api_error {
+  REPERTORY_USES_FUNCTION_NAME();
+
   const auto notify_end = [&api_path](api_error error) -> api_error {
     if (error == api_error::success) {
-      event_system::instance().raise<directory_removed>(api_path);
+      event_system::instance().raise<directory_removed>(api_path,
+                                                        function_name);
     } else {
-      event_system::instance().raise<directory_remove_failed>(
-          api_path, api_error_to_string(error));
+      event_system::instance().raise<directory_remove_failed>(api_path, error,
+                                                              function_name);
     }
     return error;
   };
@@ -665,18 +721,23 @@ auto base_provider::remove_item_meta(const std::string &api_path,
   return db3_->remove_item_meta(api_path, key);
 }
 
-void base_provider::remove_unmatched_source_files(
-    const stop_type &stop_requested) {
+void base_provider::remove_unmatched_source_files(stop_type &stop_requested) {
+  REPERTORY_USES_FUNCTION_NAME();
+
   if (is_read_only()) {
     return;
   }
+
+  const auto get_stop_requested = [&stop_requested]() -> bool {
+    return stop_requested || app_config::get_stop_requested();
+  };
 
   const auto &cfg = get_config();
 
   auto source_list =
       utils::file::directory{cfg.get_cache_directory()}.get_files();
   for (const auto &source_file : source_list) {
-    if (stop_requested) {
+    if (get_stop_requested()) {
       return;
     }
 
@@ -702,13 +763,13 @@ void base_provider::remove_unmatched_source_files(
     }
 
     event_system::instance().raise<orphaned_source_file_detected>(
-        source_file->get_path());
+        function_name, source_file->get_path());
     if (not source_file->remove()) {
       continue;
     }
 
     event_system::instance().raise<orphaned_source_file_removed>(
-        source_file->get_path());
+        function_name, source_file->get_path());
   }
 }
 
@@ -725,6 +786,8 @@ auto base_provider::set_item_meta(const std::string &api_path,
 
 auto base_provider::start(api_item_added_callback api_item_added,
                           i_file_manager *mgr) -> bool {
+  REPERTORY_USES_FUNCTION_NAME();
+
   api_item_added_ = api_item_added;
   fm_ = mgr;
 
@@ -736,28 +799,33 @@ auto base_provider::start(api_item_added_callback api_item_added,
     api_item_added_(true, dir);
   }
 
-  auto online{false};
-  auto unmount_requested{false};
-  {
-    const auto &cfg = get_config();
+  auto stop_requested{false};
+  const auto get_stop_requested = [&stop_requested]() -> bool {
+    return stop_requested || app_config::get_stop_requested();
+  };
 
-    repertory::event_consumer consumer(
-        "unmount_requested",
-        [&unmount_requested](const event &) { unmount_requested = true; });
-    for (std::uint16_t idx = 0U; not online && not unmount_requested &&
-                                 (idx < cfg.get_online_check_retry_secs());
-         ++idx) {
-      online = is_online();
-      if (not online) {
-        event_system::instance().raise<provider_offline>(
-            cfg.get_host_config().host_name_or_ip,
-            cfg.get_host_config().api_port);
-        std::this_thread::sleep_for(1s);
-      }
+  const auto &cfg = get_config();
+
+  repertory::event_consumer consumer(
+      unmount_requested::name,
+      [&stop_requested](const i_event & /* evt */) { stop_requested = true; });
+
+  auto online{false};
+  for (std::uint16_t idx = 0U; not online && not get_stop_requested() &&
+                               (idx < cfg.get_online_check_retry_secs());
+       ++idx) {
+    online = is_online();
+    if (online) {
+      continue;
     }
+
+    event_system::instance().raise<provider_offline>(
+        function_name, cfg.get_host_config().host_name_or_ip,
+        cfg.get_host_config().api_port);
+    std::this_thread::sleep_for(1s);
   }
 
-  if (not online || unmount_requested) {
+  if (not online || get_stop_requested()) {
     return false;
   }
 
@@ -766,7 +834,7 @@ auto base_provider::start(api_item_added_callback api_item_added,
   polling::instance().set_callback({
       "check_deleted",
       polling::frequency::low,
-      [this](auto &&stop_requested) { remove_deleted_items(stop_requested); },
+      [this](auto &&stop) { remove_deleted_items(stop); },
   });
 
   return true;
@@ -783,16 +851,17 @@ auto base_provider::upload_file(const std::string &api_path,
                                 stop_type &stop_requested) -> api_error {
   REPERTORY_USES_FUNCTION_NAME();
 
-  event_system::instance().raise<provider_upload_begin>(api_path, source_path);
-
   const auto notify_end = [&api_path,
                            &source_path](api_error error) -> api_error {
-    event_system::instance().raise<provider_upload_end>(api_path, source_path,
-                                                        error);
+    event_system::instance().raise<provider_upload_end>(
+        api_path, error, function_name, source_path);
     return error;
   };
 
   try {
+    event_system::instance().raise<provider_upload_begin>(
+        api_path, function_name, source_path);
+
     return notify_end(upload_file_impl(api_path, source_path, stop_requested));
   } catch (const std::exception &e) {
     utils::error::raise_error(function_name, e, "exception occurred");

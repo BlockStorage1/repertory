@@ -1,5 +1,5 @@
 /*
-  Copyright <2018-2024> <scott.e.graves@protonmail.com>
+  Copyright <2018-2025> <scott.e.graves@protonmail.com>
 
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"), to deal
@@ -54,13 +54,17 @@ private:
                                       const std::string &object_name) const
       -> api_error;
 
+  [[nodiscard]] auto
+  create_directory_object(const std::string &api_path,
+                          const std::string &object_name) const -> api_error;
+
+  [[nodiscard]] auto create_directory_paths(const std::string &api_path,
+                                            const std::string &key) const
+      -> api_error;
+
   [[nodiscard]] auto create_file_extra(const std::string &api_path,
                                        api_meta_map &meta)
       -> api_error override;
-
-  [[nodiscard]] auto create_path_directories(const std::string &api_path,
-                                             const std::string &key) const
-      -> api_error;
 
   [[nodiscard]] auto decrypt_object_name(std::string &object_name) const
       -> api_error;
@@ -84,6 +88,9 @@ private:
   [[nodiscard]] auto get_s3_config() const -> const s3_config & {
     return s3_config_;
   }
+
+  [[nodiscard]] auto set_meta_key(const std::string &api_path,
+                                  api_meta_map &meta) -> api_error;
 
 protected:
   [[nodiscard]] auto create_directory_impl(const std::string &api_path,

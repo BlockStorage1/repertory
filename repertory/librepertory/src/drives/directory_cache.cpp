@@ -1,5 +1,5 @@
 /*
-  Copyright <2018-2024> <scott.e.graves@protonmail.com>
+  Copyright <2018-2025> <scott.e.graves@protonmail.com>
 
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"), to deal
@@ -38,14 +38,14 @@ void directory_cache::execute_action(const std::string &api_path,
 auto directory_cache::get_directory(std::uint64_t handle)
     -> std::shared_ptr<directory_iterator> {
   recur_mutex_lock directory_lock(directory_mutex_);
-  auto it = std::find_if(directory_lookup_.begin(), directory_lookup_.end(),
-                         [handle](auto &&kv) -> bool {
-                           auto &&handles = kv.second.handles;
-                           return std::find(handles.begin(), handles.end(),
-                                            handle) != kv.second.handles.end();
-                         });
-  if (it != directory_lookup_.end()) {
-    return it->second.iterator;
+  auto iter =
+      std::ranges::find_if(directory_lookup_, [handle](auto &&item) -> bool {
+        auto &&handles = item.second.handles;
+        return std::find(handles.begin(), handles.end(), handle) !=
+               item.second.handles.end();
+      });
+  if (iter != directory_lookup_.end()) {
+    return iter->second.iterator;
   }
 
   return nullptr;
@@ -66,39 +66,19 @@ auto directory_cache::remove_directory(const std::string &api_path)
 
 void directory_cache::remove_directory(std::uint64_t handle) {
   recur_mutex_lock directory_lock(directory_mutex_);
-  auto it = std::find_if(directory_lookup_.begin(), directory_lookup_.end(),
-                         [handle](auto &&kv) -> bool {
-                           auto &&handles = kv.second.handles;
-                           return std::find(handles.begin(), handles.end(),
-                                            handle) != kv.second.handles.end();
-                         });
-  if (it != directory_lookup_.end()) {
-    utils::collection::remove_element(it->second.handles, handle);
-    if (it->second.handles.empty()) {
-      directory_lookup_.erase(it);
-    }
-  }
-}
-
-void directory_cache::service_function() {
-  unique_recur_mutex_lock directory_lock(directory_mutex_);
-  auto lookup = directory_lookup_;
-  directory_lock.unlock();
-
-  for (auto &&kv : lookup) {
-    if (std::chrono::duration_cast<std::chrono::seconds>(
-            std::chrono::system_clock::now() - kv.second.last_update) >= 120s) {
-      directory_lock.lock();
-      directory_lookup_.erase(kv.first);
-      directory_lock.unlock();
-    }
+  auto iter =
+      std::ranges::find_if(directory_lookup_, [handle](auto &&item) -> bool {
+        auto &&handles = item.second.handles;
+        return std::find(handles.begin(), handles.end(), handle) !=
+               item.second.handles.end();
+      });
+  if (iter == directory_lookup_.end()) {
+    return;
   }
 
-  if (not get_stop_requested()) {
-    unique_mutex_lock shutdown_lock(get_mutex());
-    if (not get_stop_requested()) {
-      get_notify().wait_for(shutdown_lock, 15s);
-    }
+  utils::collection::remove_element(iter->second.handles, handle);
+  if (iter->second.handles.empty()) {
+    directory_lookup_.erase(iter);
   }
 }
 

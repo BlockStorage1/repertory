@@ -1,5 +1,5 @@
 /*
-  Copyright <2018-2024> <scott.e.graves@protonmail.com>
+  Copyright <2018-2025> <scott.e.graves@protonmail.com>
 
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"), to deal
@@ -27,7 +27,15 @@
 #include "drives/directory_iterator.hpp"
 #include "events/consumers/console_consumer.hpp"
 #include "events/consumers/logging_consumer.hpp"
-#include "events/events.hpp"
+#include "events/event_system.hpp"
+#include "events/types/drive_mount_failed.hpp"
+#include "events/types/drive_mount_result.hpp"
+#include "events/types/drive_mounted.hpp"
+#include "events/types/drive_stop_timed_out.hpp"
+#include "events/types/drive_unmount_pending.hpp"
+#include "events/types/drive_unmounted.hpp"
+#include "events/types/unmount_requested.hpp"
+#include "events/types/winfsp_event.hpp"
 #include "platform/platform.hpp"
 #include "providers/i_provider.hpp"
 #include "types/repertory.hpp"
@@ -39,23 +47,16 @@
 #include "utils/polling.hpp"
 #include "utils/string.hpp"
 #include "utils/time.hpp"
+#include "utils/timeout.hpp"
 #include "utils/utils.hpp"
 
 namespace repertory {
-// clang-format off
-E_SIMPLE3(winfsp_event, debug, true,
-  std::string, function, func, E_FROM_STRING,
-  std::string, api_path, ap, E_FROM_STRING,
-  NTSTATUS, result, res, E_FROM_INT32
-);
-// clang-format on
-
 #define RAISE_WINFSP_EVENT(func, file, ret)                                    \
   if (config_.get_enable_drive_events() &&                                     \
       (((config_.get_event_level() >= winfsp_event::level) &&                  \
-        (ret != STATUS_SUCCESS)) ||                                            \
+        ((ret) != STATUS_SUCCESS)) ||                                          \
        (config_.get_event_level() >= event_level::trace)))                     \
-  event_system::instance().raise<winfsp_event>(std::string{func}, file, ret)
+  event_system::instance().raise<winfsp_event>(file, ret, func)
 
 winfsp_drive::winfsp_service::winfsp_service(
     lock_data &lock, winfsp_drive &drive, std::vector<std::string> drive_args,
@@ -100,7 +101,9 @@ auto winfsp_drive::winfsp_service::OnStart(ULONG /*Argc*/, PWSTR * /*Argv*/)
        ((mount_location.size() == 3U) && (mount_location[2U] == '\\'))) &&
       (mount_location[1U] == ':');
 
-  auto ret = drive_letter ? STATUS_DEVICE_BUSY : STATUS_NOT_SUPPORTED;
+  auto ret{
+      drive_letter ? STATUS_DEVICE_BUSY : STATUS_NOT_SUPPORTED,
+  };
   if ((drive_letter && not utils::file::directory(mount_location).exists())) {
     auto unicode_mount_location = utils::string::from_utf8(mount_location);
     host_.SetFileSystemName(unicode_mount_location.data());
@@ -116,14 +119,16 @@ auto winfsp_drive::winfsp_service::OnStart(ULONG /*Argc*/, PWSTR * /*Argv*/)
               << mount_location << std::endl;
   }
 
-  if (ret != STATUS_SUCCESS) {
-    if (not lock_.set_mount_state(false, "", -1)) {
-      utils::error::raise_error(function_name, ret,
-                                "failed to set mount state");
-    }
-    event_system::instance().raise<drive_mount_failed>(mount_location,
-                                                       std::to_string(ret));
+  if (ret == STATUS_SUCCESS) {
+    return ret;
   }
+
+  if (not lock_.set_mount_state(false, "", -1)) {
+    utils::error::raise_error(function_name, ret, "failed to set mount state");
+  }
+
+  event_system::instance().raise<drive_mount_failed>(ret, function_name,
+                                                     mount_location);
 
   return ret;
 }
@@ -131,7 +136,15 @@ auto winfsp_drive::winfsp_service::OnStart(ULONG /*Argc*/, PWSTR * /*Argv*/)
 auto winfsp_drive::winfsp_service::OnStop() -> NTSTATUS {
   REPERTORY_USES_FUNCTION_NAME();
 
+  timeout stop_timeout(
+      []() {
+        event_system::instance().raise<drive_stop_timed_out>(function_name);
+        app_config::set_stop_requested();
+      },
+      30s);
   host_.Unmount();
+
+  stop_timeout.disable();
 
   if (not lock_.set_mount_state(false, "", -1)) {
     utils::error::raise_error(function_name, "failed to set mount state");
@@ -143,7 +156,7 @@ auto winfsp_drive::winfsp_service::OnStop() -> NTSTATUS {
 winfsp_drive::winfsp_drive(app_config &config, lock_data &lock,
                            i_provider &provider)
     : provider_(provider), config_(config), lock_(lock) {
-  E_SUBSCRIBE_EXACT(unmount_requested, [this](const unmount_requested &) {
+  E_SUBSCRIBE(unmount_requested, [this](const unmount_requested &) {
     std::thread([this]() { this->shutdown(); }).detach();
   });
 }
@@ -578,12 +591,14 @@ auto winfsp_drive::Init(PVOID host) -> NTSTATUS {
 }
 
 auto winfsp_drive::mount(const std::vector<std::string> &drive_args) -> int {
+  REPERTORY_USES_FUNCTION_NAME();
+
   std::vector<std::string> parsed_drive_args;
 
   auto force_no_console = utils::collection::includes(drive_args, "-nc");
 
   auto enable_console = false;
-  for (auto &&arg : drive_args) {
+  for (const auto &arg : drive_args) {
     if (arg == "-f") {
       if (not force_no_console) {
         enable_console = true;
@@ -598,35 +613,40 @@ auto winfsp_drive::mount(const std::vector<std::string> &drive_args) -> int {
   if (enable_console) {
     cons = std::make_unique<console_consumer>(config_.get_event_level());
   }
+
   event_system::instance().start();
+
   auto svc = winfsp_service(lock_, *this, parsed_drive_args, config_);
   auto ret = svc.Run();
 
-  event_system::instance().raise<drive_mount_result>(std::to_string(ret));
+  event_system::instance().raise<drive_mount_result>(function_name, "",
+                                                     std::to_string(ret));
   event_system::instance().stop();
   cons.reset();
+
   return static_cast<int>(ret);
 }
 
 auto winfsp_drive::Mounted(PVOID host) -> NTSTATUS {
   REPERTORY_USES_FUNCTION_NAME();
 
-  auto ret{STATUS_SUCCESS};
-  if (not utils::file::change_to_process_directory()) {
-    return static_cast<NTSTATUS>(utils::get_last_error_code());
-  }
-
-  auto *file_system_host{
-      reinterpret_cast<FileSystemHost *>(host),
-  };
-  fm_ = std::make_unique<file_manager>(config_, provider_);
-  server_ = std::make_unique<full_server>(config_, provider_, *fm_);
-  if (not provider_.is_read_only()) {
-    eviction_ = std::make_unique<eviction>(provider_, config_, *fm_);
-  }
-
   try {
+    if (not utils::file::change_to_process_directory()) {
+      return static_cast<NTSTATUS>(utils::get_last_error_code());
+    }
+
+    auto *file_system_host{
+        reinterpret_cast<FileSystemHost *>(host),
+    };
+
+    fm_ = std::make_unique<file_manager>(config_, provider_);
+    server_ = std::make_unique<full_server>(config_, provider_, *fm_);
+    if (not provider_.is_read_only()) {
+      eviction_ = std::make_unique<eviction>(provider_, config_, *fm_);
+    }
+
     server_->start();
+
     if (not provider_.start(
             [this](bool directory, api_file &file) -> api_error {
               return provider_meta_handler(provider_, directory, file);
@@ -646,30 +666,22 @@ auto winfsp_drive::Mounted(PVOID host) -> NTSTATUS {
           config_, *this, mount_location);
     }
 
+    polling::instance().start(&config_);
+
     if (not lock_.set_mount_state(true, mount_location,
                                   ::GetCurrentProcessId())) {
       utils::error::raise_error(function_name, "failed to set mount state");
     }
 
-    polling::instance().start(&config_);
-
-    event_system::instance().raise<drive_mounted>(mount_location);
+    event_system::instance().raise<drive_mounted>(function_name,
+                                                  mount_location);
+    return STATUS_SUCCESS;
   } catch (const std::exception &e) {
     utils::error::raise_error(function_name, e, "exception occurred");
-    if (remote_server_) {
-      remote_server_.reset();
-    }
-    server_->stop();
-    polling::instance().stop();
-    if (eviction_) {
-      eviction_->stop();
-    }
-    fm_->stop();
-    provider_.stop();
-    ret = STATUS_INTERNAL_ERROR;
   }
 
-  return ret;
+  stop_all();
+  return STATUS_INTERNAL_ERROR;
 }
 
 auto winfsp_drive::Open(PWSTR file_name, UINT32 create_options,
@@ -896,103 +908,97 @@ auto winfsp_drive::ReadDirectory(PVOID /*file_node*/, PVOID file_desc,
     std::shared_ptr<i_open_file> file;
     if (fm_->get_open_file(handle, false, file)) {
       api_path = file->get_api_path();
-      bool exists{};
-      error = provider_.is_directory(api_path, exists);
-      if (error == api_error::success) {
-        if (exists) {
-          directory_item_list list{};
-          error = provider_.get_directory_items(api_path, list);
-          if (error == api_error::success) {
-            directory_iterator iterator(std::move(list));
-            auto status_result = STATUS_SUCCESS;
-            auto **directory_buffer =
-                &file->get_open_data(handle).directory_buffer;
-            if (FspFileSystemAcquireDirectoryBuffer(
-                    directory_buffer, static_cast<BOOLEAN>(nullptr == marker),
-                    &status_result) != 0U) {
-              directory_item dir_item{};
-              auto offset =
-                  marker == nullptr
-                      ? 0U
-                      : iterator.get_next_directory_offset(
-                            utils::path::create_api_path(utils::path::combine(
-                                api_path, {utils::string::to_utf8(marker)})));
-              while ((error = iterator.get_directory_item(
-                          offset++, dir_item)) == api_error::success) {
-                if (dir_item.api_path == ".") {
-                  auto res = provider_.get_item_meta(api_path, dir_item.meta);
-                  if (res != api_error::success) {
-                    error = res;
-                    utils::error::raise_api_path_error(function_name,
-                                                       dir_item.api_path, error,
-                                                       "failed to get . meta");
-                    break;
-                  }
-                } else if (dir_item.api_path == "..") {
-                  // TODO handle '/' parent
-                  auto res = provider_.get_item_meta(
-                      utils::path::get_parent_api_path(api_path),
-                      dir_item.meta);
-                  if (res != api_error::success) {
-                    error = res;
-                    utils::error::raise_api_path_error(function_name,
-                                                       dir_item.api_path, error,
-                                                       "failed to get .. meta");
-                    break;
-                  }
-                }
-
-                if (dir_item.meta.empty()) {
-                  error = api_error::error;
-                  utils::error::raise_api_path_error(
-                      function_name, dir_item.api_path, api_error::error,
-                      "item meta is empty");
+      if (file->is_directory()) {
+        directory_item_list list{};
+        error = provider_.get_directory_items(api_path, list);
+        if (error == api_error::success) {
+          directory_iterator iterator(std::move(list));
+          auto status_result = STATUS_SUCCESS;
+          auto **directory_buffer =
+              &file->get_open_data(handle).directory_buffer;
+          if (FspFileSystemAcquireDirectoryBuffer(
+                  directory_buffer, static_cast<BOOLEAN>(nullptr == marker),
+                  &status_result) != 0U) {
+            directory_item dir_item{};
+            auto offset =
+                marker == nullptr
+                    ? 0U
+                    : iterator.get_next_directory_offset(
+                          utils::path::create_api_path(utils::path::combine(
+                              api_path, {utils::string::to_utf8(marker)})));
+            while ((error = iterator.get_directory_item(offset++, dir_item)) ==
+                   api_error::success) {
+              if (dir_item.api_path == ".") {
+                auto res = provider_.get_item_meta(api_path, dir_item.meta);
+                if (res != api_error::success) {
+                  error = res;
+                  utils::error::raise_api_path_error(function_name,
+                                                     dir_item.api_path, error,
+                                                     "failed to get . meta");
                   break;
                 }
-
-                auto display_name = utils::string::from_utf8(
-                    utils::path::strip_to_file_name(dir_item.api_path));
-                union {
-                  UINT8 B[FIELD_OFFSET(FSP_FSCTL_DIR_INFO, FileNameBuf) +
-                          ((repertory::max_path_length + 1U) * sizeof(WCHAR))];
-                  FSP_FSCTL_DIR_INFO D;
-                } directory_info_buffer;
-
-                auto *directory_info = &directory_info_buffer.D;
-                ::ZeroMemory(directory_info, sizeof(*directory_info));
-                directory_info->Size = static_cast<UINT16>(
-                    FIELD_OFFSET(FSP_FSCTL_DIR_INFO, FileNameBuf) +
-                    (std::min(static_cast<size_t>(repertory::max_path_length),
-                              display_name.size()) *
-                     sizeof(WCHAR)));
-
-                populate_file_info(dir_item.size, dir_item.meta,
-                                   directory_info->FileInfo);
-                ::wcscpy_s(&directory_info->FileNameBuf[0U],
-                           repertory::max_path_length, display_name.data());
-
-                FspFileSystemFillDirectoryBuffer(
-                    directory_buffer, directory_info, &status_result);
+              } else if (dir_item.api_path == "..") {
+                // TODO handle '/' parent
+                auto res = provider_.get_item_meta(
+                    utils::path::get_parent_api_path(api_path), dir_item.meta);
+                if (res != api_error::success) {
+                  error = res;
+                  utils::error::raise_api_path_error(function_name,
+                                                     dir_item.api_path, error,
+                                                     "failed to get .. meta");
+                  break;
+                }
               }
 
-              FspFileSystemReleaseDirectoryBuffer(directory_buffer);
+              if (dir_item.meta.empty()) {
+                error = api_error::error;
+                utils::error::raise_api_path_error(
+                    function_name, dir_item.api_path, api_error::error,
+                    "item meta is empty");
+                break;
+              }
+
+              auto display_name = utils::string::from_utf8(
+                  utils::path::strip_to_file_name(dir_item.api_path));
+              union {
+                UINT8 B[FIELD_OFFSET(FSP_FSCTL_DIR_INFO, FileNameBuf) +
+                        ((repertory::max_path_length + 1U) * sizeof(WCHAR))];
+                FSP_FSCTL_DIR_INFO D;
+              } directory_info_buffer;
+
+              auto *directory_info = &directory_info_buffer.D;
+              ::ZeroMemory(directory_info, sizeof(*directory_info));
+              directory_info->Size = static_cast<UINT16>(
+                  FIELD_OFFSET(FSP_FSCTL_DIR_INFO, FileNameBuf) +
+                  (std::min(static_cast<size_t>(repertory::max_path_length),
+                            display_name.size()) *
+                   sizeof(WCHAR)));
+
+              populate_file_info(dir_item.size, dir_item.meta,
+                                 directory_info->FileInfo);
+              ::wcscpy_s(&directory_info->FileNameBuf[0U],
+                         repertory::max_path_length, display_name.data());
+
+              FspFileSystemFillDirectoryBuffer(directory_buffer, directory_info,
+                                               &status_result);
             }
 
-            if (status_result == STATUS_SUCCESS) {
-              FspFileSystemReadDirectoryBuffer(directory_buffer, marker, buffer,
-                                               buffer_length,
-                                               bytes_transferred);
-              if (error == api_error::directory_end_of_files) {
-                error = api_error::success;
-              }
-            } else {
-              RAISE_WINFSP_EVENT(function_name, api_path, status_result);
-              return status_result;
-            }
+            FspFileSystemReleaseDirectoryBuffer(directory_buffer);
           }
-        } else {
-          error = api_error::directory_not_found;
+
+          if (status_result == STATUS_SUCCESS) {
+            FspFileSystemReadDirectoryBuffer(directory_buffer, marker, buffer,
+                                             buffer_length, bytes_transferred);
+            if (error == api_error::directory_end_of_files) {
+              error = api_error::success;
+            }
+          } else {
+            RAISE_WINFSP_EVENT(function_name, api_path, status_result);
+            return status_result;
+          }
         }
+      } else {
+        error = api_error::directory_not_found;
       }
     }
   }
@@ -1162,31 +1168,58 @@ auto winfsp_drive::SetFileSize(PVOID /*file_node*/, PVOID file_desc,
       }));
 }
 
+void winfsp_drive::stop_all() {
+  REPERTORY_USES_FUNCTION_NAME();
+
+  mutex_lock lock(stop_all_mtx_);
+
+  auto future = std::async(std::launch::async, [this]() {
+    remote_server_.reset();
+
+    if (server_) {
+      server_->stop();
+    }
+
+    polling::instance().stop();
+
+    if (eviction_) {
+      eviction_->stop();
+    }
+
+    if (fm_) {
+      fm_->stop();
+    }
+
+    provider_.stop();
+
+    eviction_.reset();
+    fm_.reset();
+    server_.reset();
+  });
+
+  if (future.wait_for(30s) == std::future_status::timeout) {
+    event_system::instance().raise<drive_stop_timed_out>(function_name);
+    app_config::set_stop_requested();
+    future.wait();
+  }
+
+  if (not lock_.set_mount_state(false, "", -1)) {
+    utils::error::raise_error(function_name, "failed to set mount state");
+  }
+}
+
 VOID winfsp_drive::Unmounted(PVOID host) {
   REPERTORY_USES_FUNCTION_NAME();
 
   auto *file_system_host = reinterpret_cast<FileSystemHost *>(host);
   auto mount_location = parse_mount_location(file_system_host->MountPoint());
-  event_system::instance().raise<drive_unmount_pending>(mount_location);
-  if (remote_server_) {
-    remote_server_.reset();
-  }
-  server_->stop();
-  polling::instance().stop();
-  if (eviction_) {
-    eviction_->stop();
-  }
-  fm_->stop();
-  provider_.stop();
-  server_.reset();
-  fm_.reset();
-  eviction_.reset();
+  event_system::instance().raise<drive_unmount_pending>(function_name,
+                                                        mount_location);
 
-  if (not lock_.set_mount_state(false, "", -1)) {
-    utils::error::raise_error(function_name, "failed to set mount state");
-  }
+  stop_all();
 
-  event_system::instance().raise<drive_unmounted>(mount_location);
+  event_system::instance().raise<drive_unmounted>(function_name,
+                                                  mount_location);
   config_.save();
 }
 
