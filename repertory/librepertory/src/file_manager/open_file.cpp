@@ -1,5 +1,5 @@
 /*
-  Copyright <2018-2024> <scott.e.graves@protonmail.com>
+  Copyright <2018-2025> <scott.e.graves@protonmail.com>
 
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"), to deal
@@ -21,8 +21,12 @@
 */
 #include "file_manager/open_file.hpp"
 
+#include "app_config.hpp"
+#include "events/event_system.hpp"
+#include "events/types/download_begin.hpp"
+#include "events/types/download_end.hpp"
+#include "events/types/download_progress.hpp"
 #include "file_manager/cache_size_mgr.hpp"
-#include "file_manager/events.hpp"
 #include "file_manager/file_manager.hpp"
 #include "file_manager/i_upload_manager.hpp"
 #include "platform/platform.hpp"
@@ -270,6 +274,8 @@ auto open_file::close() -> bool {
 
 void open_file::download_chunk(std::size_t chunk, bool skip_active,
                                bool should_reset) {
+  REPERTORY_USES_FUNCTION_NAME();
+
   if (should_reset) {
     reset_timeout();
   }
@@ -294,8 +300,8 @@ void open_file::download_chunk(std::size_t chunk, bool skip_active,
     auto data_size = (chunk == read_state.size() - 1U) ? get_last_chunk_size()
                                                        : get_chunk_size();
     if (get_active_downloads().empty() && (read_state.count() == 0U)) {
-      event_system::instance().raise<download_begin>(get_api_path(),
-                                                     get_source_path());
+      event_system::instance().raise<download_begin>(
+          get_api_path(), get_source_path(), function_name);
     }
 
     get_active_downloads()[chunk] = std::make_shared<download>();
@@ -318,16 +324,18 @@ void open_file::download_chunk(std::size_t chunk, bool skip_active,
                            static_cast<double>(state.size())) *
                           100.0;
           event_system::instance().raise<download_progress>(
-              get_api_path(), get_source_path(), progress);
+              get_api_path(), get_source_path(), function_name, progress);
           if (state.all() && not notified_) {
             notified_ = true;
             event_system::instance().raise<download_end>(
-                get_api_path(), get_source_path(), get_api_error());
+                get_api_path(), get_source_path(), get_api_error(),
+                function_name);
           }
         } else if (not notified_) {
           notified_ = true;
           event_system::instance().raise<download_end>(
-              get_api_path(), get_source_path(), get_api_error());
+              get_api_path(), get_source_path(), get_api_error(),
+              function_name);
         }
         lock.unlock();
 
@@ -398,11 +406,15 @@ auto open_file::get_read_state(std::size_t chunk) const -> bool {
   return get_read_state()[chunk];
 }
 
+auto open_file::get_stop_requested() const -> bool {
+  return stop_requested_ || app_config::get_stop_requested();
+}
+
 auto open_file::is_complete() const -> bool { return get_read_state().all(); }
 
 auto open_file::native_operation(
     i_open_file::native_operation_callback callback) -> api_error {
-  if (stop_requested_) {
+  if (get_stop_requested()) {
     return set_api_error(api_error::download_stopped);
   }
 
@@ -424,7 +436,7 @@ auto open_file::native_operation(
     return set_api_error(api_error::invalid_operation);
   }
 
-  if (stop_requested_) {
+  if (get_stop_requested()) {
     return set_api_error(api_error::download_stopped);
   }
 
@@ -535,7 +547,7 @@ auto open_file::read(std::size_t read_size, std::uint64_t read_offset,
     return set_api_error(api_error::invalid_operation);
   }
 
-  if (stop_requested_) {
+  if (get_stop_requested()) {
     return set_api_error(api_error::download_stopped);
   }
 
@@ -656,7 +668,7 @@ void open_file::update_reader(std::size_t chunk) {
   recur_mutex_lock rw_lock(rw_mtx_);
   read_chunk_ = chunk;
 
-  if (reader_thread_ || stop_requested_) {
+  if (reader_thread_ || get_stop_requested()) {
     return;
   }
 
@@ -666,13 +678,13 @@ void open_file::update_reader(std::size_t chunk) {
     auto read_chunk{read_chunk_};
     lock.unlock();
 
-    while (not stop_requested_) {
+    while (not get_stop_requested()) {
       lock.lock();
 
       auto read_state = get_read_state();
       if ((get_file_size() == 0U) || read_state.all()) {
         lock.unlock();
-        wait_for_io(stop_requested_);
+        wait_for_io([this]() -> bool { return this->get_stop_requested(); });
         continue;
       }
 
@@ -702,7 +714,7 @@ auto open_file::write(std::uint64_t write_offset, const data_buffer &data,
     return api_error::success;
   }
 
-  if (stop_requested_) {
+  if (get_stop_requested()) {
     return set_api_error(api_error::download_stopped);
   }
 

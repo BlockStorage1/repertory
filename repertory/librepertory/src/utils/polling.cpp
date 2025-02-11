@@ -1,5 +1,5 @@
 /*
-  Copyright <2018-2024> <scott.e.graves@protonmail.com>
+  Copyright <2018-2025> <scott.e.graves@protonmail.com>
 
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"), to deal
@@ -23,7 +23,12 @@
 
 #include "app_config.hpp"
 #include "events/event_system.hpp"
-#include "events/events.hpp"
+#include "events/types/polling_item_begin.hpp"
+#include "events/types/polling_item_end.hpp"
+#include "events/types/service_start_begin.hpp"
+#include "events/types/service_start_end.hpp"
+#include "events/types/service_stop_begin.hpp"
+#include "events/types/service_stop_end.hpp"
 #include "utils/tasks.hpp"
 
 namespace repertory {
@@ -31,11 +36,13 @@ polling polling::instance_;
 
 void polling::frequency_thread(
     std::function<std::uint32_t()> get_frequency_seconds, frequency freq) {
-  while (not stop_requested_) {
+  REPERTORY_USES_FUNCTION_NAME();
+
+  while (not get_stop_requested()) {
     unique_mutex_lock lock(mutex_);
     auto futures = std::accumulate(
         items_.begin(), items_.end(), std::deque<tasks::task_ptr>{},
-        [this, &freq](auto &&list, auto &&item) {
+        [this, &freq](auto &&list, auto &&item) -> auto {
           if (item.second.freq != freq) {
             return list;
           }
@@ -45,12 +52,13 @@ void polling::frequency_thread(
                 if (config_->get_event_level() == event_level::trace ||
                     freq != frequency::second) {
                   event_system::instance().raise<polling_item_begin>(
-                      item.first);
+                      function_name, item.first);
                 }
                 item.second.action(task_stopped);
                 if (config_->get_event_level() == event_level::trace ||
                     freq != frequency::second) {
-                  event_system::instance().raise<polling_item_end>(item.first);
+                  event_system::instance().raise<polling_item_end>(
+                      function_name, item.first);
                 }
               },
           });
@@ -65,13 +73,17 @@ void polling::frequency_thread(
       futures.pop_front();
     }
 
-    if (stop_requested_) {
+    if (get_stop_requested()) {
       return;
     }
 
     lock.lock();
     notify_.wait_for(lock, std::chrono::seconds(get_frequency_seconds()));
   }
+}
+
+auto polling::get_stop_requested() const -> bool {
+  return stop_requested_ || app_config::get_stop_requested();
 }
 
 void polling::remove_callback(const std::string &name) {
@@ -85,12 +97,14 @@ void polling::set_callback(const polling_item &item) {
 }
 
 void polling::start(app_config *config) {
+  REPERTORY_USES_FUNCTION_NAME();
+
   mutex_lock lock(start_stop_mutex_);
   if (frequency_threads_.at(0U)) {
     return;
   }
 
-  event_system::instance().raise<service_started>("polling");
+  event_system::instance().raise<service_start_begin>(function_name, "polling");
   config_ = config;
   stop_requested_ = false;
 
@@ -129,28 +143,36 @@ void polling::start(app_config *config) {
         this->frequency_thread([]() -> std::uint32_t { return 1U; },
                                frequency::second);
       });
+  event_system::instance().raise<service_start_end>(function_name, "polling");
 }
 
 void polling::stop() {
+  REPERTORY_USES_FUNCTION_NAME();
+
   mutex_lock lock(start_stop_mutex_);
   if (not frequency_threads_.at(0U)) {
     return;
   }
 
-  event_system::instance().raise<service_shutdown_begin>("polling");
+  event_system::instance().raise<service_stop_begin>(function_name, "polling");
+
   stop_requested_ = true;
 
   tasks::instance().stop();
 
   unique_mutex_lock thread_lock(mutex_);
+  std::array<std::unique_ptr<std::thread>,
+             static_cast<std::size_t>(frequency::size)>
+      threads;
+  std::swap(threads, frequency_threads_);
   notify_.notify_all();
   thread_lock.unlock();
 
-  for (auto &&thread : frequency_threads_) {
+  for (auto &thread : threads) {
     thread->join();
     thread.reset();
   }
 
-  event_system::instance().raise<service_shutdown_end>("polling");
+  event_system::instance().raise<service_stop_end>(function_name, "polling");
 }
 } // namespace repertory

@@ -1,5 +1,5 @@
 /*
-  Copyright <2018-2024> <scott.e.graves@protonmail.com>
+  Copyright <2018-2025> <scott.e.graves@protonmail.com>
 
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"), to deal
@@ -33,7 +33,7 @@ const curl_comm::write_callback curl_comm::write_data =
       auto &info = *reinterpret_cast<read_write_info *>(outstream);
       std::copy(buffer, buffer + (size * nitems),
                 std::back_inserter(info.data));
-      return info.stop_requested ? 0 : size * nitems;
+      return info.stop_requested_cb() ? 0 : size * nitems;
     });
 
 const curl_comm::write_callback curl_comm::write_headers =
@@ -102,8 +102,8 @@ auto curl_comm::reset_curl(CURL *curl_handle) -> CURL * {
   return curl_handle;
 }
 
-auto curl_comm::create_host_config(const s3_config &cfg,
-                                   bool use_s3_path_style) -> host_config {
+auto curl_comm::create_host_config(const s3_config &cfg, bool use_s3_path_style)
+    -> host_config {
   host_config host_cfg{};
   host_cfg.api_password = cfg.secret_key;
   host_cfg.api_user = cfg.access_key;

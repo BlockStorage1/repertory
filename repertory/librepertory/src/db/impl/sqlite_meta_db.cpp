@@ -1,5 +1,5 @@
 /*
-  Copyright <2018-2024> <scott.e.graves@protonmail.com>
+  Copyright <2018-2025> <scott.e.graves@protonmail.com>
 
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"), to deal
@@ -73,6 +73,32 @@ void sqlite_meta_db::clear() {
   utils::error::raise_error(function_name,
                             "failed to clear meta db|" +
                                 std::to_string(result.get_error()));
+}
+
+void sqlite_meta_db::enumerate_api_path_list(
+    std::function<void(const std::vector<std::string> &)> callback,
+    stop_type_callback stop_requested_cb) const {
+  auto result =
+      utils::db::sqlite::db_select{*db_, table_name}.column("api_path").go();
+
+  std::vector<std::string> list{};
+  while (not stop_requested_cb() && result.has_row()) {
+    std::optional<utils::db::sqlite::db_result::row> row;
+    if (result.get_row(row) && row.has_value()) {
+      list.push_back(row->get_column("api_path").get_value<std::string>());
+
+      if (list.size() < 100U) {
+        continue;
+      }
+
+      callback(list);
+      list.clear();
+    }
+  }
+
+  if (not list.empty()) {
+    callback(list);
+  }
 }
 
 auto sqlite_meta_db::get_api_path(const std::string &source_path,
@@ -321,7 +347,7 @@ auto sqlite_meta_db::set_item_meta(const std::string &api_path,
     // TODO handle error
   }
 
-  for (auto &&item : meta) {
+  for (const auto &item : meta) {
     existing_meta[item.first] = item.second;
   }
 

@@ -1,5 +1,5 @@
 /*
-  Copyright <2018-2024> <scott.e.graves@protonmail.com>
+  Copyright <2018-2025> <scott.e.graves@protonmail.com>
 
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"), to deal
@@ -42,8 +42,8 @@ public:
   direct_open_file(const direct_open_file &) noexcept = delete;
   direct_open_file(direct_open_file &&) noexcept = delete;
   auto operator=(direct_open_file &&) noexcept -> direct_open_file & = delete;
-  auto
-  operator=(const direct_open_file &) noexcept -> direct_open_file & = delete;
+  auto operator=(const direct_open_file &) noexcept
+      -> direct_open_file & = delete;
 
 private:
   std::array<data_buffer, min_ring_size> ring_data_;
@@ -51,22 +51,26 @@ private:
 protected:
   [[nodiscard]] auto on_check_start() -> bool override;
 
-  [[nodiscard]] auto
-  on_chunk_downloaded(std::size_t /* chunk */,
-                      const data_buffer & /* buffer */) -> api_error override {
+  [[nodiscard]] auto on_chunk_downloaded(std::size_t /* chunk */,
+                                         const data_buffer & /* buffer */)
+      -> api_error override {
     return api_error::success;
   }
 
-  [[nodiscard]] auto
-  on_read_chunk(std::size_t chunk, std::size_t read_size,
-                std::uint64_t read_offset, data_buffer &data,
-                std::size_t &bytes_read) -> api_error override;
+  [[nodiscard]] auto on_read_chunk(std::size_t chunk, std::size_t read_size,
+                                   std::uint64_t read_offset, data_buffer &data,
+                                   std::size_t &bytes_read)
+      -> api_error override;
 
   [[nodiscard]] auto use_buffer(std::size_t chunk,
                                 std::function<api_error(data_buffer &)> func)
       -> api_error override;
 
 public:
+  [[nodiscard]] auto get_source_path() const -> std::string override {
+    return "direct";
+  }
+
   [[nodiscard]] auto native_operation(native_operation_callback /* callback */)
       -> api_error override {
     return api_error::not_supported;

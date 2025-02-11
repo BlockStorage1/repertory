@@ -35,7 +35,7 @@ fi
 
 pushd "${PROJECT_SOURCE_DIR}"
 BRANCH=$(git branch --show-current)
-RELEASE=$(grep set\(PROJECT_RELEASE_ITER ./config.sh | sed s/\)//g | awk '{print $2}')
+RELEASE=$(grep PROJECT_RELEASE_ITER= ./config.sh | sed s/PROJECT_RELEASE_ITER=//g)
 popd
 
 if [ "${BRANCH}" == "master" ] || [ "${BRANCH}" == "alpha" ] || [ "${BRANCH}" == "beta" ] || [ "${BRANCH}" == "rc" ]; then

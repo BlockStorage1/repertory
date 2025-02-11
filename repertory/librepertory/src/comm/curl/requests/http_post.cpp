@@ -1,5 +1,5 @@
 /*
-  Copyright <2018-2024> <scott.e.graves@protonmail.com>
+  Copyright <2018-2025> <scott.e.graves@protonmail.com>
 
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"), to deal
@@ -22,18 +22,11 @@
 #include "comm/curl/requests/http_post.hpp"
 
 namespace repertory::curl::requests {
-http_post::~http_post() {
-  if (headers != nullptr) {
-    curl_slist_free_all(headers);
-  }
-}
-
 auto http_post::set_method(CURL *curl, stop_type & /*stop_requested*/) const
     -> bool {
   curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, "POST");
   if (json.has_value()) {
-    headers = curl_slist_append(headers, "content-type: application/json");
-    curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
+    headers["content-type"] = "application/json";
 
     json_str = json->dump();
     curl_easy_setopt(curl, CURLOPT_POSTFIELDS, json_str->c_str());

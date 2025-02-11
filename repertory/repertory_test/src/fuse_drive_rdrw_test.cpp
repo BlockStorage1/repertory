@@ -1,5 +1,5 @@
 /*
-  Copyright <2018-2024> <scott.e.graves@protonmail.com>
+  Copyright <2018-2025> <scott.e.graves@protonmail.com>
 
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"), to deal
@@ -63,8 +63,8 @@ TYPED_TEST(fuse_test, rdrw_can_read_from_offset) {
 
   data_buffer read_buffer(1U);
   for (std::size_t idx = 0U; idx < write_buffer.size(); ++idx) {
-    auto bytes_read =
-        pread64(handle, read_buffer.data(), read_buffer.size(), idx);
+    auto bytes_read = pread64(handle, read_buffer.data(), read_buffer.size(),
+                              static_cast<off64_t>(idx));
     EXPECT_EQ(1U, bytes_read);
 
     EXPECT_EQ(write_buffer.at(idx), read_buffer.at(0U));
@@ -89,8 +89,8 @@ TYPED_TEST(fuse_test, rdrw_can_read_from_offset_after_eof) {
 
   data_buffer read_buffer(1U);
   for (std::size_t idx = 0U; idx < write_buffer.size() + 1U; ++idx) {
-    auto bytes_read =
-        pread64(handle, read_buffer.data(), read_buffer.size(), idx);
+    auto bytes_read = pread64(handle, read_buffer.data(), read_buffer.size(),
+                              static_cast<off64_t>(idx));
     if (idx == write_buffer.size()) {
       EXPECT_EQ(0U, bytes_read);
     } else {
@@ -140,11 +140,67 @@ TYPED_TEST(fuse_test, rdrw_can_not_read_from_wo_file) {
   EXPECT_EQ(write_buffer.size(), bytes_written);
 
   data_buffer read_buffer(1U);
-  auto bytes_read =
-      pread64(handle, read_buffer.data(), read_buffer.size(), idx);
+  auto bytes_read = pread64(handle, read_buffer.data(), read_buffer.size(), 0);
   EXPECT_EQ(-1, bytes_read);
   EXPECT_EQ(EBADF, errno);
 
+  close(handle);
+
+  this->unlink_file_and_test(file_path);
+}
+
+TYPED_TEST(fuse_test, rdrw_can_not_read_or_write_to_directory) {
+  std::string dir_name{"create_test"};
+  auto dir_path = this->create_directory_and_test(dir_name);
+
+  auto handle = open(dir_path.c_str(), O_DIRECTORY);
+  ASSERT_GT(handle, -1);
+
+  auto write_buffer = utils::generate_secure_random<data_buffer>(8096U);
+  auto bytes_written =
+      pwrite64(handle, write_buffer.data(), write_buffer.size(), 0U);
+  EXPECT_EQ(-1, bytes_written);
+  EXPECT_EQ(EBADF, errno);
+
+  data_buffer read_buffer(1U);
+  auto bytes_read = pread64(handle, read_buffer.data(), read_buffer.size(), 0);
+  EXPECT_EQ(-1, bytes_read);
+  EXPECT_EQ(EISDIR, errno);
+
+  close(handle);
+
+  this->rmdir_and_test(dir_path);
+}
+
+TYPED_TEST(fuse_test, rdrw_can_append_to_file) {
+  std::string file_name{"append_test"};
+  auto file_path = this->create_file_and_test(file_name);
+
+  auto handle = open(file_path.c_str(), O_WRONLY);
+  ASSERT_GT(handle, -1);
+  auto bytes_written = pwrite64(handle, "test_", 5U, 0);
+  EXPECT_EQ(5U, bytes_written);
+  close(handle);
+
+  handle = open(file_path.c_str(), O_WRONLY | O_APPEND);
+  ASSERT_GT(handle, -1);
+  bytes_written = write(handle, "cow_", 4U);
+  EXPECT_EQ(4U, bytes_written);
+  close(handle);
+
+  handle = open(file_path.c_str(), O_WRONLY | O_APPEND);
+  ASSERT_GT(handle, -1);
+  bytes_written = write(handle, "dog", 3U);
+  EXPECT_EQ(3U, bytes_written);
+  close(handle);
+
+  handle = open(file_path.c_str(), O_RDONLY);
+  ASSERT_GT(handle, -1);
+  std::string read_buffer;
+  read_buffer.resize(12U);
+  auto bytes_read = pread64(handle, read_buffer.data(), read_buffer.size(), 0);
+  EXPECT_EQ(12U, bytes_read);
+  EXPECT_STREQ("test_cow_dog", read_buffer.c_str());
   close(handle);
 
   this->unlink_file_and_test(file_path);

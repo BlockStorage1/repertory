@@ -1,5 +1,5 @@
 /*
-  Copyright <2018-2024> <scott.e.graves@protonmail.com>
+  Copyright <2018-2025> <scott.e.graves@protonmail.com>
 
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"), to deal
@@ -38,12 +38,8 @@ private:
   std::unique_ptr<httplib::Server> server_;
   std::unique_ptr<std::thread> server_thread_;
   std::mutex start_stop_mutex_;
-  std::atomic<bool> started_ = false;
 
 private:
-  // [[nodiscard]] bool check_authorization(const httpserver::http_request
-  // &request);
-
   [[nodiscard]] auto check_authorization(const httplib::Request &req) -> bool;
 
   void handle_get_config(const httplib::Request &req, httplib::Response &res);

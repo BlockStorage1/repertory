@@ -1,5 +1,5 @@
 /*
-  Copyright <2018-2024> <scott.e.graves@protonmail.com>
+  Copyright <2018-2025> <scott.e.graves@protonmail.com>
 
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"), to deal
@@ -58,6 +58,8 @@ auto from_api_error(const api_error &err) -> int {
     return -EINVAL;
   case api_error::item_not_found:
     return -ENOENT;
+  case api_error::name_too_long:
+    return -ENAMETOOLONG;
   case api_error::out_of_memory:
     return -ENOMEM;
   case api_error::no_disk_space:
@@ -128,6 +130,8 @@ auto to_api_error(int err) -> api_error {
     return api_error::file_in_use;
   case EINVAL:
     return api_error::invalid_operation;
+  case ENAMETOOLONG:
+    return api_error::name_too_long;
   case ENOENT:
     return api_error::item_not_found;
   case ENOMEM:

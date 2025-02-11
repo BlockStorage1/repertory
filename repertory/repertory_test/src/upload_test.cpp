@@ -1,5 +1,5 @@
 /*
-  Copyright <2018-2024> <scott.e.graves@protonmail.com>
+  Copyright <2018-2025> <scott.e.graves@protonmail.com>
 
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"), to deal
@@ -21,6 +21,7 @@
 */
 #include "test_common.hpp"
 
+#include "events/types/file_upload_completed.hpp"
 #include "file_manager/upload.hpp"
 #include "mocks/mock_provider.hpp"
 #include "utils/event_capture.hpp"
@@ -44,15 +45,14 @@ TEST(upload, can_upload_a_valid_file) {
   fsi.size = test_chunk_size * 4U;
   fsi.source_path = source_path;
 
-  event_consumer evt_com("file_upload_completed", [&fsi](const event &evt) {
-    const auto &comp_evt = dynamic_cast<const file_upload_completed &>(evt);
-    EXPECT_STREQ(fsi.api_path.c_str(),
-                 comp_evt.get_api_path().get<std::string>().c_str());
-    EXPECT_STREQ(fsi.source_path.c_str(),
-                 comp_evt.get_source().get<std::string>().c_str());
-    EXPECT_STREQ("success", comp_evt.get_result().get<std::string>().c_str());
-    EXPECT_STREQ("0", comp_evt.get_cancelled().get<std::string>().c_str());
-  });
+  event_consumer evt_com(
+      file_upload_completed::name, [&fsi](const i_event &evt) {
+        const auto &comp_evt = dynamic_cast<const file_upload_completed &>(evt);
+        EXPECT_STREQ(fsi.api_path.c_str(), comp_evt.api_path.c_str());
+        EXPECT_STREQ(fsi.source_path.c_str(), comp_evt.source_path.c_str());
+        EXPECT_EQ(api_error::success, comp_evt.error);
+        EXPECT_FALSE(comp_evt.cancelled);
+      });
 
   EXPECT_CALL(mock_prov, upload_file(fsi.api_path, fsi.source_path, _))
       .WillOnce([](const std::string &, const std::string &,
@@ -62,7 +62,7 @@ TEST(upload, can_upload_a_valid_file) {
       });
   upload upload(fsi, mock_prov);
 
-  event_capture evt_cap({"file_upload_completed"});
+  event_capture evt_cap({file_upload_completed::name});
   evt_cap.wait_for_empty();
 
   EXPECT_EQ(api_error::success, upload.get_api_error());
@@ -87,16 +87,14 @@ TEST(upload, can_cancel_upload) {
   fsi.size = test_chunk_size * 4U;
   fsi.source_path = source_path;
 
-  event_consumer evt_con("file_upload_completed", [&fsi](const event &evt) {
-    const auto &comp_evt = dynamic_cast<const file_upload_completed &>(evt);
-    EXPECT_STREQ(fsi.api_path.c_str(),
-                 comp_evt.get_api_path().get<std::string>().c_str());
-    EXPECT_STREQ(fsi.source_path.c_str(),
-                 comp_evt.get_source().get<std::string>().c_str());
-    EXPECT_STREQ("comm_error",
-                 comp_evt.get_result().get<std::string>().c_str());
-    EXPECT_STREQ("1", comp_evt.get_cancelled().get<std::string>().c_str());
-  });
+  event_consumer evt_con(
+      file_upload_completed::name, [&fsi](const i_event &evt) {
+        const auto &comp_evt = dynamic_cast<const file_upload_completed &>(evt);
+        EXPECT_STREQ(fsi.api_path.c_str(), comp_evt.api_path.c_str());
+        EXPECT_STREQ(fsi.source_path.c_str(), comp_evt.source_path.c_str());
+        EXPECT_EQ(api_error::comm_error, comp_evt.error);
+        EXPECT_TRUE(comp_evt.cancelled);
+      });
 
   std::mutex mtx;
   std::condition_variable notify;
@@ -128,7 +126,7 @@ TEST(upload, can_cancel_upload) {
   notify.notify_one();
   lock.unlock();
 
-  event_capture evt_cap({"file_upload_completed"});
+  event_capture evt_cap({file_upload_completed::name});
   evt_cap.wait_for_empty();
 
   EXPECT_EQ(api_error::comm_error, upload.get_api_error());
@@ -153,15 +151,14 @@ TEST(upload, can_stop_upload) {
   fsi.size = test_chunk_size * 4U;
   fsi.source_path = source_path;
 
-  event_consumer evt_con("file_upload_completed", [&fsi](const event &evt) {
-    const auto &evt_com = dynamic_cast<const file_upload_completed &>(evt);
-    EXPECT_STREQ(fsi.api_path.c_str(),
-                 evt_com.get_api_path().get<std::string>().c_str());
-    EXPECT_STREQ(fsi.source_path.c_str(),
-                 evt_com.get_source().get<std::string>().c_str());
-    EXPECT_STREQ("comm_error", evt_com.get_result().get<std::string>().c_str());
-    EXPECT_STREQ("0", evt_com.get_cancelled().get<std::string>().c_str());
-  });
+  event_consumer evt_con(
+      file_upload_completed::name, [&fsi](const i_event &evt) {
+        const auto &evt_com = dynamic_cast<const file_upload_completed &>(evt);
+        EXPECT_STREQ(fsi.api_path.c_str(), evt_com.api_path.c_str());
+        EXPECT_STREQ(fsi.source_path.c_str(), evt_com.source_path.c_str());
+        EXPECT_EQ(api_error::comm_error, evt_com.error);
+        EXPECT_FALSE(evt_com.cancelled);
+      });
 
   EXPECT_CALL(mock_provider, upload_file(fsi.api_path, fsi.source_path, _))
       .WillOnce([](const std::string &, const std::string &,
@@ -171,7 +168,7 @@ TEST(upload, can_stop_upload) {
         return api_error::comm_error;
       });
 
-  event_capture evt_cap({"file_upload_completed"});
+  event_capture evt_cap({file_upload_completed::name});
 
   {
     upload upload(fsi, mock_provider);

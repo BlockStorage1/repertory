@@ -1,5 +1,5 @@
 /*
-  Copyright <2018-2024> <scott.e.graves@protonmail.com>
+  Copyright <2018-2025> <scott.e.graves@protonmail.com>
 
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"), to deal
@@ -22,7 +22,7 @@
 #include "file_manager/upload.hpp"
 
 #include "events/event_system.hpp"
-#include "file_manager/events.hpp"
+#include "events/types/file_upload_completed.hpp"
 #include "platform/platform.hpp"
 #include "providers/i_provider.hpp"
 #include "utils/error_utils.hpp"
@@ -61,6 +61,7 @@ void upload::upload_thread() {
   }
 
   event_system::instance().raise<file_upload_completed>(
-      get_api_path(), get_source_path(), get_api_error(), cancelled_);
+      get_api_path(), cancelled_, get_api_error(), function_name,
+      get_source_path());
 }
 } // namespace repertory

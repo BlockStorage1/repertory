@@ -1,5 +1,5 @@
 /*
-  Copyright <2018-2024> <scott.e.graves@protonmail.com>
+  Copyright <2018-2025> <scott.e.graves@protonmail.com>
 
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"), to deal
@@ -27,7 +27,7 @@
 namespace repertory::cli::actions {
 template <typename drive> inline void version(std::vector<const char *> args) {
   std::cout << "Repertory core version: " << project_get_version() << std::endl;
-  std::cout << "Repertory Git revision: " << project_get_git_rev() << std::endl;
+  std::cout << "Repertory git revision: " << project_get_git_rev() << std::endl;
   drive::display_version_information(args);
 }
 } // namespace repertory::cli::actions

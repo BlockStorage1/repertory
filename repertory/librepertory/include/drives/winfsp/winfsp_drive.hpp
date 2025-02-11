@@ -1,5 +1,5 @@
 /*
-  Copyright <2018-2024> <scott.e.graves@protonmail.com>
+  Copyright <2018-2025> <scott.e.graves@protonmail.com>
 
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"), to deal
@@ -73,6 +73,7 @@ private:
   std::unique_ptr<file_manager> fm_;
   std::unique_ptr<eviction> eviction_;
   std::unique_ptr<remote_winfsp::remote_server> remote_server_;
+  std::mutex stop_all_mtx_;
 
 private:
   [[nodiscard]] auto handle_error(std::string_view function_name,
@@ -93,6 +94,8 @@ private:
 
   static void set_file_info(remote::file_info &dest,
                             const FSP_FSCTL_FILE_INFO &src);
+
+  void stop_all();
 
 public:
   auto CanDelete(PVOID file_node, PVOID file_desc, PWSTR file_name)

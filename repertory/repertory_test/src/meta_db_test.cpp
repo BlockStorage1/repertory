@@ -1,5 +1,5 @@
 /*
-  Copyright <2018-2024> <scott.e.graves@protonmail.com>
+  Copyright <2018-2025> <scott.e.graves@protonmail.com>
 
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"), to deal
@@ -614,5 +614,36 @@ TYPED_TEST(meta_db_test, check_set_item_meta_file_defaults) {
   EXPECT_FALSE(utils::string::to_bool(meta[META_PINNED]));
   EXPECT_EQ(0U, utils::string::to_uint64(meta[META_SIZE]));
   EXPECT_TRUE(meta[META_SOURCE].empty());
+}
+
+TYPED_TEST(meta_db_test, can_enumerate_api_path_list) {
+  this->meta_db->clear();
+
+  auto test_dir = create_test_file();
+  EXPECT_EQ(api_error::success,
+            this->meta_db->set_item_meta(
+                test_dir, {
+                              {META_DIRECTORY, utils::string::from_bool(true)},
+                          }));
+
+  auto test_file = create_test_file();
+  EXPECT_EQ(
+      api_error::success,
+      this->meta_db->set_item_meta(
+          test_file, {
+                         {META_DIRECTORY, utils::string::from_bool(false)},
+                     }));
+
+  auto call_count{0U};
+  const auto get_stop_requested = []() -> bool { return false; };
+
+  this->meta_db->enumerate_api_path_list(
+      [&call_count](auto &&list) {
+        EXPECT_EQ(std::size_t(2U), list.size());
+        ++call_count;
+      },
+      get_stop_requested);
+
+  EXPECT_EQ(std::size_t(1U), call_count);
 }
 } // namespace repertory

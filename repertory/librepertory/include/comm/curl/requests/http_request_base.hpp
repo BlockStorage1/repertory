@@ -1,5 +1,5 @@
 /*
-  Copyright <2018-2024> <scott.e.graves@protonmail.com>
+  Copyright <2018-2025> <scott.e.graves@protonmail.com>
 
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"), to deal
@@ -51,7 +51,7 @@ struct http_request_base {
   bool allow_timeout{};
   std::optional<std::string> aws_service;
   std::optional<std::string> decryption_token{};
-  http_headers headers{};
+  mutable http_headers headers{};
   std::string path{};
   http_query_parameters query{};
   std::optional<http_range> range{};

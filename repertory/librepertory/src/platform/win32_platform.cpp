@@ -1,5 +1,5 @@
 /*
-  Copyright <2018-2024> <scott.e.graves@protonmail.com>
+  Copyright <2018-2025> <scott.e.graves@protonmail.com>
 
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"), to deal
@@ -24,13 +24,14 @@
 #include "platform/win32_platform.hpp"
 
 #include "events/event_system.hpp"
-#include "events/events.hpp"
+#include "events/types/filesystem_item_added.hpp"
 #include "providers/i_provider.hpp"
 #include "utils/error_utils.hpp"
+#include "utils/string.hpp"
 
 namespace repertory {
-auto lock_data::get_mount_state(const provider_type & /*pt*/,
-                                json &mount_state) -> bool {
+auto lock_data::get_mount_state(const provider_type & /*pt*/, json &mount_state)
+    -> bool {
   const auto ret = get_mount_state(mount_state);
   if (ret) {
     const auto mount_id =
@@ -196,6 +197,8 @@ auto create_meta_attributes(
 
 auto provider_meta_handler(i_provider &provider, bool directory,
                            const api_file &file) -> api_error {
+  REPERTORY_USES_FUNCTION_NAME();
+
   const auto meta = create_meta_attributes(
       file.accessed_date,
       directory ? FILE_ATTRIBUTE_DIRECTORY : FILE_ATTRIBUTE_ARCHIVE,
@@ -205,7 +208,7 @@ auto provider_meta_handler(i_provider &provider, bool directory,
   auto res = provider.set_item_meta(file.api_path, meta);
   if (res == api_error::success) {
     event_system::instance().raise<filesystem_item_added>(
-        file.api_path, file.api_parent, directory);
+        file.api_parent, file.api_path, directory, function_name);
   }
 
   return res;

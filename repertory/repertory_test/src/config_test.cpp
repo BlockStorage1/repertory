@@ -1,5 +1,5 @@
 /*
- Copyright <2018-2024> <scott.e.graves@protonmail.com>
+ Copyright <2018-2025> <scott.e.graves@protonmail.com>
 
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"), to deal
@@ -54,7 +54,9 @@ public:
     event_system::instance().start();
   }
 
-  void TearDown() override { event_system::instance().stop(); }
+  void TearDown() override {
+    event_system::instance().stop();
+  }
 };
 
 std::atomic<std::uint64_t> config_test::idx{0U};

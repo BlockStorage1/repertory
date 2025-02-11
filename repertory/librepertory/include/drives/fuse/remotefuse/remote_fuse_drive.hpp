@@ -1,5 +1,5 @@
 /*
-  Copyright <2018-2024> <scott.e.graves@protonmail.com>
+  Copyright <2018-2025> <scott.e.graves@protonmail.com>
 
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"), to deal
@@ -53,8 +53,8 @@ private:
   bool was_mounted_ = false;
 
 private:
-  void populate_stat(const remote::stat &r_stat, bool directory,
-                     struct stat &unix_st);
+  static void populate_stat(const remote::stat &r_stat, bool directory,
+                            struct stat &unix_st);
 
 protected:
   [[nodiscard]] auto access_impl(std::string api_path,

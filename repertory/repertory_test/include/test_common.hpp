@@ -1,5 +1,5 @@
 /*
-  Copyright <2018-2024> <scott.e.graves@protonmail.com>
+  Copyright <2018-2025> <scott.e.graves@protonmail.com>
 
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"), to deal
@@ -28,6 +28,6 @@ REPERTORY_IGNORE_WARNINGS_DISABLE()
 
 #include "events/consumers/console_consumer.hpp"
 #include "events/event_system.hpp"
-#include "events/events.hpp"
+#include "events/i_event.hpp"
 
 #endif // REPERTORY_TEST_INCLUDE_TEST_COMMON_HPP_
