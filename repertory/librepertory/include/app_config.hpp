@@ -31,26 +31,26 @@ private:
   static stop_type stop_requested;
 
 public:
-  [[nodiscard]] static auto
-  default_agent_name(const provider_type &prov) -> std::string;
+  [[nodiscard]] static auto default_agent_name(const provider_type &prov)
+      -> std::string;
 
-  [[nodiscard]] static auto
-  default_api_port(const provider_type &prov) -> std::uint16_t;
+  [[nodiscard]] static auto default_api_port(const provider_type &prov)
+      -> std::uint16_t;
 
-  [[nodiscard]] static auto
-  default_data_directory(const provider_type &prov) -> std::string;
+  [[nodiscard]] static auto default_data_directory(const provider_type &prov)
+      -> std::string;
 
-  [[nodiscard]] static auto
-  default_remote_api_port(const provider_type &prov) -> std::uint16_t;
+  [[nodiscard]] static auto default_remote_api_port(const provider_type &prov)
+      -> std::uint16_t;
 
-  [[nodiscard]] static auto
-  default_rpc_port(const provider_type &prov) -> std::uint16_t;
+  [[nodiscard]] static auto default_rpc_port(const provider_type &prov)
+      -> std::uint16_t;
 
-  [[nodiscard]] static auto
-  get_provider_display_name(const provider_type &prov) -> std::string;
+  [[nodiscard]] static auto get_provider_display_name(const provider_type &prov)
+      -> std::string;
 
-  [[nodiscard]] static auto
-  get_provider_name(const provider_type &prov) -> std::string;
+  [[nodiscard]] static auto get_provider_name(const provider_type &prov)
+      -> std::string;
 
 public:
   [[nodiscard]] static auto get_stop_requested() -> bool;
@@ -91,7 +91,6 @@ private:
   std::atomic<std::uint8_t> max_upload_count_;
   std::atomic<std::uint16_t> med_freq_interval_secs_;
   std::atomic<std::uint16_t> online_check_retry_secs_;
-  std::atomic<std::uint16_t> orphaned_file_retention_days_;
   std::atomic<download_type> preferred_download_type_;
   std::atomic<std::uint16_t> retry_read_count_;
   std::atomic<std::uint16_t> ring_buffer_file_size_;
@@ -172,8 +171,6 @@ public:
 
   [[nodiscard]] auto get_online_check_retry_secs() const -> std::uint16_t;
 
-  [[nodiscard]] auto get_orphaned_file_retention_days() const -> std::uint16_t;
-
   [[nodiscard]] auto get_preferred_download_type() const -> download_type;
 
   [[nodiscard]] auto get_provider_type() const -> provider_type;
@@ -192,8 +189,11 @@ public:
 
   [[nodiscard]] auto get_task_wait_ms() const -> std::uint16_t;
 
-  [[nodiscard]] auto
-  get_value_by_name(const std::string &name) const -> std::string;
+  [[nodiscard]] auto get_value_by_name(const std::string &name) const
+      -> std::string;
+
+  [[nodiscard]] auto get_raw_value_by_name(const std::string &name) const
+      -> std::string;
 
   [[nodiscard]] auto get_version() const -> std::uint64_t;
 
@@ -238,8 +238,6 @@ public:
   void set_med_frequency_interval_secs(std::uint16_t value);
 
   void set_online_check_retry_secs(std::uint16_t value);
-
-  void set_orphaned_file_retention_days(std::uint16_t value);
 
   void set_preferred_download_type(const download_type &value);
 

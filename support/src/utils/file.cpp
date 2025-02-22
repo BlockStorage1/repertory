@@ -41,8 +41,16 @@ auto change_to_process_directory() -> bool {
 
     ::GetModuleFileNameA(nullptr, file_name.data(),
                          static_cast<DWORD>(file_name.size() - 1U));
-    auto path = utils::path::strip_to_file_name(file_name.c_str());
-    ::SetCurrentDirectoryA(path.c_str());
+    auto path = utils::path::get_parent_path(file_name.c_str());
+    auto res = ::SetCurrentDirectoryA(path.c_str()) != 0;
+    if (not res) {
+      throw utils::error::create_exception(
+          function_name, {
+                             "failed to set current directory",
+                             std::to_string(utils::get_last_error_code()),
+                             path,
+                         });
+    }
 #else // !defined(_WIN32)
     std::string path;
     path.resize(PATH_MAX + 1);

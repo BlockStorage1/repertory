@@ -29,7 +29,7 @@
 namespace repertory {
 static constexpr const std::size_t test_chunk_size{1024U};
 
-TEST(upload, can_upload_a_valid_file) {
+TEST(upload_test, can_upload_a_valid_file) {
   console_consumer con;
 
   event_system::instance().start();
@@ -71,7 +71,7 @@ TEST(upload, can_upload_a_valid_file) {
   event_system::instance().stop();
 }
 
-TEST(upload, can_cancel_upload) {
+TEST(upload_test, can_cancel_upload) {
   console_consumer con;
 
   event_system::instance().start();
@@ -135,7 +135,7 @@ TEST(upload, can_cancel_upload) {
   event_system::instance().stop();
 }
 
-TEST(upload, can_stop_upload) {
+TEST(upload_test, can_stop_upload) {
   console_consumer con;
 
   event_system::instance().start();

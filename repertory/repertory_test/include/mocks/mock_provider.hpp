@@ -36,6 +36,10 @@ private:
   const bool allow_rename_;
 
 public:
+  MOCK_METHOD(bool, check_version,
+              (std::string & required_version, std::string &returned_version),
+              (const, override));
+
   MOCK_METHOD(api_error, create_directory,
               (const std::string &api_path, api_meta_map &meta), (override));
 

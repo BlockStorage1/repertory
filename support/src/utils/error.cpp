@@ -22,9 +22,6 @@
 #include "utils/error.hpp"
 
 namespace repertory::utils::error {
-std::atomic<const i_exception_handler *> exception_handler{
-    &default_exception_handler};
-
 auto create_error_message(std::vector<std::string_view> items) -> std::string {
   std::stringstream stream{};
   for (std::size_t idx = 0U; idx < items.size(); ++idx) {
@@ -38,12 +35,29 @@ auto create_error_message(std::vector<std::string_view> items) -> std::string {
   return stream.str();
 }
 
+auto create_error_message(std::string_view function_name,
+                          std::vector<std::string_view> items) -> std::string {
+  items.insert(items.begin(), function_name);
+  return create_error_message(items);
+}
+
 auto create_exception(std::string_view function_name,
                       std::vector<std::string_view> items)
     -> std::runtime_error {
-  items.insert(items.begin(), function_name);
-  return std::runtime_error(create_error_message(items));
+  return std::runtime_error(create_error_message(function_name, items));
 }
+
+#if defined(PROJECT_ENABLE_V2_ERRORS)
+void handle_debug(std::string_view function_name, std::string_view msg) {
+  const i_exception_handler *handler{exception_handler};
+  if (handler != nullptr) {
+    handler->handle_debug(function_name, msg);
+    return;
+  }
+
+  default_exception_handler.handle_debug(function_name, msg);
+}
+#endif // defined(PROJECT_ENABLE_V2_ERRORS)
 
 void handle_error(std::string_view function_name, std::string_view msg) {
   const i_exception_handler *handler{exception_handler};
@@ -75,6 +89,38 @@ void handle_exception(std::string_view function_name,
 
   default_exception_handler.handle_exception(function_name, ex);
 }
+
+#if defined(PROJECT_ENABLE_V2_ERRORS)
+void handle_info(std::string_view function_name, std::string_view msg) {
+  const i_exception_handler *handler{exception_handler};
+  if (handler != nullptr) {
+    handler->handle_info(function_name, msg);
+    return;
+  }
+
+  default_exception_handler.handle_info(function_name, msg);
+}
+
+void handle_trace(std::string_view function_name, std::string_view msg) {
+  const i_exception_handler *handler{exception_handler};
+  if (handler != nullptr) {
+    handler->handle_trace(function_name, msg);
+    return;
+  }
+
+  default_exception_handler.handle_trace(function_name, msg);
+}
+
+void handle_warn(std::string_view function_name, std::string_view msg) {
+  const i_exception_handler *handler{exception_handler};
+  if (handler != nullptr) {
+    handler->handle_warn(function_name, msg);
+    return;
+  }
+
+  default_exception_handler.handle_warn(function_name, msg);
+}
+#endif // defined(PROJECT_ENABLE_V2_ERRORS)
 
 void set_exception_handler(const i_exception_handler *handler) {
   exception_handler = handler;

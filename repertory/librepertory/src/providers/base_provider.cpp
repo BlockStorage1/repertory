@@ -34,6 +34,7 @@
 #include "events/types/orphaned_file_processing_failed.hpp"
 #include "events/types/orphaned_source_file_detected.hpp"
 #include "events/types/orphaned_source_file_removed.hpp"
+#include "events/types/provider_invalid_version.hpp"
 #include "events/types/provider_offline.hpp"
 #include "events/types/provider_upload_begin.hpp"
 #include "events/types/provider_upload_end.hpp"
@@ -69,8 +70,8 @@ void base_provider::add_all_items(stop_type &stop_requested) {
 }
 
 auto base_provider::create_api_file(std::string path, std::string key,
-                                    std::uint64_t size,
-                                    std::uint64_t file_time) -> api_file {
+                                    std::uint64_t size, std::uint64_t file_time)
+    -> api_file {
   api_file file{};
   file.api_path = utils::path::create_api_path(path);
   file.api_parent = utils::path::get_parent_api_path(file.api_path);
@@ -102,8 +103,8 @@ auto base_provider::create_api_file(std::string path, std::uint64_t size,
 }
 
 auto base_provider::create_directory_clone_source_meta(
-    const std::string &source_api_path,
-    const std::string &api_path) -> api_error {
+    const std::string &source_api_path, const std::string &api_path)
+    -> api_error {
   REPERTORY_USES_FUNCTION_NAME();
 
   bool exists{};
@@ -201,8 +202,8 @@ auto base_provider::create_directory(const std::string &api_path,
   return api_error::error;
 }
 
-auto base_provider::create_file(const std::string &api_path,
-                                api_meta_map &meta) -> api_error {
+auto base_provider::create_file(const std::string &api_path, api_meta_map &meta)
+    -> api_error {
   REPERTORY_USES_FUNCTION_NAME();
 
   try {
@@ -259,8 +260,9 @@ auto base_provider::create_file(const std::string &api_path,
   return api_error::error;
 }
 
-auto base_provider::get_api_path_from_source(
-    const std::string &source_path, std::string &api_path) const -> api_error {
+auto base_provider::get_api_path_from_source(const std::string &source_path,
+                                             std::string &api_path) const
+    -> api_error {
   REPERTORY_USES_FUNCTION_NAME();
 
   if (source_path.empty()) {
@@ -273,8 +275,9 @@ auto base_provider::get_api_path_from_source(
   return db3_->get_api_path(source_path, api_path);
 }
 
-auto base_provider::get_directory_items(
-    const std::string &api_path, directory_item_list &list) const -> api_error {
+auto base_provider::get_directory_items(const std::string &api_path,
+                                        directory_item_list &list) const
+    -> api_error {
   REPERTORY_USES_FUNCTION_NAME();
 
   try {
@@ -283,8 +286,15 @@ auto base_provider::get_directory_items(
     if (res != api_error::success) {
       return res;
     }
+
     if (not exists) {
-      return api_error::directory_not_found;
+      res = is_file(api_path, exists);
+      if (res != api_error::success) {
+        utils::error::raise_api_path_error(
+            function_name, api_path, res, "failed to determine if file exists");
+      }
+
+      return exists ? api_error::item_exists : api_error::directory_not_found;
     }
 
     res = get_directory_items_impl(api_path, list);
@@ -342,9 +352,10 @@ auto base_provider::get_file_size(const std::string &api_path,
   return api_error::success;
 }
 
-auto base_provider::get_filesystem_item(
-    const std::string &api_path, bool directory,
-    filesystem_item &fsi) const -> api_error {
+auto base_provider::get_filesystem_item(const std::string &api_path,
+                                        bool directory,
+                                        filesystem_item &fsi) const
+    -> api_error {
   bool exists{};
   auto res = is_directory(api_path, exists);
   if (res != api_error::success) {
@@ -377,9 +388,10 @@ auto base_provider::get_filesystem_item(
   return api_error::success;
 }
 
-auto base_provider::get_filesystem_item_and_file(
-    const std::string &api_path, api_file &file,
-    filesystem_item &fsi) const -> api_error {
+auto base_provider::get_filesystem_item_and_file(const std::string &api_path,
+                                                 api_file &file,
+                                                 filesystem_item &fsi) const
+    -> api_error {
   auto res = get_file(api_path, file);
   if (res != api_error::success) {
     return res;
@@ -826,6 +838,14 @@ auto base_provider::start(api_item_added_callback api_item_added,
   }
 
   if (not online || get_stop_requested()) {
+    return false;
+  }
+
+  std::string returned_version;
+  std::string required_version;
+  if (not check_version(required_version, returned_version)) {
+    event_system::instance().raise<provider_invalid_version>(
+        function_name, required_version, returned_version);
     return false;
   }
 

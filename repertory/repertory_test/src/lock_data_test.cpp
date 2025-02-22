@@ -24,7 +24,7 @@
 #include "platform/platform.hpp"
 
 namespace repertory {
-TEST(lock_data, lock_and_unlock) {
+TEST(lock_data_test, lock_and_unlock) {
   {
     lock_data l(provider_type::sia, "1");
     EXPECT_EQ(lock_result::success, l.grab_lock());
@@ -50,7 +50,7 @@ TEST(lock_data, lock_and_unlock) {
 }
 
 #if defined(_WIN32)
-TEST(lock_data, set_and_unset_mount_state) {
+TEST(lock_data_test, set_and_unset_mount_state) {
   lock_data l(provider_type::sia, "1");
   EXPECT_TRUE(l.set_mount_state(true, "C:", 99));
 
@@ -83,7 +83,7 @@ TEST(lock_data, set_and_unset_mount_state) {
                mount_state["Remote2"].dump().c_str());
 }
 #else
-TEST(lock_data, set_and_unset_mount_state) {
+TEST(lock_data_test, set_and_unset_mount_state) {
   lock_data l(provider_type::sia, "1");
   EXPECT_TRUE(l.set_mount_state(true, "/mnt/1", 99));
 

@@ -14,7 +14,7 @@ on Windows.
 
 ## Minimum Requirements
 
-* [Sia renterd](https://github.com/SiaFoundation/renterd/releases) v0.4.0+ for Sia support
+* [Sia renterd](https://github.com/SiaFoundation/renterd/releases) v2.0.0+ for Sia support
 * Only 64-bit operating systems are supported
   * By default, Linux requires `fusermount3`; otherwise, `repertory` must be manually compiled with `libfuse2` support
   * Windows requires the following dependencies to be installed:

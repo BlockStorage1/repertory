@@ -85,6 +85,13 @@ private:
   void remove_deleted_files(stop_type &stop_requested);
 
 public:
+  [[nodiscard]] auto check_version(std::string &required_version,
+                                   std::string &returned_version) const
+      -> bool override {
+    required_version = returned_version = "";
+    return true;
+  }
+
   [[nodiscard]] auto create_directory(const std::string &api_path,
                                       api_meta_map &meta) -> api_error override;
 

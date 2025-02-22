@@ -70,7 +70,7 @@ app_config::app_config(const provider_type &prov,
       api_port_(default_rpc_port(prov)),
       api_user_(std::string{REPERTORY}),
       config_changed_(false),
-      download_timeout_secs_(default_download_timeout_ces),
+      download_timeout_secs_(default_download_timeout_secs),
       enable_download_timeout_(true),
       enable_drive_events_(false),
 #if defined(_WIN32)
@@ -85,7 +85,6 @@ app_config::app_config(const provider_type &prov,
       max_upload_count_(default_max_upload_count),
       med_freq_interval_secs_(default_med_freq_interval_secs),
       online_check_retry_secs_(default_online_check_retry_secs),
-      orphaned_file_retention_days_(default_orphaned_file_retention_days),
       preferred_download_type_(download_type::default_),
       retry_read_count_(default_retry_read_count),
       ring_buffer_file_size_(default_ring_buffer_file_size),
@@ -166,8 +165,14 @@ app_config::app_config(const provider_type &prov,
        [this]() { return get_host_config().api_password; }},
       {fmt::format("{}.{}", JSON_HOST_CONFIG, JSON_API_PORT),
        [this]() { return std::to_string(get_host_config().api_port); }},
+      {fmt::format("{}.{}", JSON_HOST_CONFIG, JSON_API_USER),
+       [this]() { return get_host_config().api_user; }},
       {fmt::format("{}.{}", JSON_HOST_CONFIG, JSON_HOST_NAME_OR_IP),
        [this]() { return get_host_config().host_name_or_ip; }},
+      {fmt::format("{}.{}", JSON_HOST_CONFIG, JSON_PATH),
+       [this]() { return get_host_config().path; }},
+      {fmt::format("{}.{}", JSON_HOST_CONFIG, JSON_PROTOCOL),
+       [this]() { return get_host_config().protocol; }},
       {fmt::format("{}.{}", JSON_HOST_CONFIG, JSON_TIMEOUT_MS),
        [this]() { return std::to_string(get_host_config().timeout_ms); }},
       {JSON_LOW_FREQ_INTERVAL_SECS,
@@ -180,8 +185,6 @@ app_config::app_config(const provider_type &prov,
        [this]() { return std::to_string(get_med_frequency_interval_secs()); }},
       {JSON_ONLINE_CHECK_RETRY_SECS,
        [this]() { return std::to_string(get_online_check_retry_secs()); }},
-      {JSON_ORPHANED_FILE_RETENTION_DAYS,
-       [this]() { return std::to_string(get_orphaned_file_retention_days()); }},
       {JSON_PREFERRED_DOWNLOAD_TYPE,
        [this]() {
          return download_type_to_string(get_preferred_download_type());
@@ -250,7 +253,7 @@ app_config::app_config(const provider_type &prov,
 
   value_set_lookup_ = {
       {
-          JSON_API_PATH,
+          JSON_API_AUTH,
           [this](const std::string &value) {
             set_api_auth(value);
             return get_api_auth();
@@ -349,7 +352,7 @@ app_config::app_config(const provider_type &prov,
       {
           JSON_HIGH_FREQ_INTERVAL_SECS,
           [this](const std::string &value) {
-            set_high_frequency_interval_secs(utils::string::to_uint8(value));
+            set_high_frequency_interval_secs(utils::string::to_uint16(value));
             return std::to_string(get_high_frequency_interval_secs());
           },
       },
@@ -381,12 +384,39 @@ app_config::app_config(const provider_type &prov,
           },
       },
       {
+          fmt::format("{}.{}", JSON_HOST_CONFIG, JSON_API_USER),
+          [this](const std::string &value) {
+            auto cfg = get_host_config();
+            cfg.api_user = value;
+            set_host_config(cfg);
+            return get_host_config().api_user;
+          },
+      },
+      {
           fmt::format("{}.{}", JSON_HOST_CONFIG, JSON_HOST_NAME_OR_IP),
           [this](const std::string &value) {
             auto cfg = get_host_config();
             cfg.host_name_or_ip = value;
             set_host_config(cfg);
             return get_host_config().host_name_or_ip;
+          },
+      },
+      {
+          fmt::format("{}.{}", JSON_HOST_CONFIG, JSON_PATH),
+          [this](const std::string &value) {
+            auto cfg = get_host_config();
+            cfg.path = value;
+            set_host_config(cfg);
+            return get_host_config().path;
+          },
+      },
+      {
+          fmt::format("{}.{}", JSON_HOST_CONFIG, JSON_PROTOCOL),
+          [this](const std::string &value) {
+            auto cfg = get_host_config();
+            cfg.protocol = value;
+            set_host_config(cfg);
+            return get_host_config().protocol;
           },
       },
       {
@@ -401,14 +431,14 @@ app_config::app_config(const provider_type &prov,
       {
           JSON_LOW_FREQ_INTERVAL_SECS,
           [this](const std::string &value) {
-            set_low_frequency_interval_secs(utils::string::to_uint8(value));
+            set_low_frequency_interval_secs(utils::string::to_uint16(value));
             return std::to_string(get_low_frequency_interval_secs());
           },
       },
       {
           JSON_MED_FREQ_INTERVAL_SECS,
           [this](const std::string &value) {
-            set_med_frequency_interval_secs(utils::string::to_uint8(value));
+            set_med_frequency_interval_secs(utils::string::to_uint16(value));
             return std::to_string(get_med_frequency_interval_secs());
           },
       },
@@ -431,13 +461,6 @@ app_config::app_config(const provider_type &prov,
           [this](const std::string &value) {
             set_online_check_retry_secs(utils::string::to_uint16(value));
             return std::to_string(get_online_check_retry_secs());
-          },
-      },
-      {
-          JSON_ORPHANED_FILE_RETENTION_DAYS,
-          [this](const std::string &value) {
-            set_orphaned_file_retention_days(utils::string::to_uint16(value));
-            return std::to_string(get_orphaned_file_retention_days());
           },
       },
       {
@@ -812,7 +835,6 @@ auto app_config::get_json() const -> json {
       {JSON_MAX_UPLOAD_COUNT, max_upload_count_},
       {JSON_MED_FREQ_INTERVAL_SECS, med_freq_interval_secs_},
       {JSON_ONLINE_CHECK_RETRY_SECS, online_check_retry_secs_},
-      {JSON_ORPHANED_FILE_RETENTION_DAYS, orphaned_file_retention_days_},
       {JSON_PREFERRED_DOWNLOAD_TYPE, preferred_download_type_},
       {JSON_REMOTE_CONFIG, remote_config_},
       {JSON_REMOTE_MOUNT, remote_mount_},
@@ -834,7 +856,6 @@ auto app_config::get_json() const -> json {
     ret.erase(JSON_MAX_CACHE_SIZE_BYTES);
     ret.erase(JSON_MAX_UPLOAD_COUNT);
     ret.erase(JSON_ONLINE_CHECK_RETRY_SECS);
-    ret.erase(JSON_ORPHANED_FILE_RETENTION_DAYS);
     ret.erase(JSON_PREFERRED_DOWNLOAD_TYPE);
     ret.erase(JSON_REMOTE_CONFIG);
     ret.erase(JSON_RETRY_READ_COUNT);
@@ -856,7 +877,6 @@ auto app_config::get_json() const -> json {
     ret.erase(JSON_MAX_UPLOAD_COUNT);
     ret.erase(JSON_MED_FREQ_INTERVAL_SECS);
     ret.erase(JSON_ONLINE_CHECK_RETRY_SECS);
-    ret.erase(JSON_ORPHANED_FILE_RETENTION_DAYS);
     ret.erase(JSON_PREFERRED_DOWNLOAD_TYPE);
     ret.erase(JSON_REMOTE_MOUNT);
     ret.erase(JSON_RETRY_READ_COUNT);
@@ -910,12 +930,6 @@ auto app_config::get_med_frequency_interval_secs() const -> std::uint16_t {
 
 auto app_config::get_online_check_retry_secs() const -> std::uint16_t {
   return std::max(min_online_check_retry_secs, online_check_retry_secs_.load());
-}
-
-auto app_config::get_orphaned_file_retention_days() const -> std::uint16_t {
-  return std::min(max_orphaned_file_retention_days,
-                  std::max(min_orphaned_file_retention_days,
-                           orphaned_file_retention_days_.load()));
 }
 
 auto app_config::get_preferred_download_type() const -> download_type {
@@ -1053,8 +1067,6 @@ auto app_config::load() -> bool {
               med_freq_interval_secs_, found);
     get_value(json_document, JSON_ONLINE_CHECK_RETRY_SECS,
               online_check_retry_secs_, found);
-    get_value(json_document, JSON_ORPHANED_FILE_RETENTION_DAYS,
-              orphaned_file_retention_days_, found);
     get_value(json_document, JSON_PREFERRED_DOWNLOAD_TYPE,
               preferred_download_type_, found);
     get_value(json_document, JSON_REMOTE_CONFIG, remote_config_, found);
@@ -1069,10 +1081,17 @@ auto app_config::load() -> bool {
     std::uint64_t version{};
     get_value(json_document, JSON_VERSION, version, found);
 
-    // Handle configuration defaults for new config versions
     if (version != REPERTORY_CONFIG_VERSION) {
       version_ = REPERTORY_CONFIG_VERSION;
-      // TODO upgrade future version
+      if (version_ == 1U) {
+        if (low_freq_interval_secs_ == 0UL) {
+          set_value(low_freq_interval_secs_, default_low_freq_interval_secs);
+        }
+
+        if (max_cache_size_bytes_ == 0UL) {
+          set_value(max_cache_size_bytes_, default_max_cache_size_bytes);
+        }
+      }
       found = false;
     }
 
@@ -1197,10 +1216,6 @@ void app_config::set_med_frequency_interval_secs(std::uint16_t value) {
 
 void app_config::set_online_check_retry_secs(std::uint16_t value) {
   set_value(online_check_retry_secs_, value);
-}
-
-void app_config::set_orphaned_file_retention_days(std::uint16_t value) {
-  set_value(orphaned_file_retention_days_, value);
 }
 
 void app_config::set_preferred_download_type(const download_type &value) {

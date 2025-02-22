@@ -22,13 +22,11 @@
 #include "drives/winfsp/remotewinfsp/remote_client.hpp"
 
 #include "app_config.hpp"
-#include "drives/winfsp/remotewinfsp/i_remote_instance.hpp"
 #include "events/event_system.hpp"
 #include "events/types/drive_mounted.hpp"
 #include "events/types/drive_unmount_pending.hpp"
 #include "events/types/drive_unmounted.hpp"
-#include "types/repertory.hpp"
-#include "utils/path.hpp"
+#include "utils/string.hpp"
 #include "version.hpp"
 
 namespace repertory::remote_winfsp {
@@ -44,11 +42,7 @@ auto remote_client::winfsp_can_delete(PVOID file_desc, PWSTR file_name)
   request.encode(file_name);
 
   std::uint32_t service_flags{};
-  auto ret{
-      packet_client_.send(function_name, request, service_flags),
-  };
-
-  return ret;
+  return packet_client_.send(function_name, request, service_flags);
 }
 
 auto remote_client::json_create_directory_snapshot(const std::string &path,
@@ -103,11 +97,7 @@ auto remote_client::json_release_directory_snapshot(
   request.encode(handle);
 
   std::uint32_t service_flags{};
-  auto ret{
-      packet_client_.send(function_name, request, service_flags),
-  };
-
-  return ret;
+  return packet_client_.send(function_name, request, service_flags);
 }
 
 auto remote_client::winfsp_cleanup(PVOID file_desc, PWSTR file_name,
@@ -273,8 +263,8 @@ auto remote_client::winfsp_get_security_by_name(PWSTR file_name,
 
   packet request;
   request.encode(file_name);
-  request.encode(static_cast<std::uint64_t>(
-      descriptor_size == nullptr ? 0 : *descriptor_size));
+  request.encode(descriptor_size == nullptr ? std::uint64_t(0U)
+                                            : *descriptor_size);
   request.encode(static_cast<std::uint8_t>(attributes != nullptr));
 
   packet response;
@@ -417,7 +407,7 @@ auto remote_client::winfsp_read(PVOID file_desc, PVOID buffer, UINT64 offset,
     ret = response.decode(buffer, *bytes_transferred);
 #if defined(_WIN32)
     if ((ret == STATUS_SUCCESS) &&
-        (not*bytes_transferred || (*bytes_transferred != length))) {
+        ((*bytes_transferred == 0U) || (*bytes_transferred != length))) {
       ::SetLastError(ERROR_HANDLE_EOF);
     }
 #endif
@@ -461,11 +451,7 @@ auto remote_client::winfsp_rename(PVOID file_desc, PWSTR file_name,
   request.encode(replace_if_exists);
 
   std::uint32_t service_flags{};
-  auto ret{
-      packet_client_.send(function_name, request, service_flags),
-  };
-
-  return ret;
+  return packet_client_.send(function_name, request, service_flags);
 }
 
 auto remote_client::winfsp_set_basic_info(
