@@ -24,7 +24,6 @@
 * \#35 [bug] Low frequency check is set to '0' instead of 1 hour by default
 * \#36 [bug] Max cache size bytes is set to '0' by default
 
-<!-- markdownlint-disable-next-line -->
 ### Changes from v2.0.3-rc
 
 * Added Sia API version check prior to mounting
