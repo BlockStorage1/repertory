@@ -57,7 +57,7 @@ using json = nlohmann::json;
 inline constexpr const std::string_view REPERTORY = "repertory";
 inline constexpr const std::wstring_view REPERTORY_W = L"repertory";
 
-inline constexpr const std::uint64_t REPERTORY_CONFIG_VERSION = 0ULL;
+inline constexpr const std::uint64_t REPERTORY_CONFIG_VERSION = 1ULL;
 inline constexpr const std::string_view REPERTORY_DATA_NAME = "repertory2";
 inline constexpr const std::string_view REPERTORY_MIN_REMOTE_VERSION = "2.0.0";
 
@@ -221,44 +221,25 @@ using WCHAR = wchar_t;
 
 #define MAX_PATH 260
 
-#define STATUS_SUCCESS                                                         \
-  std::uint32_t { 0U }
-#define STATUS_ACCESS_DENIED                                                   \
-  std::uint32_t { 0xC0000022L }
-#define STATUS_DEVICE_BUSY                                                     \
-  std::uint32_t { 0x80000011L }
-#define STATUS_DEVICE_INSUFFICIENT_RESOURCES                                   \
-  std::uint32_t { 0xC0000468L }
-#define STATUS_DIRECTORY_NOT_EMPTY                                             \
-  std::uint32_t { 0xC0000101L }
-#define STATUS_FILE_IS_A_DIRECTORY                                             \
-  std::uint32_t { 0xC00000BAL }
-#define STATUS_FILE_TOO_LARGE                                                  \
-  std::uint32_t { 0xC0000904L }
-#define STATUS_INSUFFICIENT_RESOURCES                                          \
-  std::uint32_t { 0xC000009AL }
-#define STATUS_INTERNAL_ERROR                                                  \
-  std::uint32_t { 0xC00000E5L }
-#define STATUS_INVALID_ADDRESS                                                 \
-  std::uint32_t { 0xC0000141L }
-#define STATUS_INVALID_HANDLE                                                  \
-  std::uint32_t { 0xC0000006L }
-#define STATUS_INVALID_IMAGE_FORMAT                                            \
-  std::uint32_t { 0xC000007BL }
-#define STATUS_INVALID_PARAMETER                                               \
-  std::uint32_t { 0xC000000DL }
-#define STATUS_NO_MEMORY                                                       \
-  std::uint32_t { 0xC0000017L }
-#define STATUS_NOT_IMPLEMENTED                                                 \
-  std::uint32_t { 0xC0000002L }
-#define STATUS_OBJECT_NAME_EXISTS                                              \
-  std::uint32_t { 0x40000000L }
-#define STATUS_OBJECT_NAME_NOT_FOUND                                           \
-  std::uint32_t { 0xC0000034L }
-#define STATUS_OBJECT_PATH_INVALID                                             \
-  std::uint32_t { 0xC0000039L }
-#define STATUS_UNEXPECTED_IO_ERROR                                             \
-  std::uint32_t { 0xC00000E9L }
+#define STATUS_SUCCESS std::uint32_t{0U}
+#define STATUS_ACCESS_DENIED std::uint32_t{0xC0000022L}
+#define STATUS_DEVICE_BUSY std::uint32_t{0x80000011L}
+#define STATUS_DEVICE_INSUFFICIENT_RESOURCES std::uint32_t{0xC0000468L}
+#define STATUS_DIRECTORY_NOT_EMPTY std::uint32_t{0xC0000101L}
+#define STATUS_FILE_IS_A_DIRECTORY std::uint32_t{0xC00000BAL}
+#define STATUS_FILE_TOO_LARGE std::uint32_t{0xC0000904L}
+#define STATUS_INSUFFICIENT_RESOURCES std::uint32_t{0xC000009AL}
+#define STATUS_INTERNAL_ERROR std::uint32_t{0xC00000E5L}
+#define STATUS_INVALID_ADDRESS std::uint32_t{0xC0000141L}
+#define STATUS_INVALID_HANDLE std::uint32_t{0xC0000006L}
+#define STATUS_INVALID_IMAGE_FORMAT std::uint32_t{0xC000007BL}
+#define STATUS_INVALID_PARAMETER std::uint32_t{0xC000000DL}
+#define STATUS_NO_MEMORY std::uint32_t{0xC0000017L}
+#define STATUS_NOT_IMPLEMENTED std::uint32_t{0xC0000002L}
+#define STATUS_OBJECT_NAME_EXISTS std::uint32_t{0x40000000L}
+#define STATUS_OBJECT_NAME_NOT_FOUND std::uint32_t{0xC0000034L}
+#define STATUS_OBJECT_PATH_INVALID std::uint32_t{0xC0000039L}
+#define STATUS_UNEXPECTED_IO_ERROR std::uint32_t{0xC00000E9L}
 
 #define CONVERT_STATUS_NOT_IMPLEMENTED(e)                                      \
   ((std::uint32_t(e) == STATUS_NOT_IMPLEMENTED) ? -ENOTSUP : e)

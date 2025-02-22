@@ -80,6 +80,10 @@ protected:
       -> api_error override;
 
 public:
+  [[nodiscard]] auto check_version(std::string &required_version,
+                                   std::string &returned_version) const
+      -> bool override;
+
   [[nodiscard]] auto get_directory_item_count(const std::string &api_path) const
       -> std::uint64_t override;
 

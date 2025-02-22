@@ -98,19 +98,23 @@ auto ring_buffer_base::close() -> bool {
   return res;
 }
 
-auto ring_buffer_base::download_chunk(std::size_t chunk,
-                                      bool skip_active) -> api_error {
+auto ring_buffer_base::download_chunk(std::size_t chunk, bool skip_active)
+    -> api_error {
   REPERTORY_USES_FUNCTION_NAME();
 
   unique_mutex_lock chunk_lock(chunk_mtx_);
-  const auto unlock_and_notify = [this, &chunk_lock]() {
+  if (not skip_active) {
+    ring_pos_ = chunk;
+  }
+
+  const auto notify_and_unlock = [this, &chunk_lock]() {
     chunk_notify_.notify_all();
     chunk_lock.unlock();
   };
 
   const auto unlock_and_return =
-      [&unlock_and_notify](api_error res) -> api_error {
-    unlock_and_notify();
+      [&notify_and_unlock](api_error res) -> api_error {
+    notify_and_unlock();
     return res;
   };
 
@@ -124,7 +128,7 @@ auto ring_buffer_base::download_chunk(std::size_t chunk,
     }
 
     auto active_download = get_active_downloads().at(chunk);
-    unlock_and_notify();
+    notify_and_unlock();
 
     return active_download->wait();
   }
@@ -142,7 +146,7 @@ auto ring_buffer_base::download_chunk(std::size_t chunk,
         chunk == (total_chunks_ - 1U) ? get_last_chunk_size()
                                       : get_chunk_size(),
     };
-    unlock_and_notify();
+    notify_and_unlock();
 
     auto result{
         get_provider().read_file_bytes(get_api_path(), data_size, data_offset,
@@ -167,7 +171,7 @@ auto ring_buffer_base::download_chunk(std::size_t chunk,
     }
 
     get_active_downloads().erase(chunk);
-    unlock_and_notify();
+    notify_and_unlock();
 
     active_download->notify(result);
     return result;
@@ -226,7 +230,6 @@ auto ring_buffer_base::read(std::size_t read_size, std::uint64_t read_offset,
     } else if (chunk < ring_pos_) {
       reverse(ring_pos_ - chunk);
     }
-
     res = download_chunk(chunk, false);
     if (res != api_error::success) {
       if (res == api_error::invalid_ring_buffer_position) {
@@ -264,38 +267,46 @@ void ring_buffer_base::reader_thread() {
   REPERTORY_USES_FUNCTION_NAME();
 
   unique_mutex_lock chunk_lock(chunk_mtx_);
-  auto next_chunk{ring_pos_};
-  chunk_notify_.notify_all();
-  chunk_lock.unlock();
+  const auto notify_and_unlock = [this, &chunk_lock]() {
+    chunk_notify_.notify_all();
+    chunk_lock.unlock();
+  };
+
+  auto last_pos = ring_pos_;
+  auto next_chunk = ring_pos_;
+  notify_and_unlock();
 
   while (not get_stop_requested()) {
     chunk_lock.lock();
 
-    next_chunk = next_chunk + 1U > ring_end_ ? ring_begin_ : next_chunk + 1U;
-    const auto check_and_wait = [this, &chunk_lock, &next_chunk]() {
+    if (last_pos == ring_pos_) {
+      ++next_chunk;
+    } else {
+      next_chunk = ring_pos_ + 1U;
+      last_pos = ring_pos_;
+    }
+
+    if (next_chunk > ring_end_) {
+      next_chunk = ring_begin_;
+    }
+
+    if (read_state_[next_chunk % read_state_.size()]) {
       if (get_stop_requested()) {
-        chunk_notify_.notify_all();
-        chunk_lock.unlock();
+        notify_and_unlock();
         return;
       }
 
       if (get_read_state().all()) {
         chunk_notify_.wait(chunk_lock);
+        last_pos = ring_pos_;
         next_chunk = ring_pos_;
       }
 
-      chunk_notify_.notify_all();
-      chunk_lock.unlock();
-    };
-
-    if (read_state_[next_chunk % read_state_.size()]) {
-      check_and_wait();
+      notify_and_unlock();
       continue;
     }
 
-    chunk_notify_.notify_all();
-    chunk_lock.unlock();
-
+    notify_and_unlock();
     download_chunk(next_chunk, true);
   }
 
@@ -351,29 +362,30 @@ void ring_buffer_base::update_position(std::size_t count, bool is_forward) {
   if (is_forward ? (ring_pos_ + count) <= ring_end_
                  : (ring_pos_ - count) >= ring_begin_) {
     ring_pos_ += is_forward ? count : -count;
-  } else {
-    auto delta = is_forward ? count - (ring_end_ - ring_pos_)
-                            : count - (ring_pos_ - ring_begin_);
-
-    if (delta >= read_state_.size()) {
-      read_state_.set(0U, read_state_.size(), false);
-      ring_pos_ += is_forward ? count : -count;
-      ring_begin_ += is_forward ? delta : -delta;
-    } else {
-      for (std::size_t idx = 0U; idx < delta; ++idx) {
-        if (is_forward) {
-          read_state_[(ring_begin_ + idx) % read_state_.size()] = false;
-        } else {
-          read_state_[(ring_end_ - idx) % read_state_.size()] = false;
-        }
-      }
-      ring_begin_ += is_forward ? delta : -delta;
-      ring_pos_ += is_forward ? count : -count;
-    }
-
-    ring_end_ =
-        std::min(total_chunks_ - 1U, ring_begin_ + read_state_.size() - 1U);
+    chunk_notify_.notify_all();
+    return;
   }
+
+  auto delta = is_forward ? count - (ring_end_ - ring_pos_)
+                          : count - (ring_pos_ - ring_begin_);
+  if (delta >= read_state_.size()) {
+    read_state_.set(0U, read_state_.size(), false);
+    ring_pos_ += is_forward ? count : -count;
+    ring_begin_ += is_forward ? delta : -delta;
+  } else {
+    for (std::size_t idx = 0U; idx < delta; ++idx) {
+      if (is_forward) {
+        read_state_[(ring_begin_ + idx) % read_state_.size()] = false;
+      } else {
+        read_state_[(ring_end_ - idx) % read_state_.size()] = false;
+      }
+    }
+    ring_begin_ += is_forward ? delta : -delta;
+    ring_pos_ += is_forward ? count : -count;
+  }
+
+  ring_end_ =
+      std::min(total_chunks_ - 1U, ring_begin_ + read_state_.size() - 1U);
 
   chunk_notify_.notify_all();
 }

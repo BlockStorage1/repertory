@@ -43,9 +43,9 @@
 #include "utils/time.hpp"
 
 namespace {
-[[nodiscard]] auto
-set_request_path(auto &request,
-                 const std::string &object_name) -> repertory::api_error {
+[[nodiscard]] auto set_request_path(auto &request,
+                                    const std::string &object_name)
+    -> repertory::api_error {
   request.path = object_name;
   if (request.path.substr(1U).size() > repertory::max_s3_object_name_length) {
     return repertory::api_error::name_too_long;
@@ -59,8 +59,9 @@ namespace repertory {
 s3_provider::s3_provider(app_config &config, i_http_comm &comm)
     : base_provider(config, comm) {}
 
-auto s3_provider::add_if_not_found(
-    api_file &file, const std::string &object_name) const -> api_error {
+auto s3_provider::add_if_not_found(api_file &file,
+                                   const std::string &object_name) const
+    -> api_error {
   api_meta_map meta{};
   auto res{get_item_meta(file.api_path, meta)};
   if (res == api_error::item_not_found) {
@@ -88,7 +89,7 @@ auto s3_provider::convert_api_date(std::string_view date) -> std::uint64_t {
                 1000000UL,
   };
 
-  struct tm tm1 {};
+  struct tm tm1{};
 #if defined(_WIN32)
   utils::time::strptime(date_time.c_str(), "%Y-%m-%dT%T", &tm1);
   return nanos + utils::time::windows_time_t_to_unix_time(_mkgmtime(&tm1));
@@ -157,8 +158,9 @@ auto s3_provider::create_directory_impl(const std::string &api_path,
       utils::path::create_api_path(is_encrypted ? meta[META_KEY] : api_path));
 }
 
-auto s3_provider::create_directory_paths(
-    const std::string &api_path, const std::string &key) const -> api_error {
+auto s3_provider::create_directory_paths(const std::string &api_path,
+                                         const std::string &key) const
+    -> api_error {
   REPERTORY_USES_FUNCTION_NAME();
 
   if (api_path == "/") {
@@ -321,8 +323,9 @@ auto s3_provider::get_directory_item_count(const std::string &api_path) const
   return 0U;
 }
 
-auto s3_provider::get_directory_items_impl(
-    const std::string &api_path, directory_item_list &list) const -> api_error {
+auto s3_provider::get_directory_items_impl(const std::string &api_path,
+                                           directory_item_list &list) const
+    -> api_error {
   REPERTORY_USES_FUNCTION_NAME();
 
   const auto &cfg{get_s3_config()};
@@ -480,8 +483,8 @@ auto s3_provider::get_directory_items_impl(
   return api_error::success;
 }
 
-auto s3_provider::get_file(const std::string &api_path,
-                           api_file &file) const -> api_error {
+auto s3_provider::get_file(const std::string &api_path, api_file &file) const
+    -> api_error {
   REPERTORY_USES_FUNCTION_NAME();
 
   try {
@@ -492,7 +495,19 @@ auto s3_provider::get_file(const std::string &api_path,
         get_object_info(false, api_path, is_encrypted, object_name, result),
     };
     if (res != api_error::success) {
-      return res;
+      if (res != api_error::item_not_found) {
+        return res;
+      }
+
+      bool exists{};
+      res = is_directory(api_path, exists);
+      if (res != api_error::success) {
+        utils::error::raise_api_path_error(
+            function_name, api_path, res,
+            "failed to determine if directory exists");
+      }
+
+      return exists ? api_error::directory_exists : api_error::item_not_found;
     }
 
     file.api_path = api_path;
@@ -521,8 +536,8 @@ auto s3_provider::get_file(const std::string &api_path,
   return api_error::error;
 }
 
-auto s3_provider::get_file_list(api_file_list &list,
-                                std::string &marker) const -> api_error {
+auto s3_provider::get_file_list(api_file_list &list, std::string &marker) const
+    -> api_error {
   REPERTORY_USES_FUNCTION_NAME();
 
   try {
@@ -612,8 +627,9 @@ auto s3_provider::get_file_list(api_file_list &list,
   return api_error::error;
 }
 
-auto s3_provider::get_last_modified(
-    bool directory, const std::string &api_path) const -> std::uint64_t {
+auto s3_provider::get_last_modified(bool directory,
+                                    const std::string &api_path) const
+    -> std::uint64_t {
   bool is_encrypted{};
   std::string object_name;
   head_object_result result{};
@@ -623,9 +639,10 @@ auto s3_provider::get_last_modified(
              : utils::time::get_time_now();
 }
 
-auto s3_provider::get_object_info(
-    bool directory, const std::string &api_path, bool &is_encrypted,
-    std::string &object_name, head_object_result &result) const -> api_error {
+auto s3_provider::get_object_info(bool directory, const std::string &api_path,
+                                  bool &is_encrypted, std::string &object_name,
+                                  head_object_result &result) const
+    -> api_error {
   REPERTORY_USES_FUNCTION_NAME();
 
   try {
@@ -685,10 +702,12 @@ auto s3_provider::get_object_info(
   return api_error::error;
 }
 
-auto s3_provider::get_object_list(
-    std::string &response_data, long &response_code,
-    std::optional<std::string> delimiter, std::optional<std::string> prefix,
-    std::optional<std::string> token) const -> bool {
+auto s3_provider::get_object_list(std::string &response_data,
+                                  long &response_code,
+                                  std::optional<std::string> delimiter,
+                                  std::optional<std::string> prefix,
+                                  std::optional<std::string> token) const
+    -> bool {
   curl::requests::http_get get{};
   get.allow_timeout = true;
   get.aws_service = "aws:amz:" + get_s3_config().region + ":s3";
@@ -716,8 +735,8 @@ auto s3_provider::get_total_drive_space() const -> std::uint64_t {
   return std::numeric_limits<std::int64_t>::max() / std::int64_t(2);
 }
 
-auto s3_provider::is_directory(const std::string &api_path,
-                               bool &exists) const -> api_error {
+auto s3_provider::is_directory(const std::string &api_path, bool &exists) const
+    -> api_error {
   REPERTORY_USES_FUNCTION_NAME();
 
   try {
@@ -745,8 +764,8 @@ auto s3_provider::is_directory(const std::string &api_path,
   return api_error::error;
 }
 
-auto s3_provider::is_file(const std::string &api_path,
-                          bool &exists) const -> api_error {
+auto s3_provider::is_file(const std::string &api_path, bool &exists) const
+    -> api_error {
   REPERTORY_USES_FUNCTION_NAME();
 
   try {
@@ -1004,8 +1023,8 @@ auto s3_provider::rename_file(const std::string & /* from_api_path */,
   return api_error::not_implemented;
 }
 
-auto s3_provider::set_meta_key(const std::string &api_path,
-                               api_meta_map &meta) -> api_error {
+auto s3_provider::set_meta_key(const std::string &api_path, api_meta_map &meta)
+    -> api_error {
   REPERTORY_USES_FUNCTION_NAME();
 
   const auto &cfg{get_s3_config()};

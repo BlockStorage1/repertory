@@ -31,6 +31,10 @@ class i_provider {
   INTERFACE_SETUP(i_provider);
 
 public:
+  [[nodiscard]] virtual auto check_version(std::string &required_version,
+                                           std::string &returned_version) const
+      -> bool = 0;
+
   [[nodiscard]] virtual auto create_directory(const std::string &api_path,
                                               api_meta_map &meta)
       -> api_error = 0;

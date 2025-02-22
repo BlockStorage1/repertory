@@ -25,7 +25,7 @@
 #include "utils/file.hpp"
 
 namespace repertory {
-TEST(utils, convert_api_date) {
+TEST(utils_test, convert_api_date) {
 #if defined(_WIN32)
   auto file_time = utils::time::unix_time_to_filetime(
       s3_provider::convert_api_date("2009-10-12T17:50:30.111Z"));
@@ -63,7 +63,7 @@ TEST(utils, convert_api_date) {
 #endif // defined(_WIN32)
 }
 
-TEST(utils, generate_sha256) {
+TEST(utils_test, generate_sha256) {
   auto res = utils::file::file{__FILE__}.sha256();
   EXPECT_TRUE(res.has_value());
   if (res.has_value()) {

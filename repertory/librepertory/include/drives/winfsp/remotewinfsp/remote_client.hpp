@@ -26,6 +26,7 @@
 #include "comm/packet/packet_client.hpp"
 #include "drives/remote/remote_open_file_table.hpp"
 #include "drives/winfsp/remotewinfsp/i_remote_instance.hpp"
+#include "types/remote.hpp"
 
 namespace repertory {
 class app_config;

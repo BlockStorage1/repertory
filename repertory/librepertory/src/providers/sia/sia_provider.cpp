@@ -32,8 +32,8 @@
 #include "providers/base_provider.hpp"
 #include "providers/s3/s3_provider.hpp"
 #include "types/repertory.hpp"
+#include "utils/common.hpp"
 #include "utils/error_utils.hpp"
-#include "utils/file_utils.hpp"
 #include "utils/path.hpp"
 #include "utils/polling.hpp"
 #include "utils/string.hpp"
@@ -63,6 +63,54 @@ namespace repertory {
 sia_provider::sia_provider(app_config &config, i_http_comm &comm)
     : base_provider(config, comm) {}
 
+auto sia_provider::check_version(std::string &required_version,
+                                 std::string &returned_version) const -> bool {
+  REPERTORY_USES_FUNCTION_NAME();
+
+  required_version = "2.0.0";
+
+  try {
+    curl::requests::http_get get{};
+    get.allow_timeout = true;
+    get.path = "/api/bus/state";
+
+    nlohmann::json state_data;
+    std::string error_data;
+    get.response_handler = [&error_data, &state_data](auto &&data,
+                                                      long response_code) {
+      if (response_code == http_error_codes::ok) {
+        state_data = nlohmann::json::parse(data.begin(), data.end());
+        return;
+      }
+
+      error_data = std::string(data.begin(), data.end());
+    };
+
+    long response_code{};
+    stop_type stop_requested{};
+    if (not get_comm().make_request(get, response_code, stop_requested)) {
+      utils::error::raise_error(function_name, response_code,
+                                "failed to check state");
+      return false;
+    }
+
+    if (response_code != http_error_codes::ok) {
+      utils::error::raise_error(
+          function_name, response_code,
+          fmt::format("failed to check state|response|{}", error_data));
+      return false;
+    }
+
+    returned_version = state_data.at("version").get<std::string>().substr(1U);
+    return utils::compare_version_strings(returned_version, required_version) >=
+           0;
+  } catch (const std::exception &e) {
+    utils::error::raise_error(function_name, e, "failed to check version");
+  }
+
+  return false;
+}
+
 auto sia_provider::create_directory_impl(const std::string &api_path,
                                          api_meta_map & /* meta */)
     -> api_error {
@@ -70,7 +118,7 @@ auto sia_provider::create_directory_impl(const std::string &api_path,
 
   curl::requests::http_put_file put_file{};
   put_file.allow_timeout = true;
-  put_file.path = "/api/worker/objects" + api_path + "/";
+  put_file.path = "/api/worker/object" + api_path + "/";
   put_file.query["bucket"] = get_bucket(get_sia_config());
 
   std::string error_data;
@@ -112,10 +160,10 @@ auto sia_provider::get_directory_item_count(const std::string &api_path) const
     }
 
     std::uint64_t item_count{};
-    if (object_list.contains("entries")) {
-      for (const auto &entry : object_list.at("entries")) {
+    if (object_list.contains("objects")) {
+      for (const auto &entry : object_list.at("objects")) {
         try {
-          auto name{entry.at("name").get<std::string>()};
+          auto name{entry.at("key").get<std::string>()};
           auto entry_api_path{utils::path::create_api_path(name)};
           if (utils::string::ends_with(name, "/") &&
               (entry_api_path == api_path)) {
@@ -149,10 +197,10 @@ auto sia_provider::get_directory_items_impl(const std::string &api_path,
     return api_error::comm_error;
   }
 
-  if (object_list.contains("entries")) {
-    for (const auto &entry : object_list.at("entries")) {
+  if (object_list.contains("objects")) {
+    for (const auto &entry : object_list.at("objects")) {
       try {
-        auto name{entry.at("name").get<std::string>()};
+        auto name{entry.at("key").get<std::string>()};
         auto entry_api_path{utils::path::create_api_path(name)};
 
         auto directory{utils::string::ends_with(name, "/")};
@@ -185,7 +233,6 @@ auto sia_provider::get_directory_items_impl(const std::string &api_path,
         dir_item.api_path = file.api_path;
         dir_item.directory = directory;
         dir_item.meta = meta;
-        dir_item.resolved = true;
         dir_item.size = file.file_size;
         list.emplace_back(std::move(dir_item));
       } catch (const std::exception &e) {
@@ -207,22 +254,28 @@ auto sia_provider::get_file(const std::string &api_path, api_file &file) const
     json file_data{};
     auto res{get_object_info(api_path, file_data)};
     if (res != api_error::success) {
-      return res;
+      if (res != api_error::item_not_found) {
+        return res;
+      }
+
+      bool exists{};
+      res = is_directory(api_path, exists);
+      if (res != api_error::success) {
+        utils::error::raise_api_path_error(
+            function_name, api_path, res,
+            "failed to determine if directory exists");
+      }
+
+      return exists ? api_error::directory_exists : api_error::item_not_found;
     }
 
-    auto slabs{file_data["object"]["Slabs"]};
     auto size{
-        std::accumulate(
-            slabs.begin(), slabs.end(), std::uint64_t(0U),
-            [](auto &&total_size, const json &slab) -> std::uint64_t {
-              return total_size + slab["Length"].get<std::uint64_t>();
-            }),
+        file_data.at("size").get<std::uint64_t>(),
     };
 
     api_meta_map meta{};
     if (get_item_meta(api_path, meta) == api_error::item_not_found) {
-      file = create_api_file(api_path, "", size,
-                             get_last_modified(file_data["object"]));
+      file = create_api_file(api_path, "", size, get_last_modified(file_data));
       get_api_item_added()(false, file);
     } else {
       file = create_api_file(api_path, size, meta);
@@ -250,9 +303,9 @@ auto sia_provider::get_file_list(api_file_list &list,
         return api_error::comm_error;
       }
 
-      if (object_list.contains("entries")) {
-        for (const auto &entry : object_list.at("entries")) {
-          auto name{entry.at("name").get<std::string>()};
+      if (object_list.contains("objects")) {
+        for (const auto &entry : object_list.at("objects")) {
+          auto name{entry.at("key").get<std::string>()};
           auto entry_api_path{utils::path::create_api_path(name)};
 
           if (utils::string::ends_with(name, "/")) {
@@ -313,8 +366,9 @@ auto sia_provider::get_object_info(const std::string &api_path,
   try {
     curl::requests::http_get get{};
     get.allow_timeout = true;
-    get.path = "/api/bus/objects" + api_path;
+    get.path = "/api/bus/object" + api_path;
     get.query["bucket"] = get_bucket(get_sia_config());
+    get.query["onlymetadata"] = "true";
 
     std::string error_data;
     get.response_handler = [&error_data, &object_info](auto &&data,
@@ -362,6 +416,7 @@ auto sia_provider::get_object_list(const std::string &api_path,
     get.allow_timeout = true;
     get.path = "/api/bus/objects" + api_path + "/";
     get.query["bucket"] = get_bucket(get_sia_config());
+    get.query["delimiter"] = "/";
 
     std::string error_data;
     get.response_handler = [&error_data, &object_list](auto &&data,
@@ -405,7 +460,7 @@ auto sia_provider::get_total_drive_space() const -> std::uint64_t {
   try {
     curl::requests::http_get get{};
     get.allow_timeout = true;
-    get.path = "/api/autopilot/config";
+    get.path = "/api/bus/autopilot";
     get.query["bucket"] = get_bucket(get_sia_config());
 
     json config_data;
@@ -455,17 +510,18 @@ auto sia_provider::is_directory(const std::string &api_path, bool &exists) const
 
     exists = false;
 
-    json object_list{};
-    if (not get_object_list(utils::path::get_parent_api_path(api_path),
-                            object_list)) {
-      return api_error::comm_error;
+    json file_data{};
+    auto res{get_object_info(api_path + '/', file_data)};
+    if (res == api_error::item_not_found) {
+      return api_error::success;
     }
 
-    exists = object_list.contains("entries") &&
-             std::ranges::find_if(object_list.at("entries"),
-                                  [&api_path](auto &&entry) -> bool {
-                                    return entry.at("name") == (api_path + "/");
-                                  }) != object_list.at("entries").end();
+    if (res != api_error::success) {
+      return res;
+    }
+
+    exists =
+        utils::string::ends_with(file_data.at("key").get<std::string>(), "/");
     return api_error::success;
   } catch (const std::exception &e) {
     utils::error::raise_api_path_error(
@@ -481,6 +537,7 @@ auto sia_provider::is_file(const std::string &api_path, bool &exists) const
 
   try {
     exists = false;
+
     if (api_path == "/") {
       return api_error::success;
     }
@@ -495,7 +552,8 @@ auto sia_provider::is_file(const std::string &api_path, bool &exists) const
       return res;
     }
 
-    exists = not file_data.contains("entries");
+    exists = not utils::string::ends_with(
+        file_data.at("key").get<std::string>(), "/");
     return api_error::success;
   } catch (const std::exception &e) {
     utils::error::raise_api_path_error(function_name, api_path, e,
@@ -559,8 +617,9 @@ auto sia_provider::read_file_bytes(const std::string &api_path,
 
   try {
     curl::requests::http_get get{};
-    get.path = "/api/worker/objects" + api_path;
+    get.path = "/api/worker/object" + api_path;
     get.query["bucket"] = get_bucket(get_sia_config());
+    get.headers["accept"] = "application/octet-stream";
     get.range = {{
         offset,
         offset + size - 1U,
@@ -577,6 +636,7 @@ auto sia_provider::read_file_bytes(const std::string &api_path,
          ++idx) {
       long response_code{};
       const auto notify_retry = [&]() {
+        fmt::println("{}", std::string(buffer.begin(), buffer.end()));
         if (response_code == 0) {
           utils::error::raise_api_path_error(
               function_name, api_path, api_error::comm_error,
@@ -622,7 +682,7 @@ auto sia_provider::remove_directory_impl(const std::string &api_path)
 
   curl::requests::http_delete del{};
   del.allow_timeout = true;
-  del.path = "/api/bus/objects" + api_path + "/";
+  del.path = "/api/bus/object" + api_path + "/";
   del.query["bucket"] = get_bucket(get_sia_config());
 
   std::string error_data;
@@ -658,7 +718,7 @@ auto sia_provider::remove_file_impl(const std::string &api_path) -> api_error {
 
   curl::requests::http_delete del{};
   del.allow_timeout = true;
-  del.path = "/api/bus/objects" + api_path;
+  del.path = "/api/bus/object" + api_path;
   del.query["bucket"] = get_bucket(get_sia_config());
 
   std::string error_data;
@@ -697,12 +757,12 @@ auto sia_provider::rename_file(const std::string &from_api_path,
   try {
     curl::requests::http_post post{};
     post.json = nlohmann::json({
+        {"bucket", get_bucket(get_sia_config())},
         {"from", from_api_path},
         {"to", to_api_path},
         {"mode", "single"},
     });
     post.path = "/api/bus/objects/rename";
-    post.query["bucket"] = get_bucket(get_sia_config());
 
     std::string error_data;
     post.response_handler = [&error_data](auto &&data, long response_code) {
@@ -770,8 +830,9 @@ auto sia_provider::upload_file_impl(const std::string &api_path,
   REPERTORY_USES_FUNCTION_NAME();
 
   curl::requests::http_put_file put_file{};
-  put_file.path = "/api/worker/objects" + api_path;
+  put_file.path = "/api/worker/object" + api_path;
   put_file.query["bucket"] = get_bucket(get_sia_config());
+  put_file.headers["content-type"] = "application/octet-stream";
   put_file.source_path = source_path;
 
   std::string error_data;
