@@ -1,16 +1,30 @@
 # Changelog
 
+## v2.0.5-rc
+
+### Issues
+
+* ~~\#12 [Unit Test] Complete all providers unit tests~~
+* ~~\#21 [Unit Test] Complete WinFSP unit tests~~
+* ~~\#22 [Unit Test] Complete FUSE unit tests~~
+
+### Changes from v2.0.4-rc
+
+* TDB
+
 ## v2.0.4-rc
 
 ### BREAKING CHANGES
 
 * `renterd` v2.0.0+ is now required. Prior versions will fail to mount.
 
+<!-- markdownlint-disable-next-line -->
 ### Issues
 
 * \#35 [bug] Low frequency check is set to '0' instead of 1 hour by default
 * \#36 [bug] Max cache size bytes is set to '0' by default
 
+<!-- markdownlint-disable-next-line -->
 ### Changes from v2.0.3-rc
 
 * Added Sia API version check prior to mounting
