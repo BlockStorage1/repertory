@@ -25,12 +25,16 @@
 #include "utils/config.hpp"
 
 namespace repertory::utils::error {
-[[nodiscard]] auto
-create_error_message(std::vector<std::string_view> items) -> std::string;
+[[nodiscard]] auto create_error_message(std::vector<std::string_view> items)
+    -> std::string;
 
-[[nodiscard]] auto
-create_exception(std::string_view function_name,
-                 std::vector<std::string_view> items) -> std::runtime_error;
+[[nodiscard]] auto create_error_message(std::string_view function_name,
+                                        std::vector<std::string_view> items)
+    -> std::string;
+
+[[nodiscard]] auto create_exception(std::string_view function_name,
+                                    std::vector<std::string_view> items)
+    -> std::runtime_error;
 
 struct i_exception_handler {
   virtual ~i_exception_handler() {}
@@ -40,6 +44,11 @@ struct i_exception_handler {
   auto operator=(const i_exception_handler &) noexcept = delete;
   auto operator=(i_exception_handler &&) noexcept = delete;
 
+#if defined(PROJECT_ENABLE_V2_ERRORS)
+  virtual void handle_debug(std::string_view function_name,
+                            std::string_view msg) const = 0;
+#endif // defined(PROJECT_ENABLE_V2_ERRORS)
+
   virtual void handle_error(std::string_view function_name,
                             std::string_view msg) const = 0;
 
@@ -48,55 +57,106 @@ struct i_exception_handler {
   virtual void handle_exception(std::string_view function_name,
                                 const std::exception &ex) const = 0;
 
+#if defined(PROJECT_ENABLE_V2_ERRORS)
+  virtual void handle_info(std::string_view function_name,
+                           std::string_view msg) const = 0;
+
+  virtual void handle_trace(std::string_view function_name,
+                            std::string_view msg) const = 0;
+
+  virtual void handle_warn(std::string_view function_name,
+                           std::string_view msg) const = 0;
+#endif // defined(PROJECT_ENABLE_V2_ERRORS)
+
 protected:
   i_exception_handler() = default;
 };
 
-struct iostream_exception_handler final : i_exception_handler {
-  void handle_error(std::string_view function_name,
-                    std::string_view msg) const override {
-    std::cerr << create_error_message({
-                     function_name,
-                     msg,
-                 })
-              << std::endl;
-  }
+struct iostream_exception_handler final : public i_exception_handler {
+#if defined(PROJECT_ENABLE_V2_ERRORS)
+  void handle_debug(std::string_view function_name,
+                    std::string_view msg) const override;
+#endif // defined(PROJECT_ENABLE_V2_ERRORS)
 
-  void handle_exception(std::string_view function_name) const override {
-    std::cerr << create_error_message({
-                     function_name,
-                     "exception",
-                     "unknown",
-                 })
-              << std::endl;
-  }
+  void handle_error(std::string_view function_name,
+                    std::string_view msg) const override;
+
+  void handle_exception(std::string_view function_name) const override;
 
   void handle_exception(std::string_view function_name,
-                        const std::exception &ex) const override {
-    std::cerr << create_error_message({
-                     function_name,
-                     "exception",
-                     (ex.what() == nullptr ? "unknown" : ex.what()),
-                 })
-              << std::endl;
-  }
-};
-inline const iostream_exception_handler default_exception_handler{};
+                        const std::exception &ex) const override;
 
-extern std::atomic<const i_exception_handler *> exception_handler;
+#if defined(PROJECT_ENABLE_V2_ERRORS)
+  void handle_info(std::string_view function_name,
+                   std::string_view msg) const override;
+
+  void handle_trace(std::string_view function_name,
+                    std::string_view msg) const override;
+
+  void handle_warn(std::string_view function_name,
+                   std::string_view msg) const override;
+#endif // defined(PROJECT_ENABLE_V2_ERRORS)
+};
+
+#if defined(PROJECT_ENABLE_SPDLOG) && defined(PROJECT_ENABLE_V2_ERRORS)
+struct spdlog_exception_handler final : public i_exception_handler {
+  void handle_debug(std::string_view function_name,
+                    std::string_view msg) const override;
+
+  void handle_error(std::string_view function_name,
+                    std::string_view msg) const override;
+
+  void handle_exception(std::string_view function_name) const override;
+
+  void handle_exception(std::string_view function_name,
+                        const std::exception &ex) const override;
+
+  void handle_info(std::string_view function_name,
+                   std::string_view msg) const override;
+
+  void handle_trace(std::string_view function_name,
+                    std::string_view msg) const override;
+
+  void handle_warn(std::string_view function_name,
+                   std::string_view msg) const override;
+
+private:
+  iostream_exception_handler fallback{};
+};
+#endif // defined(PROJECT_ENABLE_SPDLOG) && defined(PROJECT_ENABLE_V2_ERRORS)
+
+#if defined(PROJECT_ENABLE_SPDLOG) && defined(PROJECT_ENABLE_V2_ERRORS)
+inline const spdlog_exception_handler default_exception_handler{};
+#else  // !defined(PROJECT_ENABLE_SPDLOG) || !defined(PROJECT_ENABLE_V2_ERRORS)
+inline const iostream_exception_handler default_exception_handler{};
+#endif // defined(PROJECT_ENABLE_SPDLOG) && defined(PROJECT_ENABLE_V2_ERRORS)
 
 #if defined(PROJECT_ENABLE_TESTING)
-[[nodiscard]] inline auto
-get_exception_handler() -> const i_exception_handler * {
+extern std::atomic<const i_exception_handler *> exception_handler;
+
+[[nodiscard]] inline auto get_exception_handler()
+    -> const i_exception_handler * {
   return exception_handler;
 }
 #endif // defined(PROJECT_ENABLE_TESTING)
+
+#if defined(PROJECT_ENABLE_V2_ERRORS)
+void handle_debug(std::string_view function_name, std::string_view msg);
+#endif // defined(PROJECT_ENABLE_V2_ERRORS)
 
 void handle_error(std::string_view function_name, std::string_view msg);
 
 void handle_exception(std::string_view function_name);
 
 void handle_exception(std::string_view function_name, const std::exception &ex);
+
+#if defined(PROJECT_ENABLE_V2_ERRORS)
+void handle_info(std::string_view function_name, std::string_view msg);
+
+void handle_trace(std::string_view function_name, std::string_view msg);
+
+void handle_warn(std::string_view function_name, std::string_view msg);
+#endif // defined(PROJECT_ENABLE_V2_ERRORS)
 
 void set_exception_handler(const i_exception_handler *handler);
 } // namespace repertory::utils::error

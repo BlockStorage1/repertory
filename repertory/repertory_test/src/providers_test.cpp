@@ -19,8 +19,6 @@
   OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
   SOFTWARE.
 */
-#if 0
-
 #include "test_common.hpp"
 
 #include "comm/curl/curl_comm.hpp"
@@ -99,8 +97,6 @@ const auto create_directory = [](repertory::i_provider &provider,
       repertory::utils::string::to_bool(meta2[repertory::META_PINNED]));
   EXPECT_EQ(std::uint64_t(0U),
             repertory::utils::string::to_uint64(meta2[repertory::META_SIZE]));
-  EXPECT_STREQ((api_path + "_src").c_str(),
-               meta2[repertory::META_SOURCE].c_str());
   EXPECT_EQ(getuid(), static_cast<uid_t>(repertory::utils::string::to_uint32(
                           meta2[repertory::META_UID])));
   EXPECT_EQ(date + 4U, repertory::utils::string::to_uint64(
@@ -178,6 +174,9 @@ const auto decrypt_parts = [](const repertory::app_config &cfg,
 
 namespace repertory {
 static void can_create_and_remove_directory(i_provider &provider) {
+  fmt::println("testing|{}|{}",
+               app_config::get_provider_name(provider.get_provider_type()),
+               __FUNCTION__);
   if (provider.is_read_only()) {
     api_meta_map meta{};
     EXPECT_EQ(api_error::not_implemented,
@@ -196,6 +195,9 @@ static void can_create_and_remove_directory(i_provider &provider) {
 }
 
 static void create_directory_fails_if_already_exists(i_provider &provider) {
+  fmt::println("testing|{}|{}",
+               app_config::get_provider_name(provider.get_provider_type()),
+               __FUNCTION__);
   if (provider.is_read_only()) {
     return;
   }
@@ -210,6 +212,9 @@ static void create_directory_fails_if_already_exists(i_provider &provider) {
 
 static void
 create_directory_fails_if_file_already_exists(i_provider &provider) {
+  fmt::println("testing|{}|{}",
+               app_config::get_provider_name(provider.get_provider_type()),
+               __FUNCTION__);
   if (provider.is_read_only()) {
     return;
   }
@@ -223,6 +228,9 @@ create_directory_fails_if_file_already_exists(i_provider &provider) {
 }
 
 static void create_directory_clone_source_meta(i_provider &provider) {
+  fmt::println("testing|{}|{}",
+               app_config::get_provider_name(provider.get_provider_type()),
+               __FUNCTION__);
   if (provider.is_read_only()) {
     EXPECT_EQ(api_error::not_implemented,
               provider.create_directory_clone_source_meta("/moose", "/moose"));
@@ -257,6 +265,9 @@ static void create_directory_clone_source_meta(i_provider &provider) {
 
 static void create_directory_clone_source_meta_fails_if_already_exists(
     i_provider &provider) {
+  fmt::println("testing|{}|{}",
+               app_config::get_provider_name(provider.get_provider_type()),
+               __FUNCTION__);
   if (provider.is_read_only()) {
     return;
   }
@@ -272,6 +283,9 @@ static void create_directory_clone_source_meta_fails_if_already_exists(
 
 static void create_directory_clone_source_meta_fails_if_directory_not_found(
     i_provider &provider) {
+  fmt::println("testing|{}|{}",
+               app_config::get_provider_name(provider.get_provider_type()),
+               __FUNCTION__);
   if (provider.is_read_only()) {
     return;
   }
@@ -282,6 +296,9 @@ static void create_directory_clone_source_meta_fails_if_directory_not_found(
 
 static void create_directory_clone_source_meta_fails_if_file_already_exists(
     i_provider &provider) {
+  fmt::println("testing|{}|{}",
+               app_config::get_provider_name(provider.get_provider_type()),
+               __FUNCTION__);
   if (provider.is_read_only()) {
     return;
   }
@@ -297,6 +314,9 @@ static void create_directory_clone_source_meta_fails_if_file_already_exists(
 }
 
 static void can_create_and_remove_file(i_provider &provider) {
+  fmt::println("testing|{}|{}",
+               app_config::get_provider_name(provider.get_provider_type()),
+               __FUNCTION__);
   if (provider.is_read_only()) {
     api_meta_map meta{};
     EXPECT_EQ(api_error::not_implemented,
@@ -317,6 +337,9 @@ static void can_create_and_remove_file(i_provider &provider) {
 }
 
 static void create_file_fails_if_already_exists(i_provider &provider) {
+  fmt::println("testing|{}|{}",
+               app_config::get_provider_name(provider.get_provider_type()),
+               __FUNCTION__);
   if (provider.is_read_only()) {
     return;
   }
@@ -331,6 +354,9 @@ static void create_file_fails_if_already_exists(i_provider &provider) {
 
 static void
 create_file_fails_if_directory_already_exists(i_provider &provider) {
+  fmt::println("testing|{}|{}",
+               app_config::get_provider_name(provider.get_provider_type()),
+               __FUNCTION__);
   if (provider.is_read_only()) {
     return;
   }
@@ -345,9 +371,12 @@ create_file_fails_if_directory_already_exists(i_provider &provider) {
 
 static void get_api_path_from_source(const app_config &cfg,
                                      i_provider &provider) {
+  fmt::println("testing|{}|{}",
+               app_config::get_provider_name(provider.get_provider_type()),
+               __FUNCTION__);
   if (provider.get_provider_type() == provider_type::encrypt) {
-    const auto source_path =
-        utils::path::combine("./test_date/encrypt", {"test.txt"});
+    auto source_path =
+        utils::path::combine("./test_input/encrypt", {"test.txt"});
 
     std::string api_path{};
     EXPECT_EQ(api_error::success,
@@ -376,6 +405,9 @@ static void get_api_path_from_source(const app_config &cfg,
 static void
 get_api_path_from_source_fails_if_file_not_found(const app_config &cfg,
                                                  i_provider &provider) {
+  fmt::println("testing|{}|{}",
+               app_config::get_provider_name(provider.get_provider_type()),
+               __FUNCTION__);
   std::string source_path{};
   if (provider.get_provider_type() == provider_type::encrypt) {
     source_path = utils::path::combine(cfg.get_encrypt_config().path,
@@ -391,28 +423,50 @@ get_api_path_from_source_fails_if_file_not_found(const app_config &cfg,
   EXPECT_TRUE(api_path.empty());
 }
 
-static void get_directory_item_count(const app_config &cfg,
+static void get_directory_item_count(const app_config & /* cfg */,
                                      i_provider &provider) {
+  fmt::println("testing|{}|{}",
+               app_config::get_provider_name(provider.get_provider_type()),
+               __FUNCTION__);
   if (provider.get_provider_type() == provider_type::encrypt) {
     EXPECT_EQ(std::size_t(2U), provider.get_directory_item_count("/"));
     EXPECT_EQ(std::size_t(0U), provider.get_directory_item_count("/not_found"));
 
-    const auto source_path =
+    auto source_path =
         utils::path::combine(test::get_test_input_dir(), {"encrypt", "sub10"});
 
     std::string api_path{};
     EXPECT_EQ(api_error::success,
               provider.get_api_path_from_source(source_path, api_path));
     EXPECT_EQ(std::size_t(1U), provider.get_directory_item_count(api_path));
+    return;
   }
-}
 
-static void get_directory_items(const app_config &cfg, i_provider &provider) {
+  create_file(provider, "/pt01.txt");
+  create_file(provider, "/pt02.txt");
+  create_directory(provider, "/dir01");
+  create_directory(provider, "/dir02");
+
   directory_item_list list{};
   EXPECT_EQ(api_error::success, provider.get_directory_items("/", list));
   check_forced_dirs(list);
+  EXPECT_GE(list.size(), std::size_t(6U));
 
+  EXPECT_EQ(api_error::success, provider.remove_file("/pt01.txt"));
+  EXPECT_EQ(api_error::success, provider.remove_file("/pt02.txt"));
+  EXPECT_EQ(api_error::success, provider.remove_directory("/dir01"));
+  EXPECT_EQ(api_error::success, provider.remove_directory("/dir02"));
+}
+
+static void get_directory_items(const app_config &cfg, i_provider &provider) {
+  fmt::println("testing|{}|{}",
+               app_config::get_provider_name(provider.get_provider_type()),
+               __FUNCTION__);
   if (provider.get_provider_type() == provider_type::encrypt) {
+    directory_item_list list{};
+    EXPECT_EQ(api_error::success, provider.get_directory_items("/", list));
+    check_forced_dirs(list);
+
     EXPECT_EQ(std::size_t(4U), list.size());
 
     directory_item_list list_decrypted{list.begin() + 2U, list.end()};
@@ -443,7 +497,7 @@ static void get_directory_items(const app_config &cfg, i_provider &provider) {
     EXPECT_EQ(std::size_t(46U), file->size);
 #endif
 
-    const auto source_path =
+    auto source_path =
         utils::path::combine(cfg.get_encrypt_config().path, {"sub10"});
     std::string api_path{};
     EXPECT_EQ(api_error::success,
@@ -472,11 +526,58 @@ static void get_directory_items(const app_config &cfg, i_provider &provider) {
 #else
     EXPECT_EQ(std::size_t(45U), file2->size);
 #endif
+    return;
   }
+
+  create_file(provider, "/pt01.txt");
+  create_file(provider, "/pt02.txt");
+  create_directory(provider, "/dir01");
+  create_directory(provider, "/dir02");
+
+  directory_item_list list{};
+  EXPECT_EQ(api_error::success, provider.get_directory_items("/", list));
+  check_forced_dirs(list);
+  EXPECT_GE(list.size(), std::size_t(6U));
+
+  auto iter = std::ranges::find_if(
+      list, [](auto &&item) -> bool { return item.api_path == "/pt01.txt"; });
+  EXPECT_NE(iter, list.end());
+  EXPECT_STREQ("/", (*iter).api_parent.c_str());
+  EXPECT_FALSE((*iter).directory);
+  EXPECT_EQ(std::uint64_t{0U}, (*iter).size);
+
+  iter = std::ranges::find_if(
+      list, [](auto &&item) -> bool { return item.api_path == "/pt02.txt"; });
+  EXPECT_NE(iter, list.end());
+  EXPECT_STREQ("/", (*iter).api_parent.c_str());
+  EXPECT_FALSE((*iter).directory);
+  EXPECT_EQ(std::uint64_t{0U}, (*iter).size);
+
+  iter = std::ranges::find_if(
+      list, [](auto &&item) -> bool { return item.api_path == "/dir01"; });
+  EXPECT_NE(iter, list.end());
+  EXPECT_STREQ("/", (*iter).api_parent.c_str());
+  EXPECT_TRUE((*iter).directory);
+  EXPECT_EQ(std::uint64_t{0U}, (*iter).size);
+
+  iter = std::ranges::find_if(
+      list, [](auto &&item) -> bool { return item.api_path == "/dir02"; });
+  EXPECT_NE(iter, list.end());
+  EXPECT_STREQ("/", (*iter).api_parent.c_str());
+  EXPECT_TRUE((*iter).directory);
+  EXPECT_EQ(std::uint64_t{0U}, (*iter).size);
+
+  EXPECT_EQ(api_error::success, provider.remove_file("/pt01.txt"));
+  EXPECT_EQ(api_error::success, provider.remove_file("/pt02.txt"));
+  EXPECT_EQ(api_error::success, provider.remove_directory("/dir01"));
+  EXPECT_EQ(api_error::success, provider.remove_directory("/dir02"));
 }
 
 static void
 get_directory_items_fails_if_directory_not_found(i_provider &provider) {
+  fmt::println("testing|{}|{}",
+               app_config::get_provider_name(provider.get_provider_type()),
+               __FUNCTION__);
   directory_item_list list{};
   EXPECT_EQ(api_error::directory_not_found,
             provider.get_directory_items("/not_found", list));
@@ -485,8 +586,11 @@ get_directory_items_fails_if_directory_not_found(i_provider &provider) {
 
 static void get_directory_items_fails_if_item_is_file(const app_config &cfg,
                                                       i_provider &provider) {
+  fmt::println("testing|{}|{}",
+               app_config::get_provider_name(provider.get_provider_type()),
+               __FUNCTION__);
   if (provider.get_provider_type() == provider_type::encrypt) {
-    const auto source_path =
+    auto source_path =
         utils::path::combine(cfg.get_encrypt_config().path, {"test.txt"});
 
     std::string api_path{};
@@ -497,12 +601,24 @@ static void get_directory_items_fails_if_item_is_file(const app_config &cfg,
     EXPECT_EQ(api_error::item_exists,
               provider.get_directory_items(api_path, list));
     EXPECT_TRUE(list.empty());
+    return;
   }
+
+  create_file(provider, "/pt01.txt");
+
+  directory_item_list list{};
+  EXPECT_EQ(api_error::item_exists,
+            provider.get_directory_items("/pt01.txt", list));
+
+  EXPECT_EQ(api_error::success, provider.remove_file("/pt01.txt"));
 }
 
 static void get_file(const app_config &cfg, i_provider &provider) {
+  fmt::println("testing|{}|{}",
+               app_config::get_provider_name(provider.get_provider_type()),
+               __FUNCTION__);
   if (provider.get_provider_type() == provider_type::encrypt) {
-    const auto source_path =
+    auto source_path =
         utils::path::combine(cfg.get_encrypt_config().path, {"test.txt"});
 
     std::string api_path{};
@@ -522,18 +638,43 @@ static void get_file(const app_config &cfg, i_provider &provider) {
     EXPECT_EQ(std::size_t(46U), file.file_size);
 #endif
     EXPECT_STREQ(source_path.c_str(), file.source_path.c_str());
+    return;
   }
+
+  create_file(provider, "/pt01.txt");
+
+  api_file file{};
+  EXPECT_EQ(api_error::success, provider.get_file("/pt01.txt", file));
+
+  EXPECT_STREQ("/pt01.txt", file.api_path.c_str());
+  EXPECT_STREQ("/", file.api_parent.c_str());
+  EXPECT_LT(utils::time::get_time_now() - (utils::time::NANOS_PER_SECOND * 5U),
+            file.accessed_date);
+  EXPECT_LT(utils::time::get_time_now() - (utils::time::NANOS_PER_SECOND * 5U),
+            file.changed_date);
+  EXPECT_LT(utils::time::get_time_now() - (utils::time::NANOS_PER_SECOND * 5U),
+            file.creation_date);
+  EXPECT_LT(utils::time::get_time_now() - (utils::time::NANOS_PER_SECOND * 5U),
+            file.modified_date);
+
+  EXPECT_EQ(api_error::success, provider.remove_file("/pt01.txt"));
 }
 
 static void get_file_fails_if_file_not_found(i_provider &provider) {
+  fmt::println("testing|{}|{}",
+               app_config::get_provider_name(provider.get_provider_type()),
+               __FUNCTION__);
   api_file file{};
   EXPECT_EQ(api_error::item_not_found, provider.get_file("/not_found", file));
 }
 
 static void get_file_fails_if_item_is_directory(const app_config &cfg,
                                                 i_provider &provider) {
+  fmt::println("testing|{}|{}",
+               app_config::get_provider_name(provider.get_provider_type()),
+               __FUNCTION__);
   if (provider.get_provider_type() == provider_type::encrypt) {
-    const auto source_path =
+    auto source_path =
         utils::path::combine(cfg.get_encrypt_config().path, {"sub10"});
 
     std::string api_path{};
@@ -542,7 +683,15 @@ static void get_file_fails_if_item_is_directory(const app_config &cfg,
 
     api_file file{};
     EXPECT_EQ(api_error::directory_exists, provider.get_file(api_path, file));
+    return;
   }
+
+  create_directory(provider, "/dir01");
+
+  api_file file{};
+  EXPECT_EQ(api_error::directory_exists, provider.get_file("/dir01", file));
+
+  EXPECT_EQ(api_error::success, provider.remove_directory("/dir01"));
 }
 
 static void get_file_list(const app_config &cfg, i_provider &provider) {
@@ -593,7 +742,6 @@ static void run_tests(const app_config &cfg, i_provider &provider) {
   get_api_path_from_source(cfg, provider);
   get_api_path_from_source_fails_if_file_not_found(cfg, provider);
 
-  // TODO: continue here
   get_directory_items(cfg, provider);
   get_directory_items_fails_if_directory_not_found(provider);
   get_directory_items_fails_if_item_is_file(cfg, provider);
@@ -629,17 +777,16 @@ static void run_tests(const app_config &cfg, i_provider &provider) {
   upload_file(provider); */
 }
 
-TEST(providers, encrypt_provider) {
-  const auto config_path =
-      utils::path::combine(test::get_test_output_dir(), {"encrypt_provider"});
-
+TEST(providers_test, encrypt_provider) {
+  auto config_path = utils::path::combine(test::get_test_output_dir(),
+                                          {"provider", "encrypt"});
   console_consumer consumer{};
   event_system::instance().start();
 
   {
     app_config cfg(provider_type::encrypt, config_path);
 
-    const auto encrypt_path =
+    auto encrypt_path =
         utils::path::combine(test::get_test_input_dir(), {"encrypt"});
 
     EXPECT_STREQ(
@@ -673,9 +820,9 @@ TEST(providers, encrypt_provider) {
   event_system::instance().stop();
 }
 
-TEST(providers, s3_provider) {
-  const auto config_path =
-      utils::path::combine(test::get_test_output_dir(), {"s3_provider"});
+TEST(providers_test, s3_provider) {
+  auto config_path =
+      utils::path::combine(test::get_test_output_dir(), {"provider", "s3"});
 
   console_consumer consumer{};
   event_system::instance().start();
@@ -685,7 +832,7 @@ TEST(providers, s3_provider) {
     {
       app_config src_cfg(
           provider_type::s3,
-          utils::path::combine(test::get_test_config_dir(), {"storj"}));
+          utils::path::combine(test::get_test_config_dir(), {"s3"}));
       cfg.set_s3_config(src_cfg.get_s3_config());
     }
 
@@ -713,9 +860,9 @@ TEST(providers, s3_provider) {
   event_system::instance().stop();
 }
 
-TEST(providers, sia_provider) {
-  const auto config_path =
-      utils::path::combine(test::get_test_output_dir(), {"sia_provider"});
+TEST(providers_test, sia_provider) {
+  auto config_path =
+      utils::path::combine(test::get_test_output_dir(), {"sia", "provider"});
 
   console_consumer consumer{};
   event_system::instance().start();
@@ -753,5 +900,3 @@ TEST(providers, sia_provider) {
   event_system::instance().stop();
 }
 } // namespace repertory
-
-#endif // 0

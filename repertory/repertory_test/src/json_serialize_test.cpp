@@ -25,7 +25,7 @@
 #include "types/repertory.hpp"
 
 namespace repertory {
-TEST(json_serialize, can_handle_directory_item) {
+TEST(json_serialize_test, can_handle_directory_item) {
   directory_item cfg{
       "api", "parent", true, 2U, {{META_DIRECTORY, "true"}},
   };
@@ -47,7 +47,7 @@ TEST(json_serialize, can_handle_directory_item) {
   }
 }
 
-TEST(json_serialize, can_handle_encrypt_config) {
+TEST(json_serialize_test, can_handle_encrypt_config) {
   encrypt_config cfg{
       "token",
       "path",
@@ -65,7 +65,7 @@ TEST(json_serialize, can_handle_encrypt_config) {
   }
 }
 
-TEST(json_serialize, can_handle_host_config) {
+TEST(json_serialize_test, can_handle_host_config) {
   host_config cfg{
       "agent", "pwd", "user", 1024U, "host", "path", "http", 11U,
   };
@@ -94,7 +94,7 @@ TEST(json_serialize, can_handle_host_config) {
   }
 }
 
-TEST(json_serialize, can_handle_remote_config) {
+TEST(json_serialize_test, can_handle_remote_config) {
   remote::remote_config cfg{
       1024U, "token", "host", 11U, 20U, 21U,
   };
@@ -120,7 +120,7 @@ TEST(json_serialize, can_handle_remote_config) {
   }
 }
 
-TEST(json_serialize, can_handle_remote_mount) {
+TEST(json_serialize_test, can_handle_remote_mount) {
   remote::remote_mount cfg{1024U, 21U, true, "token"};
 
   json data(cfg);
@@ -139,7 +139,7 @@ TEST(json_serialize, can_handle_remote_mount) {
   }
 }
 
-TEST(json_serialize, can_handle_s3_config) {
+TEST(json_serialize_test, can_handle_s3_config) {
   s3_config cfg{
       "access", "bucket", "token", "region", "secret", 31U, "url", true, false,
   };
@@ -170,7 +170,7 @@ TEST(json_serialize, can_handle_s3_config) {
   }
 }
 
-TEST(json_serialize, can_handle_sia_config) {
+TEST(json_serialize_test, can_handle_sia_config) {
   sia_config cfg{
       "bucket",
   };
@@ -184,7 +184,7 @@ TEST(json_serialize, can_handle_sia_config) {
   }
 }
 
-TEST(json_serialize, can_handle_atomic) {
+TEST(json_serialize_test, can_handle_atomic) {
   atomic<sia_config> cfg({
       "bucket",
   });
@@ -198,7 +198,7 @@ TEST(json_serialize, can_handle_atomic) {
   }
 }
 
-TEST(json_serialize, can_handle_database_type) {
+TEST(json_serialize_test, can_handle_database_type) {
   json data(database_type::rocksdb);
   EXPECT_EQ(database_type::rocksdb, data.get<database_type>());
   EXPECT_STREQ("rocksdb", data.get<std::string>().c_str());
@@ -208,7 +208,7 @@ TEST(json_serialize, can_handle_database_type) {
   EXPECT_STREQ("sqlite", data.get<std::string>().c_str());
 }
 
-TEST(json_serialize, can_handle_download_type) {
+TEST(json_serialize_test, can_handle_download_type) {
   json data(download_type::direct);
   EXPECT_EQ(download_type::direct, data.get<download_type>());
   EXPECT_STREQ("direct", data.get<std::string>().c_str());
@@ -222,7 +222,33 @@ TEST(json_serialize, can_handle_download_type) {
   EXPECT_STREQ("ring_buffer", data.get<std::string>().c_str());
 }
 
-TEST(json_serialize, can_handle_atomic_database_type) {
+TEST(json_serialize_test, can_handle_event_level) {
+  json data(event_level{event_level::critical});
+  EXPECT_EQ(event_level::critical, data.get<event_level>());
+  EXPECT_STREQ("critical", data.get<std::string>().c_str());
+
+  data = event_level(event_level::error);
+  EXPECT_EQ(event_level::error, data.get<event_level>());
+  EXPECT_STREQ("error", data.get<std::string>().c_str());
+
+  data = event_level(event_level::warn);
+  EXPECT_EQ(event_level::warn, data.get<event_level>());
+  EXPECT_STREQ("warn", data.get<std::string>().c_str());
+
+  data = event_level(event_level::info);
+  EXPECT_EQ(event_level::info, data.get<event_level>());
+  EXPECT_STREQ("info", data.get<std::string>().c_str());
+
+  data = event_level(event_level::debug);
+  EXPECT_EQ(event_level::debug, data.get<event_level>());
+  EXPECT_STREQ("debug", data.get<std::string>().c_str());
+
+  data = event_level(event_level::trace);
+  EXPECT_EQ(event_level::trace, data.get<event_level>());
+  EXPECT_STREQ("trace", data.get<std::string>().c_str());
+}
+
+TEST(json_serialize_test, can_handle_atomic_database_type) {
   json data(atomic<database_type>{database_type::rocksdb});
   EXPECT_EQ(database_type::rocksdb, data.get<atomic<database_type>>());
   EXPECT_STREQ("rocksdb", data.get<std::string>().c_str());
@@ -232,7 +258,7 @@ TEST(json_serialize, can_handle_atomic_database_type) {
   EXPECT_STREQ("sqlite", data.get<std::string>().c_str());
 }
 
-TEST(json_serialize, can_handle_atomic_download_type) {
+TEST(json_serialize_test, can_handle_atomic_download_type) {
   json data(atomic<download_type>{download_type::direct});
   EXPECT_EQ(download_type::direct, data.get<atomic<download_type>>());
   EXPECT_STREQ("direct", data.get<std::string>().c_str());
@@ -244,5 +270,31 @@ TEST(json_serialize, can_handle_atomic_download_type) {
   data = atomic<download_type>{download_type::ring_buffer};
   EXPECT_EQ(download_type::ring_buffer, data.get<atomic<download_type>>());
   EXPECT_STREQ("ring_buffer", data.get<std::string>().c_str());
+}
+
+TEST(json_serialize_test, can_handle_atomic_event_level) {
+  json data(atomic<event_level>{event_level::critical});
+  EXPECT_EQ(event_level::critical, data.get<atomic<event_level>>());
+  EXPECT_STREQ("critical", data.get<std::string>().c_str());
+
+  data = atomic<event_level>(event_level::error);
+  EXPECT_EQ(event_level::error, data.get<atomic<event_level>>());
+  EXPECT_STREQ("error", data.get<std::string>().c_str());
+
+  data = atomic<event_level>(event_level::warn);
+  EXPECT_EQ(event_level::warn, data.get<atomic<event_level>>());
+  EXPECT_STREQ("warn", data.get<std::string>().c_str());
+
+  data = atomic<event_level>(event_level::info);
+  EXPECT_EQ(event_level::info, data.get<atomic<event_level>>());
+  EXPECT_STREQ("info", data.get<std::string>().c_str());
+
+  data = atomic<event_level>(event_level::debug);
+  EXPECT_EQ(event_level::debug, data.get<atomic<event_level>>());
+  EXPECT_STREQ("debug", data.get<std::string>().c_str());
+
+  data = atomic<event_level>(event_level::trace);
+  EXPECT_EQ(event_level::trace, data.get<atomic<event_level>>());
+  EXPECT_STREQ("trace", data.get<std::string>().c_str());
 }
 } // namespace repertory

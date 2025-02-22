@@ -1,7 +1,34 @@
 # Changelog
 
+## v2.0.4-rc
+
+### BREAKING CHANGES
+
+* `renterd` v2.0.0+ is now required. Prior versions will fail to mount.
+
+### Issues
+
+* \#35 [bug] Low frequency check is set to '0' instead of 1 hour by default
+* \#36 [bug] Max cache size bytes is set to '0' by default
+
+### Changes from v2.0.3-rc
+
+* Added Sia API version check prior to mounting
+* Added back `-cv` (check version) CLI option
+* Continue documentation updates
+* Fixed setting `ApiAuth` via `set_value_by_name`
+* Fixed setting `HostConfig.ApiUser` via `set_value_by_name`
+* Fixed setting `HostConfig.Path` via `set_value_by_name`
+* Fixed setting `HostConfig.Protocol` via `set_value_by_name`
+* Improved ring buffer read-ahead
+* Integrated `renterd` version 2.0.0
+* Prefer using local cache file when opening files
+* Refactored `app_config` unit tests
+* Refactored polling to be more accurate on scheduling tasks
+
 ## v2.0.3-rc
 
+<!-- markdownlint-disable-next-line -->
 ### Issues
 
 * \#28 \[bug\] Address slow directory responses in S3 mounts for deeply nested directories

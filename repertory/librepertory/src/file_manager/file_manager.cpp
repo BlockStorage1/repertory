@@ -466,6 +466,13 @@ auto file_manager::open(const std::string &api_path, bool directory,
         return download_type::default_;
       }
 
+      if (utils::file::file{fsi.source_path}.exists()) {
+        auto size = utils::file::file{fsi.source_path}.size();
+        if (size.has_value() && *size == fsi.size) {
+          return download_type::default_;
+        }
+      }
+
       if (type == download_type::direct) {
         return type;
       }

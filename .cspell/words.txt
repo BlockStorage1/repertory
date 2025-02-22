@@ -192,6 +192,7 @@ secp256k1
 secur32
 sfml_project
 shlwapi
+skynet
 source_subdir
 spdlog
 spdlog_project

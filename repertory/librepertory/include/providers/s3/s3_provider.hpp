@@ -113,6 +113,13 @@ protected:
       -> api_error override;
 
 public:
+  [[nodiscard]] auto check_version(std::string &required_version,
+                                   std::string &returned_version) const
+      -> bool override {
+    required_version = returned_version = "";
+    return true;
+  }
+
   [[nodiscard]] static auto convert_api_date(std::string_view date)
       -> std::uint64_t;
 

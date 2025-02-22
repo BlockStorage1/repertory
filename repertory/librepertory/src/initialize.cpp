@@ -50,10 +50,6 @@
 
 namespace repertory {
 auto project_initialize() -> bool {
-  spdlog::drop_all();
-  spdlog::flush_every(std::chrono::seconds(10));
-  spdlog::set_pattern("%Y-%m-%d|%T.%e|%^%l%$|%v");
-
 #if defined(PROJECT_REQUIRE_ALPINE) && !defined(PROJECT_IS_MINGW)
   {
     static constexpr const auto guard_size{4096U};
@@ -68,6 +64,10 @@ auto project_initialize() -> bool {
   }
 #endif // defined(PROJECT_REQUIRE_ALPINE) && !defined (PROJECT_IS_MINGW)
 
+  spdlog::drop_all();
+  spdlog::flush_every(std::chrono::seconds(10));
+  spdlog::set_pattern("%Y-%m-%d|%T.%e|%^%l%$|%v");
+
 #if defined(PROJECT_ENABLE_LIBSODIUM)
   {
     if (sodium_init() == -1) {
@@ -77,7 +77,9 @@ auto project_initialize() -> bool {
 #endif // defined(PROJECT_ENABLE_LIBSODIUM)
 
 #if defined(PROJECT_ENABLE_OPENSSL)
-  { SSL_library_init(); }
+  {
+    SSL_library_init();
+  }
 #endif // defined(PROJECT_ENABLE_OPENSSL)
 
 #if defined(PROJECT_ENABLE_CURL)

@@ -24,7 +24,7 @@
 #include "types/repertory.hpp"
 
 namespace repertory {
-TEST(atomic, atomic_primitive) {
+TEST(atomic_test, atomic_primitive) {
   atomic<std::uint16_t> value;
   value = 5U;
   EXPECT_EQ(5U, static_cast<std::uint16_t>(value));
@@ -35,7 +35,7 @@ TEST(atomic, atomic_primitive) {
   EXPECT_EQ(6U, value.load());
 }
 
-TEST(atomic, atomic_primitive_equality) {
+TEST(atomic_test, atomic_primitive_equality) {
   atomic<std::uint16_t> value1{5U};
   atomic<std::uint16_t> value2{5U};
   EXPECT_EQ(value1, value1);
@@ -45,7 +45,7 @@ TEST(atomic, atomic_primitive_equality) {
   EXPECT_EQ(static_cast<std::uint16_t>(value2), 5U);
 }
 
-TEST(atomic, atomic_primitive_inequality) {
+TEST(atomic_test, atomic_primitive_inequality) {
   atomic<std::uint16_t> value1{5U};
   atomic<std::uint16_t> value2{6U};
   EXPECT_NE(value1, value2);
@@ -53,7 +53,7 @@ TEST(atomic, atomic_primitive_inequality) {
   EXPECT_NE(static_cast<std::uint16_t>(value2), 5U);
 }
 
-TEST(atomic, atomic_struct) {
+TEST(atomic_test, atomic_struct) {
   atomic<encrypt_config> value{
       encrypt_config{
           .encryption_token = "token",

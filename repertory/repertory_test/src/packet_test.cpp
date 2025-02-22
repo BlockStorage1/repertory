@@ -24,7 +24,7 @@
 #include "comm/packet/packet.hpp"
 
 namespace repertory {
-TEST(packet, encrypt_and_decrypt) {
+TEST(packet_test, encrypt_and_decrypt) {
   packet test_packet;
   test_packet.encode("test");
   test_packet.encrypt("moose");

@@ -24,30 +24,27 @@
 
 namespace repertory {
 constexpr const auto default_api_auth_size{48U};
-constexpr const auto default_download_timeout_ces{30U};
+constexpr const auto default_download_timeout_secs{30U};
 constexpr const auto default_eviction_delay_mins{1U};
-constexpr const auto default_high_freq_interval_secs{30U};
-constexpr const auto default_low_freq_interval_secs{0U * 60U};
+constexpr const auto default_high_freq_interval_secs{std::uint16_t{30U}};
+constexpr const auto default_low_freq_interval_secs{std::uint16_t(60U * 60U)};
 constexpr const auto default_max_cache_size_bytes{
-    std::uint64_t(20UL * 1024UL * 1024UL * 1024UL),
+    std::uint64_t(20ULL * 1024ULL * 1024ULL * 1024ULL),
 };
 constexpr const auto default_max_upload_count{5U};
-constexpr const auto default_med_freq_interval_secs{2U * 60U};
+constexpr const auto default_med_freq_interval_secs{std::uint16_t{2U * 60U}};
 constexpr const auto default_online_check_retry_secs{60U};
-constexpr const auto default_orphaned_file_retention_days{15U};
 constexpr const auto default_retry_read_count{6U};
 constexpr const auto default_ring_buffer_file_size{512U};
 constexpr const auto default_task_wait_ms{100U};
 constexpr const auto default_timeout_ms{60000U};
-constexpr const auto max_orphaned_file_retention_days{std::uint16_t(31U)};
 constexpr const auto max_ring_buffer_file_size{std::uint16_t(1024U)};
 constexpr const auto max_s3_object_name_length{1024U};
 constexpr const auto min_cache_size_bytes{
-    std::uint64_t(100UL * 1024UL * 1024UL),
+    std::uint64_t(100ULL * 1024ULL * 1024ULL),
 };
 constexpr const auto min_download_timeout_secs{std::uint8_t(5U)};
 constexpr const auto min_online_check_retry_secs{std::uint16_t(15U)};
-constexpr const auto min_orphaned_file_retention_days{std::uint16_t(1U)};
 constexpr const auto min_retry_read_count{std::uint16_t(2U)};
 constexpr const auto min_ring_buffer_file_size{std::uint16_t(64U)};
 constexpr const auto min_task_wait_ms{std::uint16_t(50U)};
@@ -333,7 +330,6 @@ struct directory_item final {
   bool directory{false};
   std::uint64_t size{};
   api_meta_map meta;
-  bool resolved{false};
 };
 
 struct encrypt_config final {
@@ -493,8 +489,6 @@ inline constexpr const auto JSON_MED_FREQ_INTERVAL_SECS{
 inline constexpr const auto JSON_META{"Meta"};
 inline constexpr const auto JSON_ONLINE_CHECK_RETRY_SECS{
     "OnlineCheckRetrySeconds"};
-inline constexpr const auto JSON_ORPHANED_FILE_RETENTION_DAYS{
-    "OrphanedFileRetentionDays"};
 inline constexpr const auto JSON_PATH{"Path"};
 inline constexpr const auto JSON_PREFERRED_DOWNLOAD_TYPE{
     "PreferredDownloadType"};
@@ -619,6 +613,16 @@ template <typename data_t> struct adl_serializer<repertory::atomic<data_t>> {
   }
 };
 
+template <> struct adl_serializer<std::atomic<std::uint64_t>> {
+  static void to_json(json &data, const std::atomic<std::uint64_t> &value) {
+    data = value.load();
+  }
+
+  static void from_json(const json &data, std::atomic<std::uint64_t> &value) {
+    value.store(data.get<std::uint64_t>());
+  }
+};
+
 template <typename primitive_t>
 struct adl_serializer<std::atomic<primitive_t>> {
   static void to_json(json &data, const std::atomic<primitive_t> &value) {
@@ -639,6 +643,18 @@ template <> struct adl_serializer<std::atomic<repertory::database_type>> {
   static void from_json(const json &data,
                         std::atomic<repertory::database_type> &value) {
     value.store(repertory::database_type_from_string(data.get<std::string>()));
+  }
+};
+
+template <> struct adl_serializer<std::atomic<repertory::event_level>> {
+  static void to_json(json &data,
+                      const std::atomic<repertory::event_level> &value) {
+    data = repertory::event_level_to_string(value.load());
+  }
+
+  static void from_json(const json &data,
+                        std::atomic<repertory::event_level> &value) {
+    value.store(repertory::event_level_from_string(data.get<std::string>()));
   }
 };
 
@@ -674,15 +690,13 @@ template <> struct adl_serializer<repertory::download_type> {
   }
 };
 
-template <> struct adl_serializer<std::atomic<repertory::event_level>> {
-  static void to_json(json &data,
-                      const std::atomic<repertory::event_level> &value) {
-    data = repertory::event_level_to_string(value.load());
+template <> struct adl_serializer<repertory::event_level> {
+  static void to_json(json &data, const repertory::event_level &value) {
+    data = repertory::event_level_to_string(value);
   }
 
-  static void from_json(const json &data,
-                        std::atomic<repertory::event_level> &value) {
-    value.store(repertory::event_level_from_string(data.get<std::string>()));
+  static void from_json(const json &data, repertory::event_level &value) {
+    value = repertory::event_level_from_string(data.get<std::string>());
   }
 };
 NLOHMANN_JSON_NAMESPACE_END

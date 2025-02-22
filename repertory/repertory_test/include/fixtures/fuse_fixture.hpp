@@ -268,8 +268,8 @@ public:
     return file_path;
   }
 
-  static auto create_file_and_test(std::string &file_name,
-                                   mode_t perms) -> std::string {
+  static auto create_file_and_test(std::string &file_name, mode_t perms)
+      -> std::string {
     file_name += std::to_string(++provider_idx);
     auto file_path = utils::path::combine(mount_location, {file_name});
 
@@ -287,7 +287,7 @@ public:
     EXPECT_TRUE(utils::file::file(file_path).exists());
     EXPECT_FALSE(utils::file::directory(file_path).exists());
 
-    struct stat64 unix_st {};
+    struct stat64 unix_st{};
     EXPECT_EQ(0, stat64(file_path.c_str(), &unix_st));
     EXPECT_EQ(getgid(), unix_st.st_gid);
     EXPECT_EQ(getuid(), unix_st.st_uid);
@@ -299,8 +299,8 @@ public:
     return create_file_and_test(file_name, ACCESSPERMS);
   }
 
-  static auto create_directory_and_test(std::string &dir_name,
-                                        mode_t perms) -> std::string {
+  static auto create_directory_and_test(std::string &dir_name, mode_t perms)
+      -> std::string {
     dir_name += std::to_string(++provider_idx);
 
     auto dir_path = utils::path::combine(mount_location, {dir_name});
@@ -309,7 +309,7 @@ public:
     EXPECT_TRUE(utils::file::directory(dir_path).exists());
     EXPECT_FALSE(utils::file::file(dir_path).exists());
 
-    struct stat64 unix_st {};
+    struct stat64 unix_st{};
     EXPECT_EQ(0, stat64(dir_path.c_str(), &unix_st));
     EXPECT_EQ(getgid(), unix_st.st_gid);
     EXPECT_EQ(getuid(), unix_st.st_uid);
@@ -410,9 +410,9 @@ std::string fuse_test<provider_t>::mount_location;
 template <typename provider_t>
 std::string fuse_test<provider_t>::mount_location2;
 
-using fuse_provider_types = ::testing::Types<local_s3, remote_s3>;
-// using fuse_provider_types =
-//     ::testing::Types<local_s3, remote_s3, local_sia, remote_sia>;
+// using fuse_provider_types = ::testing::Types<local_s3, remote_s3>;
+using fuse_provider_types =
+    ::testing::Types<local_s3, remote_s3, local_sia, remote_sia>;
 } // namespace repertory
 
 #endif // !defined(_WIN32)

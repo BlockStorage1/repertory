@@ -23,50 +23,38 @@
 #define REPERTORY_INCLUDE_CLI_CHECK_VERSION_HPP_
 
 #include "app_config.hpp"
+#include "comm/curl/curl_comm.hpp"
+#include "providers/sia/sia_provider.hpp"
 #include "types/repertory.hpp"
 
 namespace repertory::cli::actions {
-[[nodiscard]] inline auto
-check_version(std::vector<const char *> /* args */,
-              const std::string & /* data_directory */,
-              const provider_type & /* pt */, const std::string & /*unique_id*/,
-              std::string /*user*/, std::string /*password*/) -> exit_code {
-  auto ret = exit_code::success;
+[[nodiscard]] inline auto check_version(std::vector<const char *> /* args */,
+                                        const std::string &data_directory,
+                                        const provider_type &prov,
+                                        const std::string & /*unique_id*/,
+                                        std::string /*user*/,
+                                        std::string /*password*/) -> exit_code {
+  if (prov != provider_type::sia) {
+    fmt::println("Success:\n\tNo specific version is required for {} providers",
+                 app_config::get_provider_display_name(prov));
+    return exit_code::success;
+  }
 
-  // TODO need to updated way to check version
-  // if (not((pt == provider_type::remote) || (pt == provider_type::s3))) {
-  //   app_config config(pt, data_directory);
-  //   curl_comm comm(config);
-  //   json data, err;
-  //
-  //   if (comm.get("/daemon/version", data, err) == api_error::success) {
-  //     const auto res = utils::compare_version_strings(
-  //         data["version"].get<std::string>(),
-  //         app_config::get_provider_minimum_version(pt));
-  //     if (res < 0) {
-  //       ret = exit_code::incompatible_version;
-  //       std::cerr << "Failed!" << std::endl;
-  //       std::cerr << "   Actual: " << data["version"].get<std::string>()
-  //                 << std::endl;
-  //       std::cerr << "  Minimum: "
-  //                 << app_config::get_provider_minimum_version(pt) <<
-  //                 std::endl;
-  //     } else {
-  //       std::cout << "Success!" << std::endl;
-  //       std::cout << "   Actual: " << data["version"].get<std::string>()
-  //                 << std::endl;
-  //       std::cout << "  Minimum: "
-  //                 << app_config::get_provider_minimum_version(pt) <<
-  //                 std::endl;
-  //     }
-  //   } else {
-  //     std::cerr << "Failed!" << std::endl;
-  //     std::cerr << err.dump(2) << std::endl;
-  //     ret = exit_code::communication_error;
-  //   }
-  // }
+  app_config config(prov, data_directory);
+  curl_comm comm(config.get_host_config());
+  sia_provider provider(config, comm);
 
-  return ret;
+  std::string required_version;
+  std::string returned_version;
+  if (provider.check_version(required_version, returned_version)) {
+    fmt::println("Success:\n\tRequired: {}\n\tActual: {}", required_version,
+                 returned_version);
+    return exit_code::success;
+  }
+
+  fmt::println("Failed:\n\tRequired: {}\n\tActual: {}", required_version,
+               returned_version);
+  return exit_code::incompatible_version;
 }
 } // namespace repertory::cli::actions
 

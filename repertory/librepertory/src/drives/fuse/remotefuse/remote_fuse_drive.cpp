@@ -43,8 +43,8 @@
 #include "utils/utils.hpp"
 
 namespace repertory::remote_fuse {
-auto remote_fuse_drive::access_impl(std::string api_path,
-                                    int mask) -> api_error {
+auto remote_fuse_drive::access_impl(std::string api_path, int mask)
+    -> api_error {
   return utils::to_api_error(
       remote_instance_->fuse_access(api_path.c_str(), mask));
 }
@@ -62,8 +62,8 @@ auto remote_fuse_drive::chmod_impl(std::string api_path, mode_t mode,
                                    struct fuse_file_info * /*f_info*/)
     -> api_error {
 #else
-auto remote_fuse_drive::chmod_impl(std::string api_path,
-                                   mode_t mode) -> api_error {
+auto remote_fuse_drive::chmod_impl(std::string api_path, mode_t mode)
+    -> api_error {
 #endif
   return utils::to_api_error(remote_instance_->fuse_chmod(
       api_path.c_str(), static_cast<remote::file_mode>(mode)));
@@ -74,8 +74,8 @@ auto remote_fuse_drive::chown_impl(std::string api_path, uid_t uid, gid_t gid,
                                    struct fuse_file_info * /*f_info*/)
     -> api_error {
 #else
-auto remote_fuse_drive::chown_impl(std::string api_path, uid_t uid,
-                                   gid_t gid) -> api_error {
+auto remote_fuse_drive::chown_impl(std::string api_path, uid_t uid, gid_t gid)
+    -> api_error {
 #endif
   return utils::to_api_error(
       remote_instance_->fuse_chown(api_path.c_str(), uid, gid));
@@ -94,7 +94,7 @@ void remote_fuse_drive::destroy_impl(void *ptr) {
   REPERTORY_USES_FUNCTION_NAME();
 
   event_system::instance().raise<drive_unmount_pending>(function_name,
-                                                         get_mount_location());
+                                                        get_mount_location());
 
   if (server_) {
     server_->stop();
@@ -116,14 +116,15 @@ void remote_fuse_drive::destroy_impl(void *ptr) {
   }
 
   event_system::instance().raise<drive_unmounted>(function_name,
-                                                   get_mount_location());
+                                                  get_mount_location());
 
   fuse_base::destroy_impl(ptr);
 }
 
-auto remote_fuse_drive::fgetattr_impl(
-    std::string api_path, struct stat *unix_st,
-    struct fuse_file_info *f_info) -> api_error {
+auto remote_fuse_drive::fgetattr_impl(std::string api_path,
+                                      struct stat *unix_st,
+                                      struct fuse_file_info *f_info)
+    -> api_error {
   remote::stat r_stat{};
   auto directory = false;
 
@@ -184,8 +185,8 @@ auto remote_fuse_drive::getattr_impl(std::string api_path, struct stat *unix_st,
                                      struct fuse_file_info * /*f_info*/)
     -> api_error {
 #else
-auto remote_fuse_drive::getattr_impl(std::string api_path,
-                                     struct stat *unix_st) -> api_error {
+auto remote_fuse_drive::getattr_impl(std::string api_path, struct stat *unix_st)
+    -> api_error {
 #endif
   bool directory = false;
   remote::stat r_stat{};
@@ -263,14 +264,14 @@ auto remote_fuse_drive::init_impl(struct fuse_conn_info *conn) -> void * {
     server_ = std::make_shared<server>(config_);
     server_->start();
     event_system::instance().raise<drive_mounted>(function_name,
-                                                   get_mount_location());
+                                                  get_mount_location());
   }
 
   return ret;
 }
 
-auto remote_fuse_drive::mkdir_impl(std::string api_path,
-                                   mode_t mode) -> api_error {
+auto remote_fuse_drive::mkdir_impl(std::string api_path, mode_t mode)
+    -> api_error {
   return utils::to_api_error(remote_instance_->fuse_mkdir(
       api_path.c_str(), static_cast<remote::file_mode>(mode)));
 }
@@ -295,8 +296,9 @@ auto remote_fuse_drive::open_impl(std::string api_path,
       f_info->fh));
 }
 
-auto remote_fuse_drive::opendir_impl(
-    std::string api_path, struct fuse_file_info *f_info) -> api_error {
+auto remote_fuse_drive::opendir_impl(std::string api_path,
+                                     struct fuse_file_info *f_info)
+    -> api_error {
   if ((f_info->flags & O_APPEND) == O_APPEND ||
       (f_info->flags & O_EXCL) == O_EXCL) {
     return api_error::directory_exists;
@@ -309,12 +311,14 @@ auto remote_fuse_drive::opendir_impl(
 void remote_fuse_drive::populate_stat(const remote::stat &r_stat,
                                       bool directory, struct stat &unix_st) {
   std::memset(&unix_st, 0, sizeof(struct stat));
-  unix_st.st_blksize = r_stat.st_blksize;
-  unix_st.st_blocks = static_cast<blkcnt_t>(r_stat.st_blocks);
+  unix_st.st_blksize =
+      static_cast<decltype(unix_st.st_blksize)>(r_stat.st_blksize);
+  unix_st.st_blocks =
+      static_cast<decltype(unix_st.st_blocks)>(r_stat.st_blocks);
   unix_st.st_gid = r_stat.st_gid;
   unix_st.st_mode = (directory ? S_IFDIR : S_IFREG) | r_stat.st_mode;
   unix_st.st_nlink = r_stat.st_nlink;
-  unix_st.st_size = static_cast<off_t>(r_stat.st_size);
+  unix_st.st_size = static_cast<decltype(unix_st.st_size)>(r_stat.st_size);
   unix_st.st_uid = r_stat.st_uid;
 
 #if defined(__APPLE__)
@@ -373,14 +377,18 @@ auto remote_fuse_drive::read_impl(std::string api_path, char *buffer,
 }
 
 #if FUSE_USE_VERSION >= 30
-auto remote_fuse_drive::readdir_impl(
-    std::string api_path, void *buf, fuse_fill_dir_t fuse_fill_dir,
-    off_t offset, struct fuse_file_info *f_info,
-    fuse_readdir_flags /*flags*/) -> api_error {
+auto remote_fuse_drive::readdir_impl(std::string api_path, void *buf,
+                                     fuse_fill_dir_t fuse_fill_dir,
+                                     off_t offset,
+                                     struct fuse_file_info *f_info,
+                                     fuse_readdir_flags /*flags*/)
+    -> api_error {
 #else
-auto remote_fuse_drive::readdir_impl(
-    std::string api_path, void *buf, fuse_fill_dir_t fuse_fill_dir,
-    off_t offset, struct fuse_file_info *f_info) -> api_error {
+auto remote_fuse_drive::readdir_impl(std::string api_path, void *buf,
+                                     fuse_fill_dir_t fuse_fill_dir,
+                                     off_t offset,
+                                     struct fuse_file_info *f_info)
+    -> api_error {
 #endif
   std::string item_path;
   int res = 0;
@@ -408,14 +416,16 @@ auto remote_fuse_drive::readdir_impl(
   return utils::to_api_error(res);
 }
 
-auto remote_fuse_drive::release_impl(
-    std::string api_path, struct fuse_file_info *f_info) -> api_error {
+auto remote_fuse_drive::release_impl(std::string api_path,
+                                     struct fuse_file_info *f_info)
+    -> api_error {
   return utils::to_api_error(
       remote_instance_->fuse_release(api_path.c_str(), f_info->fh));
 }
 
-auto remote_fuse_drive::releasedir_impl(
-    std::string api_path, struct fuse_file_info *f_info) -> api_error {
+auto remote_fuse_drive::releasedir_impl(std::string api_path,
+                                        struct fuse_file_info *f_info)
+    -> api_error {
   return utils::to_api_error(
       remote_instance_->fuse_releasedir(api_path.c_str(), f_info->fh));
 }
@@ -512,8 +522,8 @@ api_error remote_fuse_drive::statfs_x_impl(std::string api_path,
   return utils::to_api_error(res);
 }
 #else  // __APPLE__
-auto remote_fuse_drive::statfs_impl(std::string api_path,
-                                    struct statvfs *stbuf) -> api_error {
+auto remote_fuse_drive::statfs_impl(std::string api_path, struct statvfs *stbuf)
+    -> api_error {
   auto res = statvfs(config_.get_data_directory().c_str(), stbuf);
   if (res == 0) {
     remote::statfs r_stat{};
@@ -540,8 +550,8 @@ auto remote_fuse_drive::truncate_impl(std::string api_path, off_t size,
                                       struct fuse_file_info * /*f_info*/)
     -> api_error {
 #else
-auto remote_fuse_drive::truncate_impl(std::string api_path,
-                                      off_t size) -> api_error {
+auto remote_fuse_drive::truncate_impl(std::string api_path, off_t size)
+    -> api_error {
 #endif
   return utils::to_api_error(remote_instance_->fuse_truncate(
       api_path.c_str(), static_cast<remote::file_offset>(size)));
@@ -552,9 +562,10 @@ auto remote_fuse_drive::unlink_impl(std::string api_path) -> api_error {
 }
 
 #if FUSE_USE_VERSION >= 30
-auto remote_fuse_drive::utimens_impl(
-    std::string api_path, const struct timespec tv[2],
-    struct fuse_file_info * /*f_info*/) -> api_error {
+auto remote_fuse_drive::utimens_impl(std::string api_path,
+                                     const struct timespec tv[2],
+                                     struct fuse_file_info * /*f_info*/)
+    -> api_error {
 #else
 auto remote_fuse_drive::utimens_impl(std::string api_path,
                                      const struct timespec tv[2]) -> api_error {
