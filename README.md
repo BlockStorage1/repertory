@@ -7,8 +7,8 @@ on Windows.
 
 1. [Details and Features](#details-and-features)
 2. [Minimum Requirements](#minimum-requirements)
-3. [Supported Operating Systems](#supported-operating-systems)
-4. [Usage](#usage)
+   * [Supported Operating Systems](#supported-operating-systems)
+3. [Usage](#usage)
    1. [Important Options](#important-options)
    2. [Sia](#sia)
       * [Sia Initial Configuration](#sia-initial-configuration)
@@ -18,20 +18,20 @@ on Windows.
       * [S3 Initial Configuration](#s3-initial-configuration)
       * [S3 Mounting](#s3-mounting)
       * [S3 Configuration File](#s3-configuration-file)
-5. [Data Directories](#data-directories)
+4. [Data Directories](#data-directories)
    1. [Linux Directories](#linux-directories)
    2. [Windows Directories](#windows-directories)
-6. [Remote Mounting](#remote-mounting)
+5. [Remote Mounting](#remote-mounting)
    1. [Server Setup](#server-setup)
       * [Remote Mount Configuration File Section](#remote-mount-configuration-file-section)
    2. [Client Setup](#client-setup)
       * [Client Remote Mounting](#client-remote-mounting)
       * [Remote Mount Configuration File](#remote-mount-configuration-file)
-7. [Compiling](#compiling)
+6. [Compiling](#compiling)
    1. [Linux Compilation](#linux-compilation)
    2. [Windows Setup](#windows-compilation)
-8. [Credits](#credits)
-9. [Developer Public Key](#developer-public-key)
+7. [Credits](#credits)
+8. [Developer Public Key](#developer-public-key)
 
 ## Details and Features
 
@@ -43,14 +43,14 @@ on Windows.
 
 ## Minimum Requirements
 
-Only 64-bit operating systems are supported
-
 * [Sia renterd](https://github.com/SiaFoundation/renterd/releases) v2.0.0+ for Sia support
 * Linux requires `fusermount3`; otherwise, `repertory` must be manually compiled with `libfuse2` support
 * Windows requires the following dependencies to be installed:
   * [WinFSP 2023](https://github.com/winfsp/winfsp/releases/download/v2.0/winfsp-2.0.23075.msi)
 
-## Supported Operating Systems
+### Supported Operating Systems
+
+Only 64-bit operating systems are supported
 
 * Linux `arm64/aarch64`
 * Linux `amd64`
@@ -284,7 +284,7 @@ or over the internet. This option is referred to as remote mounting.
 
 ### Server Setup
 
-The followings steps must be performed on the mount you wish to share with
+The following steps must be performed on the mount you wish to share with
 other systems. Changes to configuration will not take affect while a mount is
 active, so it is recommended to unmount beforehand.
 
