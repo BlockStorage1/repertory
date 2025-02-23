@@ -3,6 +3,36 @@
 Repertory allows you to mount S3 and Sia via FUSE on Linux or via WinFSP
 on Windows.
 
+## Table of Contents
+
+1. [Details and Features](#details-and-features)
+2. [Minimum Requirements](#minimum-requirements)
+3. [Supported Operating Systems](#supported-operating-systems)
+4. [Usage](#usage)
+   1. [Important Options](#important-options)
+   2. [Sia](#sia)
+      * [Sia Initial Configuration](#sia-initial-configuration)
+      * [Sia Mounting](#sia-mounting)
+      * [Sia Configuration File](#sia-configuration-file)
+   3. [S3](#s3)
+      * [S3 Initial Configuration](#s3-initial-configuration)
+      * [S3 Mounting](#s3-mounting)
+      * [S3 Configuration File](#s3-configuration-file)
+5. [Data Directories](#data-directories)
+   1. [Linux Directories](#linux-directories)
+   2. [Windows Directories](#windows-directories)
+6. [Remote Mounting](#remote-mounting)
+   1. [Server Setup](#server-setup)
+      * [Remote Mount Configuration File Section](#remote-mount-configuration-file-section)
+   2. [Client Setup](#client-setup)
+      * [Client Remote Mounting](#client-remote-mounting)
+      * [Remote Mount Configuration File](#remote-mount-configuration-file)
+7. [Compiling](#compiling)
+   1. [Linux Compilation](#linux-compilation)
+   2. [Windows Setup](#windows-compilation)
+8. [Credits](#credits)
+9. [Developer Public Key](#developer-public-key)
+
 ## Details and Features
 
 * Optimized for [Plex Media Server](https://www.plex.tv/)
@@ -50,7 +80,7 @@ Only 64-bit operating systems are supported
 
 ### Sia
 
-#### Initial Configuration
+#### Sia Initial Configuration
 
 * Required steps:
   * Set the appropriate bucket name and `renterd` API password in `repertory` configuration:
@@ -80,7 +110,7 @@ Only 64-bit operating systems are supported
     * Example:
       * `repertory --name default -dc`
 
-#### Mounting
+#### Sia Mounting
 
 * Linux:
   * `repertory /mnt/location`
@@ -94,7 +124,7 @@ Only 64-bit operating systems are supported
     * Example:
       * `repertory --name default t:`
 
-#### Sia configuration file
+#### Sia Configuration File
 
 ```json
 {
@@ -144,7 +174,7 @@ Only 64-bit operating systems are supported
 ### S3
 
 <!-- markdownlint-disable-next-line -->
-#### Initial Configuration
+#### S3 Initial Configuration
 
 * Required steps:
   * Set the appropriate base URL:
@@ -172,7 +202,7 @@ Only 64-bit operating systems are supported
       * `repertory -s3 --name minio -dc`
 
 <!-- markdownlint-disable-next-line -->
-#### Mounting
+#### S3 Mounting
 
 * Linux:
   * `repertory -s3 --name '<my config name>' /mnt/location`
@@ -184,7 +214,7 @@ Only 64-bit operating systems are supported
     * Example:
       * `repertory -s3 --name minio t:`
 
-#### S3 configuration file
+#### S3 Configuration File
 
 ```json
 {
@@ -231,12 +261,12 @@ Only 64-bit operating systems are supported
 
 ### Data Directories
 
-#### Linux
+#### Linux Directories
 
 * `~/.local/repertory2/s3`
 * `~/.local/repertory2/sia`
 
-#### Windows
+#### Windows Directories
 
 * `%LOCALAPPDATA%\repertory2\s3`
 * `%LOCALAPPDATA%\repertory2\sia`
@@ -252,7 +282,7 @@ Only 64-bit operating systems are supported
 `repertory` allows local mounts to be shared with other computers on your network
 or over the internet. This option is referred to as remote mounting.
 
-### Server setup
+### Server Setup
 
 The followings steps must be performed on the mount you wish to share with
 other systems. Changes to configuration will not take affect while a mount is
@@ -283,7 +313,7 @@ active, so it is recommended to unmount beforehand.
 * IMPORTANT:
   * Be sure to configure your firewall to allow incoming TCP connections on the port configured in `RemoteMount.Port`.
 
-#### Remote mount portion of configuration file
+#### Remote Mount Configuration File Section
 
 ```json
 {
@@ -298,7 +328,7 @@ active, so it is recommended to unmount beforehand.
 }
 ```
 
-### Client setup
+### Client Setup
 
 Client configuration is provider agnostic, so there's no need to specify `-s3`
 for S3 providers.
@@ -313,7 +343,7 @@ for S3 providers.
       * `repertory -rm my.host.com:20000 -set RemoteConfig.EncryptionToken '<my secure password>'`
 
 <!-- markdownlint-disable-next-line -->
-#### Mounting
+#### Client Remote Mounting
 
 * Linux:
   * `repertory -rm <host name or IP>:<port> /mnt/location`
@@ -325,7 +355,7 @@ for S3 providers.
     * Example:
       * `repertory -rm 192.168.1.10:20000 t:`
 
-#### Remote mount configuration file
+#### Remote Mount Configuration File
 ```json
 {
   "ApiAuth": "<random generated rpc password>",
@@ -352,7 +382,7 @@ Successful compilation will result in all files required for execution to be pla
 in the `dist/` directory
 
 <!-- markdownlint-disable-next-line -->
-### Linux
+### Linux Compilation
 
 * Ensure `docker` is installed
   * For x86_64:
@@ -366,7 +396,7 @@ in the `dist/` directory
     * Debug: `scripts/make_unix.sh aarch64 Debug`
 
 <!-- markdownlint-disable-next-line -->
-### Windows
+### Windows Compilation
 
 * OFFICIAL: Cross-compiling on Linux
   * Ensure `docker` is installed
