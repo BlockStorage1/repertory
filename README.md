@@ -94,7 +94,7 @@ Only 64-bit operating systems are supported
       * `repertory --name '<my config name>' -set SiaConfig.Bucket '<my bucket name>'`
 
 * Optional steps:
-  * Set a custom user name used for basic authentication:
+  * Set a user name used during `renterd` basic authentication:
     * `repertory -set HostConfig.ApiUser '<my user>'`
     * `repertory --name '<my config name>' -set HostConfig.ApiUser '<my user>'`
   * Set a custom agent string (default `Sia-Agent`):
