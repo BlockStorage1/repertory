@@ -30,28 +30,45 @@ on Windows.
 
 ### Sia
 
-* Initial Configuration
-  * Sia steps:
-    * Set the appropriate bucket name and `renterd` API password in `repertory` configuration:
-      * To use `default` as the bucket name and configuration name:
-        * `repertory -set HostConfig.ApiPassword '<my password>'`
-      * To use a different bucket name with `default` as the configuration name:
-        * `repertory -set HostConfig.ApiPassword '<my password>'`
-        * `repertory -set SiaConfig.Bucket '<my bucket>'`
-      * For all other configurations:
-        * `repertory --name '<my config name>' -set HostConfig.ApiPassword '<my password>'`
-        * `repertory --name '<my config name>' -set SiaConfig.Bucket '<my bucket name>'`
-  * To verify/view all configuration options:
-    * `repertory -dc`
-    * `repertory --name '<my config name>' -dc`
-      * Example:
-        * `repertory --name default -dc`
-* Mounting on Linux:
+#### Initial Configuration
+
+* Required steps:
+  * Set the appropriate bucket name and `renterd` API password in `repertory` configuration:
+    * To use `default` as the bucket name and configuration name, you only need to set the `renterd` API password:
+      * `repertory -set HostConfig.ApiPassword '<my password>'`
+    * To specify a different bucket name while using `default` as the configuration name:
+      * `repertory -set HostConfig.ApiPassword '<my password>'`
+      * `repertory -set SiaConfig.Bucket '<my bucket>'`
+    * For all other configurations:
+      * `repertory --name '<my config name>' -set HostConfig.ApiPassword '<my password>'`
+      * `repertory --name '<my config name>' -set SiaConfig.Bucket '<my bucket name>'`
+
+* Optional steps:
+  * Set a custom user name used for basic authentication:
+    * `repertory -set HostConfig.ApiUser '<my user>'`
+    * `repertory --name '<my config name>' -set HostConfig.ApiUser '<my user>'`
+  * Set the `renterd` API port to a value other than `9980`:
+    * `repertory -set HostConfig.ApiPort 9981`
+    * `repertory --name '<my config name>' -set HostConfig.ApiPort 9981`
+  * Set a custom agent string:
+    * `repertory -set HostConfig.AgentString '<my agent>'`
+    * `repertory --name '<my config name>' -set HostConfig.AgentString '<my agent>'`
+
+* To verify/view all configuration options:
+  * `repertory -dc`
+  * `repertory --name '<my config name>' -dc`
+    * Example:
+      * `repertory --name default -dc`
+
+#### Mounting
+
+* Linux:
   * `repertory /mnt/location`
   * `repertory --name '<my config name>' /mnt/location`
     * Example:
       * `repertory --name default /mnt/location`
-* Mounting on Windows:
+
+* Windows:
   * `repertory t:`
   * `repertory --name '<my config name>' t:`
     * Example:
@@ -59,47 +76,61 @@ on Windows.
 
 ### S3
 
-* Initial Configuration
-  * S3 steps:
-    * Set the appropriate base URL:
-      * `repertory -s3 --name '<my config name>' -set S3Config.URL '<my url>'`
-        * Example:
-          * `repertory -s3 --name minio -set S3Config.URL 'http://localhost:9000'`
-    * Set the appropriate bucket name:
-      * `repertory -s3 --name '<my config name>' -set S3Config.Bucket '<my bucket name>'`
-    * Set the appropriate access key:
-      * `repertory -s3 --name '<my config name>' -set S3Config.AccessKey '<my access key>'`
-    * Set the appropriate secret key:
-      * `repertory -s3 --name '<my config name>' -set S3Config.SecretKey '<my secret key>'`
-    * For Sia and most local S3 gateway instances, enable path style URL's:
-      * `repertory -s3 --name '<my config name>' -set S3Config.UsePathStyle true`
-    * Optional steps:
-      * Set an appropriate region. Default is set to `any`:
-        * `repertory -s3 --name '<my config name>' -set S3Config.Region '<my region>'`
-      * Enable encrypted file names and file data. Set a strong, random encryption token and be sure to store it in a secure backup location:
-        * `repertory -s3 --name '<my config name>' -set S3Config.EncryptionToken '<my strong password>'`
-  * To verify/view all configuration options:
-    * `repertory -s3 --name '<my config name>' -dc`
+<!-- markdownlint-disable-next-line -->
+#### Initial Configuration
+
+* Required steps:
+  * Set the appropriate base URL:
+    * `repertory -s3 --name '<my config name>' -set S3Config.URL '<my url>'`
       * Example:
-        * `repertory -s3 --name minio -dc`
-* Mounting on Linux:
+        * `repertory -s3 --name minio -set S3Config.URL 'http://localhost:9000'`
+  * Set the appropriate bucket name:
+    * `repertory -s3 --name '<my config name>' -set S3Config.Bucket '<my bucket name>'`
+  * Set the appropriate access key:
+    * `repertory -s3 --name '<my config name>' -set S3Config.AccessKey '<my access key>'`
+  * Set the appropriate secret key:
+    * `repertory -s3 --name '<my config name>' -set S3Config.SecretKey '<my secret key>'`
+  * For Sia and most local S3 gateway instances, enable path style URL's:
+    * `repertory -s3 --name '<my config name>' -set S3Config.UsePathStyle true`
+
+* Optional steps:
+  * Set an appropriate region. Default is set to `any`:
+    * `repertory -s3 --name '<my config name>' -set S3Config.Region '<my region>'`
+  * Enable encrypted file names and file data. Set a strong, random encryption token and be sure to store it in a secure backup location:
+    * `repertory -s3 --name '<my config name>' -set S3Config.EncryptionToken '<my strong password>'`
+
+* To verify/view all configuration options:
+  * `repertory -s3 --name '<my config name>' -dc`
+    * Example:
+      * `repertory -s3 --name minio -dc`
+
+<!-- markdownlint-disable-next-line -->
+#### Mounting
+
+* Linux:
   * `repertory -s3 --name '<my config name>' /mnt/location`
     * Example:
       * `repertory -s3 --name minio /mnt/location`
-* Mounting on Windows:
+
+* Windows:
   * `repertory -s3 --name '<my config name>' t:`
     * Example:
       * `repertory -s3 --name minio t:`
 
-### Notable Options
+### Common Options
 
 * `--help`
   * Display all mount utility options
+
+* `-f`
+  * Keep process in foreground on Linux.
+
 * `--name, -na [name]`
   * The `--name` option can be set to any valid value allowed as a file name for your filesystem.
   * For Sia, the bucket name will be set to the same value if it is empty in the configuration file.
     * If the `--name` option is not specified, `default` will be used.
   * For S3, the `--name` option is required and does not affect the bucket name.
+
 * `-dc`
   * Display mount configuration
   * For Sia, `--name` is optional
@@ -107,15 +138,18 @@ on Windows.
 
 ### Data Directories
 
-* Linux
-  * `~/.local/repertory2`
-* Windows
-  * `%LOCALAPPDATA%\repertory2`
-    * Example:
-      * `C:\Users\Tom\AppData\Local\repertory2`
-    * IMPORTANT:
-      * It is highly recommended to exclude this folder from any anti-virus/anti-malware applications as severe performance issues may arise.
-      * Excluding the mounted drive letter is also highly recommended.
+#### Linux
+
+* `~/.local/repertory2`
+
+#### Windows
+
+* `%LOCALAPPDATA%\repertory2`
+  * Example:
+    * `C:\Users\Tom\AppData\Local\repertory2`
+  * IMPORTANT:
+    * It is highly recommended to exclude this folder from any anti-virus/anti-malware applications as severe performance issues may arise.
+    * Excluding the mounted drive letter is also highly recommended.
 
 ## Remote Mounting
 
@@ -124,28 +158,37 @@ This option is referred to as remote mounting. Instructions TBD.
 
 ## Compiling
 
-* Successful compilation will result in all required files being placed in the `dist/` directory
-* Linux
+Successful compilation will result in all files required for execution to be placed
+in the `dist/` directory
+
+<!-- markdownlint-disable-next-line -->
+### Linux
+
+* Ensure `docker` is installed
+  * For x86_64:
+    * RelWithDebInfo: `scripts/make_unix.sh`
+    * Release: `scripts/make_unix.sh x86_64 Release`
+    * Debug: `scripts/make_unix.sh x86_64 Debug`
+
+  * For aarch64:
+    * RelWithDebInfo: `scripts/make_unix.sh aarch64`
+    * Release: `scripts/make_unix.sh aarch64 Release`
+    * Debug: `scripts/make_unix.sh aarch64 Debug`
+
+<!-- markdownlint-disable-next-line -->
+### Windows
+
+* OFFICIAL: Cross-compiling on Linux
   * Ensure `docker` is installed
-    * For x86_64:
-      * RelWithDebInfo: `scripts/make_unix.sh`
-      * Release: `scripts/make_unix.sh x86_64 Release`
-      * Debug: `scripts/make_unix.sh x86_64 Debug`
-    * For aarch64:
-      * RelWithDebInfo: `scripts/make_unix.sh aarch64`
-      * Release: `scripts/make_unix.sh aarch64 Release`
-      * Debug: `scripts/make_unix.sh aarch64 Debug`
-* Windows
-  * OFFICIAL: Cross-compiling on Linux
-    * Ensure `docker` is installed
-      * RelWithDebInfo: `scripts/make_win32.sh`
-      * Release: `scripts/make_win32.sh x86_64 Release`
-      * Debug: `scripts/make_win32.sh x86_64 Debug`
-  * UNOFFICIAL: Compiling on Windows
-    * Ensure latest [MSYS2](https://www.msys2.org/) is installed
-      * RelWithDebInfo: `scripts\make_win32.cmd`
-      * Release: `scripts\make_win32.cmd x86_64 Release`
-      * Debug: `scripts\make_win32.cmd x86_64 Debug`
+    * RelWithDebInfo: `scripts/make_win32.sh`
+    * Release: `scripts/make_win32.sh x86_64 Release`
+    * Debug: `scripts/make_win32.sh x86_64 Debug`
+
+* UNOFFICIAL: Compiling on Windows
+  * Ensure latest [MSYS2](https://www.msys2.org/) is installed
+    * RelWithDebInfo: `scripts\make_win32.cmd`
+    * Release: `scripts\make_win32.cmd x86_64 Release`
+    * Debug: `scripts\make_win32.cmd x86_64 Debug`
 
 ## Credits
 
