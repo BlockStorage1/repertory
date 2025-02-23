@@ -32,6 +32,7 @@ on Windows.
    2. [Windows Setup](#windows-compilation)
 8. [Credits](#credits)
 9. [Developer Public Key](#developer-public-key)
+   * [download](https://git.fifthgrid.com/BlockStorage/repertory/raw/branch/master/developer.pub)
 
 ## Details and Features
 
