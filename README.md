@@ -280,8 +280,8 @@ active, so it is recommended to unmount beforehand.
     * S3:
       * `repertory -s3 --name '<my config name>' -set RemoteMount.Port 20000`
 
-IMPORTANT: Be sure to configure your firewall to allow incoming TCP connections
-on the port configured in `RemoteMount.Port`.
+* IMPORTANT:
+  * Be sure to configure your firewall to allow incoming TCP connections on the port configured in `RemoteMount.Port`.
 
 #### Remote mount portion of configuration file
 
