@@ -176,7 +176,6 @@ Only 64-bit operating systems are supported
 
 ### S3
 
-<!-- markdownlint-disable-next-line -->
 #### S3 Initial Configuration
 
 * Required steps:
@@ -204,7 +203,6 @@ Only 64-bit operating systems are supported
     * Example:
       * `repertory -s3 --name minio -dc`
 
-<!-- markdownlint-disable-next-line -->
 #### S3 Mounting
 
 * Linux:
@@ -345,7 +343,6 @@ for S3 providers.
       * `repertory -rm 192.168.1.10:20000 -set RemoteConfig.EncryptionToken '<my secure password>'`
       * `repertory -rm my.host.com:20000 -set RemoteConfig.EncryptionToken '<my secure password>'`
 
-<!-- markdownlint-disable-next-line -->
 #### Client Remote Mounting
 
 * Linux:
@@ -359,6 +356,7 @@ for S3 providers.
       * `repertory -rm 192.168.1.10:20000 t:`
 
 #### Remote Mount Configuration File
+
 ```json
 {
   "ApiAuth": "<random generated rpc password>",
@@ -384,7 +382,6 @@ for S3 providers.
 Successful compilation will result in all files required for execution to be placed
 in the `dist/` directory
 
-<!-- markdownlint-disable-next-line -->
 ### Linux Compilation
 
 * Ensure `docker` is installed
@@ -398,7 +395,6 @@ in the `dist/` directory
     * Release: `scripts/make_unix.sh aarch64 Release`
     * Debug: `scripts/make_unix.sh aarch64 Debug`
 
-<!-- markdownlint-disable-next-line -->
 ### Windows Compilation
 
 * OFFICIAL: Cross-compiling on Linux
