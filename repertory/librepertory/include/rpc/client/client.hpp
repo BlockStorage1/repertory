@@ -48,9 +48,9 @@ public:
 
   [[nodiscard]] auto get_pinned_files() -> rpc_response;
 
-  [[nodiscard]] auto pin_file(const std::string &api_file) -> rpc_response;
+  [[nodiscard]] auto pin_file(const std::string &api_path) -> rpc_response;
 
-  [[nodiscard]] auto pinned_status(const std::string &api_file) -> rpc_response;
+  [[nodiscard]] auto pinned_status(const std::string &api_path) -> rpc_response;
 
   [[nodiscard]] auto set_config_value_by_name(const std::string &name,
                                               const std::string &value)
@@ -58,7 +58,7 @@ public:
 
   [[nodiscard]] auto unmount() -> rpc_response;
 
-  [[nodiscard]] auto unpin_file(const std::string &api_file) -> rpc_response;
+  [[nodiscard]] auto unpin_file(const std::string &api_path) -> rpc_response;
 };
 } // namespace repertory
 

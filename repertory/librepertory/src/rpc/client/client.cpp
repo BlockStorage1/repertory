@@ -22,8 +22,6 @@
 #include "rpc/client/client.hpp"
 
 #include "types/repertory.hpp"
-#include "utils/base64.hpp"
-#include "utils/utils.hpp"
 
 namespace repertory {
 client::client(rpc_host_info host_info) : host_info_(std::move(host_info)) {}
