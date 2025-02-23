@@ -6,19 +6,19 @@ on Windows.
 ## Details and Features
 
 * Optimized for [Plex Media Server](https://www.plex.tv/)
-* Single application to mount S3 and/or Sia
-* Remote mounting of Repertory instances on Linux and Windows
+* Remote mounting of `repertory` instances on Linux and Windows
   * Securely share your mounts over TCP/IP via `XChaCha20-Poly1305` with other systems on your network or over the internet.
 * Cross-platform support (Linux 64-bit, Linux arm64/aarch64, Windows 64-bit)
 * Optionally encrypt file names and file data via `XChaCha20-Poly1305` in S3 mounts
 
 ## Minimum Requirements
 
+Only 64-bit operating systems are supported
+
 * [Sia renterd](https://github.com/SiaFoundation/renterd/releases) v2.0.0+ for Sia support
-* Only 64-bit operating systems are supported
-  * By default, Linux requires `fusermount3`; otherwise, `repertory` must be manually compiled with `libfuse2` support
-  * Windows requires the following dependencies to be installed:
-    * [WinFSP 2023](https://github.com/winfsp/winfsp/releases/download/v2.0/winfsp-2.0.23075.msi)
+* Linux requires `fusermount3`; otherwise, `repertory` must be manually compiled with `libfuse2` support
+* Windows requires the following dependencies to be installed:
+  * [WinFSP 2023](https://github.com/winfsp/winfsp/releases/download/v2.0/winfsp-2.0.23075.msi)
 
 ## Supported Operating Systems
 
@@ -27,6 +27,26 @@ on Windows.
 * Windows 64-bit 10, 11
 
 ## Usage
+
+### Important Options
+
+* `--help`
+  * Display all mount utility options
+
+* `-f`
+  * Keep process in foreground on Linux.
+
+* `--name, -na [name]`
+  * Identifies a unique configuration name to support multiple mounts.
+  * The `--name` option can be set to any valid value allowed as a file name for your filesystem.
+  * For Sia, the bucket name will be set to the same value if it is empty in the configuration file.
+    * If the `--name` option is not specified, `default` will be used.
+  * For S3, the `--name` option is required and does not affect the bucket name.
+
+* `-dc`
+  * Display mount configuration
+  * For Sia, `--name` is optional
+  * For S3, the `-s3` option is required along with `--name`
 
 ### Sia
 
@@ -74,6 +94,53 @@ on Windows.
     * Example:
       * `repertory --name default t:`
 
+#### Sia configuration file
+
+```json
+{
+  "ApiAuth": "<random generated rpc password>",
+  "ApiPort": 10000,
+  "ApiUser": "repertory",
+  "DatabaseType": "rocksdb",
+  "DownloadTimeoutSeconds": 30,
+  "EnableDownloadTimeout": true,
+  "EnableDriveEvents": false,
+  "EventLevel": "info",
+  "EvictionDelayMinutes": 1,
+  "EvictionUseAccessedTime": false,
+  "HighFreqIntervalSeconds": 30,
+  "HostConfig": {
+    "AgentString": "Sia-Agent",
+    "ApiPassword": "<renterd api password>",
+    "ApiPort": 9980,
+    "ApiUser": "",
+    "HostNameOrIp": "localhost",
+    "Path": "",
+    "Protocol": "http",
+    "TimeoutMs": 60000
+  },
+  "LowFreqIntervalSeconds": 3600,
+  "MaxCacheSizeBytes": 21474836480,
+  "MaxUploadCount": 5,
+  "MedFreqIntervalSeconds": 120,
+  "OnlineCheckRetrySeconds": 60,
+  "PreferredDownloadType": "default",
+  "RemoteMount": {
+    "ApiPort": 20000,
+    "ClientPoolSize": 20,
+    "Enable": false,
+    "EncryptionToken": ""
+  },
+  "RetryReadCount": 6,
+  "RingBufferFileSize": 512,
+  "SiaConfig": {
+    "Bucket": "default"
+  },
+  "TaskWaitMs": 100,
+  "Version": 1
+}
+```
+
 ### S3
 
 <!-- markdownlint-disable-next-line -->
@@ -117,44 +184,164 @@ on Windows.
     * Example:
       * `repertory -s3 --name minio t:`
 
-### Common Options
+#### S3 configuration file
 
-* `--help`
-  * Display all mount utility options
-
-* `-f`
-  * Keep process in foreground on Linux.
-
-* `--name, -na [name]`
-  * The `--name` option can be set to any valid value allowed as a file name for your filesystem.
-  * For Sia, the bucket name will be set to the same value if it is empty in the configuration file.
-    * If the `--name` option is not specified, `default` will be used.
-  * For S3, the `--name` option is required and does not affect the bucket name.
-
-* `-dc`
-  * Display mount configuration
-  * For Sia, `--name` is optional
-  * For S3, the `-s3` option is required along with `--name`
+```json
+{
+  "ApiAuth": "<random generated rpc password>",
+  "ApiPort": 10100,
+  "ApiUser": "repertory",
+  "DatabaseType": "rocksdb",
+  "DownloadTimeoutSeconds": 30,
+  "EnableDownloadTimeout": true,
+  "EnableDriveEvents": false,
+  "EventLevel": "info",
+  "EvictionDelayMinutes": 1,
+  "EvictionUseAccessedTime": false,
+  "HighFreqIntervalSeconds": 30,
+  "LowFreqIntervalSeconds": 3600,
+  "MaxCacheSizeBytes": 21474836480,
+  "MaxUploadCount": 5,
+  "MedFreqIntervalSeconds": 120,
+  "OnlineCheckRetrySeconds": 60,
+  "PreferredDownloadType": "default",
+  "RemoteMount": {
+    "ApiPort": 20100,
+    "ClientPoolSize": 20,
+    "Enable": false,
+    "EncryptionToken": ""
+  },
+  "RetryReadCount": 6,
+  "RingBufferFileSize": 512,
+  "S3Config": {
+    "AccessKey": "<my access key>",
+    "Bucket": "<my bucket name>",
+    "EncryptionToken": "",
+    "Region": "any",
+    "SecretKey": "<my secret_key key>",
+    "TimeoutMs": 60000,
+    "URL": "http://localhost:9000",
+    "UsePathStyle": true,
+    "UseRegionInURL": false
+  },
+  "TaskWaitMs": 100,
+  "Version": 1
+}
+```
 
 ### Data Directories
 
 #### Linux
 
-* `~/.local/repertory2`
+* `~/.local/repertory2/s3`
+* `~/.local/repertory2/sia`
 
 #### Windows
 
-* `%LOCALAPPDATA%\repertory2`
-  * Example:
-    * `C:\Users\Tom\AppData\Local\repertory2`
-  * IMPORTANT:
-    * It is highly recommended to exclude this folder from any anti-virus/anti-malware applications as severe performance issues may arise.
-    * Excluding the mounted drive letter is also highly recommended.
+* `%LOCALAPPDATA%\repertory2\s3`
+* `%LOCALAPPDATA%\repertory2\sia`
+  * Examples:
+    * `C:\Users\Tom\AppData\Local\repertory2\s3`
+    * `C:\Users\Tom\AppData\Local\repertory2\sia`
+* IMPORTANT:
+  * It is highly recommended to exclude this folder from any anti-virus/anti-malware applications as severe performance issues may arise.
+  * Excluding the mounted drive letter is also highly recommended.
 
 ## Remote Mounting
 
-`Repertory` allows local mounts to be shared with other computers on your network.
-This option is referred to as remote mounting. Instructions TBD.
+`repertory` allows local mounts to be shared with other computers on your network
+or over the internet. This option is referred to as remote mounting.
+
+### Server setup
+
+The followings steps must be performed on the mount you wish to share with
+other systems. Changes to configuration will not take affect while a mount is
+active, so it is recommended to unmount beforehand.
+
+* Required steps:
+  * Enable remote mount:
+    * Sia
+      * `repertory -set RemoteMount.Enable true`
+      * `repertory --name '<my config name>' -set RemoteMount.Enable true`
+    * S3:
+      * `repertory -s3 --name '<my config name>' -set RemoteMount.Enable true`
+  * Set a secure encryption token:
+    * Sia:
+      * `repertory -set RemoteMount.EncryptionToken '<my secure password>'`
+      * `repertory --name '<my config name>' -set RemoteMount.EncryptionToken '<my secure password>'`
+    * S3:
+      * `repertory -s3 --name '<my config name>' -set RemoteMount.EncryptionToken '<my secure password>'`
+
+* Optional steps:
+  * Change the port clients will use to connect to your mount:
+    * Sia:
+      * `repertory -set RemoteMount.Port 20000`
+      * `repertory --name '<my config name>' -set RemoteMount.Port 20000`
+    * S3:
+      * `repertory -s3 --name '<my config name>' -set RemoteMount.Port 20000`
+
+#### Remote mount portion of configuration file
+
+```json
+{
+  ...
+  "RemoteMount": {
+    "ApiPort": 20000,
+    "ClientPoolSize": 20,
+    "Enable": true,
+    "EncryptionToken": "<my secure password>"
+  },
+  ...
+}
+```
+
+### Client setup
+
+Client configuration is provider agnostic, so there's no need to specify `-s3`
+for S3 providers.
+
+* Required steps:
+  * Set the encryption token to the same value configured during server setup:
+    * `repertory -rm <host name or IP>:<port> -set RemoteConfig.EncryptionToken '<my secure password>'`
+      * Replace `<host name or IP>` with the host name or IP of the server
+      * Replace `<port>` with the value of `RemoteMount.Port` used in the server configuration
+    * Example:
+      * `repertory -rm 192.168.1.10:20000 -set RemoteConfig.EncryptionToken '<my secure password>'`
+      * `repertory -rm my.host.com:20000 -set RemoteConfig.EncryptionToken '<my secure password>'`
+
+<!-- markdownlint-disable-next-line -->
+#### Mounting
+
+* Linux:
+  * `repertory -rm <host name or IP>:<port> /mnt/location`
+    * Example:
+      * `repertory -rm 192.168.1.10:20000 /mnt/location`
+
+* Windows:
+  * `repertory -rm <host name or IP>:<port> t:`
+    * Example:
+      * `repertory -rm 192.168.1.10:20000 t:`
+
+#### Remote mount configuration file
+```json
+{
+  "ApiAuth": "<random generated rpc password>",
+  "ApiPort": 10010,
+  "ApiUser": "repertory",
+  "EnableDriveEvents": false,
+  "EventLevel": "info",
+  "RemoteConfig": {
+    "ApiPort": 20000,
+    "EncryptionToken": "<my secure password>",
+    "HostNameOrIp": "192.168.1.10",
+    "MaxConnections": 20,
+    "ReceiveTimeoutMs": 120000,
+    "SendTimeoutMs": 30000
+  },
+  "TaskWaitMs": 100,
+  "Version": 1
+}
+```
 
 ## Compiling
 
