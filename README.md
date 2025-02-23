@@ -97,12 +97,15 @@ Only 64-bit operating systems are supported
   * Set a custom user name used for basic authentication:
     * `repertory -set HostConfig.ApiUser '<my user>'`
     * `repertory --name '<my config name>' -set HostConfig.ApiUser '<my user>'`
-  * Set the `renterd` API port to a value other than `9980`:
-    * `repertory -set HostConfig.ApiPort 9981`
-    * `repertory --name '<my config name>' -set HostConfig.ApiPort 9981`
-  * Set a custom agent string:
+  * Set a custom agent string (default `Sia-Agent`):
     * `repertory -set HostConfig.AgentString '<my agent>'`
     * `repertory --name '<my config name>' -set HostConfig.AgentString '<my agent>'`
+  * Set the host name or IP of the `renterd` instance (default `localhost`):
+    * `repertory -set HostConfig.HostNameOrIp '<my host name>'`
+    * `repertory --name '<my config name>' -set HostConfig.HostNameOrIp '<my host name>'`
+  * Set the `renterd` API port (default `9980`):
+    * `repertory -set HostConfig.ApiPort 9981`
+    * `repertory --name '<my config name>' -set HostConfig.ApiPort 9981`
 
 * To verify/view all configuration options:
   * `repertory -dc`
