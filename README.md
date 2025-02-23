@@ -218,7 +218,7 @@ Only 64-bit operating systems are supported
     "Bucket": "<my bucket name>",
     "EncryptionToken": "",
     "Region": "any",
-    "SecretKey": "<my secret_key key>",
+    "SecretKey": "<my secret key>",
     "TimeoutMs": 60000,
     "URL": "http://localhost:9000",
     "UsePathStyle": true,
@@ -279,6 +279,9 @@ active, so it is recommended to unmount beforehand.
       * `repertory --name '<my config name>' -set RemoteMount.Port 20000`
     * S3:
       * `repertory -s3 --name '<my config name>' -set RemoteMount.Port 20000`
+
+IMPORTANT: Be sure to configure your firewall to allow incoming TCP connections
+on the port configured in `RemoteMount.Port`.
 
 #### Remote mount portion of configuration file
 
