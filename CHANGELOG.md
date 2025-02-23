@@ -10,7 +10,7 @@
 
 ### Changes from v2.0.4-rc
 
-* TBD
+* Continue documentation updates
 
 ## v2.0.4-rc
 
