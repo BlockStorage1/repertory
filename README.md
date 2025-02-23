@@ -7,7 +7,7 @@ on Windows.
 
 1. [Details and Features](#details-and-features)
 2. [Minimum Requirements](#minimum-requirements)
-   * [Supported Operating Systems](#supported-operating-systems)
+   1. [Supported Operating Systems](#supported-operating-systems)
 3. [Usage](#usage)
    1. [Important Options](#important-options)
    2. [Sia](#sia)
