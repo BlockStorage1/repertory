@@ -32,7 +32,7 @@ on Windows.
    2. [Windows Setup](#windows-compilation)
 7. [Credits](#credits)
 8. [Developer Public Key](#developer-public-key)
-9. [Consult the Wiki for more detailed information](/wiki/Home)
+9. [Consult the Wiki for more detailed information](https://git.fifthgrid.com/BlockStorage/repertory/wiki)
 
 ## Details and Features
 
