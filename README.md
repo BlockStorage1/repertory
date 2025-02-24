@@ -307,13 +307,13 @@ active, so it is recommended to unmount beforehand.
 * Optional steps:
   * Change the port clients will use to connect to your mount:
     * Sia:
-      * `repertory -set RemoteMount.Port 20000`
-      * `repertory --name '<my config name>' -set RemoteMount.Port 20000`
+      * `repertory -set RemoteMount.ApiPort 20000`
+      * `repertory --name '<my config name>' -set RemoteMount.ApiPort 20000`
     * S3:
-      * `repertory -s3 --name '<my config name>' -set RemoteMount.Port 20000`
+      * `repertory -s3 --name '<my config name>' -set RemoteMount.ApiPort 20000`
 
 * IMPORTANT:
-  * Be sure to configure your firewall to allow incoming TCP connections on the port configured in `RemoteMount.Port`.
+  * Be sure to configure your firewall to allow incoming TCP connections on the port configured in `RemoteMount.ApiPort`.
 
 #### Remote Mount Configuration File Section
 
@@ -339,7 +339,7 @@ for S3 providers.
   * Set the encryption token to the same value configured during server setup:
     * `repertory -rm <host name or IP>:<port> -set RemoteConfig.EncryptionToken '<my secure password>'`
       * Replace `<host name or IP>` with the host name or IP of the server
-      * Replace `<port>` with the value of `RemoteMount.Port` used in the server configuration
+      * Replace `<port>` with the value of `RemoteMount.ApiPort` used in the server configuration
     * Example:
       * `repertory -rm 192.168.1.10:20000 -set RemoteConfig.EncryptionToken '<my secure password>'`
       * `repertory -rm my.host.com:20000 -set RemoteConfig.EncryptionToken '<my secure password>'`
