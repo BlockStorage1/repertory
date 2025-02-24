@@ -3,7 +3,7 @@
 Repertory allows you to mount S3 and Sia via FUSE on Linux or via WinFSP
 on Windows.
 
-## Table of Contents
+## Contents
 
 1. [Details and Features](#details-and-features)
 2. [Minimum Requirements](#minimum-requirements)
@@ -32,6 +32,7 @@ on Windows.
    2. [Windows Setup](#windows-compilation)
 7. [Credits](#credits)
 8. [Developer Public Key](#developer-public-key)
+9. [Consult the Wiki for more detailed information](wiki/)
 
 ## Details and Features
 
