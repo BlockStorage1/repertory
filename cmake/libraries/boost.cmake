@@ -120,11 +120,11 @@ if(PROJECT_ENABLE_BOOST)
           --with-libraries=atomic,chrono,date_time,filesystem,iostreams,locale,log,program_options,random,regex,serialization,system,test,thread
         BUILD_COMMAND
           ./b2
-          -j1
+          -j$ENV{CMAKE_BUILD_PARALLEL_LEVEL}
           ${BOOST_BUILD_ARGS}
         INSTALL_COMMAND
           ./b2
-          -j1
+          -j$ENV{CMAKE_BUILD_PARALLEL_LEVEL}
           ${BOOST_BUILD_ARGS}
           install
       )

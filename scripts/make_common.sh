@@ -34,10 +34,11 @@ if [ "${PROJECT_BUILD_CLEAN}" == "clean" ]; then
   popd
 fi
 
-make -j${NUM_JOBS} || exit 1
+export CMAKE_BUILD_PARALLEL_LEVEL=${NUM_JOBS}
+make || exit 1
 
 pushd build
-make -j${NUM_JOBS} || exit 1
+make -j${CMAKE_BUILD_PARALLEL_LEVEL} || exit 1
 popd
 popd
 
