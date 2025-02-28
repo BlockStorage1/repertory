@@ -18,6 +18,8 @@ fi
 ln -sf "${PROJECT_BUILD_DIR}/build/compile_commands.json" "${PROJECT_SOURCE_DIR}/compile_commands.json"
 
 pushd "${PROJECT_BUILD_DIR}"
+export CMAKE_BUILD_PARALLEL_LEVEL=${NUM_JOBS}
+
 cmake "${PROJECT_SOURCE_DIR}" \
   -G"Unix Makefiles" \
   -DPROJECT_COMPANY_NAME="${PROJECT_COMPANY_NAME}" \
@@ -34,7 +36,6 @@ if [ "${PROJECT_BUILD_CLEAN}" == "clean" ]; then
   popd
 fi
 
-export CMAKE_BUILD_PARALLEL_LEVEL=${NUM_JOBS}
 make || exit 1
 
 pushd build
