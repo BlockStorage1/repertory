@@ -131,15 +131,6 @@ inline const spdlog_exception_handler default_exception_handler{};
 inline const iostream_exception_handler default_exception_handler{};
 #endif // defined(PROJECT_ENABLE_SPDLOG) && defined(PROJECT_ENABLE_V2_ERRORS)
 
-#if defined(PROJECT_ENABLE_TESTING)
-extern std::atomic<const i_exception_handler *> exception_handler;
-
-[[nodiscard]] inline auto get_exception_handler()
-    -> const i_exception_handler * {
-  return exception_handler;
-}
-#endif // defined(PROJECT_ENABLE_TESTING)
-
 #if defined(PROJECT_ENABLE_V2_ERRORS)
 void handle_debug(std::string_view function_name, std::string_view msg);
 #endif // defined(PROJECT_ENABLE_V2_ERRORS)
@@ -159,6 +150,15 @@ void handle_warn(std::string_view function_name, std::string_view msg);
 #endif // defined(PROJECT_ENABLE_V2_ERRORS)
 
 void set_exception_handler(const i_exception_handler *handler);
+
+#if defined(PROJECT_ENABLE_TESTING)
+extern std::atomic<const i_exception_handler *> exception_handler;
+
+[[nodiscard]] inline auto get_exception_handler()
+    -> const i_exception_handler * {
+  return exception_handler;
+}
+#endif // defined(PROJECT_ENABLE_TESTING)
 } // namespace repertory::utils::error
 
 #endif // REPERTORY_INCLUDE_UTILS_ERROR_HPP_

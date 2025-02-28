@@ -59,7 +59,7 @@ PROJECT_DOWNLOADS[PKG_CONFIG]="https://pkgconfig.freedesktop.org/releases/pkg-co
 PROJECT_DOWNLOADS[PUGIXML]="https://github.com/zeux/pugixml/releases/download/v${PROJECT_VERSIONS[PUGIXML]}/pugixml-${PROJECT_VERSIONS[PUGIXML]}.tar.gz;pugixml-${PROJECT_VERSIONS[PUGIXML]}.tar.gz;3rd_party"
 PROJECT_DOWNLOADS[ROCKSDB]="https://github.com/facebook/rocksdb/archive/refs/tags/v${PROJECT_VERSIONS[ROCKSDB]}.tar.gz;rocksdb-${PROJECT_VERSIONS[ROCKSDB]}.tar.gz;3rd_party"
 PROJECT_DOWNLOADS[SPDLOG]="https://github.com/gabime/spdlog/archive/refs/tags/v${PROJECT_VERSIONS[SPDLOG]}.tar.gz;spdlog-${PROJECT_VERSIONS[SPDLOG]}.tar.gz;3rd_party"
-PROJECT_DOWNLOADS[SQLITE]="https://www.sqlite.org/2024/sqlite-amalgamation-${PROJECT_VERSIONS[SQLITE]}.zip;sqlite-amalgamation-${PROJECT_VERSIONS[SQLITE]}.zip;3rd_party"
+PROJECT_DOWNLOADS[SQLITE]="https://www.sqlite.org/2025/sqlite-amalgamation-${PROJECT_VERSIONS[SQLITE]}.zip;sqlite-amalgamation-${PROJECT_VERSIONS[SQLITE]}.zip;3rd_party"
 PROJECT_DOWNLOADS[STDUUID]="https://github.com/mariusbancila/stduuid/archive/refs/tags/v${PROJECT_VERSIONS[STDUUID]}.tar.gz;stduuid-${PROJECT_VERSIONS[STDUUID]}.tar.gz;3rd_party"
 PROJECT_DOWNLOADS[ZLIB]="https://github.com/madler/zlib/archive/refs/tags/v${PROJECT_VERSIONS[ZLIB]}.tar.gz;zlib-${PROJECT_VERSIONS[ZLIB]}.tar.gz;3rd_party/mingw64"
 export PROJECT_DOWNLOADS

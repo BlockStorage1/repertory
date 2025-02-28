@@ -79,6 +79,11 @@ EOF
   fi
 done
 
+if [ -f "${PROJECT_SOURCE_DIR}/web/${PROJECT_NAME}/pubspec.yaml" ]; then
+  rsync -av --progress "${PROJECT_SOURCE_DIR}/web/${PROJECT_NAME}/build/web/" \
+    "${PROJECT_DIST_DIR}/web/"
+fi
+
 if [ "${PROJECT_IS_MINGW}" == "1" ]; then
   . "${PROJECT_SCRIPTS_DIR}/copy_mingw64_deps.sh" "$1" "$2" "$3" "$4" "$5"
 fi

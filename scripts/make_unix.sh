@@ -9,6 +9,8 @@ if [ -f "${PROJECT_SCRIPTS_DIR}/cleanup.sh" ]; then
   rm ${PROJECT_SCRIPTS_DIR}/cleanup.*
 fi
 
+"${PROJECT_SOURCE_DIR}/scripts/make_flutter.sh" "${PROJECT_BUILD_ARCH}" "${PROJECT_CMAKE_BUILD_TYPE}" "${PROJECT_BUILD_CLEAN}" 0 0 || exit 1
+
 if [ "${PROJECT_REQUIRE_ALPINE}" == "ON" ] || [ "${PROJECT_IS_ARM64}" == "1" ]; then
   DOCKER_NAME=alpine
   DOCKER_CONTAINER=${PROJECT_NAME}_${DOCKER_NAME}_${PROJECT_BUILD_ARCH}
