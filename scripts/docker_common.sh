@@ -1,8 +1,9 @@
 #!/bin/bash
 
-# if [ "${PROJECT_BUILD_ARCH}" == "aarch64" ]; then
-#   docker run --rm --privileged multiarch/qemu-user-static --reset -p yes
-# fi
+if [ "${PROJECT_BUILD_ARCH}" == "aarch64" ] &&
+  [ "${PROJECT_ENABLE_MULTIARCH_DOCKER}" == "1" ]; then
+  docker run --rm --privileged multiarch/qemu-user-static --reset -p yes
+fi
 
 if [ "${DOCKER_NAME}" == "mingw64" ]; then
   APP_VERSION_BUILD_ARGS=${PROJECT_MINGW64_DOCKER_BUILD_ARGS}
