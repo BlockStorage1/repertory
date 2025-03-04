@@ -93,7 +93,7 @@ class _MyHomePageState extends State<MyHomePage> {
               return AlertDialog(
                 title: const Text('Add Mount'),
                 content: Consumer<MountList>(
-                  builder: (context, mountList, widget) {
+                  builder: (_, mountList, __) {
                     return AddMountWidget(
                       allowEncrypt:
                           !mountList.items.contains(
@@ -120,7 +120,7 @@ class _MyHomePageState extends State<MyHomePage> {
             },
           );
         },
-        tooltip: 'Add',
+        tooltip: 'Add Mount',
         child: const Icon(Icons.add),
       ),
     );

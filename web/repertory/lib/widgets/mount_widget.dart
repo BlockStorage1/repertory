@@ -20,7 +20,7 @@ class _MountWidgetState extends State<MountWidget> {
   Widget build(BuildContext context) {
     return Card(
       child: Consumer<Mount>(
-        builder: (context, mount, widget) {
+        builder: (context, mount, _) {
           final textColor = Theme.of(context).colorScheme.onSurface;
           final subTextColor =
               Theme.of(context).brightness == Brightness.dark

@@ -15,7 +15,7 @@ class _MountListWidgetState extends State<MountListWidget> {
   @override
   Widget build(BuildContext context) {
     return Consumer<MountList>(
-      builder: (context, mountList, widget) {
+      builder: (context, mountList, _) {
         return ListView.builder(
           itemBuilder: (context, idx) {
             return ChangeNotifierProvider(
