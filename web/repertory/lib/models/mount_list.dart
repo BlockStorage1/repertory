@@ -49,7 +49,9 @@ class MountList with ChangeNotifier {
   Future<void> add(String type, String name) async {
     await http.post(
       Uri.parse(
-        Uri.encodeFull('${Uri.base.origin}/api/v1/mount?name=$name&type=$type'),
+        Uri.encodeFull(
+          '${Uri.base.origin}/api/v1/add_mount?name=$name&type=$type',
+        ),
       ),
     );
 
