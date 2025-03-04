@@ -7,6 +7,7 @@
 * ~~\#12 [Unit Test] Complete all providers unit tests~~
 * ~~\#21 [Unit Test] Complete WinFSP unit tests~~
 * ~~\#22 [Unit Test] Complete FUSE unit tests~~
+* \#39 Create management portal in Flutter
 
 ### Changes from v2.0.4-rc
 
