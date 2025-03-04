@@ -4,6 +4,7 @@ import 'package:repertory/constants.dart' as constants;
 import 'package:repertory/helpers.dart';
 import 'package:repertory/models/mount.dart';
 import 'package:repertory/models/mount_list.dart';
+import 'package:repertory/widgets/add_mount_widget.dart';
 import 'package:repertory/widgets/mount_list_widget.dart';
 import 'package:repertory/widgets/mount_settings.dart';
 
@@ -85,7 +86,40 @@ class _MyHomePageState extends State<MyHomePage> {
         child: MountListWidget(),
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: () {},
+        onPressed: () {
+          showDialog(
+            context: context,
+            builder: (BuildContext context) {
+              return AlertDialog(
+                title: const Text('Add Mount'),
+                content: Consumer<MountList>(
+                  builder: (context, mountList, widget) {
+                    return AddMountWidget(
+                      allowEncrypt:
+                          !mountList.items.contains(
+                            (item) => item.type == "encrypt",
+                          ),
+                    );
+                  },
+                ),
+                actions: [
+                  TextButton(
+                    child: const Text('Cancel'),
+                    onPressed: () {
+                      Navigator.of(context).pop();
+                    },
+                  ),
+                  TextButton(
+                    child: const Text('Add'),
+                    onPressed: () {
+                      Navigator.of(context).pop();
+                    },
+                  ),
+                ],
+              );
+            },
+          );
+        },
         tooltip: 'Add',
         child: const Icon(Icons.add),
       ),
