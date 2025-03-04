@@ -144,9 +144,7 @@ class _MyHomePageState extends State<MyHomePage> {
                                     });
                                   })
                                   .catchError((_) {
-                                    setState(() {
-                                      _allowAdd = true;
-                                    });
+                                    setState(() => _allowAdd = true);
                                   });
 
                               Navigator.of(context).pop();
