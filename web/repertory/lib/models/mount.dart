@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:repertory/helpers.dart';
 import 'package:repertory/types/mount_config.dart';
 
 class Mount with ChangeNotifier {
@@ -18,7 +19,7 @@ class Mount with ChangeNotifier {
   Future<void> _fetch() async {
     final response = await http.get(
       Uri.parse(
-        Uri.encodeFull('${Uri.base.origin}/api/v1/mount?name=$name&type=$type'),
+        Uri.encodeFull('${getBaseUri()}/api/v1/mount?name=$name&type=$type'),
       ),
     );
 
@@ -35,7 +36,7 @@ class Mount with ChangeNotifier {
     final response = await http.get(
       Uri.parse(
         Uri.encodeFull(
-          '${Uri.base.origin}/api/v1/mount_status?name=$name&type=$type',
+          '${getBaseUri()}/api/v1/mount_status?name=$name&type=$type',
         ),
       ),
     );
@@ -52,7 +53,7 @@ class Mount with ChangeNotifier {
     await http.post(
       Uri.parse(
         Uri.encodeFull(
-          '${Uri.base.origin}/api/v1/mount?unmount=$unmount&name=$name&type=$type&location=$location',
+          '${getBaseUri()}/api/v1/mount?unmount=$unmount&name=$name&type=$type&location=$location',
         ),
       ),
     );
@@ -69,7 +70,7 @@ class Mount with ChangeNotifier {
     await http.put(
       Uri.parse(
         Uri.encodeFull(
-          '${Uri.base.origin}/api/v1/set_value_by_name?name=$name&type=$type&key=$key&value=$value',
+          '${getBaseUri()}/api/v1/set_value_by_name?name=$name&type=$type&key=$key&value=$value',
         ),
       ),
     );

@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:collection/collection.dart';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
+import 'package:repertory/helpers.dart';
 import 'package:repertory/types/mount_config.dart';
 
 class MountList with ChangeNotifier {
@@ -16,7 +17,7 @@ class MountList with ChangeNotifier {
 
   Future<void> _fetch() async {
     final response = await http.get(
-      Uri.parse('${Uri.base.origin}/api/v1/mount_list'),
+      Uri.parse('${getBaseUri()}/api/v1/mount_list'),
     );
 
     if (response.statusCode == 200) {
@@ -50,7 +51,7 @@ class MountList with ChangeNotifier {
     await http.post(
       Uri.parse(
         Uri.encodeFull(
-          '${Uri.base.origin}/api/v1/add_mount?name=$name&type=$type',
+          '${getBaseUri()}/api/v1/add_mount?name=$name&type=$type',
         ),
       ),
     );
