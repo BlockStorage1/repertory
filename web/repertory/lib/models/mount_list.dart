@@ -3,7 +3,6 @@ import 'dart:convert';
 import 'package:collection/collection.dart';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
-import 'package:repertory/errors/duplicate_mount_exception.dart';
 import 'package:repertory/types/mount_config.dart';
 
 class MountList with ChangeNotifier {
@@ -47,16 +46,14 @@ class MountList with ChangeNotifier {
     });
   }
 
-  void add(MountConfig config) {
-    var item = _mountList.firstWhereOrNull((cfg) => cfg.name == config.name);
-    if (item != null) {
-      throw DuplicateMountException(name: config.name);
-    }
+  Future<void> add(String type, String name) async {
+    await http.post(
+      Uri.parse(
+        Uri.encodeFull('${Uri.base.origin}/api/v1/mount?name=$name&type=$type'),
+      ),
+    );
 
-    _mountList.add(config);
-    _sort(_mountList);
-
-    notifyListeners();
+    return _fetch();
   }
 
   void remove(String name) {

@@ -73,6 +73,10 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
+  bool _allowAdd = true;
+  String _mountType = "S3";
+  String _mountName = "";
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -86,40 +90,74 @@ class _MyHomePageState extends State<MyHomePage> {
         child: MountListWidget(),
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          showDialog(
-            context: context,
-            builder: (BuildContext context) {
-              return AlertDialog(
-                title: const Text('Add Mount'),
-                content: Consumer<MountList>(
-                  builder: (_, mountList, __) {
-                    return AddMountWidget(
-                      allowEncrypt:
-                          !mountList.items.contains(
-                            (item) => item.type == "encrypt",
+        onPressed:
+            _allowAdd
+                ? () {
+                  showDialog(
+                    context: context,
+                    builder: (BuildContext context) {
+                      return AlertDialog(
+                        title: const Text('Add Mount'),
+                        content: Consumer<MountList>(
+                          builder: (_, mountList, __) {
+                            return AddMountWidget(
+                              allowEncrypt:
+                                  !mountList.items.contains(
+                                    (item) => item.type == "encrypt",
+                                  ),
+                              mountName: _mountName,
+                              mountType: _mountType,
+                              onNameChanged:
+                                  (mountName) => setState(
+                                    () => _mountName = mountName ?? "",
+                                  ),
+                              onTypeChanged:
+                                  (mountType) => setState(
+                                    () => _mountType = mountType ?? "S3",
+                                  ),
+                            );
+                          },
+                        ),
+                        actions: [
+                          TextButton(
+                            child: const Text('Cancel'),
+                            onPressed: () {
+                              setState(() {
+                                _mountType = "S3";
+                                _mountName = "";
+                              });
+                              Navigator.of(context).pop();
+                            },
                           ),
-                    );
-                  },
-                ),
-                actions: [
-                  TextButton(
-                    child: const Text('Cancel'),
-                    onPressed: () {
-                      Navigator.of(context).pop();
+                          TextButton(
+                            child: const Text('OK'),
+                            onPressed: () {
+                              setState(() => _allowAdd = false);
+
+                              Provider.of<MountList>(context, listen: false)
+                                  .add(_mountType, _mountName)
+                                  .then((_) {
+                                    setState(() {
+                                      _allowAdd = true;
+                                      _mountType = "S3";
+                                      _mountName = "";
+                                    });
+                                  })
+                                  .catchError((_) {
+                                    setState(() {
+                                      _allowAdd = true;
+                                    });
+                                  });
+
+                              Navigator.of(context).pop();
+                            },
+                          ),
+                        ],
+                      );
                     },
-                  ),
-                  TextButton(
-                    child: const Text('Add'),
-                    onPressed: () {
-                      Navigator.of(context).pop();
-                    },
-                  ),
-                ],
-              );
-            },
-          );
-        },
+                  );
+                }
+                : null,
         tooltip: 'Add Mount',
         child: const Icon(Icons.add),
       ),

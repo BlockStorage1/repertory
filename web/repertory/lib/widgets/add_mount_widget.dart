@@ -1,18 +1,24 @@
 import 'package:flutter/material.dart';
 
-class AddMountWidget extends StatefulWidget {
+class AddMountWidget extends StatelessWidget {
   final bool allowEncrypt;
-  const AddMountWidget({super.key, required this.allowEncrypt});
+  final String mountName;
+  final String mountType;
+  final void Function(String? newName) onNameChanged;
+  final void Function(String? newType) onTypeChanged;
+  const AddMountWidget({
+    super.key,
+    required this.allowEncrypt,
+    required this.mountName,
+    required this.mountType,
+    required this.onNameChanged,
+    required this.onTypeChanged,
+  });
 
-  @override
-  State<AddMountWidget> createState() => _AddMountWidgetState();
-}
-
-class _AddMountWidgetState extends State<AddMountWidget> {
   @override
   Widget build(BuildContext context) {
     var items = ["S3", "Sia"];
-    if (widget.allowEncrypt) {
+    if (allowEncrypt) {
       items.insert(0, "Encrypt");
     }
 
@@ -20,14 +26,17 @@ class _AddMountWidgetState extends State<AddMountWidget> {
       mainAxisSize: MainAxisSize.min,
       children: [
         DropdownButton<String>(
-          value: "S3",
-          onChanged: (newValue) {},
+          value: mountType,
+          onChanged: onTypeChanged,
           items:
               items.map<DropdownMenuItem<String>>((item) {
                 return DropdownMenuItem<String>(value: item, child: Text(item));
               }).toList(),
         ),
-        TextField(decoration: InputDecoration(labelText: 'Name')),
+        TextField(
+          decoration: InputDecoration(labelText: 'Name'),
+          onChanged: onNameChanged,
+        ),
       ],
     );
   }
