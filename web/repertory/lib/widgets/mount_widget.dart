@@ -1,0 +1,112 @@
+import 'dart:async';
+
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:repertory/helpers.dart';
+import 'package:repertory/models/mount.dart';
+
+class MountWidget extends StatefulWidget {
+  const MountWidget({super.key});
+
+  @override
+  State<MountWidget> createState() => _MountWidgetState();
+}
+
+class _MountWidgetState extends State<MountWidget> {
+  Timer? _timer;
+  bool _enabled = true;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Consumer<Mount>(
+        builder: (context, mount, widget) {
+          final textColor = Theme.of(context).colorScheme.onSurface;
+          final subTextColor =
+              Theme.of(context).brightness == Brightness.dark
+                  ? Colors.white38
+                  : Colors.black87;
+
+          final isActive = mount.state == Icons.toggle_on;
+          final nameText = SelectableText(
+            formatMountName(mount.type, mount.name),
+            style: TextStyle(color: subTextColor),
+          );
+
+          return ListTile(
+            isThreeLine: true,
+            leading: IconButton(
+              icon: Icon(Icons.settings, color: textColor),
+              onPressed: () {
+                Navigator.pushNamed(context, '/settings', arguments: mount);
+              },
+            ),
+            subtitle: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                nameText,
+                SelectableText(
+                  mount.path,
+                  style: TextStyle(color: subTextColor),
+                ),
+              ],
+            ),
+            title: SelectableText(
+              initialCaps(mount.type),
+              style: TextStyle(color: textColor, fontWeight: FontWeight.bold),
+            ),
+            trailing: IconButton(
+              icon: Icon(
+                mount.state,
+                color:
+                    isActive ? Color.fromARGB(255, 163, 96, 76) : subTextColor,
+              ),
+              onPressed:
+                  _enabled
+                      ? () async {
+                        setState(() {
+                          _enabled = false;
+                        });
+
+                        String? location = mount.path;
+                        if (!isActive && mount.path.isEmpty) {
+                          location = await mount.getMountLocation();
+                          if (location == null) {}
+                        }
+
+                        mount
+                            .mount(isActive, location: location)
+                            .then((_) {
+                              setState(() {
+                                _enabled = true;
+                              });
+                            })
+                            .catchError((_) {
+                              setState(() {
+                                _enabled = true;
+                              });
+                            });
+                      }
+                      : null,
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    _timer = null;
+    super.dispose();
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _timer = Timer.periodic(const Duration(seconds: 5), (_) {
+      Provider.of<Mount>(context, listen: false).refresh();
+    });
+  }
+}

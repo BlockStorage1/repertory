@@ -699,34 +699,35 @@ auto app_config::default_api_port(const provider_type &prov) -> std::uint16_t {
   return PROVIDER_API_PORTS.at(static_cast<std::size_t>(prov));
 }
 
-auto app_config::default_data_directory(const provider_type &prov)
-    -> std::string {
+auto app_config::get_root_data_directory() -> std::string {
 #if defined(_WIN32)
-  auto data_directory =
-      utils::path::combine(utils::get_local_app_data_directory(),
-                           {
-                               REPERTORY_DATA_NAME,
-                               app_config::get_provider_name(prov),
-                           });
+  auto data_directory = utils::path::combine(
+      utils::get_local_app_data_directory(), {
+                                                 REPERTORY_DATA_NAME,
+                                             });
 #else // !defined(_WIN32)
 #if defined(__APPLE__)
-  auto data_directory =
-      utils::path::combine("~", {
-                                    "Library",
-                                    "Application Support",
-                                    REPERTORY_DATA_NAME,
-                                    app_config::get_provider_name(prov),
-                                });
+  auto data_directory = utils::path::combine("~", {
+                                                      "Library",
+                                                      "Application Support",
+                                                      REPERTORY_DATA_NAME,
+                                                  });
 #else  // !defined(__APPLE__)
-  auto data_directory =
-      utils::path::combine("~", {
-                                    ".local",
-                                    REPERTORY_DATA_NAME,
-                                    app_config::get_provider_name(prov),
-                                });
+  auto data_directory = utils::path::combine("~", {
+                                                      ".local",
+                                                      REPERTORY_DATA_NAME,
+                                                  });
 #endif // defined(__APPLE__)
 #endif // defined(_WIN32)
   return data_directory;
+}
+
+auto app_config::default_data_directory(const provider_type &prov)
+    -> std::string {
+  return utils::path::combine(app_config::get_root_data_directory(),
+                              {
+                                  app_config::get_provider_name(prov),
+                              });
 }
 
 auto app_config::default_remote_api_port(const provider_type &prov)
@@ -741,6 +742,7 @@ auto app_config::default_remote_api_port(const provider_type &prov)
       };
   return PROVIDER_REMOTE_PORTS.at(static_cast<std::size_t>(prov));
 }
+
 auto app_config::default_rpc_port(const provider_type &prov) -> std::uint16_t {
   static const std::array<std::uint16_t,
                           static_cast<std::size_t>(provider_type::unknown)>

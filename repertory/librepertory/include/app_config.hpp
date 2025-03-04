@@ -52,6 +52,8 @@ public:
   [[nodiscard]] static auto get_provider_name(const provider_type &prov)
       -> std::string;
 
+  [[nodiscard]] static auto get_root_data_directory() -> std::string;
+
 public:
   [[nodiscard]] static auto get_stop_requested() -> bool;
 

@@ -154,8 +154,10 @@ mtune
 musl-libc
 nana
 ncrypt
+nlohmann
 nlohmann_json
 nmakeprg
+nohup
 nominmax
 ntstatus
 nullptr

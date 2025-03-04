@@ -36,6 +36,7 @@
 #include "cli/pinned_status.hpp"
 #include "cli/set.hpp"
 #include "cli/status.hpp"
+#include "cli/ui.hpp"
 #include "cli/unmount.hpp"
 #include "cli/unpin_file.hpp"
 #include "utils/cli_utils.hpp"
@@ -70,6 +71,7 @@ static const std::unordered_map<utils::cli::option, action, option_hasher>
          cli::actions::pinned_status},
         {utils::cli::options::set_option, cli::actions::set},
         {utils::cli::options::status_option, cli::actions::status},
+        {utils::cli::options::ui_option, cli::actions::ui},
         {utils::cli::options::unmount_option, cli::actions::unmount},
         {utils::cli::options::unpin_file_option, cli::actions::unpin_file},
 };

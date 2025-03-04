@@ -79,6 +79,12 @@ template <typename drive> inline void help(std::vector<const char *> args) {
             << std::endl;
   std::cout << "    -status                           Display mount status"
             << std::endl;
+  std::cout
+      << "    -ui,--ui                          Run embedded management UI"
+      << std::endl;
+  std::cout << "    -up,--ui_port                     Custom port for embedded "
+               "management UI"
+            << std::endl;
   std::cout << "    -unmount,--unmount                Unmount and shutdown"
             << std::endl;
   std::cout << "    -uf,--unpin_file [API path]       Unpin a file from cache "

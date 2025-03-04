@@ -21,6 +21,7 @@
 */
 #include "types/repertory.hpp"
 
+#include "app_config.hpp"
 #include "types/startup_exception.hpp"
 #include "utils/string.hpp"
 
@@ -190,5 +191,35 @@ auto api_error_to_string(const api_error &error) -> const std::string & {
   }
 
   return LOOKUP.at(error);
+}
+
+auto provider_type_from_string(std::string_view type,
+                               provider_type default_type) -> provider_type {
+  auto type_lower = utils::string::to_lower(std::string{type});
+  if (type_lower == "encrypt") {
+    return provider_type::encrypt;
+  }
+
+  if (type_lower == "remote") {
+    return provider_type::remote;
+  }
+
+  if (type_lower == "s3") {
+    return provider_type::s3;
+  }
+
+  if (type_lower == "sia") {
+    return provider_type::sia;
+  }
+
+  if (type_lower == "unknown") {
+    return provider_type::unknown;
+  }
+
+  return default_type;
+}
+
+auto provider_type_to_string(provider_type type) -> std::string {
+  return app_config::get_provider_name(type);
 }
 } // namespace repertory

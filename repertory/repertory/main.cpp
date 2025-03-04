@@ -146,10 +146,17 @@ auto main(int argc, char **argv) -> int {
            (res == exit_code::option_not_found) &&
            (idx < utils::cli::options::option_list.size());
            idx++) {
-        res = cli::actions::perform_action(
-            utils::cli::options::option_list[idx], args, data_directory, prov,
-            unique_id, user, password);
+        try {
+          res = cli::actions::perform_action(
+              utils::cli::options::option_list[idx], args, data_directory, prov,
+              unique_id, user, password);
+        } catch (const std::exception &ex) {
+          res = exit_code::exception;
+        } catch (...) {
+          res = exit_code::exception;
+        }
       }
+
       if (res == exit_code::option_not_found) {
         res = cli::actions::mount(args, data_directory, mount_result, prov,
                                   remote_host, remote_port, unique_id);
