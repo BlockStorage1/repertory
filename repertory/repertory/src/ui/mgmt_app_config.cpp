@@ -87,6 +87,7 @@ mgmt_app_config::mgmt_app_config() {
     utils::error::raise_error(
         function_name, utils::get_last_error_code(),
         fmt::format("failed to read file|{}", config_file));
+    save();
   } catch (const std::exception &ex) {
     utils::error::raise_error(
         function_name, ex, fmt::format("failed to read file|{}", config_file));
