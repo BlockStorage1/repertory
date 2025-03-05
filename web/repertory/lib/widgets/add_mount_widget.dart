@@ -30,7 +30,7 @@ class AddMountWidget extends StatefulWidget {
 
 class _AddMountWidgetState extends State<AddMountWidget> {
   static const _items = <String>['Encrypt', 'Remote', 'S3', 'Sia'];
-  static const _padding = 10.0;
+  static const _padding = 15.0;
 
   String? _mountType;
 
@@ -40,7 +40,7 @@ class _AddMountWidgetState extends State<AddMountWidget> {
     super.initState();
   }
 
-  List<Widget> _createTextField(String name, onChanged) {
+  List<Widget> _createTextField(String name, onChanged, {String? value}) {
     return [
       const SizedBox(height: _padding),
       Text(
@@ -51,7 +51,11 @@ class _AddMountWidgetState extends State<AddMountWidget> {
           fontWeight: FontWeight.bold,
         ),
       ),
-      TextField(decoration: InputDecoration(), onChanged: onChanged),
+      TextField(
+        decoration: InputDecoration(),
+        onChanged: onChanged,
+        controller: TextEditingController(text: value),
+      ),
     ];
   }
 
@@ -100,11 +104,23 @@ class _AddMountWidgetState extends State<AddMountWidget> {
         if (mountTypeLower == 'sia')
           ..._createTextField('ApiAuth', widget.onApiAuthChanged),
         if (mountTypeLower == 's3' || mountTypeLower == 'sia')
-          ..._createTextField('Bucket', widget.onBucketChanged),
-        if (mountTypeLower == 'remote')
-          ..._createTextField('HostNameOrIp', widget.onHostNameOrIpChanged),
-        if (mountTypeLower == 'remote')
-          ..._createTextField('ApiPort', widget.onApiPortChanged),
+          ..._createTextField(
+            'Bucket',
+            widget.onBucketChanged,
+            value: mountTypeLower == 'sia' ? 'default' : null,
+          ),
+        if (mountTypeLower == 'remote' || mountTypeLower == 'sia')
+          ..._createTextField(
+            'HostNameOrIp',
+            widget.onHostNameOrIpChanged,
+            value: 'localhost',
+          ),
+        if (mountTypeLower == 'remote' || mountTypeLower == 'sia')
+          ..._createTextField(
+            'ApiPort',
+            widget.onApiPortChanged,
+            value: mountTypeLower == 'sia' ? '9980' : null,
+          ),
         if (mountTypeLower == 'remote')
           ..._createTextField(
             'EncryptionToken',
