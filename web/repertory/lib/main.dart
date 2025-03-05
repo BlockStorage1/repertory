@@ -77,16 +77,22 @@ class MyHomePage extends StatefulWidget {
 class _MyHomePageState extends State<MyHomePage> {
   bool _allowAdd = true;
   String? _apiAuth;
+  String? _apiPort;
   String? _bucket;
-  String _mountType = "Encrypt";
-  String _mountName = "";
+  String? _encryptionToken;
+  String? _hostNameOrIp;
+  String _mountType = 'Encrypt';
+  String _mountName = '';
   String? _path;
 
   void _resetData() {
     _apiAuth = null;
+    _apiPort = null;
     _bucket = null;
-    _mountType = "Encrypt";
-    _mountName = "";
+    _encryptionToken = null;
+    _hostNameOrIp = null;
+    _mountName = '';
+    _mountType = 'Encrypt';
     _path = null;
   }
 
@@ -113,12 +119,19 @@ class _MyHomePageState extends State<MyHomePage> {
                             return AddMountWidget(
                               mountType: _mountType,
                               onApiAuthChanged: (apiAuth) => _apiAuth = apiAuth,
+                              onApiPortChanged: (apiPort) => _apiPort = apiPort,
                               onBucketChanged: (bucket) => _bucket = bucket,
+                              onEncryptionTokenChanged:
+                                  (encryptionToken) =>
+                                      _encryptionToken = encryptionToken,
+                              onHostNameOrIpChanged:
+                                  (hostNameOrIp) =>
+                                      _hostNameOrIp = hostNameOrIp,
                               onNameChanged:
-                                  (mountName) => _mountName = mountName ?? "",
+                                  (mountName) => _mountName = mountName ?? '',
                               onPathChanged: (path) => _path = path,
                               onTypeChanged:
-                                  (mountType) => _mountType = mountType ?? "S3",
+                                  (mountType) => _mountType = mountType ?? 'S3',
                             );
                           },
                         ),
@@ -140,7 +153,10 @@ class _MyHomePageState extends State<MyHomePage> {
                                     _mountType,
                                     _mountName,
                                     apiAuth: _apiAuth,
+                                    apiPort: _apiPort,
                                     bucket: _bucket,
+                                    encryptionToken: _encryptionToken,
+                                    hostNameOrIp: _hostNameOrIp,
                                     path: _path,
                                   )
                                   .then((_) {

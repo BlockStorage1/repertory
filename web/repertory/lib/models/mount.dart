@@ -79,6 +79,18 @@ class Mount with ChangeNotifier {
   }
 
   Future<String?> getMountLocation() async {
-    return "~/mnt/encrypt";
+    final response = await http.get(
+      Uri.parse(
+        Uri.encodeFull(
+          '${getBaseUri()}/api/v1/get_mount_location?name=$name&type=$type',
+        ),
+      ),
+    );
+
+    if (response.statusCode != 200) {
+      return null;
+    }
+
+    return jsonDecode(response.body)['Location'] as String;
   }
 }

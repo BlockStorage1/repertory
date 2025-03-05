@@ -1,1 +1,1 @@
-const String appTitle = "Repertory Management Portal";
+const String appTitle = 'Repertory Management Portal';

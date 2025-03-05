@@ -1,15 +1,15 @@
 import 'package:flutter/foundation.dart';
 
 String formatMountName(String type, String name) {
-  if (type == "remote") {
-    return name.replaceAll("_", ":");
+  if (type == 'remote') {
+    return name.replaceAll('_', ':');
   }
   return name;
 }
 
 String getBaseUri() {
   if (kDebugMode) {
-    return "http://127.0.0.1:30000";
+    return 'http://127.0.0.1:30000';
   }
   return Uri.base.origin;
 }

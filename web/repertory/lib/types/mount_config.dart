@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 
 class MountConfig {
   final String _name;
-  String _path = "";
+  String _path = '';
   Map<String, dynamic> _settings = {};
   IconData _state = Icons.toggle_off;
   final String _type;
@@ -25,7 +25,7 @@ class MountConfig {
   }
 
   void updateStatus(Map<String, dynamic> status) {
-    _path = status["Location"] as String;
-    _state = status["Active"] as bool ? Icons.toggle_on : Icons.toggle_off;
+    _path = status['Location'] as String;
+    _state = status['Active'] as bool ? Icons.toggle_on : Icons.toggle_off;
   }
 }

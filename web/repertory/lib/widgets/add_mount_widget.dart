@@ -3,7 +3,10 @@ import 'package:flutter/material.dart';
 class AddMountWidget extends StatefulWidget {
   final String mountType;
   final void Function(String? newApiAuth) onApiAuthChanged;
+  final void Function(String? newApiPort) onApiPortChanged;
   final void Function(String? newBucket) onBucketChanged;
+  final void Function(String? newEncryptionToken) onEncryptionTokenChanged;
+  final void Function(String? newHostNameOrIp) onHostNameOrIpChanged;
   final void Function(String? newName) onNameChanged;
   final void Function(String? newPath) onPathChanged;
   final void Function(String? newType) onTypeChanged;
@@ -12,7 +15,10 @@ class AddMountWidget extends StatefulWidget {
     super.key,
     required this.mountType,
     required this.onApiAuthChanged,
+    required this.onApiPortChanged,
     required this.onBucketChanged,
+    required this.onEncryptionTokenChanged,
+    required this.onHostNameOrIpChanged,
     required this.onNameChanged,
     required this.onPathChanged,
     required this.onTypeChanged,
@@ -23,7 +29,7 @@ class AddMountWidget extends StatefulWidget {
 }
 
 class _AddMountWidgetState extends State<AddMountWidget> {
-  static const _items = <String>["Encrypt", "S3", "Sia"];
+  static const _items = <String>['Encrypt', 'Remote', 'S3', 'Sia'];
 
   String? _mountType;
 
@@ -114,7 +120,7 @@ class _AddMountWidgetState extends State<AddMountWidget> {
             decoration: InputDecoration(),
             onChanged: widget.onApiAuthChanged,
           ),
-        if (mountTypeLower == 'sia' || mountTypeLower == 's3')
+        if (mountTypeLower == 's3' || mountTypeLower == 'sia')
           Text(
             'Bucket',
             textAlign: TextAlign.left,
@@ -123,10 +129,52 @@ class _AddMountWidgetState extends State<AddMountWidget> {
               fontWeight: FontWeight.bold,
             ),
           ),
-        if (mountTypeLower == 'sia' || mountTypeLower == 's3')
+        if (mountTypeLower == 's3' || mountTypeLower == 'sia')
           TextField(
             decoration: InputDecoration(),
             onChanged: widget.onBucketChanged,
+          ),
+        if (mountTypeLower == 'remote')
+          Text(
+            'HostNameOrIp',
+            textAlign: TextAlign.left,
+            style: TextStyle(
+              color: Theme.of(context).colorScheme.onSurface,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        if (mountTypeLower == 'remote')
+          TextField(
+            decoration: InputDecoration(),
+            onChanged: widget.onHostNameOrIpChanged,
+          ),
+        if (mountTypeLower == 'remote')
+          Text(
+            'ApiPort',
+            textAlign: TextAlign.left,
+            style: TextStyle(
+              color: Theme.of(context).colorScheme.onSurface,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        if (mountTypeLower == 'remote')
+          TextField(
+            decoration: InputDecoration(),
+            onChanged: widget.onApiPortChanged,
+          ),
+        if (mountTypeLower == 'remote')
+          Text(
+            'EncryptionToken',
+            textAlign: TextAlign.left,
+            style: TextStyle(
+              color: Theme.of(context).colorScheme.onSurface,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        if (mountTypeLower == 'remote')
+          TextField(
+            decoration: InputDecoration(),
+            onChanged: widget.onEncryptionTokenChanged,
           ),
       ],
     );

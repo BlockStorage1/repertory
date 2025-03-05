@@ -200,70 +200,70 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
     List<SettingsTile> siaConfigSettings = [];
 
     _settings.forEach((key, value) {
-      if (key == "ApiAuth") {
+      if (key == 'ApiAuth') {
         _addPasswordSetting(commonSettings, _settings, key, value);
-      } else if (key == "ApiPort") {
+      } else if (key == 'ApiPort') {
         _addIntSetting(commonSettings, _settings, key, value);
-      } else if (key == "ApiUser") {
+      } else if (key == 'ApiUser') {
         _addStringSetting(commonSettings, _settings, key, value, Icons.person);
-      } else if (key == "DatabaseType") {
+      } else if (key == 'DatabaseType') {
         _addListSetting(commonSettings, _settings, key, value, [
-          "rocksdb",
-          "sqlite",
+          'rocksdb',
+          'sqlite',
         ], Icons.dataset);
-      } else if (key == "DownloadTimeoutSeconds") {
+      } else if (key == 'DownloadTimeoutSeconds') {
         _addIntSetting(commonSettings, _settings, key, value);
-      } else if (key == "EnableDownloadTimeout") {
+      } else if (key == 'EnableDownloadTimeout') {
         _addBooleanSetting(commonSettings, _settings, key, value);
-      } else if (key == "EnableDriveEvents") {
+      } else if (key == 'EnableDriveEvents') {
         _addBooleanSetting(commonSettings, _settings, key, value);
-      } else if (key == "EventLevel") {
+      } else if (key == 'EventLevel') {
         _addListSetting(commonSettings, _settings, key, value, [
-          "critical",
-          "error",
-          "warn",
-          "info",
-          "debug",
-          "trace",
+          'critical',
+          'error',
+          'warn',
+          'info',
+          'debug',
+          'trace',
         ], Icons.event);
-      } else if (key == "EvictionDelayMinutes") {
+      } else if (key == 'EvictionDelayMinutes') {
         _addIntSetting(commonSettings, _settings, key, value);
-      } else if (key == "EvictionUseAccessedTime") {
+      } else if (key == 'EvictionUseAccessedTime') {
         _addBooleanSetting(commonSettings, _settings, key, value);
-      } else if (key == "MaxCacheSizeBytes") {
+      } else if (key == 'MaxCacheSizeBytes') {
         _addIntSetting(commonSettings, _settings, key, value);
-      } else if (key == "MaxUploadCount") {
+      } else if (key == 'MaxUploadCount') {
         _addIntSetting(commonSettings, _settings, key, value);
-      } else if (key == "OnlineCheckRetrySeconds") {
+      } else if (key == 'OnlineCheckRetrySeconds') {
         _addIntSetting(commonSettings, _settings, key, value);
-      } else if (key == "PreferredDownloadType") {
+      } else if (key == 'PreferredDownloadType') {
         _addListSetting(commonSettings, _settings, key, value, [
-          "default",
-          "direct",
-          "ring_buffer",
+          'default',
+          'direct',
+          'ring_buffer',
         ], Icons.download);
-      } else if (key == "RetryReadCount") {
+      } else if (key == 'RetryReadCount') {
         _addIntSetting(commonSettings, _settings, key, value);
-      } else if (key == "RingBufferFileSize") {
+      } else if (key == 'RingBufferFileSize') {
         _addIntListSetting(
           commonSettings,
           _settings,
           key,
           value,
-          ["128", "256", "512", "1024", "2048"],
+          ['128', '256', '512', '1024', '2048'],
           512,
           Icons.animation,
         );
-      } else if (key == "EncryptConfig") {
+      } else if (key == 'EncryptConfig') {
         value.forEach((subKey, subValue) {
-          if (subKey == "EncryptionToken") {
+          if (subKey == 'EncryptionToken') {
             _addPasswordSetting(
               encryptConfigSettings,
               _settings[key],
               subKey,
               subValue,
             );
-          } else if (subKey == "Path") {
+          } else if (subKey == 'Path') {
             _addStringSetting(
               encryptConfigSettings,
               _settings[key],
@@ -273,9 +273,9 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
             );
           }
         });
-      } else if (key == "HostConfig") {
+      } else if (key == 'HostConfig') {
         value.forEach((subKey, subValue) {
-          if (subKey == "AgentString") {
+          if (subKey == 'AgentString') {
             _addStringSetting(
               hostConfigSettings,
               _settings[key],
@@ -283,21 +283,21 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
               subValue,
               Icons.support_agent,
             );
-          } else if (subKey == "ApiPassword") {
+          } else if (subKey == 'ApiPassword') {
             _addPasswordSetting(
               hostConfigSettings,
               _settings[key],
               subKey,
               subValue,
             );
-          } else if (subKey == "ApiPort") {
+          } else if (subKey == 'ApiPort') {
             _addIntSetting(
               hostConfigSettings,
               _settings[key],
               subKey,
               subValue,
             );
-          } else if (subKey == "ApiUser") {
+          } else if (subKey == 'ApiUser') {
             _addStringSetting(
               hostConfigSettings,
               _settings[key],
@@ -305,7 +305,7 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
               subValue,
               Icons.person,
             );
-          } else if (subKey == "HostNameOrIp") {
+          } else if (subKey == 'HostNameOrIp') {
             _addStringSetting(
               hostConfigSettings,
               _settings[key],
@@ -313,7 +313,7 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
               subValue,
               Icons.computer,
             );
-          } else if (subKey == "Path") {
+          } else if (subKey == 'Path') {
             _addStringSetting(
               hostConfigSettings,
               _settings[key],
@@ -321,16 +321,16 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
               subValue,
               Icons.route,
             );
-          } else if (subKey == "Protocol") {
+          } else if (subKey == 'Protocol') {
             _addListSetting(
               hostConfigSettings,
               _settings[key],
               subKey,
               subValue,
-              ["http", "https"],
+              ['http', 'https'],
               Icons.http,
             );
-          } else if (subKey == "TimeoutMs") {
+          } else if (subKey == 'TimeoutMs') {
             _addIntSetting(
               hostConfigSettings,
               _settings[key],
@@ -339,23 +339,23 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
             );
           }
         });
-      } else if (key == "RemoteConfig") {
+      } else if (key == 'RemoteConfig') {
         value.forEach((subKey, subValue) {
-          if (subKey == "ApiPort") {
+          if (subKey == 'ApiPort') {
             _addIntSetting(
               remoteConfigSettings,
               _settings[key],
               subKey,
               subValue,
             );
-          } else if (subKey == "EncryptionToken") {
+          } else if (subKey == 'EncryptionToken') {
             _addPasswordSetting(
               remoteConfigSettings,
               _settings[key],
               subKey,
               subValue,
             );
-          } else if (subKey == "HostNameOrIp") {
+          } else if (subKey == 'HostNameOrIp') {
             _addStringSetting(
               remoteConfigSettings,
               _settings[key],
@@ -363,21 +363,21 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
               subValue,
               Icons.computer,
             );
-          } else if (subKey == "MaxConnections") {
+          } else if (subKey == 'MaxConnections') {
             _addIntSetting(
               remoteConfigSettings,
               _settings[key],
               subKey,
               subValue,
             );
-          } else if (subKey == "ReceiveTimeoutMs") {
+          } else if (subKey == 'ReceiveTimeoutMs') {
             _addIntSetting(
               remoteConfigSettings,
               _settings[key],
               subKey,
               subValue,
             );
-          } else if (subKey == "SendTimeoutMs") {
+          } else if (subKey == 'SendTimeoutMs') {
             _addIntSetting(
               remoteConfigSettings,
               _settings[key],
@@ -386,27 +386,27 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
             );
           }
         });
-      } else if (key == "RemoteMount") {
+      } else if (key == 'RemoteMount') {
         value.forEach((subKey, subValue) {
-          if (subKey == "Enable") {
+          if (subKey == 'Enable') {
             List<SettingsTile> tempSettings = [];
             _addBooleanSetting(tempSettings, _settings[key], subKey, subValue);
             remoteMountSettings.insertAll(0, tempSettings);
-          } else if (subKey == "ApiPort") {
+          } else if (subKey == 'ApiPort') {
             _addIntSetting(
               remoteMountSettings,
               _settings[key],
               subKey,
               subValue,
             );
-          } else if (subKey == "ClientPoolSize") {
+          } else if (subKey == 'ClientPoolSize') {
             _addIntSetting(
               remoteMountSettings,
               _settings[key],
               subKey,
               subValue,
             );
-          } else if (subKey == "EncryptionToken") {
+          } else if (subKey == 'EncryptionToken') {
             _addPasswordSetting(
               remoteMountSettings,
               _settings[key],
@@ -415,16 +415,16 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
             );
           }
         });
-      } else if (key == "S3Config") {
+      } else if (key == 'S3Config') {
         value.forEach((subKey, subValue) {
-          if (subKey == "AccessKey") {
+          if (subKey == 'AccessKey') {
             _addPasswordSetting(
               s3ConfigSettings,
               _settings[key],
               subKey,
               subValue,
             );
-          } else if (subKey == "Bucket") {
+          } else if (subKey == 'Bucket') {
             _addStringSetting(
               s3ConfigSettings,
               _settings[key],
@@ -432,14 +432,14 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
               subValue,
               Icons.folder,
             );
-          } else if (subKey == "EncryptionToken") {
+          } else if (subKey == 'EncryptionToken') {
             _addPasswordSetting(
               s3ConfigSettings,
               _settings[key],
               subKey,
               subValue,
             );
-          } else if (subKey == "Region") {
+          } else if (subKey == 'Region') {
             _addStringSetting(
               s3ConfigSettings,
               _settings[key],
@@ -447,16 +447,16 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
               subValue,
               Icons.map,
             );
-          } else if (subKey == "SecretKey") {
+          } else if (subKey == 'SecretKey') {
             _addPasswordSetting(
               s3ConfigSettings,
               _settings[key],
               subKey,
               subValue,
             );
-          } else if (subKey == "TimeoutMs") {
+          } else if (subKey == 'TimeoutMs') {
             _addIntSetting(s3ConfigSettings, _settings[key], subKey, subValue);
-          } else if (subKey == "URL") {
+          } else if (subKey == 'URL') {
             _addStringSetting(
               s3ConfigSettings,
               _settings[key],
@@ -464,14 +464,14 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
               subValue,
               Icons.http,
             );
-          } else if (subKey == "UsePathStyle") {
+          } else if (subKey == 'UsePathStyle') {
             _addBooleanSetting(
               s3ConfigSettings,
               _settings[key],
               subKey,
               subValue,
             );
-          } else if (subKey == "UseRegionInURL") {
+          } else if (subKey == 'UseRegionInURL') {
             _addBooleanSetting(
               s3ConfigSettings,
               _settings[key],
@@ -480,9 +480,9 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
             );
           }
         });
-      } else if (key == "SiaConfig") {
+      } else if (key == 'SiaConfig') {
         value.forEach((subKey, subValue) {
-          if (subKey == "Bucket") {
+          if (subKey == 'Bucket') {
             _addStringSetting(
               siaConfigSettings,
               _settings[key],
@@ -527,7 +527,7 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
           SettingsSection(
             title: const Text('Remote Mount'),
             tiles:
-                _settings["RemoteMount"]["Enable"] as bool
+                _settings['RemoteMount']['Enable'] as bool
                     ? remoteMountSettings
                     : [remoteMountSettings[0]],
           ),

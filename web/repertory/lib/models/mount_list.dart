@@ -52,13 +52,18 @@ class MountList with ChangeNotifier {
     String type,
     String name, {
     String? apiAuth,
+    String? apiPort,
     String? bucket,
+    String? encryptionToken,
+    String? hostNameOrIp,
     String? path,
   }) async {
     await http.post(
       Uri.parse(
         Uri.encodeFull(
-          '${getBaseUri()}/api/v1/add_mount?name=$name&type=$type&bucket=$bucket&path=$path&apiAuth=$apiAuth',
+          '${getBaseUri()}/api/v1/add_mount?name=$name&type=$type&bucket=$bucket'
+          '&path=$path&apiAuth=$apiAuth&apiPort=$apiPort&hostNameOrIp=$hostNameOrIp'
+          '&encryptionToken=$encryptionToken',
         ),
       ),
     );
