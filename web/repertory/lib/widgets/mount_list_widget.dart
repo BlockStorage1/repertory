@@ -4,14 +4,9 @@ import 'package:repertory/models/mount.dart';
 import 'package:repertory/models/mount_list.dart';
 import 'package:repertory/widgets/mount_widget.dart';
 
-class MountListWidget extends StatefulWidget {
+class MountListWidget extends StatelessWidget {
   const MountListWidget({super.key});
 
-  @override
-  State<MountListWidget> createState() => _MountListWidgetState();
-}
-
-class _MountListWidgetState extends State<MountListWidget> {
   @override
   Widget build(BuildContext context) {
     return Consumer<MountList>(

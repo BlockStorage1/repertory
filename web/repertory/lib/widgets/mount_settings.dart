@@ -565,4 +565,13 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
     _settings = jsonDecode(jsonEncode(widget.mount.mountConfig.settings));
     super.initState();
   }
+
+  @override
+  void setState(VoidCallback fn) {
+    if (!mounted) {
+      return;
+    }
+
+    super.setState(fn);
+  }
 }

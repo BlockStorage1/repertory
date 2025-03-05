@@ -1,11 +1,9 @@
-import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:repertory/constants.dart' as constants;
 import 'package:repertory/helpers.dart';
 import 'package:repertory/models/mount.dart';
 import 'package:repertory/models/mount_list.dart';
-import 'package:repertory/types/mount_config.dart';
 import 'package:repertory/widgets/add_mount_widget.dart';
 import 'package:repertory/widgets/mount_list_widget.dart';
 import 'package:repertory/widgets/mount_settings.dart';
@@ -20,7 +18,7 @@ class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(context) {
     return MaterialApp(
       title: constants.appTitle,
       theme: ThemeData(
@@ -78,11 +76,22 @@ class MyHomePage extends StatefulWidget {
 
 class _MyHomePageState extends State<MyHomePage> {
   bool _allowAdd = true;
-  String _mountType = "S3";
+  String? _apiAuth;
+  String? _bucket;
+  String _mountType = "Encrypt";
   String _mountName = "";
+  String? _path;
+
+  void _resetData() {
+    _apiAuth = null;
+    _bucket = null;
+    _mountType = "Encrypt";
+    _mountName = "";
+    _path = null;
+  }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(context) {
     return Scaffold(
       appBar: AppBar(
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
@@ -96,25 +105,20 @@ class _MyHomePageState extends State<MyHomePage> {
                 ? () {
                   showDialog(
                     context: context,
-                    builder: (BuildContext context) {
+                    builder: (context) {
                       return AlertDialog(
                         title: const Text('Add Mount'),
                         content: Consumer<MountList>(
-                          builder: (_, mountList, __) {
+                          builder: (_, MountList mountList, __) {
                             return AddMountWidget(
-                              allowEncrypt:
-                                  mountList.items.firstWhereOrNull(
-                                    (MountConfig item) =>
-                                        item.type.toLowerCase() == "encrypt",
-                                  ) ==
-                                  null,
                               mountType: _mountType,
-                              onNameChanged: (mountName) {
-                                _mountName = mountName ?? "";
-                              },
-                              onTypeChanged: (mountType) {
-                                _mountType = mountType ?? "S3";
-                              },
+                              onApiAuthChanged: (apiAuth) => _apiAuth = apiAuth,
+                              onBucketChanged: (bucket) => _bucket = bucket,
+                              onNameChanged:
+                                  (mountName) => _mountName = mountName ?? "",
+                              onPathChanged: (path) => _path = path,
+                              onTypeChanged:
+                                  (mountType) => _mountType = mountType ?? "S3",
                             );
                           },
                         ),
@@ -122,8 +126,7 @@ class _MyHomePageState extends State<MyHomePage> {
                           TextButton(
                             child: const Text('Cancel'),
                             onPressed: () {
-                              _mountType = "S3";
-                              _mountName = "";
+                              _resetData();
                               Navigator.of(context).pop();
                             },
                           ),
@@ -133,10 +136,15 @@ class _MyHomePageState extends State<MyHomePage> {
                               setState(() => _allowAdd = false);
 
                               Provider.of<MountList>(context, listen: false)
-                                  .add(_mountType, _mountName)
+                                  .add(
+                                    _mountType,
+                                    _mountName,
+                                    apiAuth: _apiAuth,
+                                    bucket: _bucket,
+                                    path: _path,
+                                  )
                                   .then((_) {
-                                    _mountType = "S3";
-                                    _mountName = "";
+                                    _resetData();
                                     setState(() {
                                       _allowAdd = true;
                                     });
@@ -158,5 +166,14 @@ class _MyHomePageState extends State<MyHomePage> {
         child: const Icon(Icons.add),
       ),
     );
+  }
+
+  @override
+  void setState(VoidCallback fn) {
+    if (!mounted) {
+      return;
+    }
+
+    super.setState(fn);
   }
 }

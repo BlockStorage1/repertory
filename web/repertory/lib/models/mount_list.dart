@@ -48,11 +48,17 @@ class MountList with ChangeNotifier {
     });
   }
 
-  Future<void> add(String type, String name) async {
+  Future<void> add(
+    String type,
+    String name, {
+    String? apiAuth,
+    String? bucket,
+    String? path,
+  }) async {
     await http.post(
       Uri.parse(
         Uri.encodeFull(
-          '${getBaseUri()}/api/v1/add_mount?name=$name&type=$type',
+          '${getBaseUri()}/api/v1/add_mount?name=$name&type=$type&bucket=$bucket&path=$path&apiAuth=$apiAuth',
         ),
       ),
     );

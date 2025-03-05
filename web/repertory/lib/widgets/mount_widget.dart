@@ -109,4 +109,13 @@ class _MountWidgetState extends State<MountWidget> {
       Provider.of<Mount>(context, listen: false).refresh();
     });
   }
+
+  @override
+  void setState(VoidCallback fn) {
+    if (!mounted) {
+      return;
+    }
+
+    super.setState(fn);
+  }
 }
