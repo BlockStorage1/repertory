@@ -2,26 +2,12 @@ import 'package:flutter/material.dart';
 
 class AddMountWidget extends StatefulWidget {
   final String mountType;
-  final void Function(String? newApiAuth) onApiAuthChanged;
-  final void Function(String? newApiPort) onApiPortChanged;
-  final void Function(String? newBucket) onBucketChanged;
-  final void Function(String? newEncryptionToken) onEncryptionTokenChanged;
-  final void Function(String? newHostNameOrIp) onHostNameOrIpChanged;
-  final void Function(String? newName) onNameChanged;
-  final void Function(String? newPath) onPathChanged;
-  final void Function(String? newType) onTypeChanged;
+  final void Function(String name, String? value) onDataChanged;
 
   const AddMountWidget({
     super.key,
     required this.mountType,
-    required this.onApiAuthChanged,
-    required this.onApiPortChanged,
-    required this.onBucketChanged,
-    required this.onEncryptionTokenChanged,
-    required this.onHostNameOrIpChanged,
-    required this.onNameChanged,
-    required this.onPathChanged,
-    required this.onTypeChanged,
+    required this.onDataChanged,
   });
 
   @override
@@ -40,11 +26,15 @@ class _AddMountWidgetState extends State<AddMountWidget> {
     super.initState();
   }
 
-  List<Widget> _createTextField(String name, onChanged, {String? value}) {
+  List<Widget> _createTextField(
+    String title,
+    String dataName, {
+    String? value,
+  }) {
     return [
       const SizedBox(height: _padding),
       Text(
-        name,
+        title,
         textAlign: TextAlign.left,
         style: TextStyle(
           color: Theme.of(context).colorScheme.onSurface,
@@ -53,7 +43,7 @@ class _AddMountWidgetState extends State<AddMountWidget> {
       ),
       TextField(
         decoration: InputDecoration(),
-        onChanged: onChanged,
+        onChanged: (value) => widget.onDataChanged(dataName, value),
         controller: TextEditingController(text: value),
       ),
     ];
@@ -62,6 +52,7 @@ class _AddMountWidgetState extends State<AddMountWidget> {
   @override
   Widget build(BuildContext context) {
     final mountTypeLower = _mountType?.toLowerCase();
+
     return Column(
       mainAxisSize: MainAxisSize.min,
       mainAxisAlignment: MainAxisAlignment.start,
@@ -86,7 +77,7 @@ class _AddMountWidgetState extends State<AddMountWidget> {
                 setState(() {
                   _mountType = value;
                 });
-                widget.onTypeChanged(value);
+                widget.onDataChanged('Provider', value);
               },
               items:
                   _items.map<DropdownMenuItem<String>>((item) {
@@ -99,34 +90,30 @@ class _AddMountWidgetState extends State<AddMountWidget> {
           ],
         ),
         if (mountTypeLower != 'remote')
-          ..._createTextField('Configuration Name', widget.onNameChanged),
-        if (mountTypeLower == 'encrypt')
-          ..._createTextField('Path', widget.onPathChanged),
+          ..._createTextField('Configuration Name', 'Name'),
+        if (mountTypeLower == 'encrypt') ..._createTextField('Path', 'Path'),
         if (mountTypeLower == 'sia')
-          ..._createTextField('ApiAuth', widget.onApiAuthChanged),
+          ..._createTextField('ApiPassword', 'ApiPassword'),
         if (mountTypeLower == 's3' || mountTypeLower == 'sia')
           ..._createTextField(
             'Bucket',
-            widget.onBucketChanged,
+            'Bucket',
             value: mountTypeLower == 'sia' ? 'default' : null,
           ),
         if (mountTypeLower == 'remote' || mountTypeLower == 'sia')
           ..._createTextField(
             'HostNameOrIp',
-            widget.onHostNameOrIpChanged,
+            'HostNameOrIp',
             value: 'localhost',
           ),
         if (mountTypeLower == 'remote' || mountTypeLower == 'sia')
           ..._createTextField(
             'ApiPort',
-            widget.onApiPortChanged,
+            'ApiPort',
             value: mountTypeLower == 'sia' ? '9980' : null,
           ),
         if (mountTypeLower == 'remote')
-          ..._createTextField(
-            'EncryptionToken',
-            widget.onEncryptionTokenChanged,
-          ),
+          ..._createTextField('EncryptionToken', 'EncryptionToken'),
       ],
     );
   }

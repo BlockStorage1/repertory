@@ -51,7 +51,7 @@ class MountList with ChangeNotifier {
   Future<void> add(
     String type,
     String name, {
-    String? apiAuth,
+    String? apiPassword,
     String? apiPort,
     String? bucket,
     String? encryptionToken,
@@ -62,7 +62,7 @@ class MountList with ChangeNotifier {
       Uri.parse(
         Uri.encodeFull(
           '${getBaseUri()}/api/v1/add_mount?name=$name&type=$type&bucket=$bucket'
-          '&path=$path&apiAuth=$apiAuth&apiPort=$apiPort&hostNameOrIp=$hostNameOrIp'
+          '&path=$path&apiPassword=$apiPassword&apiPort=$apiPort&hostNameOrIp=$hostNameOrIp'
           '&encryptionToken=$encryptionToken',
         ),
       ),

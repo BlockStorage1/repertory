@@ -76,24 +76,60 @@ class MyHomePage extends StatefulWidget {
 
 class _MyHomePageState extends State<MyHomePage> {
   bool _allowAdd = true;
-  String? _apiAuth;
+  String? _apiPassword;
   String? _apiPort;
   String? _bucket;
   String? _encryptionToken;
   String? _hostNameOrIp;
   String _mountType = 'Encrypt';
-  String _mountName = '';
+  String _mountName = "";
   String? _path;
 
   void _resetData() {
-    _apiAuth = null;
+    _apiPassword = null;
     _apiPort = null;
     _bucket = null;
     _encryptionToken = null;
     _hostNameOrIp = null;
-    _mountName = '';
+    _mountName = "";
     _mountType = 'Encrypt';
     _path = null;
+  }
+
+  void _updateData(String name, String? value) {
+    switch (name) {
+      case 'ApiPassword':
+        _apiPassword = value ?? '';
+        return;
+
+      case 'ApiPort':
+        _apiPort = value ?? '';
+        return;
+
+      case 'Bucket':
+        _bucket = value ?? '';
+        return;
+
+      case 'EncryptionToken':
+        _encryptionToken = value ?? '';
+        return;
+
+      case 'HostNameOrIp':
+        _hostNameOrIp = value ?? '';
+        return;
+
+      case 'Name':
+        _mountName = value ?? '';
+        return;
+
+      case 'Provider':
+        _mountType = value ?? 'Encrypt';
+        return;
+
+      case 'Path':
+        _path = value ?? '';
+        return;
+    }
   }
 
   @override
@@ -118,20 +154,7 @@ class _MyHomePageState extends State<MyHomePage> {
                           builder: (_, MountList mountList, __) {
                             return AddMountWidget(
                               mountType: _mountType,
-                              onApiAuthChanged: (apiAuth) => _apiAuth = apiAuth,
-                              onApiPortChanged: (apiPort) => _apiPort = apiPort,
-                              onBucketChanged: (bucket) => _bucket = bucket,
-                              onEncryptionTokenChanged:
-                                  (encryptionToken) =>
-                                      _encryptionToken = encryptionToken,
-                              onHostNameOrIpChanged:
-                                  (hostNameOrIp) =>
-                                      _hostNameOrIp = hostNameOrIp,
-                              onNameChanged:
-                                  (mountName) => _mountName = mountName ?? '',
-                              onPathChanged: (path) => _path = path,
-                              onTypeChanged:
-                                  (mountType) => _mountType = mountType ?? 'S3',
+                              onDataChanged: _updateData,
                             );
                           },
                         ),
@@ -152,7 +175,7 @@ class _MyHomePageState extends State<MyHomePage> {
                                   .add(
                                     _mountType,
                                     _mountName,
-                                    apiAuth: _apiAuth,
+                                    apiPassword: _apiPassword,
                                     apiPort: _apiPort,
                                     bucket: _bucket,
                                     encryptionToken: _encryptionToken,
