@@ -72,7 +72,7 @@ class _AddMountWidgetState extends State<AddMountWidget> {
           ],
         ),
         const SizedBox(height: 10),
-        if (_mountType != 'Encrypt')
+        if (_mountType?.toLowerCase() != 'encrypt')
           Text(
             'Configuration Name',
             textAlign: TextAlign.left,
@@ -81,7 +81,7 @@ class _AddMountWidgetState extends State<AddMountWidget> {
               fontWeight: FontWeight.bold,
             ),
           ),
-        if (_mountType != 'Encrypt')
+        if (_mountType?.toLowerCase() != 'encrypt')
           TextField(
             autofocus: true,
             decoration: InputDecoration(),

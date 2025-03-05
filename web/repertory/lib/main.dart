@@ -5,6 +5,7 @@ import 'package:repertory/constants.dart' as constants;
 import 'package:repertory/helpers.dart';
 import 'package:repertory/models/mount.dart';
 import 'package:repertory/models/mount_list.dart';
+import 'package:repertory/types/mount_config.dart';
 import 'package:repertory/widgets/add_mount_widget.dart';
 import 'package:repertory/widgets/mount_list_widget.dart';
 import 'package:repertory/widgets/mount_settings.dart';
@@ -103,7 +104,8 @@ class _MyHomePageState extends State<MyHomePage> {
                             return AddMountWidget(
                               allowEncrypt:
                                   mountList.items.firstWhereOrNull(
-                                    (item) => item.type == "encrypt",
+                                    (MountConfig item) =>
+                                        item.type.toLowerCase() == "encrypt",
                                   ) ==
                                   null,
                               mountType: _mountType,

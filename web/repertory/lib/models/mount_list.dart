@@ -13,7 +13,8 @@ class MountList with ChangeNotifier {
 
   List<MountConfig> _mountList = [];
 
-  UnmodifiableListView get items => UnmodifiableListView(_mountList);
+  UnmodifiableListView<MountConfig> get items =>
+      UnmodifiableListView<MountConfig>(_mountList);
 
   Future<void> _fetch() async {
     final response = await http.get(
