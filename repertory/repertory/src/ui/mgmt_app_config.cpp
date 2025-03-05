@@ -75,6 +75,15 @@ mgmt_app_config::mgmt_app_config() {
       utils::path::combine(app_config::get_root_data_directory(), {"ui.json"});
 
   try {
+    if (not utils::file::directory{app_config::get_root_data_directory()}
+                .create_directory()) {
+      throw utils::error::create_exception(
+          function_name, {
+                             "failed to create directory",
+                             app_config::get_root_data_directory(),
+                         });
+    }
+
     nlohmann::json data;
     if (utils::file::read_json_file(config_file, data)) {
       api_auth_ = data.at(JSON_API_AUTH).get<std::string>();
