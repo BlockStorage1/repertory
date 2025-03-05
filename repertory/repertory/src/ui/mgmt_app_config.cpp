@@ -35,10 +35,10 @@ namespace {
   std::unordered_map<repertory::provider_type,
                      std::unordered_map<std::string, std::string>>
       map_of_maps{
-          {repertory::provider_type::encrypt, {}},
-          {repertory::provider_type::remote, {}},
-          {repertory::provider_type::s3, {}},
-          {repertory::provider_type::sia, {}},
+          {repertory::provider_type::encrypt, nlohmann::json::object()},
+          {repertory::provider_type::remote, nlohmann::json::object()},
+          {repertory::provider_type::s3, nlohmann::json::object()},
+          {repertory::provider_type::sia, nlohmann::json::object()},
       };
 
   for (const auto &[prov, map] : map_of_maps) {
@@ -56,7 +56,7 @@ namespace {
 }
 
 [[nodiscard]] auto to_json(const auto &map_of_maps) -> nlohmann::json {
-  nlohmann::json json;
+  auto json = nlohmann::json::object();
   for (const auto &[prov, map] : map_of_maps) {
     for (const auto &[key, value] : map) {
       json[repertory::provider_type_to_string(prov)][key] = value;
