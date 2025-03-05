@@ -1,3 +1,4 @@
+import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:repertory/constants.dart' as constants;
@@ -9,7 +10,9 @@ import 'package:repertory/widgets/mount_list_widget.dart';
 import 'package:repertory/widgets/mount_settings.dart';
 
 void main() {
-  runApp(const MyApp());
+  runApp(
+    ChangeNotifierProvider(create: (_) => MountList(), child: const MyApp()),
+  );
 }
 
 class MyApp extends StatelessWidget {
@@ -85,10 +88,7 @@ class _MyHomePageState extends State<MyHomePage> {
         leading: const Icon(Icons.storage),
         title: Text(widget.title),
       ),
-      body: ChangeNotifierProvider(
-        create: (context) => MountList(),
-        child: MountListWidget(),
-      ),
+      body: MountListWidget(),
       floatingActionButton: FloatingActionButton(
         onPressed:
             _allowAdd
@@ -102,19 +102,17 @@ class _MyHomePageState extends State<MyHomePage> {
                           builder: (_, mountList, __) {
                             return AddMountWidget(
                               allowEncrypt:
-                                  !mountList.items.contains(
+                                  mountList.items.firstWhereOrNull(
                                     (item) => item.type == "encrypt",
-                                  ),
-                              mountName: _mountName,
+                                  ) ==
+                                  null,
                               mountType: _mountType,
-                              onNameChanged:
-                                  (mountName) => setState(
-                                    () => _mountName = mountName ?? "",
-                                  ),
-                              onTypeChanged:
-                                  (mountType) => setState(
-                                    () => _mountType = mountType ?? "S3",
-                                  ),
+                              onNameChanged: (mountName) {
+                                _mountName = mountName ?? "";
+                              },
+                              onTypeChanged: (mountType) {
+                                _mountType = mountType ?? "S3";
+                              },
                             );
                           },
                         ),
@@ -122,10 +120,8 @@ class _MyHomePageState extends State<MyHomePage> {
                           TextButton(
                             child: const Text('Cancel'),
                             onPressed: () {
-                              setState(() {
-                                _mountType = "S3";
-                                _mountName = "";
-                              });
+                              _mountType = "S3";
+                              _mountName = "";
                               Navigator.of(context).pop();
                             },
                           ),
@@ -137,10 +133,10 @@ class _MyHomePageState extends State<MyHomePage> {
                               Provider.of<MountList>(context, listen: false)
                                   .add(_mountType, _mountName)
                                   .then((_) {
+                                    _mountType = "S3";
+                                    _mountName = "";
                                     setState(() {
                                       _allowAdd = true;
-                                      _mountType = "S3";
-                                      _mountName = "";
                                     });
                                   })
                                   .catchError((_) {
