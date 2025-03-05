@@ -41,6 +41,10 @@ namespace {
           {repertory::provider_type::sia, nlohmann::json::object()},
       };
 
+  if (json.is_null() || json.empty()) {
+    return map_of_maps;
+  }
+
   for (const auto &[prov, map] : map_of_maps) {
     for (const auto &[key, value] :
          json[repertory::provider_type_to_string(prov)].items()) {
@@ -86,7 +90,7 @@ mgmt_app_config::mgmt_app_config() {
 
     nlohmann::json data;
     if (utils::file::read_json_file(config_file, data)) {
-      api_auth_ = data.at(JSON_API_AUTH).get<std::string>();
+      api_auth_ = data.at(JSON_API_PASSWORD).get<std::string>();
       api_port_ = data.at(JSON_API_PORT).get<std::uint16_t>();
       api_user_ = data.at(JSON_API_USER).get<std::string>();
       locations_ = from_json(data.at(JSON_MOUNT_LOCATIONS));
@@ -131,7 +135,7 @@ void mgmt_app_config::save() const {
     }
 
     nlohmann::json data;
-    data[JSON_API_AUTH] = api_auth_;
+    data[JSON_API_PASSWORD] = api_auth_;
     data[JSON_API_PORT] = api_port_;
     data[JSON_API_USER] = api_user_;
     data[JSON_MOUNT_LOCATIONS] = to_json(locations_);
