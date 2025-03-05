@@ -8,7 +8,7 @@ String formatMountName(String type, String name) {
 }
 
 String getBaseUri() {
-  if (kDebugMode) {
+  if (kDebugMode || !kIsWeb) {
     return 'http://127.0.0.1:30000';
   }
   return Uri.base.origin;
