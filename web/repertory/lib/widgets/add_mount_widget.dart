@@ -98,7 +98,8 @@ class _AddMountWidgetState extends State<AddMountWidget> {
             ),
           ],
         ),
-        ..._createTextField('Configuration Name', widget.onNameChanged),
+        if (mountTypeLower != 'remote')
+          ..._createTextField('Configuration Name', widget.onNameChanged),
         if (mountTypeLower == 'encrypt')
           ..._createTextField('Path', widget.onPathChanged),
         if (mountTypeLower == 'sia')
