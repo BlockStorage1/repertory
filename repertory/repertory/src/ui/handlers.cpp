@@ -171,12 +171,6 @@ void handlers::handle_get_mount_list(auto &&res) const {
   auto data_dir = utils::file::directory{app_config::get_root_data_directory()};
 
   nlohmann::json result;
-
-  auto encrypt_dir = data_dir.get_directory("encrypt");
-  if (encrypt_dir && encrypt_dir->get_file("config.json")) {
-    result["encrypt"].emplace_back("encrypt");
-  }
-
   const auto process_dir = [&data_dir, &result](std::string_view name) {
     auto name_dir = data_dir.get_directory(name);
     if (not name_dir) {
@@ -193,6 +187,7 @@ void handlers::handle_get_mount_list(auto &&res) const {
     }
   };
 
+  process_dir("encrypt");
   process_dir("remote");
   process_dir("s3");
   process_dir("sia");
