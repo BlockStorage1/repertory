@@ -218,14 +218,12 @@ void handlers::handle_get_mount_status(auto &&req, auto &&res) const {
   auto status_name = app_config::get_provider_display_name(prov);
 
   switch (prov) {
-  case provider_type::encrypt:
-    break;
-
   case provider_type::remote: {
     auto parts = utils::string::split(name, '_', false);
     status_name = fmt::format("{}{}:{}", status_name, parts[0U], parts[1U]);
   } break;
 
+  case provider_type::encrypt:
   case provider_type::sia:
   case provider_type::s3:
     status_name = fmt::format("{}{}", status_name, name);
@@ -300,7 +298,7 @@ auto handlers::launch_process(provider_type prov, std::string_view name,
   std::string str_type;
   switch (prov) {
   case provider_type::encrypt:
-    str_type = "-en";
+    str_type = fmt::format("-en -na {}", name);
     break;
 
   case provider_type::remote: {
