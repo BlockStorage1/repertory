@@ -30,6 +30,7 @@ class AddMountWidget extends StatefulWidget {
 
 class _AddMountWidgetState extends State<AddMountWidget> {
   static const _items = <String>['Encrypt', 'Remote', 'S3', 'Sia'];
+  static const _padding = 10.0;
 
   String? _mountType;
 
@@ -37,6 +38,21 @@ class _AddMountWidgetState extends State<AddMountWidget> {
   void initState() {
     _mountType = widget.mountType;
     super.initState();
+  }
+
+  List<Widget> _createTextField(String name, onChanged) {
+    return [
+      const SizedBox(height: _padding),
+      Text(
+        name,
+        textAlign: TextAlign.left,
+        style: TextStyle(
+          color: Theme.of(context).colorScheme.onSurface,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+      TextField(decoration: InputDecoration(), onChanged: onChanged),
+    ];
   }
 
   @override
@@ -59,7 +75,7 @@ class _AddMountWidgetState extends State<AddMountWidget> {
                 fontWeight: FontWeight.bold,
               ),
             ),
-            const SizedBox(width: 10),
+            const SizedBox(width: _padding),
             DropdownButton<String>(
               value: _mountType,
               onChanged: (value) {
@@ -78,103 +94,21 @@ class _AddMountWidgetState extends State<AddMountWidget> {
             ),
           ],
         ),
-        const SizedBox(height: 10),
-        Text(
-          'Configuration Name',
-          textAlign: TextAlign.left,
-          style: TextStyle(
-            color: Theme.of(context).colorScheme.onSurface,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        TextField(
-          autofocus: true,
-          decoration: InputDecoration(),
-          onChanged: widget.onNameChanged,
-        ),
+        ..._createTextField('Configuration Name', widget.onNameChanged),
         if (mountTypeLower == 'encrypt')
-          Text(
-            'Path',
-            textAlign: TextAlign.left,
-            style: TextStyle(
-              color: Theme.of(context).colorScheme.onSurface,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-        if (mountTypeLower == 'encrypt')
-          TextField(
-            decoration: InputDecoration(),
-            onChanged: widget.onPathChanged,
-          ),
+          ..._createTextField('Path', widget.onPathChanged),
         if (mountTypeLower == 'sia')
-          Text(
-            'ApiAuth',
-            textAlign: TextAlign.left,
-            style: TextStyle(
-              color: Theme.of(context).colorScheme.onSurface,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-        if (mountTypeLower == 'sia')
-          TextField(
-            decoration: InputDecoration(),
-            onChanged: widget.onApiAuthChanged,
-          ),
+          ..._createTextField('ApiAuth', widget.onApiAuthChanged),
         if (mountTypeLower == 's3' || mountTypeLower == 'sia')
-          Text(
-            'Bucket',
-            textAlign: TextAlign.left,
-            style: TextStyle(
-              color: Theme.of(context).colorScheme.onSurface,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-        if (mountTypeLower == 's3' || mountTypeLower == 'sia')
-          TextField(
-            decoration: InputDecoration(),
-            onChanged: widget.onBucketChanged,
-          ),
+          ..._createTextField('Bucket', widget.onBucketChanged),
         if (mountTypeLower == 'remote')
-          Text(
-            'HostNameOrIp',
-            textAlign: TextAlign.left,
-            style: TextStyle(
-              color: Theme.of(context).colorScheme.onSurface,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
+          ..._createTextField('HostNameOrIp', widget.onHostNameOrIpChanged),
         if (mountTypeLower == 'remote')
-          TextField(
-            decoration: InputDecoration(),
-            onChanged: widget.onHostNameOrIpChanged,
-          ),
+          ..._createTextField('ApiPort', widget.onApiPortChanged),
         if (mountTypeLower == 'remote')
-          Text(
-            'ApiPort',
-            textAlign: TextAlign.left,
-            style: TextStyle(
-              color: Theme.of(context).colorScheme.onSurface,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-        if (mountTypeLower == 'remote')
-          TextField(
-            decoration: InputDecoration(),
-            onChanged: widget.onApiPortChanged,
-          ),
-        if (mountTypeLower == 'remote')
-          Text(
+          ..._createTextField(
             'EncryptionToken',
-            textAlign: TextAlign.left,
-            style: TextStyle(
-              color: Theme.of(context).colorScheme.onSurface,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-        if (mountTypeLower == 'remote')
-          TextField(
-            decoration: InputDecoration(),
-            onChanged: widget.onEncryptionTokenChanged,
+            widget.onEncryptionTokenChanged,
           ),
       ],
     );
