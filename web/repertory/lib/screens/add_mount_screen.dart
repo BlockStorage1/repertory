@@ -110,7 +110,7 @@ class _AddMountScreenState extends State<AddMountScreen> {
                     child: MountSettingsWidget(
                       isAdd: true,
                       mount: _mount!,
-                      onChanged: (settings) => _settings[_mountType] = settings,
+                      settings: _settings[_mountType]!,
                       showAdvanced: _showAdvanced,
                     ),
                   ),

@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:repertory/models/mount.dart';
 import 'package:repertory/widgets/mount_settings.dart';
@@ -34,6 +36,7 @@ class _EditMountScreenState extends State<EditMountScreen> {
       ),
       body: MountSettingsWidget(
         mount: widget.mount,
+        settings: jsonDecode(jsonEncode(widget.mount.mountConfig.settings)),
         showAdvanced: _showAdvanced,
       ),
     );
