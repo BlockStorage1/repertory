@@ -111,7 +111,7 @@ class _AddMountWidgetState extends State<AddMountWidget> {
             'ApiPort',
             value: mountTypeLower == 'sia' ? '9980' : null,
           ),
-        if (mountTypeLower == 'remote' || mountTypeLower == 'encrypt')
+        if (mountTypeLower == 'encrypt' || mountTypeLower == 'remote')
           ..._createTextField('EncryptionToken', 'EncryptionToken'),
       ],
     );
