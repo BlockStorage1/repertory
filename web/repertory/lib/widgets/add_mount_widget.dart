@@ -18,13 +18,7 @@ class _AddMountWidgetState extends State<AddMountWidget> {
   static const _items = <String>['Encrypt', 'Remote', 'S3', 'Sia'];
   static const _padding = 15.0;
 
-  String? _mountType;
-
-  @override
-  void initState() {
-    _mountType = widget.mountType;
-    super.initState();
-  }
+  late String _mountType;
 
   List<Widget> _createTextField(
     String title,
@@ -56,7 +50,7 @@ class _AddMountWidgetState extends State<AddMountWidget> {
 
   @override
   Widget build(BuildContext context) {
-    final mountTypeLower = _mountType?.toLowerCase();
+    final mountTypeLower = _mountType.toLowerCase();
 
     return Column(
       mainAxisSize: MainAxisSize.min,
@@ -79,10 +73,10 @@ class _AddMountWidgetState extends State<AddMountWidget> {
             DropdownButton<String>(
               value: _mountType,
               onChanged: (value) {
-                setState(() {
-                  _mountType = value;
-                });
                 widget.onDataChanged('Provider', value);
+                setState(() {
+                  _mountType = value ?? "";
+                });
               },
               items:
                   _items.map<DropdownMenuItem<String>>((item) {
@@ -121,5 +115,11 @@ class _AddMountWidgetState extends State<AddMountWidget> {
           ..._createTextField('EncryptionToken', 'EncryptionToken'),
       ],
     );
+  }
+
+  @override
+  void initState() {
+    _mountType = widget.mountType;
+    super.initState();
   }
 }
