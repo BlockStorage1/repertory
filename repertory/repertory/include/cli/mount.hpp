@@ -120,10 +120,10 @@ mount(std::vector<const char *> args, std::string data_directory,
       std::cout << "Initializing "
                 << app_config::get_provider_display_name(prov)
                 << (unique_id.empty() ? ""
-                    : (prov == provider_type::s3 || prov == provider_type::sia)
-                        ? " [" + unique_id + ']'
-                        : " [" + remote_host + ':' +
-                              std::to_string(remote_port) + ']')
+                    : (prov == provider_type::remote)
+                        ? " [" + remote_host + ':' +
+                              std::to_string(remote_port) + ']'
+                        : " [" + unique_id + ']')
                 << " Drive" << std::endl;
       if (prov == provider_type::remote) {
         std::uint16_t port{0U};
