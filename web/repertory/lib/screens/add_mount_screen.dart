@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:repertory/constants.dart';
 import 'package:repertory/models/mount.dart';
 import 'package:repertory/types/mount_config.dart';
@@ -16,10 +15,9 @@ class AddMountScreen extends StatefulWidget {
 class _AddMountScreenState extends State<AddMountScreen> {
   static const _padding = 15.0;
 
-  late TextEditingController _mountNameController;
+  final TextEditingController _mountNameController = TextEditingController();
 
   Mount? _mount;
-  String _mountName = "";
   String _mountType = "";
   bool _showAdvanced = false;
 
@@ -82,20 +80,15 @@ class _AddMountScreenState extends State<AddMountScreen> {
                     TextField(
                       autofocus: true,
                       controller: _mountNameController,
-                      keyboardType: TextInputType.number,
-                      onChanged: (value) {
-                        if (_mountName == value) {
-                          return;
-                        }
-
+                      keyboardType: TextInputType.text,
+                      onChanged: (_) {
                         setState(() {
-                          _mountName = value;
                           _mount =
-                              (_mountName.isEmpty)
+                              (_mountNameController.text.isEmpty)
                                   ? null
                                   : Mount(
                                     MountConfig(
-                                      name: _mountName,
+                                      name: _mountNameController.text,
                                       type: _mountType,
                                     ),
                                   );
@@ -111,12 +104,6 @@ class _AddMountScreenState extends State<AddMountScreen> {
         ),
       ),
     );
-  }
-
-  @override
-  void initState() {
-    _mountNameController = TextEditingController(text: _mountName);
-    super.initState();
   }
 
   @override
