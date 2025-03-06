@@ -131,8 +131,8 @@ class _AddMountScreenState extends State<AddMountScreen> {
               : Mount(
                 MountConfig(
                   name: _mountNameController.text,
-                  settings: _settings[_mountType],
-                  type: _mountType,
+                  settings: _settings[mountType],
+                  type: mountType,
                 ),
                 isAdd: true,
               );
