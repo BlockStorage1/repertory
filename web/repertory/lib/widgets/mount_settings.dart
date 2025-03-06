@@ -32,12 +32,11 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
           leading: Icon(Icons.quiz),
           title: Text(key),
           initialValue: (value as bool),
-          onPressed: (_) {
-            setState(() {
-              root[key] = !value;
-              widget.onChanged?.call(widget.settings);
-            });
-          },
+          onPressed:
+              (_) => setState(() {
+                root[key] = !value;
+                widget.onChanged?.call(widget.settings);
+              }),
           onToggle: (bool nextValue) {
             setState(() {
               root[key] = nextValue;
@@ -65,9 +64,7 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
                   actions: [
                     TextButton(
                       child: Text('Cancel'),
-                      onPressed: () {
-                        Navigator.of(context).pop();
-                      },
+                      onPressed: () => Navigator.of(context).pop(),
                     ),
                     TextButton(
                       child: Text('OK'),
@@ -85,9 +82,7 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
                     controller: TextEditingController(text: updatedValue),
                     inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                     keyboardType: TextInputType.number,
-                    onChanged: (nextValue) {
-                      updatedValue = nextValue;
-                    },
+                    onChanged: (nextValue) => updatedValue = nextValue,
                   ),
                   title: Text(key),
                 );
@@ -151,12 +146,11 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
           leading: Icon(icon),
           value: DropdownButton<String>(
             value: value,
-            onChanged: (newValue) {
-              setState(() {
-                root[key] = newValue;
-                widget.onChanged?.call(widget.settings);
-              });
-            },
+            onChanged:
+                (newValue) => setState(() {
+                  root[key] = newValue;
+                  widget.onChanged?.call(widget.settings);
+                }),
             items:
                 valueList.map<DropdownMenuItem<String>>((item) {
                   return DropdownMenuItem<String>(
@@ -198,9 +192,7 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
                   actions: [
                     TextButton(
                       child: Text('Cancel'),
-                      onPressed: () {
-                        Navigator.of(context).pop();
-                      },
+                      onPressed: () => Navigator.of(context).pop(),
                     ),
                     TextButton(
                       child: Text('OK'),
@@ -216,9 +208,7 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
                   content: TextField(
                     autofocus: true,
                     controller: TextEditingController(text: updatedValue),
-                    onChanged: (value) {
-                      updatedValue = value;
-                    },
+                    onChanged: (value) => updatedValue = value,
                   ),
                   title: Text(key),
                 );

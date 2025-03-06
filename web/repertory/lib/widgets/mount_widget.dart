@@ -37,9 +37,8 @@ class _MountWidgetState extends State<MountWidget> {
             isThreeLine: true,
             leading: IconButton(
               icon: Icon(Icons.settings, color: textColor),
-              onPressed: () {
-                Navigator.pushNamed(context, '/edit', arguments: mount);
-              },
+              onPressed:
+                  () => Navigator.pushNamed(context, '/edit', arguments: mount),
             ),
             subtitle: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
