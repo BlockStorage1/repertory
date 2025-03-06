@@ -31,6 +31,10 @@ class _AddMountWidgetState extends State<AddMountWidget> {
     String dataName, {
     String? value,
   }) {
+    if (value != null) {
+      widget.onDataChanged(dataName, value);
+    }
+
     return [
       const SizedBox(height: _padding),
       Text(
@@ -42,6 +46,7 @@ class _AddMountWidgetState extends State<AddMountWidget> {
         ),
       ),
       TextField(
+        autofocus: dataName == 'Name',
         decoration: InputDecoration(),
         onChanged: (value) => widget.onDataChanged(dataName, value),
         controller: TextEditingController(text: value),
