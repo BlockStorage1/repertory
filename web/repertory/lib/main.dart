@@ -144,62 +144,60 @@ class _MyHomePageState extends State<MyHomePage> {
       floatingActionButton: FloatingActionButton(
         onPressed:
             _allowAdd
-                ? () {
-                  showDialog(
-                    context: context,
-                    builder: (context) {
-                      return AlertDialog(
-                        title: const Text('Add Mount'),
-                        content: Consumer<MountList>(
-                          builder: (_, MountList mountList, __) {
-                            return AddMountWidget(
-                              mountType: _mountType,
-                              onDataChanged: _updateData,
-                            );
+                ? () async => showDialog(
+                  context: context,
+                  builder: (context) {
+                    return AlertDialog(
+                      title: const Text('Add Mount'),
+                      content: Consumer<MountList>(
+                        builder: (_, MountList mountList, __) {
+                          return AddMountWidget(
+                            mountType: _mountType,
+                            onDataChanged: _updateData,
+                          );
+                        },
+                      ),
+                      actions: [
+                        TextButton(
+                          child: const Text('Cancel'),
+                          onPressed: () {
+                            _resetData();
+                            Navigator.of(context).pop();
                           },
                         ),
-                        actions: [
-                          TextButton(
-                            child: const Text('Cancel'),
-                            onPressed: () {
-                              _resetData();
-                              Navigator.of(context).pop();
-                            },
-                          ),
-                          TextButton(
-                            child: const Text('OK'),
-                            onPressed: () {
-                              setState(() => _allowAdd = false);
+                        TextButton(
+                          child: const Text('OK'),
+                          onPressed: () {
+                            setState(() => _allowAdd = false);
 
-                              Provider.of<MountList>(context, listen: false)
-                                  .add(
-                                    _mountType,
-                                    _mountName,
-                                    apiPassword: _apiPassword,
-                                    apiPort: _apiPort,
-                                    bucket: _bucket,
-                                    encryptionToken: _encryptionToken,
-                                    hostNameOrIp: _hostNameOrIp,
-                                    path: _path,
-                                  )
-                                  .then((_) {
-                                    _resetData();
-                                    setState(() {
-                                      _allowAdd = true;
-                                    });
-                                  })
-                                  .catchError((_) {
-                                    setState(() => _allowAdd = true);
+                            Provider.of<MountList>(context, listen: false)
+                                .add(
+                                  _mountType,
+                                  _mountName,
+                                  apiPassword: _apiPassword,
+                                  apiPort: _apiPort,
+                                  bucket: _bucket,
+                                  encryptionToken: _encryptionToken,
+                                  hostNameOrIp: _hostNameOrIp,
+                                  path: _path,
+                                )
+                                .then((_) {
+                                  _resetData();
+                                  setState(() {
+                                    _allowAdd = true;
                                   });
+                                })
+                                .catchError((_) {
+                                  setState(() => _allowAdd = true);
+                                });
 
-                              Navigator.of(context).pop();
-                            },
-                          ),
-                        ],
-                      );
-                    },
-                  );
-                }
+                            Navigator.of(context).pop();
+                          },
+                        ),
+                      ],
+                    );
+                  },
+                )
                 : null,
         tooltip: 'Add Mount',
         child: const Icon(Icons.add),
