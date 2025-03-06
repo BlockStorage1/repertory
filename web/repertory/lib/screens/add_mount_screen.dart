@@ -1,0 +1,78 @@
+import 'package:flutter/material.dart';
+import 'package:repertory/constants.dart';
+import 'package:repertory/models/mount.dart';
+import 'package:repertory/widgets/mount_settings.dart';
+
+class AddMountScreen extends StatefulWidget {
+  final String title;
+  const AddMountScreen({super.key, required this.title});
+
+  @override
+  State<AddMountScreen> createState() => _AddMountScreenState();
+}
+
+class _AddMountScreenState extends State<AddMountScreen> {
+  Mount? _mount;
+  String _mountType = "";
+  bool _showAdvanced = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
+        title: Text(widget.title),
+        actions: [
+          Row(
+            children: [
+              const Text("Advanced"),
+              IconButton(
+                icon: Icon(_showAdvanced ? Icons.toggle_on : Icons.toggle_off),
+                onPressed: () => setState(() => _showAdvanced = !_showAdvanced),
+              ),
+            ],
+          ),
+        ],
+      ),
+      body: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text('Provider Type'),
+              const SizedBox(width: 15.0),
+              DropdownButton<String>(
+                value: _mountType,
+                onChanged: (newValue) {
+                  setState(() {
+                    _mountType = newValue ?? "";
+                    if (_mountType.isNotEmpty) {}
+                  });
+                },
+                items:
+                    providerTypeList.map<DropdownMenuItem<String>>((item) {
+                      return DropdownMenuItem<String>(
+                        value: item,
+                        child: Text(item),
+                      );
+                    }).toList(),
+              ),
+            ],
+          ),
+          if (_mount != null)
+            MountSettingsWidget(mount: _mount!, showAdvanced: _showAdvanced),
+        ],
+      ),
+    );
+  }
+
+  @override
+  void setState(VoidCallback fn) {
+    if (!mounted) {
+      return;
+    }
+
+    super.setState(fn);
+  }
+}

@@ -3,12 +3,18 @@ import 'dart:convert';
 import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:repertory/constants.dart';
 import 'package:repertory/models/mount.dart';
 import 'package:settings_ui/settings_ui.dart';
 
 class MountSettingsWidget extends StatefulWidget {
+  final bool showAdvanced;
   final Mount mount;
-  const MountSettingsWidget({super.key, required this.mount});
+  const MountSettingsWidget({
+    super.key,
+    required this.mount,
+    required this.showAdvanced,
+  });
 
   @override
   State<MountSettingsWidget> createState() => _MountSettingsWidgetState();
@@ -17,71 +23,75 @@ class MountSettingsWidget extends StatefulWidget {
 class _MountSettingsWidgetState extends State<MountSettingsWidget> {
   Map<String, dynamic> _settings = {};
 
-  void _addBooleanSetting(list, root, key, value) {
-    list.add(
-      SettingsTile.switchTile(
-        leading: Icon(Icons.quiz),
-        title: Text(key),
-        initialValue: (value as bool),
-        onPressed: (_) {
-          setState(() {
-            root[key] = !value;
-          });
-        },
-        onToggle: (bool nextValue) {
-          setState(() {
-            root[key] = nextValue;
-          });
-        },
-      ),
-    );
+  void _addBooleanSetting(list, root, key, value, isAdvanced) {
+    if (!isAdvanced || widget.showAdvanced) {
+      list.add(
+        SettingsTile.switchTile(
+          leading: Icon(Icons.quiz),
+          title: Text(key),
+          initialValue: (value as bool),
+          onPressed: (_) {
+            setState(() {
+              root[key] = !value;
+            });
+          },
+          onToggle: (bool nextValue) {
+            setState(() {
+              root[key] = nextValue;
+            });
+          },
+        ),
+      );
+    }
   }
 
-  void _addIntSetting(list, root, key, value) {
-    list.add(
-      SettingsTile.navigation(
-        leading: Icon(Icons.onetwothree),
-        title: Text(key),
-        value: Text(value.toString()),
-        onPressed: (_) {
-          String updatedValue = value.toString();
-          showDialog(
-            context: context,
-            builder: (context) {
-              return AlertDialog(
-                actions: [
-                  TextButton(
-                    child: Text('Cancel'),
-                    onPressed: () {
-                      Navigator.of(context).pop();
+  void _addIntSetting(list, root, key, value, isAdvanced) {
+    if (!isAdvanced || widget.showAdvanced) {
+      list.add(
+        SettingsTile.navigation(
+          leading: Icon(Icons.onetwothree),
+          title: Text(key),
+          value: Text(value.toString()),
+          onPressed: (_) {
+            String updatedValue = value.toString();
+            showDialog(
+              context: context,
+              builder: (context) {
+                return AlertDialog(
+                  actions: [
+                    TextButton(
+                      child: Text('Cancel'),
+                      onPressed: () {
+                        Navigator.of(context).pop();
+                      },
+                    ),
+                    TextButton(
+                      child: Text('OK'),
+                      onPressed: () {
+                        setState(() {
+                          root[key] = int.parse(updatedValue);
+                        });
+                        Navigator.of(context).pop();
+                      },
+                    ),
+                  ],
+                  content: TextField(
+                    autofocus: true,
+                    controller: TextEditingController(text: updatedValue),
+                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                    keyboardType: TextInputType.number,
+                    onChanged: (nextValue) {
+                      updatedValue = nextValue;
                     },
                   ),
-                  TextButton(
-                    child: Text('OK'),
-                    onPressed: () {
-                      setState(() {
-                        root[key] = int.parse(updatedValue);
-                      });
-                      Navigator.of(context).pop();
-                    },
-                  ),
-                ],
-                content: TextField(
-                  autofocus: true,
-                  controller: TextEditingController(text: updatedValue),
-                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                  keyboardType: TextInputType.number,
-                  onChanged: (nextValue) {
-                    updatedValue = nextValue;
-                  },
-                ),
-                title: Text(key),
-              );
-            },
-          );
-        },
-      ),
-    );
+                  title: Text(key),
+                );
+              },
+            );
+          },
+        ),
+      );
+    }
   }
 
   void _addIntListSetting(
@@ -92,101 +102,124 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
     List<String> valueList,
     defaultValue,
     icon,
+    isAdvanced,
   ) {
-    list.add(
-      SettingsTile.navigation(
-        title: Text(key),
-        leading: Icon(icon),
-        value: DropdownButton<String>(
-          value: value.toString(),
-          onChanged: (newValue) {
-            setState(() {
-              root[key] = int.parse(newValue ?? defaultValue.toString());
-            });
-          },
-          items:
-              valueList.map<DropdownMenuItem<String>>((item) {
-                return DropdownMenuItem<String>(value: item, child: Text(item));
-              }).toList(),
-        ),
-      ),
-    );
-  }
-
-  void _addListSetting(list, root, key, value, List<String> valueList, icon) {
-    list.add(
-      SettingsTile.navigation(
-        title: Text(key),
-        leading: Icon(icon),
-        value: DropdownButton<String>(
-          value: value,
-          onChanged: (newValue) {
-            setState(() {
-              root[key] = newValue;
-            });
-          },
-          items:
-              valueList.map<DropdownMenuItem<String>>((item) {
-                return DropdownMenuItem<String>(value: item, child: Text(item));
-              }).toList(),
-        ),
-      ),
-    );
-  }
-
-  void _addPasswordSetting(list, root, key, value) {
-    list.add(
-      SettingsTile.navigation(
-        leading: Icon(Icons.password),
-        title: Text(key),
-        value: Text('*' * (value as String).length),
-      ),
-    );
-  }
-
-  void _addStringSetting(list, root, key, value, icon) {
-    list.add(
-      SettingsTile.navigation(
-        leading: Icon(icon),
-        title: Text(key),
-        value: Text(value),
-        onPressed: (_) {
-          String updatedValue = value;
-          showDialog(
-            context: context,
-            builder: (context) {
-              return AlertDialog(
-                actions: [
-                  TextButton(
-                    child: Text('Cancel'),
-                    onPressed: () {
-                      Navigator.of(context).pop();
-                    },
-                  ),
-                  TextButton(
-                    child: Text('OK'),
-                    onPressed: () {
-                      setState(() {
-                        root[key] = updatedValue;
-                      });
-                      Navigator.of(context).pop();
-                    },
-                  ),
-                ],
-                content: TextField(
-                  autofocus: true,
-                  controller: TextEditingController(text: updatedValue),
-                  onChanged: (value) {
-                    updatedValue = value;
-                  },
-                ),
-                title: Text(key),
-              );
+    if (!isAdvanced || widget.showAdvanced) {
+      list.add(
+        SettingsTile.navigation(
+          title: Text(key),
+          leading: Icon(icon),
+          value: DropdownButton<String>(
+            value: value.toString(),
+            onChanged: (newValue) {
+              setState(() {
+                root[key] = int.parse(newValue ?? defaultValue.toString());
+              });
             },
-          );
-        },
-      ),
-    );
+            items:
+                valueList.map<DropdownMenuItem<String>>((item) {
+                  return DropdownMenuItem<String>(
+                    value: item,
+                    child: Text(item),
+                  );
+                }).toList(),
+          ),
+        ),
+      );
+    }
+  }
+
+  void _addListSetting(
+    list,
+    root,
+    key,
+    value,
+    List<String> valueList,
+    icon,
+    isAdvanced,
+  ) {
+    if (!isAdvanced || widget.showAdvanced) {
+      list.add(
+        SettingsTile.navigation(
+          title: Text(key),
+          leading: Icon(icon),
+          value: DropdownButton<String>(
+            value: value,
+            onChanged: (newValue) {
+              setState(() {
+                root[key] = newValue;
+              });
+            },
+            items:
+                valueList.map<DropdownMenuItem<String>>((item) {
+                  return DropdownMenuItem<String>(
+                    value: item,
+                    child: Text(item),
+                  );
+                }).toList(),
+          ),
+        ),
+      );
+    }
+  }
+
+  void _addPasswordSetting(list, root, key, value, isAdvanced) {
+    if (!isAdvanced || widget.showAdvanced) {
+      list.add(
+        SettingsTile.navigation(
+          leading: Icon(Icons.password),
+          title: Text(key),
+          value: Text('*' * (value as String).length),
+        ),
+      );
+    }
+  }
+
+  void _addStringSetting(list, root, key, value, icon, isAdvanced) {
+    if (!isAdvanced || widget.showAdvanced) {
+      list.add(
+        SettingsTile.navigation(
+          leading: Icon(icon),
+          title: Text(key),
+          value: Text(value),
+          onPressed: (_) {
+            String updatedValue = value;
+            showDialog(
+              context: context,
+              builder: (context) {
+                return AlertDialog(
+                  actions: [
+                    TextButton(
+                      child: Text('Cancel'),
+                      onPressed: () {
+                        Navigator.of(context).pop();
+                      },
+                    ),
+                    TextButton(
+                      child: Text('OK'),
+                      onPressed: () {
+                        setState(() {
+                          root[key] = updatedValue;
+                        });
+                        Navigator.of(context).pop();
+                      },
+                    ),
+                  ],
+                  content: TextField(
+                    autofocus: true,
+                    controller: TextEditingController(text: updatedValue),
+                    onChanged: (value) {
+                      updatedValue = value;
+                    },
+                  ),
+                  title: Text(key),
+                );
+              },
+            );
+          },
+        ),
+      );
+    }
   }
 
   @override
@@ -201,58 +234,76 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
 
     _settings.forEach((key, value) {
       if (key == 'ApiAuth') {
-        _addPasswordSetting(commonSettings, _settings, key, value);
+        _addPasswordSetting(commonSettings, _settings, key, value, true);
       } else if (key == 'ApiPort') {
-        _addIntSetting(commonSettings, _settings, key, value);
+        _addIntSetting(commonSettings, _settings, key, value, true);
       } else if (key == 'ApiUser') {
-        _addStringSetting(commonSettings, _settings, key, value, Icons.person);
+        _addStringSetting(
+          commonSettings,
+          _settings,
+          key,
+          value,
+          Icons.person,
+          true,
+        );
       } else if (key == 'DatabaseType') {
-        _addListSetting(commonSettings, _settings, key, value, [
-          'rocksdb',
-          'sqlite',
-        ], Icons.dataset);
+        _addListSetting(
+          commonSettings,
+          _settings,
+          key,
+          value,
+          databaseTypeList,
+          Icons.dataset,
+          true,
+        );
       } else if (key == 'DownloadTimeoutSeconds') {
-        _addIntSetting(commonSettings, _settings, key, value);
+        _addIntSetting(commonSettings, _settings, key, value, true);
       } else if (key == 'EnableDownloadTimeout') {
-        _addBooleanSetting(commonSettings, _settings, key, value);
+        _addBooleanSetting(commonSettings, _settings, key, value, true);
       } else if (key == 'EnableDriveEvents') {
-        _addBooleanSetting(commonSettings, _settings, key, value);
+        _addBooleanSetting(commonSettings, _settings, key, value, true);
       } else if (key == 'EventLevel') {
-        _addListSetting(commonSettings, _settings, key, value, [
-          'critical',
-          'error',
-          'warn',
-          'info',
-          'debug',
-          'trace',
-        ], Icons.event);
+        _addListSetting(
+          commonSettings,
+          _settings,
+          key,
+          value,
+          eventLevelList,
+          Icons.event,
+          false,
+        );
       } else if (key == 'EvictionDelayMinutes') {
-        _addIntSetting(commonSettings, _settings, key, value);
+        _addIntSetting(commonSettings, _settings, key, value, true);
       } else if (key == 'EvictionUseAccessedTime') {
-        _addBooleanSetting(commonSettings, _settings, key, value);
+        _addBooleanSetting(commonSettings, _settings, key, value, true);
       } else if (key == 'MaxCacheSizeBytes') {
-        _addIntSetting(commonSettings, _settings, key, value);
+        _addIntSetting(commonSettings, _settings, key, value, false);
       } else if (key == 'MaxUploadCount') {
-        _addIntSetting(commonSettings, _settings, key, value);
+        _addIntSetting(commonSettings, _settings, key, value, true);
       } else if (key == 'OnlineCheckRetrySeconds') {
-        _addIntSetting(commonSettings, _settings, key, value);
+        _addIntSetting(commonSettings, _settings, key, value, true);
       } else if (key == 'PreferredDownloadType') {
-        _addListSetting(commonSettings, _settings, key, value, [
-          'default',
-          'direct',
-          'ring_buffer',
-        ], Icons.download);
+        _addListSetting(
+          commonSettings,
+          _settings,
+          key,
+          value,
+          downloadTypeList,
+          Icons.download,
+          false,
+        );
       } else if (key == 'RetryReadCount') {
-        _addIntSetting(commonSettings, _settings, key, value);
+        _addIntSetting(commonSettings, _settings, key, value, true);
       } else if (key == 'RingBufferFileSize') {
         _addIntListSetting(
           commonSettings,
           _settings,
           key,
           value,
-          ['128', '256', '512', '1024', '2048'],
+          ringBufferSizeList,
           512,
           Icons.animation,
+          false,
         );
       } else if (key == 'EncryptConfig') {
         value.forEach((subKey, subValue) {
@@ -262,6 +313,7 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
               _settings[key],
               subKey,
               subValue,
+              false,
             );
           } else if (subKey == 'Path') {
             _addStringSetting(
@@ -270,6 +322,7 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
               subKey,
               subValue,
               Icons.folder,
+              false,
             );
           }
         });
@@ -282,6 +335,7 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
               subKey,
               subValue,
               Icons.support_agent,
+              true,
             );
           } else if (subKey == 'ApiPassword') {
             _addPasswordSetting(
@@ -289,6 +343,7 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
               _settings[key],
               subKey,
               subValue,
+              false,
             );
           } else if (subKey == 'ApiPort') {
             _addIntSetting(
@@ -296,6 +351,7 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
               _settings[key],
               subKey,
               subValue,
+              false,
             );
           } else if (subKey == 'ApiUser') {
             _addStringSetting(
@@ -304,6 +360,7 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
               subKey,
               subValue,
               Icons.person,
+              true,
             );
           } else if (subKey == 'HostNameOrIp') {
             _addStringSetting(
@@ -312,6 +369,7 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
               subKey,
               subValue,
               Icons.computer,
+              false,
             );
           } else if (subKey == 'Path') {
             _addStringSetting(
@@ -320,6 +378,7 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
               subKey,
               subValue,
               Icons.route,
+              true,
             );
           } else if (subKey == 'Protocol') {
             _addListSetting(
@@ -327,8 +386,9 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
               _settings[key],
               subKey,
               subValue,
-              ['http', 'https'],
+              protocolTypeList,
               Icons.http,
+              true,
             );
           } else if (subKey == 'TimeoutMs') {
             _addIntSetting(
@@ -336,6 +396,7 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
               _settings[key],
               subKey,
               subValue,
+              true,
             );
           }
         });
@@ -347,6 +408,7 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
               _settings[key],
               subKey,
               subValue,
+              false,
             );
           } else if (subKey == 'EncryptionToken') {
             _addPasswordSetting(
@@ -354,6 +416,7 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
               _settings[key],
               subKey,
               subValue,
+              false,
             );
           } else if (subKey == 'HostNameOrIp') {
             _addStringSetting(
@@ -362,6 +425,7 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
               subKey,
               subValue,
               Icons.computer,
+              false,
             );
           } else if (subKey == 'MaxConnections') {
             _addIntSetting(
@@ -369,6 +433,7 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
               _settings[key],
               subKey,
               subValue,
+              true,
             );
           } else if (subKey == 'ReceiveTimeoutMs') {
             _addIntSetting(
@@ -376,6 +441,7 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
               _settings[key],
               subKey,
               subValue,
+              true,
             );
           } else if (subKey == 'SendTimeoutMs') {
             _addIntSetting(
@@ -383,6 +449,7 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
               _settings[key],
               subKey,
               subValue,
+              true,
             );
           }
         });
@@ -390,7 +457,13 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
         value.forEach((subKey, subValue) {
           if (subKey == 'Enable') {
             List<SettingsTile> tempSettings = [];
-            _addBooleanSetting(tempSettings, _settings[key], subKey, subValue);
+            _addBooleanSetting(
+              tempSettings,
+              _settings[key],
+              subKey,
+              subValue,
+              false,
+            );
             remoteMountSettings.insertAll(0, tempSettings);
           } else if (subKey == 'ApiPort') {
             _addIntSetting(
@@ -398,6 +471,7 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
               _settings[key],
               subKey,
               subValue,
+              false,
             );
           } else if (subKey == 'ClientPoolSize') {
             _addIntSetting(
@@ -405,6 +479,7 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
               _settings[key],
               subKey,
               subValue,
+              true,
             );
           } else if (subKey == 'EncryptionToken') {
             _addPasswordSetting(
@@ -412,6 +487,7 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
               _settings[key],
               subKey,
               subValue,
+              false,
             );
           }
         });
@@ -423,6 +499,7 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
               _settings[key],
               subKey,
               subValue,
+              false,
             );
           } else if (subKey == 'Bucket') {
             _addStringSetting(
@@ -431,6 +508,7 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
               subKey,
               subValue,
               Icons.folder,
+              false,
             );
           } else if (subKey == 'EncryptionToken') {
             _addPasswordSetting(
@@ -438,6 +516,7 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
               _settings[key],
               subKey,
               subValue,
+              false,
             );
           } else if (subKey == 'Region') {
             _addStringSetting(
@@ -446,6 +525,7 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
               subKey,
               subValue,
               Icons.map,
+              false,
             );
           } else if (subKey == 'SecretKey') {
             _addPasswordSetting(
@@ -453,9 +533,16 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
               _settings[key],
               subKey,
               subValue,
+              false,
             );
           } else if (subKey == 'TimeoutMs') {
-            _addIntSetting(s3ConfigSettings, _settings[key], subKey, subValue);
+            _addIntSetting(
+              s3ConfigSettings,
+              _settings[key],
+              subKey,
+              subValue,
+              true,
+            );
           } else if (subKey == 'URL') {
             _addStringSetting(
               s3ConfigSettings,
@@ -463,6 +550,7 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
               subKey,
               subValue,
               Icons.http,
+              false,
             );
           } else if (subKey == 'UsePathStyle') {
             _addBooleanSetting(
@@ -470,6 +558,7 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
               _settings[key],
               subKey,
               subValue,
+              false,
             );
           } else if (subKey == 'UseRegionInURL') {
             _addBooleanSetting(
@@ -477,6 +566,7 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
               _settings[key],
               subKey,
               subValue,
+              false,
             );
           }
         });
@@ -489,6 +579,7 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
               subKey,
               subValue,
               Icons.folder,
+              false,
             );
           }
         });
