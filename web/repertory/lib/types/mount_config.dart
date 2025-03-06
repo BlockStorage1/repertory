@@ -7,7 +7,13 @@ class MountConfig {
   Map<String, dynamic> _settings = {};
   IconData _state = Icons.toggle_off;
   final String _type;
-  MountConfig({required name, required type}) : _name = name, _type = type;
+  MountConfig({required name, required type, Map<String, dynamic>? settings})
+    : _name = name,
+      _type = type {
+    if (settings != null) {
+      _settings = settings;
+    }
+  }
 
   String get name => _name;
   String get path => _path;

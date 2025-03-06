@@ -8,11 +8,15 @@ import 'package:repertory/models/mount.dart';
 import 'package:settings_ui/settings_ui.dart';
 
 class MountSettingsWidget extends StatefulWidget {
+  final bool isAdd;
   final bool showAdvanced;
   final Mount mount;
+  final Function? onChanged;
   const MountSettingsWidget({
     super.key,
+    this.isAdd = false,
     required this.mount,
+    this.onChanged,
     required this.showAdvanced,
   });
 
@@ -33,11 +37,13 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
           onPressed: (_) {
             setState(() {
               root[key] = !value;
+              widget.onChanged?.call(_settings);
             });
           },
           onToggle: (bool nextValue) {
             setState(() {
               root[key] = nextValue;
+              widget.onChanged?.call(_settings);
             });
           },
         ),
@@ -70,6 +76,7 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
                       onPressed: () {
                         setState(() {
                           root[key] = int.parse(updatedValue);
+                          widget.onChanged?.call(_settings);
                         });
                         Navigator.of(context).pop();
                       },
@@ -114,6 +121,7 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
             onChanged: (newValue) {
               setState(() {
                 root[key] = int.parse(newValue ?? defaultValue.toString());
+                widget.onChanged?.call(_settings);
               });
             },
             items:
@@ -148,6 +156,7 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
             onChanged: (newValue) {
               setState(() {
                 root[key] = newValue;
+                widget.onChanged?.call(_settings);
               });
             },
             items:
@@ -200,6 +209,7 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
                       onPressed: () {
                         setState(() {
                           root[key] = updatedValue;
+                          widget.onChanged?.call(_settings);
                         });
                         Navigator.of(context).pop();
                       },
@@ -629,24 +639,26 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
 
   @override
   void dispose() {
-    var settings = widget.mount.mountConfig.settings;
-    if (!DeepCollectionEquality().equals(_settings, settings)) {
-      _settings.forEach((key, value) {
-        if (!DeepCollectionEquality().equals(settings[key], value)) {
-          if (value is Map<String, dynamic>) {
-            value.forEach((subKey, subValue) {
-              if (!DeepCollectionEquality().equals(
-                settings[key][subKey],
-                subValue,
-              )) {
-                widget.mount.setValue('$key.$subKey', subValue.toString());
-              }
-            });
-          } else {
-            widget.mount.setValue(key, value.toString());
+    if (!widget.isAdd) {
+      var settings = widget.mount.mountConfig.settings;
+      if (!DeepCollectionEquality().equals(_settings, settings)) {
+        _settings.forEach((key, value) {
+          if (!DeepCollectionEquality().equals(settings[key], value)) {
+            if (value is Map<String, dynamic>) {
+              value.forEach((subKey, subValue) {
+                if (!DeepCollectionEquality().equals(
+                  settings[key][subKey],
+                  subValue,
+                )) {
+                  widget.mount.setValue('$key.$subKey', subValue.toString());
+                }
+              });
+            } else {
+              widget.mount.setValue(key, value.toString());
+            }
           }
-        }
-      });
+        });
+      }
     }
     super.dispose();
   }

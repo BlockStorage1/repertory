@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:repertory/constants.dart';
+import 'package:repertory/helpers.dart';
 import 'package:repertory/models/mount.dart';
 import 'package:repertory/types/mount_config.dart';
 import 'package:repertory/widgets/mount_settings.dart';
@@ -15,10 +16,10 @@ class AddMountScreen extends StatefulWidget {
 class _AddMountScreenState extends State<AddMountScreen> {
   static const _padding = 15.0;
 
-  final TextEditingController _mountNameController = TextEditingController();
-
   Mount? _mount;
+  final _mountNameController = TextEditingController();
   String _mountType = "";
+  var _settings = createDefaultSettings();
   bool _showAdvanced = false;
 
   @override
@@ -42,10 +43,15 @@ class _AddMountScreenState extends State<AddMountScreen> {
       body: Padding(
         padding: const EdgeInsets.all(_padding),
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
           children: [
             Card(
+              margin: EdgeInsets.all(_padding),
               child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   const Text('Provider Type'),
@@ -55,7 +61,6 @@ class _AddMountScreenState extends State<AddMountScreen> {
                     onChanged: (newValue) {
                       setState(() {
                         _mountType = newValue ?? "";
-                        if (_mountType.isNotEmpty) {}
                       });
                     },
                     items:
@@ -72,7 +77,10 @@ class _AddMountScreenState extends State<AddMountScreen> {
             if (_mountType.isNotEmpty) const SizedBox(height: _padding),
             if (_mountType.isNotEmpty)
               Card(
+                margin: EdgeInsets.all(_padding),
                 child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.start,
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     const Text('Configuration Name'),
@@ -89,8 +97,10 @@ class _AddMountScreenState extends State<AddMountScreen> {
                                   : Mount(
                                     MountConfig(
                                       name: _mountNameController.text,
+                                      settings: _settings,
                                       type: _mountType,
                                     ),
+                                    isAdd: true,
                                   );
                         });
                       },
@@ -99,7 +109,15 @@ class _AddMountScreenState extends State<AddMountScreen> {
                 ),
               ),
             if (_mount != null)
-              MountSettingsWidget(mount: _mount!, showAdvanced: _showAdvanced),
+              Card(
+                margin: EdgeInsets.all(_padding),
+                child: MountSettingsWidget(
+                  isAdd: true,
+                  mount: _mount!,
+                  onChanged: (settings) => _settings = settings,
+                  showAdvanced: _showAdvanced,
+                ),
+              ),
           ],
         ),
       ),
