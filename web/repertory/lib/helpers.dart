@@ -26,4 +26,36 @@ String initialCaps(String txt) {
   return txt[0].toUpperCase() + txt.substring(1).toLowerCase();
 }
 
-Map<String, dynamic> createDefaultSettings() => {'EventLevel': 'info'};
+Map<String, dynamic> createDefaultSettings(String mountType) {
+  switch (mountType) {
+    case 'Encrypt':
+      return {
+        'EncryptConfig': {'EncryptionToken': '', 'Path': ''},
+      };
+    case 'Remote':
+      return {'EventLevel': 'info'};
+    case 'S3':
+      return {
+        'S3Config': {
+          'AccessKey': '',
+          'Bucket': '',
+          'Region': 'any',
+          'SecretKey': '',
+          'URL': '',
+          'UsePathStyle': false,
+          'UseRegionInURL': false,
+        },
+      };
+    case 'Sia':
+      return {
+        'HostConfig': {
+          'ApiPassword': '',
+          'ApiPort': '9980',
+          'HostNameOrIp': 'localhost',
+        },
+        'SiaConfig': {'Bucket': 'default'},
+      };
+  }
+
+  return {};
+}
