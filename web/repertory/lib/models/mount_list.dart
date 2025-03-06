@@ -17,11 +17,14 @@ class MountList with ChangeNotifier {
       UnmodifiableListView<MountConfig>(_mountList);
 
   Future<void> _fetch() async {
-    final response = await http.get(
-      Uri.parse('${getBaseUri()}/api/v1/mount_list'),
-    );
+    try {
+      final response = await http.get(
+        Uri.parse('${getBaseUri()}/api/v1/mount_list'),
+      );
 
-    if (response.statusCode == 200) {
+      if (response.statusCode != 200) {
+        return;
+      }
       List<MountConfig> nextList = [];
 
       jsonDecode(response.body).forEach((key, value) {
@@ -33,7 +36,8 @@ class MountList with ChangeNotifier {
       _mountList = nextList;
 
       notifyListeners();
-      return;
+    } catch (e) {
+      debugPrint('$e');
     }
   }
 
@@ -50,25 +54,22 @@ class MountList with ChangeNotifier {
 
   Future<void> add(
     String type,
-    String name, {
-    String? apiPassword,
-    String? apiPort,
-    String? bucket,
-    String? encryptionToken,
-    String? hostNameOrIp,
-    String? path,
-  }) async {
-    await http.post(
-      Uri.parse(
-        Uri.encodeFull(
-          '${getBaseUri()}/api/v1/add_mount?name=$name&type=$type&bucket=$bucket'
-          '&path=$path&apiPassword=$apiPassword&apiPort=$apiPort&hostNameOrIp=$hostNameOrIp'
-          '&encryptionToken=$encryptionToken',
+    String name,
+    Map<String, dynamic> mountConfig,
+  ) async {
+    try {
+      await http.post(
+        Uri.parse(
+          Uri.encodeFull(
+            '${getBaseUri()}/api/v1/add_mount?name=$name&type=$type&config=${jsonEncode(mountConfig)}',
+          ),
         ),
-      ),
-    );
+      );
 
-    return _fetch();
+      return _fetch();
+    } catch (e) {
+      debugPrint('$e');
+    }
   }
 
   void remove(String name) {

@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:repertory/constants.dart';
 import 'package:repertory/helpers.dart';
 import 'package:repertory/models/mount.dart';
+import 'package:repertory/models/mount_list.dart';
 import 'package:repertory/types/mount_config.dart';
 import 'package:repertory/widgets/mount_settings.dart';
 
@@ -115,6 +117,20 @@ class _AddMountScreenState extends State<AddMountScreen> {
                     ),
                   ),
                 ),
+              ),
+            if (_mount != null)
+              ElevatedButton.icon(
+                onPressed: () {
+                  Provider.of<MountList>(context, listen: false).add(
+                    _mountType,
+                    _mountNameController.text,
+                    _settings[_mountType]!,
+                  );
+
+                  Navigator.pop(context);
+                },
+                label: const Text('Add'),
+                icon: Icon(Icons.add),
               ),
           ],
         ),

@@ -20,48 +20,60 @@ class Mount with ChangeNotifier {
   String get type => mountConfig.type;
 
   Future<void> _fetch() async {
-    final response = await http.get(
-      Uri.parse(
-        Uri.encodeFull('${getBaseUri()}/api/v1/mount?name=$name&type=$type'),
-      ),
-    );
+    try {
+      final response = await http.get(
+        Uri.parse(
+          Uri.encodeFull('${getBaseUri()}/api/v1/mount?name=$name&type=$type'),
+        ),
+      );
 
-    if (response.statusCode != 200) {
-      return;
+      if (response.statusCode != 200) {
+        return;
+      }
+
+      mountConfig.updateSettings(jsonDecode(response.body));
+
+      notifyListeners();
+    } catch (e) {
+      debugPrint('$e');
     }
-
-    mountConfig.updateSettings(jsonDecode(response.body));
-
-    notifyListeners();
   }
 
   Future<void> _fetchStatus() async {
-    final response = await http.get(
-      Uri.parse(
-        Uri.encodeFull(
-          '${getBaseUri()}/api/v1/mount_status?name=$name&type=$type',
+    try {
+      final response = await http.get(
+        Uri.parse(
+          Uri.encodeFull(
+            '${getBaseUri()}/api/v1/mount_status?name=$name&type=$type',
+          ),
         ),
-      ),
-    );
+      );
 
-    if (response.statusCode != 200) {
-      return;
+      if (response.statusCode != 200) {
+        return;
+      }
+
+      mountConfig.updateStatus(jsonDecode(response.body));
+      notifyListeners();
+    } catch (e) {
+      debugPrint('$e');
     }
-
-    mountConfig.updateStatus(jsonDecode(response.body));
-    notifyListeners();
   }
 
   Future<void> mount(bool unmount, {String? location}) async {
-    await http.post(
-      Uri.parse(
-        Uri.encodeFull(
-          '${getBaseUri()}/api/v1/mount?unmount=$unmount&name=$name&type=$type&location=$location',
+    try {
+      await http.post(
+        Uri.parse(
+          Uri.encodeFull(
+            '${getBaseUri()}/api/v1/mount?unmount=$unmount&name=$name&type=$type&location=$location',
+          ),
         ),
-      ),
-    );
+      );
 
-    return refresh();
+      return refresh();
+    } catch (e) {
+      debugPrint('$e');
+    }
   }
 
   Future<void> refresh() async {
@@ -70,30 +82,40 @@ class Mount with ChangeNotifier {
   }
 
   Future<void> setValue(String key, String value) async {
-    await http.put(
-      Uri.parse(
-        Uri.encodeFull(
-          '${getBaseUri()}/api/v1/set_value_by_name?name=$name&type=$type&key=$key&value=$value',
+    try {
+      await http.put(
+        Uri.parse(
+          Uri.encodeFull(
+            '${getBaseUri()}/api/v1/set_value_by_name?name=$name&type=$type&key=$key&value=$value',
+          ),
         ),
-      ),
-    );
+      );
 
-    return refresh();
+      return refresh();
+    } catch (e) {
+      debugPrint('$e');
+    }
   }
 
   Future<String?> getMountLocation() async {
-    final response = await http.get(
-      Uri.parse(
-        Uri.encodeFull(
-          '${getBaseUri()}/api/v1/get_mount_location?name=$name&type=$type',
+    try {
+      final response = await http.get(
+        Uri.parse(
+          Uri.encodeFull(
+            '${getBaseUri()}/api/v1/get_mount_location?name=$name&type=$type',
+          ),
         ),
-      ),
-    );
+      );
 
-    if (response.statusCode != 200) {
-      return null;
+      if (response.statusCode != 200) {
+        return null;
+      }
+
+      return jsonDecode(response.body)['Location'] as String;
+    } catch (e) {
+      debugPrint('$e');
     }
 
-    return jsonDecode(response.body)['Location'] as String;
+    return null;
   }
 }
