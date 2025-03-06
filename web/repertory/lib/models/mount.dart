@@ -9,7 +9,6 @@ class Mount with ChangeNotifier {
   final MountConfig mountConfig;
   Mount(this.mountConfig, {isAdd = false}) {
     if (isAdd) {
-      mountConfig.updateSettings({'EventLevel': 'info'});
       return;
     }
     refresh();
