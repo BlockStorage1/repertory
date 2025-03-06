@@ -38,7 +38,7 @@ class _MountWidgetState extends State<MountWidget> {
             leading: IconButton(
               icon: Icon(Icons.settings, color: textColor),
               onPressed: () {
-                Navigator.pushNamed(context, '/settings', arguments: mount);
+                Navigator.pushNamed(context, '/edit', arguments: mount);
               },
             ),
             subtitle: Column(
