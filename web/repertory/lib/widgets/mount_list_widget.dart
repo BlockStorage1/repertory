@@ -10,7 +10,7 @@ class MountListWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Consumer<MountList>(
-      builder: (context, mountList, _) {
+      builder: (context, MountList mountList, _) {
         return ListView.builder(
           itemBuilder: (context, idx) {
             return ChangeNotifierProvider(
