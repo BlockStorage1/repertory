@@ -65,11 +65,7 @@ class _AddMountScreenState extends State<AddMountScreen> {
                     const SizedBox(width: _padding),
                     DropdownButton<String>(
                       value: _mountType,
-                      onChanged: (newValue) {
-                        setState(() {
-                          _mountType = newValue ?? "";
-                        });
-                      },
+                      onChanged: (mountType) => _handleChange(mountType ?? ''),
                       items:
                           providerTypeList.map<DropdownMenuItem<String>>((
                             item,
@@ -100,21 +96,7 @@ class _AddMountScreenState extends State<AddMountScreen> {
                         autofocus: true,
                         controller: _mountNameController,
                         keyboardType: TextInputType.text,
-                        onChanged: (_) {
-                          setState(() {
-                            _mount =
-                                (_mountNameController.text.isEmpty)
-                                    ? null
-                                    : Mount(
-                                      MountConfig(
-                                        name: _mountNameController.text,
-                                        settings: _settings[_mountType],
-                                        type: _mountType,
-                                      ),
-                                      isAdd: true,
-                                    );
-                          });
-                        },
+                        onChanged: (_) => _handleChange(_mountType),
                       ),
                     ],
                   ),
@@ -138,6 +120,23 @@ class _AddMountScreenState extends State<AddMountScreen> {
         ),
       ),
     );
+  }
+
+  void _handleChange(String mountType) {
+    setState(() {
+      _mountType = mountType;
+      _mount =
+          (_mountNameController.text.isEmpty)
+              ? null
+              : Mount(
+                MountConfig(
+                  name: _mountNameController.text,
+                  settings: _settings[_mountType],
+                  type: _mountType,
+                ),
+                isAdd: true,
+              );
+    });
   }
 
   @override
