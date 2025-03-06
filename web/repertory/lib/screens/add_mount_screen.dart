@@ -126,7 +126,6 @@ class _AddMountScreenState extends State<AddMountScreen> {
                     _mountNameController.text,
                     _settings[_mountType]!,
                   );
-
                   Navigator.pop(context);
                 },
                 label: const Text('Add'),
