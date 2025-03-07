@@ -17,10 +17,12 @@ bool containsRestrictedChar(String value) {
     '<',
     '>',
     '?',
+    '[',
+    ']',
     '`',
     '{',
-    '|',
     '}',
+    '|',
   ];
   return invalidChars.firstWhereOrNull((char) => value.contains(char)) != null;
 }

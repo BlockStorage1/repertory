@@ -82,7 +82,7 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
                         );
                         if (result != null) {
                           ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text('$key must be valid')),
+                            SnackBar(content: Text("'$key' is not valid")),
                           );
                           return;
                         }
