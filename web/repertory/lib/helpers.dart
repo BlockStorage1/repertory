@@ -145,8 +145,7 @@ bool validateSettings(
         rootKey: rootKey == null ? key : '$rootKey.$key',
       );
     } else {
-      final validators = getSettingValidators(key);
-      for (var validator in validators) {
+      for (var validator in getSettingValidators(key)) {
         if (!validator(value.toString())) {
           failed.add(rootKey == null ? key : '$rootKey.$key');
         }
