@@ -78,7 +78,7 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
                       child: Text('OK'),
                       onPressed: () {
                         final result = validators.firstWhereOrNull(
-                          (func) => !func(updatedValue),
+                          (validator) => !validator(updatedValue),
                         );
                         if (result != null) {
                           ScaffoldMessenger.of(context).showSnackBar(
@@ -223,7 +223,7 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
                       child: Text('OK'),
                       onPressed: () {
                         final result = validators.firstWhereOrNull(
-                          (func) => !func(updatedValue),
+                          (validator) => !validator(updatedValue),
                         );
                         if (result != null) {
                           ScaffoldMessenger.of(context).showSnackBar(
