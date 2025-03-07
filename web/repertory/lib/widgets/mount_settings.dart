@@ -2,6 +2,7 @@ import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:repertory/constants.dart';
+import 'package:repertory/helpers.dart' show Validator, getSettingValidators;
 import 'package:repertory/models/mount.dart';
 import 'package:settings_ui/settings_ui.dart';
 
@@ -48,7 +49,14 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
     }
   }
 
-  void _addIntSetting(list, root, key, value, isAdvanced) {
+  void _addIntSetting(
+    list,
+    root,
+    key,
+    value,
+    isAdvanced, {
+    List<Validator> validators = const [],
+  }) {
     if (!isAdvanced || widget.showAdvanced) {
       list.add(
         SettingsTile.navigation(
@@ -69,6 +77,15 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
                     TextButton(
                       child: Text('OK'),
                       onPressed: () {
+                        final result = validators.firstWhereOrNull(
+                          (func) => !func(updatedValue),
+                        );
+                        if (result != null) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text('$key must be valid')),
+                          );
+                          return;
+                        }
                         setState(() {
                           root[key] = int.parse(updatedValue);
                           widget.onChanged?.call(widget.settings);
@@ -176,7 +193,15 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
     }
   }
 
-  void _addStringSetting(list, root, key, value, icon, isAdvanced) {
+  void _addStringSetting(
+    list,
+    root,
+    key,
+    value,
+    icon,
+    isAdvanced, {
+    List<Validator> validators = const [],
+  }) {
     if (!isAdvanced || widget.showAdvanced) {
       list.add(
         SettingsTile.navigation(
@@ -197,6 +222,16 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
                     TextButton(
                       child: Text('OK'),
                       onPressed: () {
+                        final result = validators.firstWhereOrNull(
+                          (func) => !func(updatedValue),
+                        );
+                        if (result != null) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text('$key must be valid')),
+                          );
+                          return;
+                        }
+
                         setState(() {
                           root[key] = updatedValue;
                           widget.onChanged?.call(widget.settings);
@@ -234,7 +269,14 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
       if (key == 'ApiAuth') {
         _addPasswordSetting(commonSettings, widget.settings, key, value, true);
       } else if (key == 'ApiPort') {
-        _addIntSetting(commonSettings, widget.settings, key, value, true);
+        _addIntSetting(
+          commonSettings,
+          widget.settings,
+          key,
+          value,
+          true,
+          validators: getSettingValidators(key),
+        );
       } else if (key == 'ApiUser') {
         _addStringSetting(
           commonSettings,
@@ -243,6 +285,7 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
           value,
           Icons.person,
           true,
+          validators: getSettingValidators(key),
         );
       } else if (key == 'DatabaseType') {
         _addListSetting(
@@ -255,7 +298,14 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
           true,
         );
       } else if (key == 'DownloadTimeoutSeconds') {
-        _addIntSetting(commonSettings, widget.settings, key, value, true);
+        _addIntSetting(
+          commonSettings,
+          widget.settings,
+          key,
+          value,
+          true,
+          validators: getSettingValidators(key),
+        );
       } else if (key == 'EnableDownloadTimeout') {
         _addBooleanSetting(commonSettings, widget.settings, key, value, true);
       } else if (key == 'EnableDriveEvents') {
@@ -271,15 +321,43 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
           false,
         );
       } else if (key == 'EvictionDelayMinutes') {
-        _addIntSetting(commonSettings, widget.settings, key, value, true);
+        _addIntSetting(
+          commonSettings,
+          widget.settings,
+          key,
+          value,
+          true,
+          validators: getSettingValidators(key),
+        );
       } else if (key == 'EvictionUseAccessedTime') {
         _addBooleanSetting(commonSettings, widget.settings, key, value, true);
       } else if (key == 'MaxCacheSizeBytes') {
-        _addIntSetting(commonSettings, widget.settings, key, value, false);
+        _addIntSetting(
+          commonSettings,
+          widget.settings,
+          key,
+          value,
+          false,
+          validators: getSettingValidators(key),
+        );
       } else if (key == 'MaxUploadCount') {
-        _addIntSetting(commonSettings, widget.settings, key, value, true);
+        _addIntSetting(
+          commonSettings,
+          widget.settings,
+          key,
+          value,
+          true,
+          validators: getSettingValidators(key),
+        );
       } else if (key == 'OnlineCheckRetrySeconds') {
-        _addIntSetting(commonSettings, widget.settings, key, value, true);
+        _addIntSetting(
+          commonSettings,
+          widget.settings,
+          key,
+          value,
+          true,
+          validators: getSettingValidators(key),
+        );
       } else if (key == 'PreferredDownloadType') {
         _addListSetting(
           commonSettings,
@@ -291,7 +369,14 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
           false,
         );
       } else if (key == 'RetryReadCount') {
-        _addIntSetting(commonSettings, widget.settings, key, value, true);
+        _addIntSetting(
+          commonSettings,
+          widget.settings,
+          key,
+          value,
+          true,
+          validators: getSettingValidators(key),
+        );
       } else if (key == 'RingBufferFileSize') {
         _addIntListSetting(
           commonSettings,
@@ -321,6 +406,7 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
               subValue,
               Icons.folder,
               false,
+              validators: getSettingValidators('$key.$subKey'),
             );
           }
         });
@@ -334,6 +420,7 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
               subValue,
               Icons.support_agent,
               true,
+              validators: getSettingValidators('$key.$subKey'),
             );
           } else if (subKey == 'ApiPassword') {
             _addPasswordSetting(
@@ -350,6 +437,7 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
               subKey,
               subValue,
               false,
+              validators: getSettingValidators('$key.$subKey'),
             );
           } else if (subKey == 'ApiUser') {
             _addStringSetting(
@@ -359,6 +447,7 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
               subValue,
               Icons.person,
               true,
+              validators: getSettingValidators('$key.$subKey'),
             );
           } else if (subKey == 'HostNameOrIp') {
             _addStringSetting(
@@ -377,6 +466,7 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
               subValue,
               Icons.route,
               true,
+              validators: getSettingValidators('$key.$subKey'),
             );
           } else if (subKey == 'Protocol') {
             _addListSetting(
@@ -395,6 +485,7 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
               subKey,
               subValue,
               true,
+              validators: getSettingValidators('$key.$subKey'),
             );
           }
         });
@@ -407,6 +498,7 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
               subKey,
               subValue,
               false,
+              validators: getSettingValidators('$key.$subKey'),
             );
           } else if (subKey == 'EncryptionToken') {
             _addPasswordSetting(
@@ -424,6 +516,7 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
               subValue,
               Icons.computer,
               false,
+              validators: getSettingValidators('$key.$subKey'),
             );
           } else if (subKey == 'MaxConnections') {
             _addIntSetting(
@@ -432,6 +525,7 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
               subKey,
               subValue,
               true,
+              validators: getSettingValidators('$key.$subKey'),
             );
           } else if (subKey == 'ReceiveTimeoutMs') {
             _addIntSetting(
@@ -440,6 +534,7 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
               subKey,
               subValue,
               true,
+              validators: getSettingValidators('$key.$subKey'),
             );
           } else if (subKey == 'SendTimeoutMs') {
             _addIntSetting(
@@ -448,6 +543,7 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
               subKey,
               subValue,
               true,
+              validators: getSettingValidators('$key.$subKey'),
             );
           }
         });
@@ -470,6 +566,7 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
               subKey,
               subValue,
               false,
+              validators: getSettingValidators('$key.$subKey'),
             );
           } else if (subKey == 'ClientPoolSize') {
             _addIntSetting(
@@ -478,6 +575,7 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
               subKey,
               subValue,
               true,
+              validators: getSettingValidators('$key.$subKey'),
             );
           } else if (subKey == 'EncryptionToken') {
             _addPasswordSetting(
@@ -507,6 +605,7 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
               subValue,
               Icons.folder,
               false,
+              validators: getSettingValidators('$key.$subKey'),
             );
           } else if (subKey == 'EncryptionToken') {
             _addPasswordSetting(
@@ -524,6 +623,7 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
               subValue,
               Icons.map,
               false,
+              validators: getSettingValidators('$key.$subKey'),
             );
           } else if (subKey == 'SecretKey') {
             _addPasswordSetting(
@@ -540,6 +640,7 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
               subKey,
               subValue,
               true,
+              validators: getSettingValidators('$key.$subKey'),
             );
           } else if (subKey == 'URL') {
             _addStringSetting(
@@ -549,6 +650,7 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
               subValue,
               Icons.http,
               false,
+              validators: getSettingValidators('$key.$subKey'),
             );
           } else if (subKey == 'UsePathStyle') {
             _addBooleanSetting(
@@ -578,6 +680,7 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
               subValue,
               Icons.folder,
               false,
+              validators: getSettingValidators('$key.$subKey'),
             );
           }
         });

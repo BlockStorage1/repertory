@@ -1,31 +1,28 @@
+import 'package:collection/collection.dart';
 import 'package:flutter/foundation.dart';
 
-String formatMountName(String type, String name) {
-  if (type == 'remote') {
-    return name.replaceAll('_', ':');
-  }
+typedef Validator = bool Function(String);
 
-  return name;
-}
-
-String getBaseUri() {
-  if (kDebugMode || !kIsWeb) {
-    return 'http://127.0.0.1:30000';
-  }
-
-  return Uri.base.origin;
-}
-
-String initialCaps(String txt) {
-  if (txt.isEmpty) {
-    return txt;
-  }
-
-  if (txt.length == 1) {
-    return txt[0].toUpperCase();
-  }
-
-  return txt[0].toUpperCase() + txt.substring(1).toLowerCase();
+bool containsRestrictedChar(String value) {
+  const invalidChars = [
+    '!',
+    '"',
+    '\$',
+    '&',
+    '\'',
+    '(',
+    ')',
+    '*',
+    ';',
+    '<',
+    '>',
+    '?',
+    '`',
+    '{',
+    '|',
+    '}',
+  ];
+  return invalidChars.firstWhereOrNull((char) => value.contains(char)) != null;
 }
 
 Map<String, dynamic> createDefaultSettings(String mountType) {
@@ -52,7 +49,7 @@ Map<String, dynamic> createDefaultSettings(String mountType) {
       return {
         'HostConfig': {
           'ApiPassword': '',
-          'ApiPort': '9980',
+          'ApiPort': 9980,
           'HostNameOrIp': 'localhost',
         },
         'SiaConfig': {'Bucket': 'default'},
@@ -60,4 +57,106 @@ Map<String, dynamic> createDefaultSettings(String mountType) {
   }
 
   return {};
+}
+
+String formatMountName(String type, String name) {
+  if (type == 'remote') {
+    return name.replaceAll('_', ':');
+  }
+
+  return name;
+}
+
+String getBaseUri() {
+  if (kDebugMode || !kIsWeb) {
+    return 'http://127.0.0.1:30000';
+  }
+
+  return Uri.base.origin;
+}
+
+List<Validator> getSettingValidators(String settingPath) {
+  switch (settingPath) {
+    case 'EncryptConfig.EncryptionToken':
+      return [(value) => value.isNotEmpty];
+    case 'EncryptConfig.Path':
+      return [
+        (value) => value.trim().isNotEmpty,
+        (value) => !containsRestrictedChar(value),
+      ];
+    case 'HostConfig.ApiPassword':
+      return [(value) => value.isNotEmpty];
+    case 'HostConfig.ApiPort':
+      return [
+        (value) {
+          int? intValue = int.tryParse(value);
+          if (intValue == null) {
+            return false;
+          }
+
+          return (intValue > 0 && intValue < 65536);
+        },
+        (value) => Uri.tryParse('http://localhost:$value/') != null,
+      ];
+    case 'HostConfig.HostNameOrIp':
+      return [
+        (value) => value.trim().isNotEmpty,
+        (value) => Uri.tryParse('http://$value:9000/') != null,
+      ];
+    case 'HostConfig.Protocol':
+      return [(value) => value == "http" || value == "https"];
+    case 'S3Config.AccessKey':
+      return [(value) => value.isNotEmpty];
+    case 'S3Config.Bucket':
+      return [(value) => value.trim().isNotEmpty];
+    case 'S3Config.SecretKey':
+      return [(value) => value.isNotEmpty];
+    case 'S3Config.URL':
+      return [(value) => Uri.tryParse(value) != null];
+    case 'SiaConfig.Bucket':
+      return [(value) => value.trim().isNotEmpty];
+  }
+
+  return [];
+}
+
+String initialCaps(String txt) {
+  if (txt.isEmpty) {
+    return txt;
+  }
+
+  if (txt.length == 1) {
+    return txt[0].toUpperCase();
+  }
+
+  return txt[0].toUpperCase() + txt.substring(1).toLowerCase();
+}
+
+bool validateSettings(
+  Map<String, dynamic> settings,
+  List<String> failed, {
+  String? rootKey,
+}) {
+  settings.forEach((key, value) {
+    if (value is Map) {
+      validateSettings(
+        value as Map<String, dynamic>,
+        failed,
+        rootKey: rootKey == null ? key : '$rootKey.$key',
+      );
+    } else {
+      final validators = getSettingValidators(key);
+      for (var validator in validators) {
+        if (!validator(value.toString())) {
+          if (rootKey == null) {
+            failed.add(key);
+          } else {
+            failed.add('$rootKey.$key');
+          }
+        }
+      }
+    }
+  });
+
+  return failed.isEmpty;
 }

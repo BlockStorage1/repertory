@@ -121,11 +121,17 @@ class _AddMountScreenState extends State<AddMountScreen> {
             if (_mount != null)
               ElevatedButton.icon(
                 onPressed: () {
+                  List<String> failed = [];
+                  if (!validateSettings(_settings[_mountType]!, failed)) {
+                    return;
+                  }
+
                   Provider.of<MountList>(context, listen: false).add(
                     _mountType,
                     _mountNameController.text,
                     _settings[_mountType]!,
                   );
+
                   Navigator.pop(context);
                 },
                 label: const Text('Add'),
