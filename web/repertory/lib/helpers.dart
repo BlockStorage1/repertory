@@ -33,6 +33,16 @@ final Validator noRestrictedChars = (value) {
 final Validator notEmptyValidator = (value) => value.isNotEmpty;
 
 // ignore: prefer_function_declarations_over_variables
+final Validator portIsValid = (value) {
+  int? intValue = int.tryParse(value);
+  if (intValue == null) {
+    return false;
+  }
+
+  return (intValue > 0 && intValue < 65536);
+};
+
+// ignore: prefer_function_declarations_over_variables
 final Validator trimNotEmptyValidator = (value) => value.trim().isNotEmpty;
 
 createUriValidator<Validator>({host, port}) {
@@ -112,25 +122,19 @@ List<Validator> getSettingValidators(String settingPath) {
     case 'HostConfig.ApiPassword':
       return [notEmptyValidator];
     case 'HostConfig.ApiPort':
-      return [
-        (value) {
-          int? intValue = int.tryParse(value);
-          if (intValue == null) {
-            return false;
-          }
-
-          return (intValue > 0 && intValue < 65536);
-        },
-        createUriValidator(host: 'localhost'),
-      ];
+      return [portIsValid];
     case 'HostConfig.HostNameOrIp':
       return createHostNameOrIpValidators();
     case 'HostConfig.Protocol':
       return [(value) => constants.protocolTypeList.contains(value)];
+    case 'RemoteConfig.ApiPort':
+      return [notEmptyValidator, portIsValid];
     case 'RemoteConfig.EncryptionToken':
       return [notEmptyValidator];
     case 'RemoteConfig.HostNameOrIp':
       return createHostNameOrIpValidators();
+    case 'RemoteMount.ApiPort':
+      return [notEmptyValidator, portIsValid];
     case 'RemoteMount.EncryptionToken':
       return [notEmptyValidator];
     case 'RemoteMount.HostNameOrIp':
