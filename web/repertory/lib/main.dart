@@ -25,7 +25,7 @@ class _MyAppState extends State<MyApp> {
   @override
   Widget build(context) {
     final snackBarTheme = SnackBarThemeData(
-      width: MediaQuery.of(context).size.width * 0.60,
+      width: MediaQuery.of(context).size.width * 0.50,
       behavior: SnackBarBehavior.floating,
     );
 
