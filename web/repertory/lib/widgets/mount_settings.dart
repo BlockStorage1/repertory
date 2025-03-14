@@ -544,6 +544,7 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
               subValue,
               Icons.computer,
               false,
+              validators: getSettingValidators('$key.$subKey'),
             );
           } else if (subKey == 'Path') {
             _addStringSetting(
