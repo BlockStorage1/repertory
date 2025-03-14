@@ -79,6 +79,8 @@ String getBaseUri() {
 
 List<Validator> getSettingValidators(String settingPath) {
   switch (settingPath) {
+    case 'ApiAuth':
+      return [(value) => value.isNotEmpty];
     case 'EncryptConfig.EncryptionToken':
       return [(value) => value.isNotEmpty];
     case 'EncryptConfig.Path':
