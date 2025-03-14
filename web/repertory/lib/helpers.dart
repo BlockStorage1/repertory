@@ -144,14 +144,12 @@ bool validateSettings(
   settings.forEach((key, value) {
     final checkKey = rootKey == null ? key : '$rootKey.$key';
     if (value is Map) {
-      debugPrint('nested: $checkKey');
       validateSettings(
         value as Map<String, dynamic>,
         failed,
         rootKey: checkKey,
       );
     } else {
-      debugPrint('validate: $checkKey--$value');
       for (var validator in getSettingValidators(checkKey)) {
         if (!validator(value.toString())) {
           failed.add(checkKey);

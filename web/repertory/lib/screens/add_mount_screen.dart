@@ -127,6 +127,11 @@ class _AddMountScreenState extends State<AddMountScreen> {
                 onPressed: () {
                   List<String> failed = [];
                   if (!validateSettings(_settings[_mountType]!, failed)) {
+                    for (var key in failed) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text("'$key' is not valid")),
+                      );
+                    }
                     return;
                   }
 
