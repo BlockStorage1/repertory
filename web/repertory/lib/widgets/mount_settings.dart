@@ -1,7 +1,7 @@
 import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:repertory/constants.dart';
+import 'package:repertory/constants.dart' as constants;
 import 'package:repertory/helpers.dart' show Validator, getSettingValidators;
 import 'package:repertory/models/mount.dart';
 import 'package:settings_ui/settings_ui.dart';
@@ -26,8 +26,6 @@ class MountSettingsWidget extends StatefulWidget {
 }
 
 class _MountSettingsWidgetState extends State<MountSettingsWidget> {
-  static const _padding = 15.0;
-
   void _addBooleanSetting(list, root, key, value, isAdvanced) {
     if (!isAdvanced || widget.showAdvanced) {
       list.add(
@@ -264,7 +262,7 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
                         obscuringCharacter: '*',
                         onChanged: (value) => updatedValue1 = value,
                       ),
-                      const SizedBox(height: _padding),
+                      const SizedBox(height: constants.padding),
                       TextField(
                         autofocus: false,
                         controller: TextEditingController(text: updatedValue2),
@@ -409,7 +407,7 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
               widget.settings,
               key,
               value,
-              databaseTypeList,
+              constants.databaseTypeList,
               Icons.dataset,
               true,
             );
@@ -456,7 +454,7 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
               widget.settings,
               key,
               value,
-              eventLevelList,
+              constants.eventLevelList,
               Icons.event,
               false,
             );
@@ -528,7 +526,7 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
               widget.settings,
               key,
               value,
-              downloadTypeList,
+              constants.downloadTypeList,
               Icons.download,
               false,
             );
@@ -553,7 +551,7 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
               widget.settings,
               key,
               value,
-              ringBufferSizeList,
+              constants.ringBufferSizeList,
               512,
               Icons.animation,
               false,
@@ -733,7 +731,7 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
               widget.settings[key],
               subKey,
               subValue,
-              protocolTypeList,
+              constants.protocolTypeList,
               Icons.http,
               true,
             );

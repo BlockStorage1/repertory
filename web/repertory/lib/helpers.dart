@@ -1,31 +1,49 @@
 import 'package:collection/collection.dart';
 import 'package:flutter/foundation.dart';
+import 'package:repertory/constants.dart' as constants;
 
 typedef Validator = bool Function(String);
 
-bool containsRestrictedChar(String value) {
-  const invalidChars = [
-    '!',
-    '"',
-    '\$',
-    '&',
-    '\'',
-    '(',
-    ')',
-    '*',
-    ';',
-    '<',
-    '>',
-    '?',
-    '[',
-    ']',
-    '`',
-    '{',
-    '}',
-    '|',
-  ];
-  return invalidChars.firstWhereOrNull((char) => value.contains(char)) != null;
+// ignore: prefer_function_declarations_over_variables
+final Validator noRestrictedChars = (value) {
+  return [
+        '!',
+        '"',
+        '\$',
+        '&',
+        "'",
+        '(',
+        ')',
+        '*',
+        ';',
+        '<',
+        '>',
+        '?',
+        '[',
+        ']',
+        '`',
+        '{',
+        '}',
+        '|',
+      ].firstWhereOrNull((char) => value.contains(char)) ==
+      null;
+};
+
+// ignore: prefer_function_declarations_over_variables
+final Validator notEmptyValidator = (value) => value.isNotEmpty;
+
+// ignore: prefer_function_declarations_over_variables
+final Validator trimNotEmptyValidator = (value) => value.trim().isNotEmpty;
+
+createUriValidator<Validator>({host, port}) {
+  return (value) =>
+      Uri.tryParse('http://${host ?? value}:${port ?? value}/') != null;
 }
+
+createHostNameOrIpValidators() => <Validator>[
+  trimNotEmptyValidator,
+  createUriValidator(port: 9000),
+];
 
 Map<String, dynamic> createDefaultSettings(String mountType) {
   switch (mountType) {
@@ -80,16 +98,19 @@ String getBaseUri() {
 List<Validator> getSettingValidators(String settingPath) {
   switch (settingPath) {
     case 'ApiAuth':
-      return [(value) => value.isNotEmpty];
+      return [notEmptyValidator];
+    case 'DatabaseType':
+      return [(value) => constants.databaseTypeList.contains(value)];
+    case 'PreferredDownloadType':
+      return [(value) => constants.downloadTypeList.contains(value)];
+    case 'EventLevel':
+      return [(value) => constants.eventLevelList.contains(value)];
     case 'EncryptConfig.EncryptionToken':
-      return [(value) => value.isNotEmpty];
+      return [notEmptyValidator];
     case 'EncryptConfig.Path':
-      return [
-        (value) => value.trim().isNotEmpty,
-        (value) => !containsRestrictedChar(value),
-      ];
+      return [trimNotEmptyValidator, noRestrictedChars];
     case 'HostConfig.ApiPassword':
-      return [(value) => value.isNotEmpty];
+      return [notEmptyValidator];
     case 'HostConfig.ApiPort':
       return [
         (value) {
@@ -100,29 +121,32 @@ List<Validator> getSettingValidators(String settingPath) {
 
           return (intValue > 0 && intValue < 65536);
         },
-        (value) => Uri.tryParse('http://localhost:$value/') != null,
+        createUriValidator(host: 'localhost'),
       ];
     case 'HostConfig.HostNameOrIp':
-      return [
-        (value) => value.trim().isNotEmpty,
-        (value) => Uri.tryParse('http://$value:9000/') != null,
-      ];
+      return createHostNameOrIpValidators();
     case 'HostConfig.Protocol':
-      return [(value) => value == "http" || value == "https"];
+      return [(value) => constants.protocolTypeList.contains(value)];
     case 'RemoteConfig.EncryptionToken':
-      return [(value) => value.isNotEmpty];
+      return [notEmptyValidator];
+    case 'RemoteConfig.HostNameOrIp':
+      return createHostNameOrIpValidators();
     case 'RemoteMount.EncryptionToken':
-      return [(value) => value.isNotEmpty];
+      return [notEmptyValidator];
+    case 'RemoteMount.HostNameOrIp':
+      return createHostNameOrIpValidators();
+    case 'RingBufferFileSize':
+      return [(value) => constants.ringBufferSizeList.contains(value)];
     case 'S3Config.AccessKey':
-      return [(value) => value.trim().isNotEmpty];
+      return [trimNotEmptyValidator];
     case 'S3Config.Bucket':
-      return [(value) => value.trim().isNotEmpty];
+      return [trimNotEmptyValidator];
     case 'S3Config.SecretKey':
-      return [(value) => value.trim().isNotEmpty];
+      return [trimNotEmptyValidator];
     case 'S3Config.URL':
-      return [(value) => Uri.tryParse(value) != null];
+      return [trimNotEmptyValidator, (value) => Uri.tryParse(value) != null];
     case 'SiaConfig.Bucket':
-      return [(value) => value.trim().isNotEmpty];
+      return [trimNotEmptyValidator];
   }
 
   return [];
@@ -146,18 +170,19 @@ bool validateSettings(
   String? rootKey,
 }) {
   settings.forEach((key, value) {
-    final checkKey = rootKey == null ? key : '$rootKey.$key';
+    final settingKey = rootKey == null ? key : '$rootKey.$key';
     if (value is Map) {
       validateSettings(
         value as Map<String, dynamic>,
         failed,
-        rootKey: checkKey,
+        rootKey: settingKey,
       );
     } else {
-      for (var validator in getSettingValidators(checkKey)) {
-        if (!validator(value.toString())) {
-          failed.add(checkKey);
+      for (var validator in getSettingValidators(settingKey)) {
+        if (validator(value.toString())) {
+          continue;
         }
+        failed.add(settingKey);
       }
     }
   });

@@ -1,7 +1,8 @@
+import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
-import 'package:repertory/constants.dart';
+import 'package:repertory/constants.dart' as constants;
 import 'package:repertory/helpers.dart';
 import 'package:repertory/models/mount.dart';
 import 'package:repertory/models/mount_list.dart';
@@ -17,8 +18,6 @@ class AddMountScreen extends StatefulWidget {
 }
 
 class _AddMountScreenState extends State<AddMountScreen> {
-  static const _padding = 15.0;
-
   Mount? _mount;
   final _mountNameController = TextEditingController();
   String _mountType = "";
@@ -50,7 +49,7 @@ class _AddMountScreenState extends State<AddMountScreen> {
         ],
       ),
       body: Padding(
-        padding: const EdgeInsets.all(_padding),
+        padding: const EdgeInsets.all(constants.padding),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisAlignment: MainAxisAlignment.start,
@@ -58,43 +57,44 @@ class _AddMountScreenState extends State<AddMountScreen> {
           children: [
             Card(
               child: Padding(
-                padding: const EdgeInsets.all(_padding),
+                padding: const EdgeInsets.all(constants.padding),
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisAlignment: MainAxisAlignment.start,
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     const Text('Provider Type'),
-                    const SizedBox(width: _padding),
+                    const SizedBox(width: constants.padding),
                     DropdownButton<String>(
                       value: _mountType,
                       onChanged: (mountType) => _handleChange(mountType ?? ''),
                       items:
-                          providerTypeList.map<DropdownMenuItem<String>>((
-                            item,
-                          ) {
-                            return DropdownMenuItem<String>(
-                              value: item,
-                              child: Text(item),
-                            );
-                          }).toList(),
+                          constants.providerTypeList
+                              .map<DropdownMenuItem<String>>((item) {
+                                return DropdownMenuItem<String>(
+                                  value: item,
+                                  child: Text(item),
+                                );
+                              })
+                              .toList(),
                     ),
                   ],
                 ),
               ),
             ),
-            if (_mountType.isNotEmpty) const SizedBox(height: _padding),
+            if (_mountType.isNotEmpty)
+              const SizedBox(height: constants.padding),
             if (_mountType.isNotEmpty)
               Card(
                 child: Padding(
-                  padding: const EdgeInsets.all(_padding),
+                  padding: const EdgeInsets.all(constants.padding),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisAlignment: MainAxisAlignment.start,
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       const Text('Configuration Name'),
-                      const SizedBox(width: _padding),
+                      const SizedBox(width: constants.padding),
                       TextField(
                         autofocus: true,
                         controller: _mountNameController,
@@ -112,7 +112,7 @@ class _AddMountScreenState extends State<AddMountScreen> {
               Expanded(
                 child: Card(
                   child: Padding(
-                    padding: const EdgeInsets.all(_padding),
+                    padding: const EdgeInsets.all(constants.padding),
                     child: MountSettingsWidget(
                       isAdd: true,
                       mount: _mount!,
@@ -123,33 +123,60 @@ class _AddMountScreenState extends State<AddMountScreen> {
                 ),
               ),
             if (_mount != null)
-              ElevatedButton.icon(
-                onPressed: () {
-                  List<String> failed = [];
-                  if (!validateSettings(_settings[_mountType]!, failed)) {
-                    for (var key in failed) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(
-                            "'$key' is not valid",
-                            textAlign: TextAlign.center,
-                          ),
-                        ),
+              Builder(
+                builder: (context) {
+                  return ElevatedButton.icon(
+                    onPressed: () {
+                      final mountList = Provider.of<MountList>(
+                        context,
+                        listen: false,
                       );
-                    }
-                    return;
-                  }
 
-                  Provider.of<MountList>(context, listen: false).add(
-                    _mountType,
-                    _mountNameController.text,
-                    _settings[_mountType]!,
+                      List<String> failed = [];
+                      if (!validateSettings(_settings[_mountType]!, failed)) {
+                        for (var key in failed) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                "'$key' is not valid",
+                                textAlign: TextAlign.center,
+                              ),
+                            ),
+                          );
+                        }
+                        return;
+                      }
+
+                      final existingMount = mountList.items.firstWhereOrNull(
+                        (item) =>
+                            item.name.toLowerCase() ==
+                            _mountNameController.text.toLowerCase(),
+                      );
+
+                      if (existingMount != null) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(
+                              "'${_mountNameController.text}' already exists",
+                              textAlign: TextAlign.center,
+                            ),
+                          ),
+                        );
+                        return;
+                      }
+
+                      mountList.add(
+                        _mountType,
+                        _mountNameController.text,
+                        _settings[_mountType]!,
+                      );
+
+                      Navigator.pop(context);
+                    },
+                    label: const Text('Add'),
+                    icon: Icon(Icons.add),
                   );
-
-                  Navigator.pop(context);
                 },
-                label: const Text('Add'),
-                icon: Icon(Icons.add),
               ),
           ],
         ),
