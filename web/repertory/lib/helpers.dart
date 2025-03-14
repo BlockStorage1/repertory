@@ -142,16 +142,19 @@ bool validateSettings(
   String? rootKey,
 }) {
   settings.forEach((key, value) {
+    final checkKey = rootKey == null ? key : '$rootKey.$key';
     if (value is Map) {
+      debugPrint('nested: $checkKey');
       validateSettings(
         value as Map<String, dynamic>,
         failed,
-        rootKey: rootKey == null ? key : '$rootKey.$key',
+        rootKey: checkKey,
       );
     } else {
-      for (var validator in getSettingValidators(key)) {
+      debugPrint('validate: $checkKey--$value');
+      for (var validator in getSettingValidators(checkKey)) {
         if (!validator(value.toString())) {
-          failed.add(rootKey == null ? key : '$rootKey.$key');
+          failed.add(checkKey);
         }
       }
     }
