@@ -84,7 +84,12 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
                         );
                         if (result != null) {
                           ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text("'$key' is not valid")),
+                            SnackBar(
+                              content: Text(
+                                "'$key' is not valid",
+                                textAlign: TextAlign.center,
+                              ),
+                            ),
                           );
                           return;
                         }
@@ -214,7 +219,12 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
                       onPressed: () {
                         if (updatedValue1 != updatedValue2) {
                           ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text("'$key' does not match")),
+                            SnackBar(
+                              content: Text(
+                                "'$key' does not match",
+                                textAlign: TextAlign.center,
+                              ),
+                            ),
                           );
                           return;
                         }
@@ -224,7 +234,12 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
                         );
                         if (result != null) {
                           ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text("'$key' is not valid")),
+                            SnackBar(
+                              content: Text(
+                                "'$key' is not valid",
+                                textAlign: TextAlign.center,
+                              ),
+                            ),
                           );
                           return;
                         }
@@ -303,7 +318,12 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
                         );
                         if (result != null) {
                           ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text("'$key' is not valid")),
+                            SnackBar(
+                              content: Text(
+                                "'$key' is not valid",
+                                textAlign: TextAlign.center,
+                              ),
+                            ),
                           );
                           return;
                         }
