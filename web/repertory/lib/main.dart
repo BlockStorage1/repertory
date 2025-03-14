@@ -26,6 +26,7 @@ class _MyAppState extends State<MyApp> {
   Widget build(context) {
     final snackBarTheme = SnackBarThemeData(
       width: MediaQuery.of(context).size.width * 0.60,
+      behavior: SnackBarBehavior.floating,
     );
 
     return MaterialApp(
