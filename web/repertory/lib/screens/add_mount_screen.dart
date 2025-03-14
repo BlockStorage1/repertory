@@ -67,7 +67,9 @@ class _AddMountScreenState extends State<AddMountScreen> {
                     const SizedBox(width: constants.padding),
                     DropdownButton<String>(
                       value: _mountType,
-                      onChanged: (mountType) => _handleChange(mountType ?? ''),
+                      onChanged: (mountType) {
+                        _handleChange(mountType ?? '');
+                      },
                       items:
                           constants.providerTypeList
                               .map<DropdownMenuItem<String>>((item) {
@@ -187,6 +189,12 @@ class _AddMountScreenState extends State<AddMountScreen> {
   void _handleChange(String mountType) {
     setState(() {
       _mountType = mountType;
+      if (_mountType == "Sia" && _mountNameController.text.isEmpty) {
+        _mountNameController.text = 'default';
+      } else {
+        _mountNameController.text = '';
+      }
+
       _mount =
           (_mountNameController.text.isEmpty)
               ? null
