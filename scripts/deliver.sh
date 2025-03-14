@@ -39,6 +39,7 @@ RELEASE=$(grep PROJECT_RELEASE_ITER= ./config.sh | sed s/PROJECT_RELEASE_ITER=//
 popd
 
 if [ "${BRANCH}" == "master" ] || [ "${BRANCH}" == "alpha" ] ||
+  [ "${BRANCH}" == "main" ] || [ "${BRANCH}" == "release" ] ||
   [ "${BRANCH}" == "beta" ] || [ "${BRANCH}" == "rc" ]; then
   DEST_DIR=${DEST_DIR}/${RELEASE}
 elif [[ ${BRANCH} = *'-alpha-'* ]] || [[ ${BRANCH} = *'-beta-'* ]] ||
