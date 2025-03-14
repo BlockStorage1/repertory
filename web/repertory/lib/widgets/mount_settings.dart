@@ -237,34 +237,27 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
                       },
                     ),
                   ],
-                  content: Container(
-                    constraints: BoxConstraints(maxWidth: 200, maxHeight: 200),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisAlignment: MainAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        TextField(
-                          autofocus: true,
-                          controller: TextEditingController(
-                            text: updatedValue1,
-                          ),
-                          obscureText: true,
-                          obscuringCharacter: '*',
-                          onChanged: (value) => updatedValue1 = value,
-                        ),
-                        const SizedBox(height: _padding, width: _padding),
-                        TextField(
-                          autofocus: false,
-                          controller: TextEditingController(
-                            text: updatedValue2,
-                          ),
-                          obscureText: true,
-                          obscuringCharacter: '*',
-                          onChanged: (value) => updatedValue2 = value,
-                        ),
-                      ],
-                    ),
+                  content: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      TextField(
+                        autofocus: true,
+                        controller: TextEditingController(text: updatedValue1),
+                        obscureText: true,
+                        obscuringCharacter: '*',
+                        onChanged: (value) => updatedValue1 = value,
+                      ),
+                      const SizedBox(height: _padding),
+                      TextField(
+                        autofocus: false,
+                        controller: TextEditingController(text: updatedValue2),
+                        obscureText: true,
+                        obscuringCharacter: '*',
+                        onChanged: (value) => updatedValue2 = value,
+                      ),
+                    ],
                   ),
                   title: Text(key),
                 );
