@@ -109,6 +109,10 @@ List<Validator> getSettingValidators(String settingPath) {
       ];
     case 'HostConfig.Protocol':
       return [(value) => value == "http" || value == "https"];
+    case 'RemoteConfig.EncryptionToken':
+      return [(value) => value.isNotEmpty];
+    case 'RemoteMount.EncryptionToken':
+      return [(value) => value.isNotEmpty];
     case 'S3Config.AccessKey':
       return [(value) => value.trim().isNotEmpty];
     case 'S3Config.Bucket':
