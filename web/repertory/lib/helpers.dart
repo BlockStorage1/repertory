@@ -108,11 +108,11 @@ List<Validator> getSettingValidators(String settingPath) {
     case 'HostConfig.Protocol':
       return [(value) => value == "http" || value == "https"];
     case 'S3Config.AccessKey':
-      return [(value) => value.isNotEmpty];
+      return [(value) => value.trim().isNotEmpty];
     case 'S3Config.Bucket':
       return [(value) => value.trim().isNotEmpty];
     case 'S3Config.SecretKey':
-      return [(value) => value.isNotEmpty];
+      return [(value) => value.trim().isNotEmpty];
     case 'S3Config.URL':
       return [(value) => Uri.tryParse(value) != null];
     case 'SiaConfig.Bucket':

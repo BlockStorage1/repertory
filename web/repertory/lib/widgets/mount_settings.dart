@@ -26,6 +26,8 @@ class MountSettingsWidget extends StatefulWidget {
 }
 
 class _MountSettingsWidgetState extends State<MountSettingsWidget> {
+  static const _padding = 15.0;
+
   void _addBooleanSetting(list, root, key, value, isAdvanced) {
     if (!isAdvanced || widget.showAdvanced) {
       list.add(
@@ -181,13 +183,84 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
     }
   }
 
-  void _addPasswordSetting(list, root, key, value, isAdvanced) {
+  void _addPasswordSetting(
+    list,
+    root,
+    key,
+    value,
+    isAdvanced, {
+    List<Validator> validators = const [],
+  }) {
     if (!isAdvanced || widget.showAdvanced) {
       list.add(
         SettingsTile.navigation(
           leading: Icon(Icons.password),
           title: Text(key),
           value: Text('*' * (value as String).length),
+          onPressed: (_) {
+            String updatedValue1 = value;
+            String updatedValue2 = value;
+            showDialog(
+              context: context,
+              builder: (context) {
+                return AlertDialog(
+                  actions: [
+                    TextButton(
+                      child: Text('Cancel'),
+                      onPressed: () => Navigator.of(context).pop(),
+                    ),
+                    TextButton(
+                      child: Text('OK'),
+                      onPressed: () {
+                        if (updatedValue1 != updatedValue2) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text("'$key' does not match")),
+                          );
+                          return;
+                        }
+
+                        final result = validators.firstWhereOrNull(
+                          (validator) => !validator(updatedValue1),
+                        );
+                        if (result != null) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text("'$key' is not valid")),
+                          );
+                          return;
+                        }
+
+                        setState(() {
+                          root[key] = updatedValue1;
+                          widget.onChanged?.call(widget.settings);
+                        });
+                        Navigator.of(context).pop();
+                      },
+                    ),
+                  ],
+                  content: Row(
+                    children: [
+                      TextField(
+                        autofocus: true,
+                        controller: TextEditingController(text: updatedValue1),
+                        obscureText: true,
+                        obscuringCharacter: '*',
+                        onChanged: (value) => updatedValue1 = value,
+                      ),
+                      const SizedBox(height: _padding),
+                      TextField(
+                        autofocus: true,
+                        controller: TextEditingController(text: updatedValue2),
+                        obscureText: true,
+                        obscuringCharacter: '*',
+                        onChanged: (value) => updatedValue2 = value,
+                      ),
+                    ],
+                  ),
+                  title: Text(key),
+                );
+              },
+            );
+          },
         ),
       );
     }
@@ -242,6 +315,9 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
                   content: TextField(
                     autofocus: true,
                     controller: TextEditingController(text: updatedValue),
+                    inputFormatters: [
+                      FilteringTextInputFormatter.deny(RegExp(r'\s')),
+                    ],
                     onChanged: (value) => updatedValue = value,
                   ),
                   title: Text(key),
@@ -396,6 +472,7 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
               subKey,
               subValue,
               false,
+              validators: getSettingValidators('$key.$subKey'),
             );
           } else if (subKey == 'Path') {
             _addStringSetting(
@@ -428,6 +505,7 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
               subKey,
               subValue,
               false,
+              validators: getSettingValidators('$key.$subKey'),
             );
           } else if (subKey == 'ApiPort') {
             _addIntSetting(
@@ -506,6 +584,7 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
               subKey,
               subValue,
               false,
+              validators: getSettingValidators('$key.$subKey'),
             );
           } else if (subKey == 'HostNameOrIp') {
             _addStringSetting(
@@ -583,18 +662,21 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
               subKey,
               subValue,
               false,
+              validators: getSettingValidators('$key.$subKey'),
             );
           }
         });
       } else if (key == 'S3Config') {
         value.forEach((subKey, subValue) {
           if (subKey == 'AccessKey') {
-            _addPasswordSetting(
+            _addStringSetting(
               s3ConfigSettings,
               widget.settings[key],
               subKey,
               subValue,
+              Icons.key,
               false,
+              validators: getSettingValidators('$key.$subKey'),
             );
           } else if (subKey == 'Bucket') {
             _addStringSetting(
@@ -613,6 +695,7 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
               subKey,
               subValue,
               false,
+              validators: getSettingValidators('$key.$subKey'),
             );
           } else if (subKey == 'Region') {
             _addStringSetting(
@@ -631,6 +714,7 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
               subKey,
               subValue,
               false,
+              validators: getSettingValidators('$key.$subKey'),
             );
           } else if (subKey == 'TimeoutMs') {
             _addIntSetting(

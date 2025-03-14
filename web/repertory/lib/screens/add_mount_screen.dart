@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:repertory/constants.dart';
 import 'package:repertory/helpers.dart';
@@ -98,6 +99,9 @@ class _AddMountScreenState extends State<AddMountScreen> {
                         autofocus: true,
                         controller: _mountNameController,
                         keyboardType: TextInputType.text,
+                        inputFormatters: [
+                          FilteringTextInputFormatter.deny(RegExp(r'\s')),
+                        ],
                         onChanged: (_) => _handleChange(_mountType),
                       ),
                     ],
