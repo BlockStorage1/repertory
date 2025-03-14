@@ -24,15 +24,11 @@ class MyApp extends StatefulWidget {
 class _MyAppState extends State<MyApp> {
   @override
   Widget build(context) {
+    final snackBarTheme = SnackBarThemeData(
+      width: MediaQuery.of(context).size.width * 0.60,
+    );
+
     return MaterialApp(
-      title: constants.appTitle,
-      theme: ThemeData(
-        brightness: Brightness.light,
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: Colors.deepOrange,
-          brightness: Brightness.light,
-        ),
-      ),
       themeMode: ThemeMode.dark,
       darkTheme: ThemeData(
         useMaterial3: true,
@@ -44,7 +40,9 @@ class _MyAppState extends State<MyApp> {
           surface: Color.fromARGB(255, 32, 33, 36),
           surfaceContainerLow: Color.fromARGB(255, 41, 42, 45),
         ),
+        snackBarTheme: snackBarTheme,
       ),
+      title: constants.appTitle,
       initialRoute: '/',
       routes: {
         '/': (context) => const HomeScreen(title: constants.appTitle),
