@@ -19,6 +19,7 @@ class _MountWidgetState extends State<MountWidget> {
   @override
   Widget build(BuildContext context) {
     return Card(
+      margin: const EdgeInsets.all(0.0),
       child: Consumer<Mount>(
         builder: (context, mount, _) {
           final textColor = Theme.of(context).colorScheme.onSurface;

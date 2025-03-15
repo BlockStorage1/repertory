@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:repertory/constants.dart' as constants;
 import 'package:repertory/widgets/mount_list_widget.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -18,7 +19,10 @@ class _HomeScreeState extends State<HomeScreen> {
         leading: const Icon(Icons.storage),
         title: Text(widget.title),
       ),
-      body: MountListWidget(),
+      body: Padding(
+        padding: const EdgeInsets.all(constants.padding),
+        child: MountListWidget(),
+      ),
       floatingActionButton: FloatingActionButton(
         onPressed: () => Navigator.pushNamed(context, '/add'),
         tooltip: 'Add Mount',

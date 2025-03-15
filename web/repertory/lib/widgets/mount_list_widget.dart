@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:repertory/constants.dart' as constants;
 import 'package:repertory/models/mount.dart';
 import 'package:repertory/models/mount_list.dart';
 import 'package:repertory/widgets/mount_widget.dart';
@@ -15,7 +16,15 @@ class MountListWidget extends StatelessWidget {
           itemBuilder: (context, idx) {
             return ChangeNotifierProvider(
               create: (context) => Mount(mountList.items[idx]),
-              child: const MountWidget(),
+              child: Padding(
+                padding: EdgeInsets.only(
+                  bottom:
+                      idx == mountList.items.length - 1
+                          ? 0.0
+                          : constants.padding,
+                ),
+                child: const MountWidget(),
+              ),
             );
           },
           itemCount: mountList.items.length,
