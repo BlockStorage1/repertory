@@ -93,11 +93,11 @@ class MountList with ChangeNotifier {
 
       _mountList = [];
       notifyListeners();
-
-      return _fetch();
     } catch (e) {
       debugPrint('$e');
     }
+
+    return _fetch();
   }
 
   void remove(String name) {
