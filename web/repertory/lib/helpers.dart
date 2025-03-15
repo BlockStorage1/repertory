@@ -191,7 +191,7 @@ bool validateSettings(
   return failed.isEmpty;
 }
 
-convertAllToString(Map<String, dynamic> settings) {
+Map<String, dynamic> convertAllToString(Map<String, dynamic> settings) {
   settings.forEach((key, value) {
     if (value is Map<String, dynamic>) {
       convertAllToString(value);
@@ -204,4 +204,6 @@ convertAllToString(Map<String, dynamic> settings) {
 
     settings[key] = value.toString();
   });
+
+  return settings;
 }
