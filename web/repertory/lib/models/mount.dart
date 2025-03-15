@@ -14,6 +14,7 @@ class Mount with ChangeNotifier {
     refresh();
   }
 
+  String? get bucket => mountConfig.bucket;
   String get name => mountConfig.name;
   String get path => mountConfig.path;
   IconData? get state => mountConfig.state;

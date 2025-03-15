@@ -4,6 +4,7 @@ import 'package:collection/collection.dart';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:repertory/helpers.dart';
+import 'package:repertory/models/mount.dart';
 import 'package:repertory/types/mount_config.dart';
 
 class MountList with ChangeNotifier {
@@ -11,10 +12,10 @@ class MountList with ChangeNotifier {
     _fetch();
   }
 
-  List<MountConfig> _mountList = [];
+  List<Mount> _mountList = [];
 
-  UnmodifiableListView<MountConfig> get items =>
-      UnmodifiableListView<MountConfig>(_mountList);
+  UnmodifiableListView<Mount> get items =>
+      UnmodifiableListView<Mount>(_mountList);
 
   bool hasBucketName(String mountType, String bucket, {String? excludeName}) {
     final list = items.where(
@@ -27,7 +28,7 @@ class MountList with ChangeNotifier {
                   (item) =>
                       item.name.toLowerCase() == excludeName.toLowerCase(),
                 ))
-            .firstWhereOrNull((MountConfig item) {
+            .firstWhereOrNull((Mount item) {
               return item.bucket != null &&
                   item.bucket!.toLowerCase() == bucket.toLowerCase();
             }) !=
@@ -50,11 +51,11 @@ class MountList with ChangeNotifier {
       if (response.statusCode != 200) {
         return;
       }
-      List<MountConfig> nextList = [];
+      List<Mount> nextList = [];
 
       jsonDecode(response.body).forEach((key, value) {
         nextList.addAll(
-          value.map((name) => MountConfig.fromJson(key, name)).toList(),
+          value.map((name) => Mount(MountConfig.fromJson(key, name))).toList(),
         );
       });
       _sort(nextList);
@@ -90,9 +91,6 @@ class MountList with ChangeNotifier {
           ),
         ),
       );
-
-      _mountList = [];
-      notifyListeners();
     } catch (e) {
       debugPrint('$e');
     }
