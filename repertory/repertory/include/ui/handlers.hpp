@@ -66,6 +66,9 @@ private:
   auto launch_process(provider_type prov, std::string_view name,
                       std::string_view args, bool background = false) const
       -> std::vector<std::string>;
+
+  void set_key_value(provider_type prov, std::string_view name,
+                     std::string_view key, std::string_view value) const;
 };
 } // namespace repertory::ui
 

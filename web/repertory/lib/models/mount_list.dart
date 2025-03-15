@@ -61,7 +61,7 @@ class MountList with ChangeNotifier {
       await http.post(
         Uri.parse(
           Uri.encodeFull(
-            '${getBaseUri()}/api/v1/add_mount?name=$name&type=$type&config=${jsonEncode(mountConfig)}',
+            '${getBaseUri()}/api/v1/add_mount?name=$name&type=$type&config=${jsonEncode(convertAllToString(mountConfig))}',
           ),
         ),
       );

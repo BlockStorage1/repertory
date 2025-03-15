@@ -101,12 +101,12 @@ handlers::handlers(mgmt_app_config *config, httplib::Server *server)
                 handle_get_mount_status(req, res);
               });
 
-  server->Post("/api/v1/mount",
-               [this](auto &&req, auto &&res) { handle_post_mount(req, res); });
-
   server->Post("/api/v1/add_mount", [this](auto &&req, auto &&res) {
     handle_post_add_mount(req, res);
   });
+
+  server->Post("/api/v1/mount",
+               [this](auto &&req, auto &&res) { handle_post_mount(req, res); });
 
   server->Put("/api/v1/set_value_by_name", [this](auto &&req, auto &&res) {
     handle_put_set_value_by_name(req, res);
@@ -149,6 +149,16 @@ handlers::handlers(mgmt_app_config *config, httplib::Server *server)
 }
 
 handlers::~handlers() { event_system::instance().stop(); }
+
+void handlers::set_key_value(provider_type prov, std::string_view name,
+                             std::string_view key,
+                             std::string_view value) const {
+#if defined(_WIN32)
+  launch_process(prov, name, fmt::format(R"(-set {} "{}")", key, value));
+#else  // !defined(_WIN32)
+  launch_process(prov, name, fmt::format("-set {} '{}'", key, value));
+#endif // defined(_WIN32)
+}
 
 void handlers::handle_get_mount(auto &&req, auto &&res) const {
   REPERTORY_USES_FUNCTION_NAME();
@@ -264,6 +274,18 @@ void handlers::handle_post_add_mount(auto &&req, auto &&res) const {
   fmt::println("config: {}-{}-{}", name, app_config::get_provider_name(prov),
                cfg.dump(2));
 
+  launch_process(prov, name, "-gc");
+  for (const auto &[key, value] : cfg.items()) {
+    if (value.is_object()) {
+      for (const auto &[key2, value2] : value.items()) {
+        set_key_value(prov, name, fmt::format("{}.{}", key, key2),
+                      value2.template get<std::string>());
+      }
+    } else {
+      set_key_value(prov, name, key, value.template get<std::string>());
+    }
+  }
+
   res.status = http_error_codes::ok;
 }
 
@@ -288,11 +310,7 @@ void handlers::handle_put_set_value_by_name(auto &&req, auto &&res) const {
   auto prov = provider_type_from_string(req.get_param_value("type"));
   auto value = req.get_param_value("value");
 
-#if defined(_WIN32)
-  launch_process(prov, name, fmt::format(R"(-set {} "{}")", key, value));
-#else  //! defined(_WIN32)
-  launch_process(prov, name, fmt::format("-set {} '{}'", key, value));
-#endif // defined(_WIN32)
+  set_key_value(prov, name, key, value);
 
   res.status = http_error_codes::ok;
 }

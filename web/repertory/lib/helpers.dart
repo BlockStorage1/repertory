@@ -175,21 +175,33 @@ bool validateSettings(
 }) {
   settings.forEach((key, value) {
     final settingKey = rootKey == null ? key : '$rootKey.$key';
-    if (value is Map) {
-      validateSettings(
-        value as Map<String, dynamic>,
-        failed,
-        rootKey: settingKey,
-      );
-    } else {
-      for (var validator in getSettingValidators(settingKey)) {
-        if (validator(value.toString())) {
-          continue;
-        }
-        failed.add(settingKey);
+    if (value is Map<String, dynamic>) {
+      validateSettings(value, failed, rootKey: settingKey);
+      return;
+    }
+
+    for (var validator in getSettingValidators(settingKey)) {
+      if (validator(value.toString())) {
+        continue;
       }
+      failed.add(settingKey);
     }
   });
 
   return failed.isEmpty;
+}
+
+convertAllToString(Map<String, dynamic> settings) {
+  settings.forEach((key, value) {
+    if (value is Map<String, dynamic>) {
+      convertAllToString(value);
+      return;
+    }
+
+    if (value is String) {
+      return;
+    }
+
+    settings[key] = value.toString();
+  });
 }
