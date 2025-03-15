@@ -57,9 +57,11 @@ private:
 
   void handle_get_mount_status(auto &&req, auto &&res) const;
 
+  void handle_post_add_mount(auto &&req, auto &&res) const;
+
   void handle_post_mount(auto &&req, auto &&res) const;
 
-  void handle_put_set_value_by_name(auto &&req, auto &&res);
+  void handle_put_set_value_by_name(auto &&req, auto &&res) const;
 
   auto launch_process(provider_type prov, std::string_view name,
                       std::string_view args, bool background = false) const

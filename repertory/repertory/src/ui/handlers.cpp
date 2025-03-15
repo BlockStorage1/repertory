@@ -104,6 +104,10 @@ handlers::handlers(mgmt_app_config *config, httplib::Server *server)
   server->Post("/api/v1/mount",
                [this](auto &&req, auto &&res) { handle_post_mount(req, res); });
 
+  server->Post("/api/v1/add_mount", [this](auto &&req, auto &&res) {
+    handle_post_add_mount(req, res);
+  });
+
   server->Put("/api/v1/set_value_by_name", [this](auto &&req, auto &&res) {
     handle_put_set_value_by_name(req, res);
   });
@@ -253,6 +257,16 @@ void handlers::handle_get_mount_status(auto &&req, auto &&res) const {
   res.status = http_error_codes::ok;
 }
 
+void handlers::handle_post_add_mount(auto &&req, auto &&res) const {
+  auto name = req.get_param_value("name");
+  auto prov = provider_type_from_string(req.get_param_value("type"));
+  auto cfg = nlohmann::json::parse(req.get_param_value("config"));
+  fmt::println("config: {}-{}-{}", name, app_config::get_provider_name(prov),
+               cfg.dump(2));
+
+  res.status = http_error_codes::ok;
+}
+
 void handlers::handle_post_mount(auto &&req, auto &&res) const {
   auto location = utils::path::absolute(req.get_param_value("location"));
   auto name = req.get_param_value("name");
@@ -268,7 +282,7 @@ void handlers::handle_post_mount(auto &&req, auto &&res) const {
   res.status = http_error_codes::ok;
 }
 
-void handlers::handle_put_set_value_by_name(auto &&req, auto &&res) {
+void handlers::handle_put_set_value_by_name(auto &&req, auto &&res) const {
   auto key = req.get_param_value("key");
   auto name = req.get_param_value("name");
   auto prov = provider_type_from_string(req.get_param_value("type"));
