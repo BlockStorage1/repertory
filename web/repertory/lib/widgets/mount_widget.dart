@@ -125,7 +125,8 @@ class _MountWidgetState extends State<MountWidget> {
                                           RegExp(r'\s'),
                                         ),
                                       ],
-                                      onChanged: null,
+                                      onChanged:
+                                          (value) => updatedValue = value,
                                     ),
                                     title: const Text('Set Mount Location'),
                                   );
