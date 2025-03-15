@@ -193,13 +193,13 @@ class _AddMountScreenState extends State<AddMountScreen> {
 
   void _handleChange(String mountType) {
     setState(() {
-      final changedFromSia = _mountType != mountType && mountType == 'Sia';
+      final changed = _mountType != mountType;
 
       _mountType = mountType;
       _mountNameController.text =
-          (mountType == 'Sia' && _mountNameController.text.isEmpty)
+          (mountType == 'Sia' && changed)
               ? 'default'
-              : changedFromSia
+              : changed
               ? ''
               : _mountNameController.text;
 
