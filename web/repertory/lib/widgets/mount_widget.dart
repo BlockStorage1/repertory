@@ -48,7 +48,9 @@ class _MountWidgetState extends State<MountWidget> {
               children: [
                 nameText,
                 SelectableText(
-                  mount.path,
+                  mount.path.isEmpty && mount.state == null
+                      ? 'detecting...'
+                      : mount.path,
                   style: TextStyle(color: subTextColor),
                 ),
               ],
