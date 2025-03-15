@@ -16,7 +16,7 @@ class Mount with ChangeNotifier {
 
   String get name => mountConfig.name;
   String get path => mountConfig.path;
-  IconData get state => mountConfig.state;
+  IconData? get state => mountConfig.state;
   String get type => mountConfig.type;
 
   Future<void> _fetch() async {

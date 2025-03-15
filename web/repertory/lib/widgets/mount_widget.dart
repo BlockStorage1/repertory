@@ -64,7 +64,7 @@ class _MountWidgetState extends State<MountWidget> {
                     isActive ? Color.fromARGB(255, 163, 96, 76) : subTextColor,
               ),
               onPressed:
-                  _enabled
+                  _enabled && mount.state != null
                       ? () async {
                         setState(() {
                           _enabled = false;

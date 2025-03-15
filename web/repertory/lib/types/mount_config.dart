@@ -5,7 +5,7 @@ class MountConfig {
   final String _name;
   String _path = '';
   Map<String, dynamic> _settings = {};
-  IconData _state = Icons.toggle_off;
+  IconData? _state;
   final String _type;
   MountConfig({required name, required type, Map<String, dynamic>? settings})
     : _name = name,
@@ -19,7 +19,7 @@ class MountConfig {
   String get path => _path;
   UnmodifiableMapView<String, dynamic> get settings =>
       UnmodifiableMapView<String, dynamic>(_settings);
-  IconData get state => _state;
+  IconData? get state => _state;
   String get type => _type;
 
   factory MountConfig.fromJson(String type, String name) {
