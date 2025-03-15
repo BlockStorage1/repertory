@@ -286,6 +286,11 @@ void handlers::handle_get_mount_status(auto &&req, auto &&res) const {
 void handlers::handle_post_add_mount(auto &&req, auto &&res) const {
   auto name = req.get_param_value("name");
   auto prov = provider_type_from_string(req.get_param_value("type"));
+  if (data_directory_exists(prov, name)) {
+    res.status = http_error_codes::ok;
+    return;
+  }
+
   auto cfg = nlohmann::json::parse(req.get_param_value("config"));
 
   launch_process(prov, name, "-gc");
