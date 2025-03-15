@@ -56,6 +56,7 @@ class _AddMountScreenState extends State<AddMountScreen> {
           mainAxisSize: MainAxisSize.max,
           children: [
             Card(
+              margin: EdgeInsets.all(0.0),
               child: Padding(
                 padding: const EdgeInsets.all(constants.padding),
                 child: Row(
@@ -85,9 +86,8 @@ class _AddMountScreenState extends State<AddMountScreen> {
               ),
             ),
             if (_mountType.isNotEmpty)
-              const SizedBox(height: constants.padding),
-            if (_mountType.isNotEmpty)
               Card(
+                margin: EdgeInsets.all(0.0),
                 child: Padding(
                   padding: const EdgeInsets.all(constants.padding),
                   child: Column(
@@ -113,6 +113,7 @@ class _AddMountScreenState extends State<AddMountScreen> {
             if (_mount != null)
               Expanded(
                 child: Card(
+                  margin: EdgeInsets.all(0.0),
                   child: Padding(
                     padding: const EdgeInsets.all(constants.padding),
                     child: MountSettingsWidget(
@@ -124,6 +125,7 @@ class _AddMountScreenState extends State<AddMountScreen> {
                   ),
                 ),
               ),
+            if (_mount != null) const SizedBox(height: constants.padding),
             if (_mount != null)
               Builder(
                 builder: (context) {
