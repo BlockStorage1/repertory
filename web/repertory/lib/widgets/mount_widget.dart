@@ -49,7 +49,9 @@ class _MountWidgetState extends State<MountWidget> {
                 nameText,
                 SelectableText(
                   mount.path.isEmpty && mount.state == null
-                      ? 'detecting...'
+                      ? 'loading...'
+                      : mount.path.isEmpty
+                      ? '<mount location not set>'
                       : mount.path,
                   style: TextStyle(color: subTextColor),
                 ),
