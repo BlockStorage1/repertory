@@ -86,6 +86,8 @@ class _AddMountScreenState extends State<AddMountScreen> {
               ),
             ),
             if (_mountType.isNotEmpty)
+              const SizedBox(height: constants.padding),
+            if (_mountType.isNotEmpty)
               Card(
                 margin: EdgeInsets.all(0.0),
                 child: Padding(
@@ -110,6 +112,7 @@ class _AddMountScreenState extends State<AddMountScreen> {
                   ),
                 ),
               ),
+            if (_mount != null) const SizedBox(height: constants.padding),
             if (_mount != null)
               Expanded(
                 child: Card(
