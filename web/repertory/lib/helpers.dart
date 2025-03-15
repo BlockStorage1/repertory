@@ -127,6 +127,8 @@ List<Validator> getSettingValidators(String settingPath) {
       return createHostNameOrIpValidators();
     case 'HostConfig.Protocol':
       return [(value) => constants.protocolTypeList.contains(value)];
+    case 'Path':
+      return [trimNotEmptyValidator];
     case 'RemoteConfig.ApiPort':
       return [notEmptyValidator, portIsValid];
     case 'RemoteConfig.EncryptionToken':
