@@ -50,6 +50,10 @@ private:
   mutable std::mutex mtx_;
 
 private:
+  [[nodiscard]] static auto data_directory_exists(provider_type prov,
+                                                  std::string_view name)
+      -> bool;
+
   void handle_get_mount(auto &&req, auto &&res) const;
 
   void handle_get_mount_list(auto &&res) const;

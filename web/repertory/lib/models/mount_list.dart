@@ -2,7 +2,9 @@ import 'dart:convert';
 
 import 'package:collection/collection.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart' show ModalRoute;
 import 'package:http/http.dart' as http;
+import 'package:repertory/constants.dart' as constants;
 import 'package:repertory/helpers.dart';
 import 'package:repertory/models/mount.dart';
 import 'package:repertory/types/mount_config.dart';
@@ -48,15 +50,21 @@ class MountList with ChangeNotifier {
         Uri.parse('${getBaseUri()}/api/v1/mount_list'),
       );
 
+      if (response.statusCode == 404) {
+        reset();
+        return;
+      }
+
       if (response.statusCode != 200) {
         return;
       }
+
       List<Mount> nextList = [];
 
       jsonDecode(response.body).forEach((type, value) {
         nextList.addAll(
           value
-              .map((name) => Mount(MountConfig(type: type, name: name)))
+              .map((name) => Mount(MountConfig(type: type, name: name), this))
               .toList(),
         );
       });
@@ -98,6 +106,19 @@ class MountList with ChangeNotifier {
     }
 
     return _fetch();
+  }
+
+  Future<void> reset() async {
+    _mountList = [];
+    notifyListeners();
+
+    _fetch();
+
+    if (constants.navigatorKey.currentContext == null ||
+        ModalRoute.of(constants.navigatorKey.currentContext!)?.settings.name !=
+            '/') {
+      constants.navigatorKey.currentState?.pushReplacementNamed('/');
+    }
   }
 
   void remove(String name) {

@@ -3,11 +3,13 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:repertory/helpers.dart';
+import 'package:repertory/models/mount_list.dart';
 import 'package:repertory/types/mount_config.dart';
 
 class Mount with ChangeNotifier {
   final MountConfig mountConfig;
-  Mount(this.mountConfig, {isAdd = false}) {
+  final MountList? _mountList;
+  Mount(this.mountConfig, this._mountList, {isAdd = false}) {
     if (isAdd) {
       return;
     }
@@ -27,6 +29,11 @@ class Mount with ChangeNotifier {
           Uri.encodeFull('${getBaseUri()}/api/v1/mount?name=$name&type=$type'),
         ),
       );
+
+      if (response.statusCode == 404) {
+        _mountList?.reset();
+        return;
+      }
 
       if (response.statusCode != 200) {
         return;
@@ -49,6 +56,11 @@ class Mount with ChangeNotifier {
           ),
         ),
       );
+
+      if (response.statusCode == 404) {
+        _mountList?.reset();
+        return;
+      }
 
       if (response.statusCode != 200) {
         return;
@@ -107,6 +119,11 @@ class Mount with ChangeNotifier {
           ),
         ),
       );
+
+      if (response.statusCode == 404) {
+        _mountList?.reset();
+        return null;
+      }
 
       if (response.statusCode != 200) {
         return null;

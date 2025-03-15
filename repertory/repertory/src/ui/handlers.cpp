@@ -150,22 +150,28 @@ handlers::handlers(mgmt_app_config *config, httplib::Server *server)
 
 handlers::~handlers() { event_system::instance().stop(); }
 
-void handlers::set_key_value(provider_type prov, std::string_view name,
-                             std::string_view key,
-                             std::string_view value) const {
-#if defined(_WIN32)
-  launch_process(prov, name, fmt::format(R"(-set {} "{}")", key, value));
-#else  // !defined(_WIN32)
-  launch_process(prov, name, fmt::format("-set {} '{}'", key, value));
-#endif // defined(_WIN32)
+auto handlers::data_directory_exists(provider_type prov, std::string_view name)
+    -> bool {
+  auto data_dir = utils::path::combine(app_config::get_root_data_directory(),
+                                       {
+                                           app_config::get_provider_name(prov),
+                                           name,
+                                       });
+  return utils::file::directory{data_dir}.exists();
 }
 
 void handlers::handle_get_mount(auto &&req, auto &&res) const {
   REPERTORY_USES_FUNCTION_NAME();
 
   auto prov = provider_type_from_string(req.get_param_value("type"));
+  auto name = req.get_param_value("name");
 
-  auto lines = launch_process(prov, req.get_param_value("name"), "-dc");
+  if (not data_directory_exists(prov, name)) {
+    res.status = http_error_codes::not_found;
+    return;
+  }
+
+  auto lines = launch_process(prov, name, "-dc");
 
   if (lines.at(0U) != "0") {
     throw utils::error::create_exception(function_name, {
@@ -214,6 +220,11 @@ void handlers::handle_get_mount_location(auto &&req, auto &&res) const {
   auto name = req.get_param_value("name");
   auto prov = provider_type_from_string(req.get_param_value("type"));
 
+  if (not data_directory_exists(prov, name)) {
+    res.status = http_error_codes::not_found;
+    return;
+  }
+
   res.set_content(
       nlohmann::json({
                          {"Location", config_->get_mount_location(prov, name)},
@@ -228,6 +239,11 @@ void handlers::handle_get_mount_status(auto &&req, auto &&res) const {
 
   auto name = req.get_param_value("name");
   auto prov = provider_type_from_string(req.get_param_value("type"));
+
+  if (not data_directory_exists(prov, name)) {
+    res.status = http_error_codes::not_found;
+    return;
+  }
 
   auto status_name = app_config::get_provider_display_name(prov);
 
@@ -288,9 +304,15 @@ void handlers::handle_post_add_mount(auto &&req, auto &&res) const {
 }
 
 void handlers::handle_post_mount(auto &&req, auto &&res) const {
-  auto location = utils::path::absolute(req.get_param_value("location"));
   auto name = req.get_param_value("name");
   auto prov = provider_type_from_string(req.get_param_value("type"));
+
+  if (not data_directory_exists(prov, name)) {
+    res.status = http_error_codes::not_found;
+    return;
+  }
+
+  auto location = utils::path::absolute(req.get_param_value("location"));
   auto unmount = utils::string::to_bool(req.get_param_value("unmount"));
 
   if (unmount) {
@@ -303,9 +325,15 @@ void handlers::handle_post_mount(auto &&req, auto &&res) const {
 }
 
 void handlers::handle_put_set_value_by_name(auto &&req, auto &&res) const {
-  auto key = req.get_param_value("key");
   auto name = req.get_param_value("name");
   auto prov = provider_type_from_string(req.get_param_value("type"));
+
+  if (not data_directory_exists(prov, name)) {
+    res.status = http_error_codes::not_found;
+    return;
+  }
+
+  auto key = req.get_param_value("key");
   auto value = req.get_param_value("value");
 
   set_key_value(prov, name, key, value);
@@ -388,5 +416,15 @@ auto handlers::launch_process(provider_type prov, std::string_view name,
 
   return utils::string::split(utils::string::replace(data, "\r", ""), '\n',
                               false);
+}
+
+void handlers::set_key_value(provider_type prov, std::string_view name,
+                             std::string_view key,
+                             std::string_view value) const {
+#if defined(_WIN32)
+  launch_process(prov, name, fmt::format(R"(-set {} "{}")", key, value));
+#else  // !defined(_WIN32)
+  launch_process(prov, name, fmt::format("-set {} '{}'", key, value));
+#endif // defined(_WIN32)
 }
 } // namespace repertory::ui

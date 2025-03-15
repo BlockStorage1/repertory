@@ -30,6 +30,7 @@ class _MyAppState extends State<MyApp> {
     );
 
     return MaterialApp(
+      navigatorKey: constants.navigatorKey,
       themeMode: ThemeMode.dark,
       darkTheme: ThemeData(
         useMaterial3: true,
