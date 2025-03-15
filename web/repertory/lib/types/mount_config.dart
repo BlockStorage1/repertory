@@ -1,5 +1,6 @@
 import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
+import 'package:repertory/helpers.dart' show initialCaps;
 
 class MountConfig {
   final String _name;
@@ -15,6 +16,8 @@ class MountConfig {
     }
   }
 
+  String? get bucket =>
+      _settings['${initialCaps(_type)}Config']?["Bucket"] as String;
   String get name => _name;
   String get path => _path;
   UnmodifiableMapView<String, dynamic> get settings =>

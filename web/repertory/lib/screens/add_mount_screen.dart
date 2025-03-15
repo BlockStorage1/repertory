@@ -158,7 +158,7 @@ class _AddMountScreenState extends State<AddMountScreen> {
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
                             content: Text(
-                              "Configuration '${_mountNameController.text}' already exists",
+                              "Configuration name '${_mountNameController.text}' already exists",
                               textAlign: TextAlign.center,
                             ),
                           ),
