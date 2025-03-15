@@ -150,14 +150,23 @@ handlers::handlers(mgmt_app_config *config, httplib::Server *server)
 
 handlers::~handlers() { event_system::instance().stop(); }
 
-auto handlers::data_directory_exists(provider_type prov, std::string_view name)
-    -> bool {
+auto handlers::data_directory_exists(provider_type prov,
+                                     std::string_view name) const -> bool {
   auto data_dir = utils::path::combine(app_config::get_root_data_directory(),
                                        {
                                            app_config::get_provider_name(prov),
                                            name,
                                        });
-  return utils::file::directory{data_dir}.exists();
+  auto ret = utils::file::directory{data_dir}.exists();
+  if (ret) {
+    return ret;
+  }
+
+  unique_mutex_lock lock(mtx_);
+  mtx_lookup_.erase(
+      fmt::format("{}-{}", name, app_config::get_provider_name(prov)));
+  lock.unlock();
+  return ret;
 }
 
 void handlers::handle_get_mount(auto &&req, auto &&res) const {
@@ -392,7 +401,12 @@ auto handlers::launch_process(provider_type prov, std::string_view name,
 
   auto cmd_line = fmt::format(R"({} {} {})", repertory_binary_, str_type, args);
 
-  mutex_lock lock(mtx_);
+  unique_mutex_lock lock(mtx_);
+  auto &inst_mtx = mtx_lookup_[fmt::format(
+      "{}-{}", name, app_config::get_provider_name(prov))];
+  lock.unlock();
+
+  recur_mutex_lock inst_lock(inst_mtx);
   if (background) {
 #if defined(_WIN32)
     system(fmt::format(R"(start "" /b {})", cmd_line).c_str());

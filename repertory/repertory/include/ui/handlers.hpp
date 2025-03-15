@@ -23,6 +23,7 @@
 #define REPERTORY_INCLUDE_UI_HANDLERS_HPP_
 
 #include "events/consumers/console_consumer.hpp"
+#include <unordered_map>
 
 namespace repertory::ui {
 class mgmt_app_config;
@@ -48,11 +49,11 @@ private:
 private:
   console_consumer console;
   mutable std::mutex mtx_;
+  mutable std::unordered_map<std::string, std::recursive_mutex> mtx_lookup_;
 
 private:
-  [[nodiscard]] static auto data_directory_exists(provider_type prov,
-                                                  std::string_view name)
-      -> bool;
+  [[nodiscard]] auto data_directory_exists(provider_type prov,
+                                           std::string_view name) const -> bool;
 
   void handle_get_mount(auto &&req, auto &&res) const;
 
