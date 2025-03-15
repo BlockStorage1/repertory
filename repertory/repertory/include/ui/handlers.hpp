@@ -47,6 +47,7 @@ private:
 
 private:
   console_consumer console;
+  mutable std::mutex mtx_;
 
 private:
   void handle_get_mount(auto &&req, auto &&res) const;

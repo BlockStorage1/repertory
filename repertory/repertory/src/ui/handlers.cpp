@@ -355,6 +355,7 @@ auto handlers::launch_process(provider_type prov, std::string_view name,
 
   auto cmd_line = fmt::format(R"({} {} {})", repertory_binary_, str_type, args);
 
+  mutex_lock lock(mtx_);
   if (background) {
 #if defined(_WIN32)
     system(fmt::format(R"(start "" /b {})", cmd_line).c_str());
@@ -378,8 +379,8 @@ auto handlers::launch_process(provider_type prov, std::string_view name,
 
   std::string data;
   std::array<char, 1024U> buffer{};
-  while (feof(pipe) == 0) {
-    while (fgets(buffer.data(), buffer.size(), pipe) != nullptr) {
+  while (std::feof(pipe) == 0) {
+    while (std::fgets(buffer.data(), buffer.size(), pipe) != nullptr) {
       data += buffer.data();
     }
   }
