@@ -109,16 +109,16 @@ class MountList with ChangeNotifier {
   }
 
   Future<void> reset() async {
-    _mountList = [];
-    notifyListeners();
-
-    _fetch();
-
     if (constants.navigatorKey.currentContext == null ||
         ModalRoute.of(constants.navigatorKey.currentContext!)?.settings.name !=
             '/') {
       constants.navigatorKey.currentState?.pushReplacementNamed('/');
     }
+
+    _mountList = [];
+    notifyListeners();
+
+    return _fetch();
   }
 
   void remove(String name) {
