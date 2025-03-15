@@ -112,7 +112,7 @@ class MountList with ChangeNotifier {
     if (constants.navigatorKey.currentContext == null ||
         ModalRoute.of(constants.navigatorKey.currentContext!)?.settings.name !=
             '/') {
-      constants.navigatorKey.currentState?.pushReplacementNamed('/');
+      await constants.navigatorKey.currentState?.pushReplacementNamed('/');
     }
 
     _mountList = [];
