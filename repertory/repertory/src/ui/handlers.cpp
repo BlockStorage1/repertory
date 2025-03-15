@@ -271,8 +271,6 @@ void handlers::handle_post_add_mount(auto &&req, auto &&res) const {
   auto name = req.get_param_value("name");
   auto prov = provider_type_from_string(req.get_param_value("type"));
   auto cfg = nlohmann::json::parse(req.get_param_value("config"));
-  fmt::println("config: {}-{}-{}", name, app_config::get_provider_name(prov),
-               cfg.dump(2));
 
   launch_process(prov, name, "-gc");
   for (const auto &[key, value] : cfg.items()) {
