@@ -53,9 +53,11 @@ class MountList with ChangeNotifier {
       }
       List<Mount> nextList = [];
 
-      jsonDecode(response.body).forEach((key, value) {
+      jsonDecode(response.body).forEach((type, value) {
         nextList.addAll(
-          value.map((name) => Mount(MountConfig.fromJson(key, name))).toList(),
+          value
+              .map((name) => Mount(MountConfig(type: type, name: name)))
+              .toList(),
         );
       });
       _sort(nextList);

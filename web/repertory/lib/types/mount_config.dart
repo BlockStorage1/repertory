@@ -25,10 +25,6 @@ class MountConfig {
   IconData? get state => _state;
   String get type => _type;
 
-  factory MountConfig.fromJson(String type, String name) {
-    return MountConfig(name: name, type: type);
-  }
-
   void updateSettings(Map<String, dynamic> settings) {
     _settings = settings;
   }
