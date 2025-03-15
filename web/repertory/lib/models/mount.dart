@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:repertory/constants.dart' as constants;
 import 'package:repertory/helpers.dart';
 import 'package:repertory/models/mount_list.dart';
 import 'package:repertory/types/mount_config.dart';
@@ -73,9 +74,9 @@ class Mount with ChangeNotifier {
     }
   }
 
-  Future<void> mount(bool unmount, {String? location}) async {
+  Future<bool> mount(bool unmount, {String? location}) async {
     try {
-      await http.post(
+      final response = await http.post(
         Uri.parse(
           Uri.encodeFull(
             '${getBaseUri()}/api/v1/mount?unmount=$unmount&name=$name&type=$type&location=$location',
@@ -83,10 +84,16 @@ class Mount with ChangeNotifier {
         ),
       );
 
-      return refresh();
+      if (response.statusCode == 500) {
+        return false;
+      }
+
+      await refresh();
     } catch (e) {
       debugPrint('$e');
     }
+
+    return true;
   }
 
   Future<void> refresh() async {

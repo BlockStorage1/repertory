@@ -158,10 +158,23 @@ class _MountWidgetState extends State<MountWidget> {
 
                         mount
                             .mount(isActive, location: location)
-                            .then((_) {
+                            .then((success) {
                               setState(() {
                                 _enabled = true;
                               });
+
+                              if (isActive || !context.mounted) {
+                                return;
+                              }
+
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: const Text(
+                                    "Mount location not found",
+                                    textAlign: TextAlign.center,
+                                  ),
+                                ),
+                              );
                             })
                             .catchError((_) {
                               setState(() {
