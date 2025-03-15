@@ -334,6 +334,7 @@ void handlers::handle_post_mount(auto &&req, auto &&res) const {
   } else {
     if (not utils::file::directory{location}.exists()) {
       res.status = http_error_codes::internal_error;
+      return;
     }
 
     launch_process(prov, name, fmt::format(R"("{}")", location), true);

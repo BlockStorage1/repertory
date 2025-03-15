@@ -84,7 +84,7 @@ class Mount with ChangeNotifier {
         ),
       );
 
-      if (response.statusCode == 500) {
+      if (!unmount && response.statusCode == 500) {
         return false;
       }
 

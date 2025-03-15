@@ -163,7 +163,7 @@ class _MountWidgetState extends State<MountWidget> {
                                 _enabled = true;
                               });
 
-                              if (isActive || !context.mounted) {
+                              if (success || isActive || !context.mounted) {
                                 return;
                               }
 
