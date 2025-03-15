@@ -17,18 +17,20 @@ class MountList with ChangeNotifier {
       UnmodifiableListView<MountConfig>(_mountList);
 
   bool hasBucketName(String mountType, String bucket, {String? excludeName}) {
+    final list = items.where(
+      (item) => item.type.toLowerCase() == mountType.toLowerCase(),
+    );
+
     return (excludeName == null
-                ? items
-                : items.whereNot(
+                ? list
+                : list.whereNot(
                   (item) =>
                       item.name.toLowerCase() == excludeName.toLowerCase(),
                 ))
-            .firstWhereOrNull(
-              (item) =>
-                  item.type.toLowerCase() == mountType.toLowerCase() &&
-                  item.bucket != null &&
-                  item.bucket!.toLowerCase() == bucket.toLowerCase(),
-            ) !=
+            .firstWhereOrNull((MountConfig item) {
+              return item.bucket != null &&
+                  item.bucket!.toLowerCase() == bucket.toLowerCase();
+            }) !=
         null;
   }
 
@@ -88,6 +90,9 @@ class MountList with ChangeNotifier {
           ),
         ),
       );
+
+      _mountList = [];
+      notifyListeners();
 
       return _fetch();
     } catch (e) {

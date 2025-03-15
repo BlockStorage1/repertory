@@ -1,4 +1,3 @@
-import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -133,11 +132,8 @@ class _AddMountScreenState extends State<AddMountScreen> {
               Builder(
                 builder: (context) {
                   return ElevatedButton.icon(
-                    onPressed: () {
-                      final mountList = Provider.of<MountList>(
-                        context,
-                        listen: false,
-                      );
+                    onPressed: () async {
+                      final mountList = Provider.of<MountList>(context);
 
                       List<String> failed = [];
                       if (!validateSettings(_settings[_mountType]!, failed)) {
@@ -183,12 +179,15 @@ class _AddMountScreenState extends State<AddMountScreen> {
                         }
                       }
 
-                      mountList.add(
+                      await mountList.add(
                         _mountType,
                         _mountNameController.text,
                         _settings[_mountType]!,
                       );
 
+                      if (!context.mounted) {
+                        return;
+                      }
                       Navigator.pop(context);
                     },
                     label: const Text('Add'),
@@ -207,12 +206,9 @@ class _AddMountScreenState extends State<AddMountScreen> {
       final changed = _mountType != mountType;
 
       _mountType = mountType;
-      _mountNameController.text =
-          (mountType == 'Sia' && changed)
-              ? 'default'
-              : changed
-              ? ''
-              : _mountNameController.text;
+      if (changed) {
+        _mountNameController.text = mountType == 'Sia' ? 'default' : '';
+      }
 
       _mount =
           (_mountNameController.text.isEmpty)

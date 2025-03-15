@@ -604,7 +604,7 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
                           listen: false,
                         ).hasBucketName(
                           widget.mount.type,
-                          subValue,
+                          value,
                           excludeName: widget.mount.name,
                         ),
                   ],
@@ -862,7 +862,7 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
                       listen: false,
                     ).hasBucketName(
                       widget.mount.type,
-                      subValue,
+                      value,
                       excludeName: widget.mount.name,
                     ),
               ],
