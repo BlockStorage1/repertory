@@ -59,7 +59,7 @@ class _MountWidgetState extends State<MountWidget> {
             ),
             trailing: IconButton(
               icon: Icon(
-                mount.state ?? Icons.timer,
+                mount.state ?? Icons.hourglass_top,
                 color:
                     isActive ? Color.fromARGB(255, 163, 96, 76) : subTextColor,
               ),
