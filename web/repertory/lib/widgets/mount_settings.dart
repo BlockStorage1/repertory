@@ -30,7 +30,7 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
     if (!isAdvanced || widget.showAdvanced) {
       list.add(
         SettingsTile.switchTile(
-          leading: Icon(Icons.quiz),
+          leading: const Icon(Icons.quiz),
           title: Text(key),
           initialValue: (value as bool),
           onPressed:
@@ -60,7 +60,7 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
     if (!isAdvanced || widget.showAdvanced) {
       list.add(
         SettingsTile.navigation(
-          leading: Icon(Icons.onetwothree),
+          leading: const Icon(Icons.onetwothree),
           title: Text(key),
           value: Text(value.toString()),
           onPressed: (_) {
@@ -71,11 +71,11 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
                 return AlertDialog(
                   actions: [
                     TextButton(
-                      child: Text('Cancel'),
+                      child: const Text('Cancel'),
                       onPressed: () => Navigator.of(context).pop(),
                     ),
                     TextButton(
-                      child: Text('OK'),
+                      child: const Text('OK'),
                       onPressed: () {
                         final result = validators.firstWhereOrNull(
                           (validator) => !validator(updatedValue),
@@ -197,7 +197,7 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
     if (!isAdvanced || widget.showAdvanced) {
       list.add(
         SettingsTile.navigation(
-          leading: Icon(Icons.password),
+          leading: const Icon(Icons.password),
           title: Text(key),
           value: Text('*' * (value as String).length),
           onPressed: (_) {
@@ -209,11 +209,11 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
                 return AlertDialog(
                   actions: [
                     TextButton(
-                      child: Text('Cancel'),
+                      child: const Text('Cancel'),
                       onPressed: () => Navigator.of(context).pop(),
                     ),
                     TextButton(
-                      child: Text('OK'),
+                      child: const Text('OK'),
                       onPressed: () {
                         if (updatedValue1 != updatedValue2) {
                           ScaffoldMessenger.of(context).showSnackBar(
@@ -305,11 +305,11 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
                 return AlertDialog(
                   actions: [
                     TextButton(
-                      child: Text('Cancel'),
+                      child: const Text('Cancel'),
                       onPressed: () => Navigator.of(context).pop(),
                     ),
                     TextButton(
-                      child: Text('OK'),
+                      child: const Text('OK'),
                       onPressed: () {
                         final result = validators.firstWhereOrNull(
                           (validator) => !validator(updatedValue),

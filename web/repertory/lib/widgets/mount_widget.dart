@@ -1,6 +1,8 @@
 import 'dart:async';
 
+import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:repertory/helpers.dart';
 import 'package:repertory/models/mount.dart';
@@ -71,7 +73,82 @@ class _MountWidgetState extends State<MountWidget> {
                         String? location = mount.path;
                         if (!isActive && mount.path.isEmpty) {
                           location = await mount.getMountLocation();
-                          if (location == null) {}
+                          if (location == null) {
+                            String? updatedValue;
+                            if (context.mounted) {
+                              location = await showDialog(
+                                context: context,
+                                builder: (context) {
+                                  return AlertDialog(
+                                    actions: [
+                                      TextButton(
+                                        child: const Text('Cancel'),
+                                        onPressed:
+                                            () =>
+                                                Navigator.of(context).pop(null),
+                                      ),
+                                      TextButton(
+                                        child: const Text('OK'),
+                                        onPressed: () {
+                                          final result = getSettingValidators(
+                                            'Path',
+                                          ).firstWhereOrNull(
+                                            (validator) =>
+                                                !validator(updatedValue ?? ''),
+                                          );
+                                          if (result != null) {
+                                            ScaffoldMessenger.of(
+                                              context,
+                                            ).showSnackBar(
+                                              SnackBar(
+                                                content: const Text(
+                                                  "mount location is not valid",
+                                                  textAlign: TextAlign.center,
+                                                ),
+                                              ),
+                                            );
+                                            return;
+                                          }
+                                          Navigator.of(
+                                            context,
+                                          ).pop(updatedValue);
+                                        },
+                                      ),
+                                    ],
+                                    content: TextField(
+                                      autofocus: true,
+                                      controller: TextEditingController(
+                                        text: updatedValue,
+                                      ),
+                                      inputFormatters: [
+                                        FilteringTextInputFormatter.deny(
+                                          RegExp(r'\s'),
+                                        ),
+                                      ],
+                                      onChanged: null,
+                                    ),
+                                    title: const Text('Set Mount Location'),
+                                  );
+                                },
+                              );
+                            }
+                          }
+                        }
+
+                        if (location == null) {
+                          if (!context.mounted) {
+                            return;
+                          }
+
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: const Text(
+                                "mount location is not set",
+                                textAlign: TextAlign.center,
+                              ),
+                            ),
+                          );
+                          return;
                         }
 
                         mount
