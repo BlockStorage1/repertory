@@ -30,9 +30,9 @@ public:
   mgmt_app_config();
 
 private:
-  atomic<std::string> api_auth_{"test"};
+  atomic<std::string> api_auth_{"repertory"};
   std::atomic<std::uint16_t> api_port_{default_ui_mgmt_port};
-  atomic<std::string> api_user_{"test"};
+  atomic<std::string> api_user_{"repertory"};
   std::unordered_map<provider_type,
                      std::unordered_map<std::string, std::string>>
       locations_;
