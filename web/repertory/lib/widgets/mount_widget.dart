@@ -102,7 +102,7 @@ class _MountWidgetState extends State<MountWidget> {
                                             ).showSnackBar(
                                               SnackBar(
                                                 content: const Text(
-                                                  "mount location is not valid",
+                                                  "Mount location is not valid",
                                                   textAlign: TextAlign.center,
                                                 ),
                                               ),
@@ -144,7 +144,7 @@ class _MountWidgetState extends State<MountWidget> {
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
                               content: const Text(
-                                "mount location is not set",
+                                "Mount location is not set",
                                 textAlign: TextAlign.center,
                               ),
                             ),

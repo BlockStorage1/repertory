@@ -16,6 +16,29 @@ class MountList with ChangeNotifier {
   UnmodifiableListView<MountConfig> get items =>
       UnmodifiableListView<MountConfig>(_mountList);
 
+  bool hasBucketName(String mountType, String name, {String? excludeName}) {
+    return (excludeName == null
+                ? items
+                : items.whereNot(
+                  (item) =>
+                      item.name.toLowerCase() == excludeName.toLowerCase(),
+                ))
+            .firstWhereOrNull(
+              (item) =>
+                  (item.settings["${mountType}Config"]["Bucket"] as String)
+                      .toLowerCase() ==
+                  name.toLowerCase(),
+            ) !=
+        null;
+  }
+
+  bool hasConfigName(String name) {
+    return items.firstWhereOrNull(
+          (item) => item.name.toLowerCase() == name.toLowerCase(),
+        ) !=
+        null;
+  }
+
   Future<void> _fetch() async {
     try {
       final response = await http.get(

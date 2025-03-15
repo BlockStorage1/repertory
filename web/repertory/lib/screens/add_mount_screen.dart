@@ -145,7 +145,7 @@ class _AddMountScreenState extends State<AddMountScreen> {
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
                               content: Text(
-                                "'$key' is not valid",
+                                "Setting '$key' is not valid",
                                 textAlign: TextAlign.center,
                               ),
                             ),
@@ -154,22 +154,33 @@ class _AddMountScreenState extends State<AddMountScreen> {
                         return;
                       }
 
-                      final existingMount = mountList.items.firstWhereOrNull(
-                        (item) =>
-                            item.name.toLowerCase() ==
-                            _mountNameController.text.toLowerCase(),
-                      );
-
-                      if (existingMount != null) {
+                      if (mountList.hasConfigName(_mountNameController.text)) {
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
                             content: Text(
-                              "'${_mountNameController.text}' already exists",
+                              "Configuration '${_mountNameController.text}' already exists",
                               textAlign: TextAlign.center,
                             ),
                           ),
                         );
                         return;
+                      }
+
+                      if (_mountType == "Sia" || _mountType == "S3") {
+                        final bucket =
+                            _settings[_mountType]!["${_mountType}Config"]["Bucket"]
+                                as String;
+                        if (mountList.hasBucketName(_mountType, bucket)) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                "Bucket '$bucket' already exists",
+                                textAlign: TextAlign.center,
+                              ),
+                            ),
+                          );
+                          return;
+                        }
                       }
 
                       mountList.add(

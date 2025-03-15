@@ -1,9 +1,11 @@
 import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
 import 'package:repertory/constants.dart' as constants;
 import 'package:repertory/helpers.dart' show Validator, getSettingValidators;
 import 'package:repertory/models/mount.dart';
+import 'package:repertory/models/mount_list.dart';
 import 'package:settings_ui/settings_ui.dart';
 
 class MountSettingsWidget extends StatefulWidget {
@@ -84,7 +86,7 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
                               content: Text(
-                                "'$key' is not valid",
+                                "Setting '$key' is not valid",
                                 textAlign: TextAlign.center,
                               ),
                             ),
@@ -219,7 +221,7 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
                               content: Text(
-                                "'$key' does not match",
+                                "Setting '$key' does not match",
                                 textAlign: TextAlign.center,
                               ),
                             ),
@@ -234,7 +236,7 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
                               content: Text(
-                                "'$key' is not valid",
+                                "Setting '$key' is not valid",
                                 textAlign: TextAlign.center,
                               ),
                             ),
@@ -318,7 +320,7 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
                               content: Text(
-                                "'$key' is not valid",
+                                "Setting '$key' is not valid",
                                 textAlign: TextAlign.center,
                               ),
                             ),
@@ -594,7 +596,18 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
                   subValue,
                   Icons.folder,
                   false,
-                  validators: getSettingValidators('$key.$subKey'),
+                  validators: [
+                    ...getSettingValidators('$key.$subKey'),
+                    (value) =>
+                        !Provider.of<MountList>(
+                          context,
+                          listen: false,
+                        ).hasBucketName(
+                          widget.mount.type,
+                          subValue,
+                          excludeName: widget.mount.name,
+                        ),
+                  ],
                 );
               }
             });
@@ -841,7 +854,18 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
               subValue,
               Icons.folder,
               false,
-              validators: getSettingValidators('$key.$subKey'),
+              validators: [
+                ...getSettingValidators('$key.$subKey'),
+                (value) =>
+                    !Provider.of<MountList>(
+                      context,
+                      listen: false,
+                    ).hasBucketName(
+                      widget.mount.type,
+                      subValue,
+                      excludeName: widget.mount.name,
+                    ),
+              ],
             );
           }
           break;
