@@ -23,7 +23,7 @@ class MountListWidget extends StatelessWidget {
                           ? 0.0
                           : constants.padding,
                 ),
-                child: MountWidget(),
+                child: const MountWidget(),
               ),
             );
           },
