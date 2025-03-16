@@ -34,6 +34,21 @@ class MountSettingsWidget extends StatefulWidget {
 
 class _MountSettingsWidgetState extends State<MountSettingsWidget> {
   Widget _createTitle(String key, String? description) {
+    if (description != null) {
+      return Column(
+        mainAxisAlignment: MainAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(key, textAlign: TextAlign.start),
+          Text(
+            description,
+            style: Theme.of(context).textTheme.titleSmall,
+            textAlign: TextAlign.start,
+          ),
+        ],
+      );
+    }
     return Text(description == null ? key : '$key [$description]');
   }
 
