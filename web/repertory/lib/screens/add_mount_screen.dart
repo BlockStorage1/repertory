@@ -66,10 +66,9 @@ class _AddMountScreenState extends State<AddMountScreen> {
                     const Text('Provider Type'),
                     const SizedBox(width: constants.padding),
                     DropdownButton<String>(
+                      autofocus: true,
                       value: _mountType,
-                      onChanged: (mountType) {
-                        _handleChange(mountType ?? '');
-                      },
+                      onChanged: (mountType) => _handleChange(mountType ?? ''),
                       items:
                           constants.providerTypeList
                               .map<DropdownMenuItem<String>>((item) {
