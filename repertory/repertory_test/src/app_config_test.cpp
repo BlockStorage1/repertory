@@ -219,7 +219,7 @@ static void common_tests(app_config &config, provider_type prov) {
       {JSON_API_PASSWORD,
        [](app_config &cfg) {
          test_getter_setter(cfg, &app_config::get_api_password,
-                            &app_config::get_api_password, "", "auth",
+                            &app_config::set_api_password, "", "auth",
                             JSON_API_PASSWORD, "auth2");
        }},
       {JSON_API_PORT,
