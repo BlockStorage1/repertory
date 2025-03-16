@@ -159,6 +159,7 @@ handlers::handlers(mgmt_app_config *config, httplib::Server *server)
   event_system::instance().start();
 
   server_->listen("127.0.0.1", config_->get_api_port());
+  server_->stop();
   this_server = nullptr;
 }
 
