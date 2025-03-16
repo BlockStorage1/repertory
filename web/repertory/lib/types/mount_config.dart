@@ -23,6 +23,7 @@ class MountConfig {
   UnmodifiableMapView<String, dynamic> get settings =>
       UnmodifiableMapView<String, dynamic>(_settings);
   IconData? get state => _state;
+  set state(value) => _state = value;
   String get type => _type;
 
   void updateSettings(Map<String, dynamic> settings) {

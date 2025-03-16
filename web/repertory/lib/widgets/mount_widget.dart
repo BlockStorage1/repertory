@@ -19,6 +19,67 @@ class _MountWidgetState extends State<MountWidget> {
   Timer? _timer;
   bool _enabled = true;
 
+  Future<String?> _getMountLocation(context, mount, isMounted) async {
+    if (isMounted) {
+      return null;
+    }
+
+    if (!mount.path.isEmpty) {
+      return mount.path;
+    }
+
+    String? location = await mount.getMountLocation();
+    if (location != null) {
+      return location;
+    }
+
+    if (!context.mounted) {
+      return location;
+    }
+
+    String? currentLocation;
+    return await showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          actions: [
+            TextButton(
+              child: const Text('Cancel'),
+              onPressed: () => Navigator.of(context).pop(null),
+            ),
+            TextButton(
+              child: const Text('OK'),
+              onPressed: () {
+                final result = getSettingValidators('Path').firstWhereOrNull(
+                  (validator) => !validator(currentLocation ?? ''),
+                );
+                if (result != null) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: const Text(
+                        "Mount location is not valid",
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  );
+                  return;
+                }
+                Navigator.of(context).pop(currentLocation);
+              },
+            ),
+          ],
+          content: TextField(
+            autofocus: true,
+            controller: TextEditingController(text: currentLocation),
+            inputFormatters: [FilteringTextInputFormatter.deny(RegExp(r'\s'))],
+            onChanged: (value) => currentLocation = value,
+          ),
+          title: const Text('Set Mount Location'),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Card(
@@ -31,7 +92,7 @@ class _MountWidgetState extends State<MountWidget> {
                   ? Colors.white38
                   : Colors.black87;
 
-          final isActive = mount.state == Icons.toggle_on;
+          final isMounted = mount.state == Icons.toggle_on;
           final nameText = SelectableText(
             formatMountName(mount.type, mount.name),
             style: TextStyle(color: subTextColor),
@@ -66,7 +127,7 @@ class _MountWidgetState extends State<MountWidget> {
               icon: Icon(
                 mount.state ?? Icons.hourglass_top,
                 color:
-                    isActive ? Color.fromARGB(255, 163, 96, 76) : subTextColor,
+                    isMounted ? Color.fromARGB(255, 163, 96, 76) : subTextColor,
               ),
               onPressed:
                   _enabled && mount.state != null
@@ -75,71 +136,11 @@ class _MountWidgetState extends State<MountWidget> {
                           _enabled = false;
                         });
 
-                        String? location = mount.path;
-                        if (!isActive && mount.path.isEmpty) {
-                          location = await mount.getMountLocation();
-                          if (location == null) {
-                            String? updatedValue;
-                            if (context.mounted) {
-                              location = await showDialog(
-                                context: context,
-                                builder: (context) {
-                                  return AlertDialog(
-                                    actions: [
-                                      TextButton(
-                                        child: const Text('Cancel'),
-                                        onPressed:
-                                            () =>
-                                                Navigator.of(context).pop(null),
-                                      ),
-                                      TextButton(
-                                        child: const Text('OK'),
-                                        onPressed: () {
-                                          final result = getSettingValidators(
-                                            'Path',
-                                          ).firstWhereOrNull(
-                                            (validator) =>
-                                                !validator(updatedValue ?? ''),
-                                          );
-                                          if (result != null) {
-                                            ScaffoldMessenger.of(
-                                              context,
-                                            ).showSnackBar(
-                                              SnackBar(
-                                                content: const Text(
-                                                  "Mount location is not valid",
-                                                  textAlign: TextAlign.center,
-                                                ),
-                                              ),
-                                            );
-                                            return;
-                                          }
-                                          Navigator.of(
-                                            context,
-                                          ).pop(updatedValue);
-                                        },
-                                      ),
-                                    ],
-                                    content: TextField(
-                                      autofocus: true,
-                                      controller: TextEditingController(
-                                        text: updatedValue,
-                                      ),
-                                      inputFormatters: [
-                                        FilteringTextInputFormatter.deny(
-                                          RegExp(r'\s'),
-                                        ),
-                                      ],
-                                      onChanged:
-                                          (value) => updatedValue = value,
-                                    ),
-                                    title: const Text('Set Mount Location'),
-                                  );
-                                },
-                              );
-                            }
-                          }
-                        }
+                        final location = await _getMountLocation(
+                          context,
+                          mount,
+                          isMounted,
+                        );
 
                         cleanup() {
                           setState(() {
@@ -147,7 +148,7 @@ class _MountWidgetState extends State<MountWidget> {
                           });
                         }
 
-                        if (location == null) {
+                        if (!isMounted && location == null) {
                           if (!context.mounted) {
                             return cleanup();
                           }
@@ -165,12 +166,12 @@ class _MountWidgetState extends State<MountWidget> {
                         }
 
                         final success = await mount.mount(
-                          isActive,
+                          isMounted,
                           location: location,
                         );
 
                         if (success ||
-                            isActive ||
+                            isMounted ||
                             constants.navigatorKey.currentContext == null ||
                             !constants.navigatorKey.currentContext!.mounted) {
                           return cleanup();

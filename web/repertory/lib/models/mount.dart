@@ -76,6 +76,9 @@ class Mount with ChangeNotifier {
 
   Future<bool> mount(bool unmount, {String? location}) async {
     try {
+      mountConfig.state = null;
+      notifyListeners();
+
       final response = await http.post(
         Uri.parse(
           Uri.encodeFull(
@@ -84,11 +87,11 @@ class Mount with ChangeNotifier {
         ),
       );
 
+      await refresh();
+
       if (!unmount && response.statusCode == 500) {
         return false;
       }
-
-      await refresh();
     } catch (e) {
       debugPrint('$e');
     }
