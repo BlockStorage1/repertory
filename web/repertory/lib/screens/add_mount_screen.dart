@@ -137,28 +137,19 @@ class _AddMountScreenState extends State<AddMountScreen> {
                       List<String> failed = [];
                       if (!validateSettings(_settings[_mountType]!, failed)) {
                         for (var key in failed) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text(
-                                "Setting '$key' is not valid",
-                                textAlign: TextAlign.center,
-                              ),
-                            ),
+                          displayErrorMessage(
+                            context,
+                            "Setting '$key' is not valid",
                           );
                         }
                         return;
                       }
 
                       if (mountList.hasConfigName(_mountNameController.text)) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(
-                              "Configuration name '${_mountNameController.text}' already exists",
-                              textAlign: TextAlign.center,
-                            ),
-                          ),
+                        return displayErrorMessage(
+                          context,
+                          "Configuration name '${_mountNameController.text}' already exists",
                         );
-                        return;
                       }
 
                       if (_mountType == "Sia" || _mountType == "S3") {
@@ -166,15 +157,10 @@ class _AddMountScreenState extends State<AddMountScreen> {
                             _settings[_mountType]!["${_mountType}Config"]["Bucket"]
                                 as String;
                         if (mountList.hasBucketName(_mountType, bucket)) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text(
-                                "Bucket '$bucket' already exists",
-                                textAlign: TextAlign.center,
-                              ),
-                            ),
+                          return displayErrorMessage(
+                            context,
+                            "Bucket '$bucket' already exists",
                           );
-                          return;
                         }
                       }
 

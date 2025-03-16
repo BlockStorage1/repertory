@@ -3,7 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:repertory/constants.dart' as constants;
-import 'package:repertory/helpers.dart' show Validator, getSettingValidators;
+import 'package:repertory/helpers.dart'
+    show Validator, displayErrorMessage, getSettingValidators;
 import 'package:repertory/models/mount.dart';
 import 'package:repertory/models/mount_list.dart';
 import 'package:settings_ui/settings_ui.dart';
@@ -83,15 +84,10 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
                           (validator) => !validator(updatedValue),
                         );
                         if (result != null) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text(
-                                "Setting '$key' is not valid",
-                                textAlign: TextAlign.center,
-                              ),
-                            ),
+                          return displayErrorMessage(
+                            context,
+                            "Setting '$key' is not valid",
                           );
-                          return;
                         }
                         setState(() {
                           root[key] = int.parse(updatedValue);
@@ -218,30 +214,20 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
                       child: const Text('OK'),
                       onPressed: () {
                         if (updatedValue1 != updatedValue2) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text(
-                                "Setting '$key' does not match",
-                                textAlign: TextAlign.center,
-                              ),
-                            ),
+                          return displayErrorMessage(
+                            context,
+                            "Setting '$key' does not match",
                           );
-                          return;
                         }
 
                         final result = validators.firstWhereOrNull(
                           (validator) => !validator(updatedValue1),
                         );
                         if (result != null) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text(
-                                "Setting '$key' is not valid",
-                                textAlign: TextAlign.center,
-                              ),
-                            ),
+                          return displayErrorMessage(
+                            context,
+                            "Setting '$key' is not valid",
                           );
-                          return;
                         }
 
                         setState(() {
@@ -317,15 +303,10 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
                           (validator) => !validator(updatedValue),
                         );
                         if (result != null) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text(
-                                "Setting '$key' is not valid",
-                                textAlign: TextAlign.center,
-                              ),
-                            ),
+                          return displayErrorMessage(
+                            context,
+                            "Setting '$key' is not valid",
                           );
-                          return;
                         }
                         setState(() {
                           root[key] = updatedValue;

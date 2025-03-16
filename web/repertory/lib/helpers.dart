@@ -1,5 +1,6 @@
 import 'package:collection/collection.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:repertory/constants.dart' as constants;
 
 typedef Validator = bool Function(String);
@@ -93,6 +94,16 @@ Map<String, dynamic> createDefaultSettings(String mountType) {
   }
 
   return {};
+}
+
+void displayErrorMessage(context, text) {
+  if (!context.mounted) {
+    return;
+  }
+
+  ScaffoldMessenger.of(
+    context,
+  ).showSnackBar(SnackBar(content: Text(text, textAlign: TextAlign.center)));
 }
 
 String formatMountName(String type, String name) {

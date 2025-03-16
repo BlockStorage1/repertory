@@ -92,19 +92,7 @@ class _MountWidgetState extends State<MountWidget> {
           }
 
           if (!isMounted && location == null) {
-            if (!context.mounted) {
-              return cleanup();
-            }
-
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: const Text(
-                  "Mount location is not set",
-                  textAlign: TextAlign.center,
-                ),
-              ),
-            );
-
+            displayErrorMessage(context, "Mount location is not set");
             return cleanup();
           }
 
@@ -117,17 +105,7 @@ class _MountWidgetState extends State<MountWidget> {
             return cleanup();
           }
 
-          ScaffoldMessenger.of(
-            constants.navigatorKey.currentContext!,
-          ).showSnackBar(
-            SnackBar(
-              content: const Text(
-                "Mount location not found",
-                textAlign: TextAlign.center,
-              ),
-            ),
-          );
-
+          displayErrorMessage(context, "Mount location not found");
           return cleanup();
         }
         : null;
@@ -175,15 +153,10 @@ class _MountWidgetState extends State<MountWidget> {
                   (validator) => !validator(currentLocation ?? ''),
                 );
                 if (result != null) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: const Text(
-                        "Mount location is not valid",
-                        textAlign: TextAlign.center,
-                      ),
-                    ),
+                  return displayErrorMessage(
+                    context,
+                    "Mount location is not valid",
                   );
-                  return;
                 }
                 Navigator.of(context).pop(currentLocation);
               },
