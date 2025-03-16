@@ -87,6 +87,11 @@ class Mount with ChangeNotifier {
         ),
       );
 
+      if (response.statusCode == 404) {
+        _mountList?.reset();
+        return true;
+      }
+
       await refresh();
 
       if (!unmount && response.statusCode == 500) {
@@ -106,13 +111,22 @@ class Mount with ChangeNotifier {
 
   Future<void> setValue(String key, String value) async {
     try {
-      await http.put(
+      final response = await http.put(
         Uri.parse(
           Uri.encodeFull(
             '${getBaseUri()}/api/v1/set_value_by_name?name=$name&type=$type&key=$key&value=$value',
           ),
         ),
       );
+
+      if (response.statusCode == 404) {
+        _mountList?.reset();
+        return;
+      }
+
+      if (response.statusCode != 200) {
+        return;
+      }
 
       return refresh();
     } catch (e) {
