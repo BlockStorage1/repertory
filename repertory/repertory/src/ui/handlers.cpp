@@ -26,6 +26,7 @@
 #include "rpc/common.hpp"
 #include "types/repertory.hpp"
 #include "ui/mgmt_app_config.hpp"
+#include "utils/common.hpp"
 #include "utils/error_utils.hpp"
 #include "utils/file.hpp"
 #include "utils/path.hpp"
@@ -143,6 +144,19 @@ handlers::handlers(mgmt_app_config *config, httplib::Server *server)
 #else // error
   build fails here
 #endif
+
+  std::uint16_t port{};
+  if (not utils::get_next_available_port(config_->get_api_port(), port)) {
+    fmt::println("failed to detect if port is available|{}",
+                 config_->get_api_port());
+    return;
+  }
+
+  if (port != config_->get_api_port()) {
+    fmt::println("failed to listen on port|{}|next available|{}",
+                 config_->get_api_port(), port);
+    return;
+  }
 
   server_->listen("127.0.0.1", config_->get_api_port());
   this_server = nullptr;
