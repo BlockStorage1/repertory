@@ -4,6 +4,7 @@ import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import 'package:repertory/constants.dart' as constants;
 import 'package:repertory/helpers.dart';
 import 'package:repertory/models/mount.dart';
 
@@ -140,9 +141,15 @@ class _MountWidgetState extends State<MountWidget> {
                           }
                         }
 
+                        cleanup() {
+                          setState(() {
+                            _enabled = true;
+                          });
+                        }
+
                         if (location == null) {
                           if (!context.mounted) {
-                            return;
+                            return cleanup();
                           }
 
                           ScaffoldMessenger.of(context).showSnackBar(
@@ -153,34 +160,37 @@ class _MountWidgetState extends State<MountWidget> {
                               ),
                             ),
                           );
-                          return;
+
+                          return cleanup();
                         }
 
-                        mount
-                            .mount(isActive, location: location)
-                            .then((success) {
-                              setState(() {
-                                _enabled = true;
-                              });
+                        final success = await mount.mount(
+                          isActive,
+                          location: location,
+                        );
+                        debugPrint(
+                          'success: $success, active: $isActive, mounted: ${context.mounted}',
+                        );
 
-                              if (success || isActive || !context.mounted) {
-                                return;
-                              }
+                        if (success ||
+                            isActive ||
+                            constants.navigatorKey.currentContext == null ||
+                            !constants.navigatorKey.currentContext!.mounted) {
+                          return cleanup();
+                        }
 
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: const Text(
-                                    "Mount location not found",
-                                    textAlign: TextAlign.center,
-                                  ),
-                                ),
-                              );
-                            })
-                            .catchError((_) {
-                              setState(() {
-                                _enabled = true;
-                              });
-                            });
+                        ScaffoldMessenger.of(
+                          constants.navigatorKey.currentContext!,
+                        ).showSnackBar(
+                          SnackBar(
+                            content: const Text(
+                              "Mount location not found",
+                              textAlign: TextAlign.center,
+                            ),
+                          ),
+                        );
+
+                        return cleanup();
                       }
                       : null,
             ),
