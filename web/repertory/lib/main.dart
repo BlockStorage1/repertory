@@ -6,6 +6,7 @@ import 'package:repertory/models/mount.dart';
 import 'package:repertory/models/mount_list.dart';
 import 'package:repertory/screens/add_mount_screen.dart';
 import 'package:repertory/screens/edit_mount_screen.dart';
+import 'package:repertory/screens/edit_settings_screen.dart';
 import 'package:repertory/screens/home_screen.dart';
 
 void main() {
@@ -50,6 +51,8 @@ class _MyAppState extends State<MyApp> {
         '/': (context) => const HomeScreen(title: constants.appTitle),
         '/add':
             (context) => const AddMountScreen(title: constants.addMountTitle),
+        '/settings':
+            (context) => const EditSettingsScreen(title: constants.appTitle),
       },
       onGenerateRoute: (settings) {
         if (settings.name != '/edit') {

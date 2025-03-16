@@ -63,6 +63,8 @@ private:
 
   void handle_get_mount_status(auto &&req, auto &&res) const;
 
+  void handle_get_settings(auto &&res) const;
+
   void handle_post_add_mount(auto &&req, auto &&res) const;
 
   void handle_post_mount(auto &&req, auto &&res) const;

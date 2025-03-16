@@ -59,7 +59,7 @@ namespace {
   return map_of_maps;
 }
 
-[[nodiscard]] auto to_json(const auto &map_of_maps) -> nlohmann::json {
+[[nodiscard]] auto map_to_json(const auto &map_of_maps) -> nlohmann::json {
   auto json = nlohmann::json::object();
   for (const auto &[prov, map] : map_of_maps) {
     for (const auto &[key, value] : map) {
@@ -134,12 +134,7 @@ void mgmt_app_config::save() const {
       return;
     }
 
-    nlohmann::json data;
-    data[JSON_API_PASSWORD] = api_password_;
-    data[JSON_API_PORT] = api_port_;
-    data[JSON_API_USER] = api_user_;
-    data[JSON_MOUNT_LOCATIONS] = to_json(locations_);
-    if (utils::file::write_json_file(config_file, data)) {
+    if (utils::file::write_json_file(config_file, to_json())) {
       return;
     }
 
@@ -180,5 +175,14 @@ void mgmt_app_config::set_mount_location(provider_type prov,
   locations_[prov][std::string{name}] = std::string{location};
 
   save();
+}
+
+auto mgmt_app_config::to_json() const -> nlohmann::json {
+  nlohmann::json data;
+  data[JSON_API_PASSWORD] = api_password_;
+  data[JSON_API_PORT] = api_port_;
+  data[JSON_API_USER] = api_user_;
+  data[JSON_MOUNT_LOCATIONS] = map_to_json(locations_);
+  return data;
 }
 } // namespace repertory::ui

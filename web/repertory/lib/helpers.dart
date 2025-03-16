@@ -125,7 +125,7 @@ String getBaseUri() {
 String? getSettingDescription(String settingPath) {
   switch (settingPath) {
     case 'ApiPassword':
-      return "'repertory' REST API password";
+      return "HTTP basic authentication password";
     case 'HostConfig.ApiPassword':
       return "RENTERD_API_PASSWORD";
     default:

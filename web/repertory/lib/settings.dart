@@ -1,0 +1,361 @@
+import 'package:collection/collection.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:repertory/constants.dart' as constants;
+import 'package:repertory/helpers.dart' show Validator, displayErrorMessage;
+import 'package:settings_ui/settings_ui.dart';
+
+void createBooleanSetting(
+  context,
+  List<Widget> list,
+  Map<String, dynamic> settings,
+  String key,
+  value,
+  bool isAdvanced,
+  bool showAdvanced,
+  widget,
+  Function setState, {
+  String? description,
+}) {
+  if (!isAdvanced || showAdvanced) {
+    list.add(
+      SettingsTile.switchTile(
+        leading: const Icon(Icons.quiz),
+        title: createSettingTitle(context, key, description),
+        initialValue: (value as bool),
+        onPressed:
+            (_) => setState(() {
+              settings[key] = !value;
+              widget.onChanged?.call(widget.settings);
+            }),
+        onToggle: (bool nextValue) {
+          setState(() {
+            settings[key] = nextValue;
+            widget.onChanged?.call(widget.settings);
+          });
+        },
+      ),
+    );
+  }
+}
+
+void createIntListSetting(
+  context,
+  List<Widget> list,
+  Map<String, dynamic> settings,
+  String key,
+  value,
+  List<String> valueList,
+  defaultValue,
+  IconData icon,
+  bool isAdvanced,
+  bool showAdvanced,
+  widget,
+  Function setState, {
+  String? description,
+}) {
+  if (!isAdvanced || widget.showAdvanced) {
+    list.add(
+      SettingsTile.navigation(
+        title: createSettingTitle(context, key, description),
+        leading: Icon(icon),
+        value: DropdownButton<String>(
+          value: value.toString(),
+          onChanged: (newValue) {
+            setState(() {
+              settings[key] = int.parse(newValue ?? defaultValue.toString());
+              widget.onChanged?.call(widget.settings);
+            });
+          },
+          items:
+              valueList.map<DropdownMenuItem<String>>((item) {
+                return DropdownMenuItem<String>(value: item, child: Text(item));
+              }).toList(),
+        ),
+      ),
+    );
+  }
+}
+
+void createIntSetting(
+  context,
+  List<Widget> list,
+  Map<String, dynamic> settings,
+  String key,
+  value,
+  bool isAdvanced,
+  bool showAdvanced,
+  widget,
+  Function setState, {
+  String? description,
+  List<Validator> validators = const [],
+}) {
+  if (!isAdvanced || widget.showAdvanced) {
+    list.add(
+      SettingsTile.navigation(
+        leading: const Icon(Icons.onetwothree),
+        title: createSettingTitle(context, key, description),
+        value: Text(value.toString()),
+        onPressed: (_) {
+          String updatedValue = value.toString();
+          showDialog(
+            context: context,
+            builder: (context) {
+              return AlertDialog(
+                actions: [
+                  TextButton(
+                    child: const Text('Cancel'),
+                    onPressed: () => Navigator.of(context).pop(),
+                  ),
+                  TextButton(
+                    child: const Text('OK'),
+                    onPressed: () {
+                      final result = validators.firstWhereOrNull(
+                        (validator) => !validator(updatedValue),
+                      );
+                      if (result != null) {
+                        return displayErrorMessage(
+                          context,
+                          "Setting '$key' is not valid",
+                        );
+                      }
+                      setState(() {
+                        settings[key] = int.parse(updatedValue);
+                        widget.onChanged?.call(widget.settings);
+                      });
+                      Navigator.of(context).pop();
+                    },
+                  ),
+                ],
+                content: TextField(
+                  autofocus: true,
+                  controller: TextEditingController(text: updatedValue),
+                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                  keyboardType: TextInputType.number,
+                  onChanged: (nextValue) => updatedValue = nextValue,
+                ),
+                title: createSettingTitle(context, key, description),
+              );
+            },
+          );
+        },
+      ),
+    );
+  }
+}
+
+void createPasswordSetting(
+  context,
+  List<Widget> list,
+  Map<String, dynamic> settings,
+  String key,
+  value,
+  bool isAdvanced,
+  bool showAdvanced,
+  widget,
+  Function setState, {
+  String? description,
+  List<Validator> validators = const [],
+}) {
+  if (!isAdvanced || widget.showAdvanced) {
+    list.add(
+      SettingsTile.navigation(
+        leading: const Icon(Icons.password),
+        title: createSettingTitle(context, key, description),
+        value: Text('*' * (value as String).length),
+        onPressed: (_) {
+          String updatedValue1 = value;
+          String updatedValue2 = value;
+          showDialog(
+            context: context,
+            builder: (context) {
+              return AlertDialog(
+                actions: [
+                  TextButton(
+                    child: const Text('Cancel'),
+                    onPressed: () => Navigator.of(context).pop(),
+                  ),
+                  TextButton(
+                    child: const Text('OK'),
+                    onPressed: () {
+                      if (updatedValue1 != updatedValue2) {
+                        return displayErrorMessage(
+                          context,
+                          "Setting '$key' does not match",
+                        );
+                      }
+
+                      final result = validators.firstWhereOrNull(
+                        (validator) => !validator(updatedValue1),
+                      );
+                      if (result != null) {
+                        return displayErrorMessage(
+                          context,
+                          "Setting '$key' is not valid",
+                        );
+                      }
+
+                      setState(() {
+                        settings[key] = updatedValue1;
+                        widget.onChanged?.call(widget.settings);
+                      });
+                      Navigator.of(context).pop();
+                    },
+                  ),
+                ],
+                content: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    TextField(
+                      autofocus: true,
+                      controller: TextEditingController(text: updatedValue1),
+                      obscureText: true,
+                      obscuringCharacter: '*',
+                      onChanged: (value) => updatedValue1 = value,
+                    ),
+                    const SizedBox(height: constants.padding),
+                    TextField(
+                      autofocus: false,
+                      controller: TextEditingController(text: updatedValue2),
+                      obscureText: true,
+                      obscuringCharacter: '*',
+                      onChanged: (value) => updatedValue2 = value,
+                    ),
+                  ],
+                ),
+                title: createSettingTitle(context, key, description),
+              );
+            },
+          );
+        },
+      ),
+    );
+  }
+}
+
+Widget createSettingTitle(context, String key, String? description) {
+  if (description == null) {
+    return Text(key);
+  }
+
+  return Column(
+    mainAxisAlignment: MainAxisAlignment.start,
+    mainAxisSize: MainAxisSize.min,
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Text(key, textAlign: TextAlign.start),
+      Text(
+        description,
+        style: Theme.of(context).textTheme.titleSmall,
+        textAlign: TextAlign.start,
+      ),
+    ],
+  );
+}
+
+void createStringListSetting(
+  context,
+  List<Widget> list,
+  Map<String, dynamic> settings,
+  String key,
+  value,
+  List<String> valueList,
+  IconData icon,
+  bool isAdvanced,
+  bool showAdvanced,
+  widget,
+  Function setState, {
+  String? description,
+}) {
+  if (!isAdvanced || widget.showAdvanced) {
+    list.add(
+      SettingsTile.navigation(
+        title: createSettingTitle(context, key, description),
+        leading: Icon(icon),
+        value: DropdownButton<String>(
+          value: value,
+          onChanged:
+              (newValue) => setState(() {
+                settings[key] = newValue;
+                widget.onChanged?.call(widget.settings);
+              }),
+          items:
+              valueList.map<DropdownMenuItem<String>>((item) {
+                return DropdownMenuItem<String>(value: item, child: Text(item));
+              }).toList(),
+        ),
+      ),
+    );
+  }
+}
+
+void createStringSetting(
+  context,
+  List<Widget> list,
+  Map<String, dynamic> settings,
+  String key,
+  value,
+  IconData icon,
+  bool isAdvanced,
+  bool showAdvanced,
+  widget,
+  Function setState, {
+  String? description,
+  List<Validator> validators = const [],
+}) {
+  if (!isAdvanced || widget.showAdvanced) {
+    list.add(
+      SettingsTile.navigation(
+        leading: Icon(icon),
+        title: createSettingTitle(context, key, description),
+        value: Text(value),
+        onPressed: (_) {
+          String updatedValue = value;
+          showDialog(
+            context: context,
+            builder: (context) {
+              return AlertDialog(
+                actions: [
+                  TextButton(
+                    child: const Text('Cancel'),
+                    onPressed: () => Navigator.of(context).pop(),
+                  ),
+                  TextButton(
+                    child: const Text('OK'),
+                    onPressed: () {
+                      final result = validators.firstWhereOrNull(
+                        (validator) => !validator(updatedValue),
+                      );
+                      if (result != null) {
+                        return displayErrorMessage(
+                          context,
+                          "Setting '$key' is not valid",
+                        );
+                      }
+                      setState(() {
+                        settings[key] = updatedValue;
+                        widget.onChanged?.call(widget.settings);
+                      });
+                      Navigator.of(context).pop();
+                    },
+                  ),
+                ],
+                content: TextField(
+                  autofocus: true,
+                  controller: TextEditingController(text: updatedValue),
+                  inputFormatters: [
+                    FilteringTextInputFormatter.deny(RegExp(r'\s')),
+                  ],
+                  onChanged: (value) => updatedValue = value,
+                ),
+                title: createSettingTitle(context, key, description),
+              );
+            },
+          );
+        },
+      ),
+    );
+  }
+}

@@ -102,6 +102,11 @@ handlers::handlers(mgmt_app_config *config, httplib::Server *server)
                 handle_get_mount_status(req, res);
               });
 
+  server->Get("/api/v1/settings",
+              [this](const httplib::Request & /* req */, auto &&res) {
+                handle_get_settings(res);
+              });
+
   server->Post("/api/v1/add_mount", [this](auto &&req, auto &&res) {
     handle_post_add_mount(req, res);
   });
@@ -304,6 +309,11 @@ void handlers::handle_get_mount_status(auto &&req, auto &&res) const {
   }
 
   res.set_content(result.dump(), "application/json");
+  res.status = http_error_codes::ok;
+}
+
+void handlers::handle_get_settings(auto &&res) const {
+  res.set_content(config_->to_json().dump(), "application/json");
   res.status = http_error_codes::ok;
 }
 

@@ -1,16 +1,12 @@
 import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:repertory/constants.dart' as constants;
 import 'package:repertory/helpers.dart'
-    show
-        Validator,
-        displayErrorMessage,
-        getSettingDescription,
-        getSettingValidators;
+    show getSettingDescription, getSettingValidators;
 import 'package:repertory/models/mount.dart';
 import 'package:repertory/models/mount_list.dart';
+import 'package:repertory/settings.dart';
 import 'package:settings_ui/settings_ui.dart';
 
 class MountSettingsWidget extends StatefulWidget {
@@ -33,343 +29,6 @@ class MountSettingsWidget extends StatefulWidget {
 }
 
 class _MountSettingsWidgetState extends State<MountSettingsWidget> {
-  Widget _createTitle(String key, String? description) {
-    if (description == null) {
-      return Text(key);
-    }
-
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.start,
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(key, textAlign: TextAlign.start),
-        Text(
-          description,
-          style: Theme.of(context).textTheme.titleSmall,
-          textAlign: TextAlign.start,
-        ),
-      ],
-    );
-  }
-
-  void _addBooleanSetting(
-    list,
-    root,
-    key,
-    value,
-    isAdvanced, {
-    String? description,
-  }) {
-    if (!isAdvanced || widget.showAdvanced) {
-      list.add(
-        SettingsTile.switchTile(
-          leading: const Icon(Icons.quiz),
-          title: _createTitle(key, description),
-          initialValue: (value as bool),
-          onPressed:
-              (_) => setState(() {
-                root[key] = !value;
-                widget.onChanged?.call(widget.settings);
-              }),
-          onToggle: (bool nextValue) {
-            setState(() {
-              root[key] = nextValue;
-              widget.onChanged?.call(widget.settings);
-            });
-          },
-        ),
-      );
-    }
-  }
-
-  void _addIntSetting(
-    list,
-    root,
-    key,
-    value,
-    isAdvanced, {
-    String? description,
-    List<Validator> validators = const [],
-  }) {
-    if (!isAdvanced || widget.showAdvanced) {
-      list.add(
-        SettingsTile.navigation(
-          leading: const Icon(Icons.onetwothree),
-          title: _createTitle(key, description),
-          value: Text(value.toString()),
-          onPressed: (_) {
-            String updatedValue = value.toString();
-            showDialog(
-              context: context,
-              builder: (context) {
-                return AlertDialog(
-                  actions: [
-                    TextButton(
-                      child: const Text('Cancel'),
-                      onPressed: () => Navigator.of(context).pop(),
-                    ),
-                    TextButton(
-                      child: const Text('OK'),
-                      onPressed: () {
-                        final result = validators.firstWhereOrNull(
-                          (validator) => !validator(updatedValue),
-                        );
-                        if (result != null) {
-                          return displayErrorMessage(
-                            context,
-                            "Setting '$key' is not valid",
-                          );
-                        }
-                        setState(() {
-                          root[key] = int.parse(updatedValue);
-                          widget.onChanged?.call(widget.settings);
-                        });
-                        Navigator.of(context).pop();
-                      },
-                    ),
-                  ],
-                  content: TextField(
-                    autofocus: true,
-                    controller: TextEditingController(text: updatedValue),
-                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                    keyboardType: TextInputType.number,
-                    onChanged: (nextValue) => updatedValue = nextValue,
-                  ),
-                  title: _createTitle(key, description),
-                );
-              },
-            );
-          },
-        ),
-      );
-    }
-  }
-
-  void _addIntListSetting(
-    list,
-    root,
-    key,
-    value,
-    List<String> valueList,
-    defaultValue,
-    icon,
-    isAdvanced, {
-    String? description,
-  }) {
-    if (!isAdvanced || widget.showAdvanced) {
-      list.add(
-        SettingsTile.navigation(
-          title: _createTitle(key, description),
-          leading: Icon(icon),
-          value: DropdownButton<String>(
-            value: value.toString(),
-            onChanged: (newValue) {
-              setState(() {
-                root[key] = int.parse(newValue ?? defaultValue.toString());
-                widget.onChanged?.call(widget.settings);
-              });
-            },
-            items:
-                valueList.map<DropdownMenuItem<String>>((item) {
-                  return DropdownMenuItem<String>(
-                    value: item,
-                    child: Text(item),
-                  );
-                }).toList(),
-          ),
-        ),
-      );
-    }
-  }
-
-  void _addPasswordSetting(
-    list,
-    root,
-    key,
-    value,
-    isAdvanced, {
-    String? description,
-    List<Validator> validators = const [],
-  }) {
-    if (!isAdvanced || widget.showAdvanced) {
-      list.add(
-        SettingsTile.navigation(
-          leading: const Icon(Icons.password),
-          title: _createTitle(key, description),
-          value: Text('*' * (value as String).length),
-          onPressed: (_) {
-            String updatedValue1 = value;
-            String updatedValue2 = value;
-            showDialog(
-              context: context,
-              builder: (context) {
-                return AlertDialog(
-                  actions: [
-                    TextButton(
-                      child: const Text('Cancel'),
-                      onPressed: () => Navigator.of(context).pop(),
-                    ),
-                    TextButton(
-                      child: const Text('OK'),
-                      onPressed: () {
-                        if (updatedValue1 != updatedValue2) {
-                          return displayErrorMessage(
-                            context,
-                            "Setting '$key' does not match",
-                          );
-                        }
-
-                        final result = validators.firstWhereOrNull(
-                          (validator) => !validator(updatedValue1),
-                        );
-                        if (result != null) {
-                          return displayErrorMessage(
-                            context,
-                            "Setting '$key' is not valid",
-                          );
-                        }
-
-                        setState(() {
-                          root[key] = updatedValue1;
-                          widget.onChanged?.call(widget.settings);
-                        });
-                        Navigator.of(context).pop();
-                      },
-                    ),
-                  ],
-                  content: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisAlignment: MainAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      TextField(
-                        autofocus: true,
-                        controller: TextEditingController(text: updatedValue1),
-                        obscureText: true,
-                        obscuringCharacter: '*',
-                        onChanged: (value) => updatedValue1 = value,
-                      ),
-                      const SizedBox(height: constants.padding),
-                      TextField(
-                        autofocus: false,
-                        controller: TextEditingController(text: updatedValue2),
-                        obscureText: true,
-                        obscuringCharacter: '*',
-                        onChanged: (value) => updatedValue2 = value,
-                      ),
-                    ],
-                  ),
-                  title: _createTitle(key, description),
-                );
-              },
-            );
-          },
-        ),
-      );
-    }
-  }
-
-  void _addStringListSetting(
-    list,
-    root,
-    key,
-    value,
-    List<String> valueList,
-    icon,
-    isAdvanced, {
-    String? description,
-  }) {
-    if (!isAdvanced || widget.showAdvanced) {
-      list.add(
-        SettingsTile.navigation(
-          title: _createTitle(key, description),
-          leading: Icon(icon),
-          value: DropdownButton<String>(
-            value: value,
-            onChanged:
-                (newValue) => setState(() {
-                  root[key] = newValue;
-                  widget.onChanged?.call(widget.settings);
-                }),
-            items:
-                valueList.map<DropdownMenuItem<String>>((item) {
-                  return DropdownMenuItem<String>(
-                    value: item,
-                    child: Text(item),
-                  );
-                }).toList(),
-          ),
-        ),
-      );
-    }
-  }
-
-  void _addStringSetting(
-    list,
-    root,
-    key,
-    value,
-    icon,
-    isAdvanced, {
-    String? description,
-    List<Validator> validators = const [],
-  }) {
-    if (!isAdvanced || widget.showAdvanced) {
-      list.add(
-        SettingsTile.navigation(
-          leading: Icon(icon),
-          title: _createTitle(key, description),
-          value: Text(value),
-          onPressed: (_) {
-            String updatedValue = value;
-            showDialog(
-              context: context,
-              builder: (context) {
-                return AlertDialog(
-                  actions: [
-                    TextButton(
-                      child: const Text('Cancel'),
-                      onPressed: () => Navigator.of(context).pop(),
-                    ),
-                    TextButton(
-                      child: const Text('OK'),
-                      onPressed: () {
-                        final result = validators.firstWhereOrNull(
-                          (validator) => !validator(updatedValue),
-                        );
-                        if (result != null) {
-                          return displayErrorMessage(
-                            context,
-                            "Setting '$key' is not valid",
-                          );
-                        }
-                        setState(() {
-                          root[key] = updatedValue;
-                          widget.onChanged?.call(widget.settings);
-                        });
-                        Navigator.of(context).pop();
-                      },
-                    ),
-                  ],
-                  content: TextField(
-                    autofocus: true,
-                    controller: TextEditingController(text: updatedValue),
-                    inputFormatters: [
-                      FilteringTextInputFormatter.deny(RegExp(r'\s')),
-                    ],
-                    onChanged: (value) => updatedValue = value,
-                  ),
-                  title: _createTitle(key, description),
-                );
-              },
-            );
-          },
-        ),
-      );
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     List<SettingsTile> commonSettings = [];
@@ -384,12 +43,16 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
       switch (key) {
         case 'ApiPassword':
           {
-            _addPasswordSetting(
+            createPasswordSetting(
+              context,
               commonSettings,
               widget.settings,
               key,
               value,
               true,
+              widget.showAdvanced,
+              widget,
+              setState,
               description: getSettingDescription(key),
               validators: getSettingValidators(key),
             );
@@ -397,12 +60,16 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
           break;
         case 'ApiPort':
           {
-            _addIntSetting(
+            createIntSetting(
+              context,
               commonSettings,
               widget.settings,
               key,
               value,
               true,
+              widget.showAdvanced,
+              widget,
+              setState,
               description: getSettingDescription(key),
               validators: getSettingValidators(key),
             );
@@ -410,13 +77,17 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
           break;
         case 'ApiUser':
           {
-            _addStringSetting(
+            createStringSetting(
+              context,
               commonSettings,
               widget.settings,
               key,
               value,
               Icons.person,
               true,
+              widget.showAdvanced,
+              widget,
+              setState,
               description: getSettingDescription(key),
               validators: getSettingValidators(key),
             );
@@ -424,7 +95,8 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
           break;
         case 'DatabaseType':
           {
-            _addStringListSetting(
+            createStringListSetting(
+              context,
               commonSettings,
               widget.settings,
               key,
@@ -432,18 +104,25 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
               constants.databaseTypeList,
               Icons.dataset,
               true,
+              widget.showAdvanced,
+              widget,
+              setState,
               description: getSettingDescription(key),
             );
           }
           break;
         case 'DownloadTimeoutSeconds':
           {
-            _addIntSetting(
+            createIntSetting(
+              context,
               commonSettings,
               widget.settings,
               key,
               value,
               true,
+              widget.showAdvanced,
+              widget,
+              setState,
               description: getSettingDescription(key),
               validators: getSettingValidators(key),
             );
@@ -451,31 +130,40 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
           break;
         case 'EnableDownloadTimeout':
           {
-            _addBooleanSetting(
+            createBooleanSetting(
+              context,
               commonSettings,
               widget.settings,
               key,
               value,
               true,
+              widget.showAdvanced,
+              widget,
+              setState,
               description: getSettingDescription(key),
             );
           }
           break;
         case 'EnableDriveEvents':
           {
-            _addBooleanSetting(
+            createBooleanSetting(
+              context,
               commonSettings,
               widget.settings,
               key,
               value,
               true,
+              widget.showAdvanced,
+              widget,
+              setState,
               description: getSettingDescription(key),
             );
           }
           break;
         case 'EventLevel':
           {
-            _addStringListSetting(
+            createStringListSetting(
+              context,
               commonSettings,
               widget.settings,
               key,
@@ -483,18 +171,25 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
               constants.eventLevelList,
               Icons.event,
               false,
+              widget.showAdvanced,
+              widget,
+              setState,
               description: getSettingDescription(key),
             );
           }
           break;
         case 'EvictionDelayMinutes':
           {
-            _addIntSetting(
+            createIntSetting(
+              context,
               commonSettings,
               widget.settings,
               key,
               value,
               true,
+              widget.showAdvanced,
+              widget,
+              setState,
               description: getSettingDescription(key),
               validators: getSettingValidators(key),
             );
@@ -502,24 +197,32 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
           break;
         case 'EvictionUseAccessedTime':
           {
-            _addBooleanSetting(
+            createBooleanSetting(
+              context,
               commonSettings,
               widget.settings,
               key,
               value,
               true,
+              widget.showAdvanced,
+              widget,
+              setState,
               description: getSettingDescription(key),
             );
           }
           break;
         case 'MaxCacheSizeBytes':
           {
-            _addIntSetting(
+            createIntSetting(
+              context,
               commonSettings,
               widget.settings,
               key,
               value,
               false,
+              widget.showAdvanced,
+              widget,
+              setState,
               description: getSettingDescription(key),
               validators: getSettingValidators(key),
             );
@@ -527,12 +230,16 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
           break;
         case 'MaxUploadCount':
           {
-            _addIntSetting(
+            createIntSetting(
+              context,
               commonSettings,
               widget.settings,
               key,
               value,
               true,
+              widget.showAdvanced,
+              widget,
+              setState,
               description: getSettingDescription(key),
               validators: getSettingValidators(key),
             );
@@ -540,12 +247,16 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
           break;
         case 'OnlineCheckRetrySeconds':
           {
-            _addIntSetting(
+            createIntSetting(
+              context,
               commonSettings,
               widget.settings,
               key,
               value,
               true,
+              widget.showAdvanced,
+              widget,
+              setState,
               description: getSettingDescription(key),
               validators: getSettingValidators(key),
             );
@@ -553,7 +264,8 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
           break;
         case 'PreferredDownloadType':
           {
-            _addStringListSetting(
+            createStringListSetting(
+              context,
               commonSettings,
               widget.settings,
               key,
@@ -561,18 +273,25 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
               constants.downloadTypeList,
               Icons.download,
               false,
+              widget.showAdvanced,
+              widget,
+              setState,
               description: getSettingDescription(key),
             );
           }
           break;
         case 'RetryReadCount':
           {
-            _addIntSetting(
+            createIntSetting(
+              context,
               commonSettings,
               widget.settings,
               key,
               value,
               true,
+              widget.showAdvanced,
+              widget,
+              setState,
               description: getSettingDescription(key),
               validators: getSettingValidators(key),
             );
@@ -580,7 +299,8 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
           break;
         case 'RingBufferFileSize':
           {
-            _addIntListSetting(
+            createIntListSetting(
+              context,
               commonSettings,
               widget.settings,
               key,
@@ -589,6 +309,9 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
               512,
               Icons.animation,
               false,
+              widget.showAdvanced,
+              widget,
+              setState,
               description: getSettingDescription(key),
             );
           }
@@ -622,13 +345,17 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
           {
             value.forEach((subKey, subValue) {
               if (subKey == 'Bucket') {
-                _addStringSetting(
+                createStringSetting(
+                  context,
                   siaConfigSettings,
                   widget.settings[key],
                   subKey,
                   subValue,
                   Icons.folder,
                   false,
+                  widget.showAdvanced,
+                  widget,
+                  setState,
                   description: getSettingDescription('$key.$subKey'),
                   validators: [
                     ...getSettingValidators('$key.$subKey'),
@@ -697,13 +424,17 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
       switch (subKey) {
         case 'AgentString':
           {
-            _addStringSetting(
+            createStringSetting(
+              context,
               hostConfigSettings,
               widget.settings[key],
               subKey,
               subValue,
               Icons.support_agent,
               true,
+              widget.showAdvanced,
+              widget,
+              setState,
               description: getSettingDescription('$key.$subKey'),
               validators: getSettingValidators('$key.$subKey'),
             );
@@ -711,12 +442,16 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
           break;
         case 'ApiPassword':
           {
-            _addPasswordSetting(
+            createPasswordSetting(
+              context,
               hostConfigSettings,
               widget.settings[key],
               subKey,
               subValue,
               false,
+              widget.showAdvanced,
+              widget,
+              setState,
               description: getSettingDescription('$key.$subKey'),
               validators: getSettingValidators('$key.$subKey'),
             );
@@ -724,12 +459,16 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
           break;
         case 'ApiPort':
           {
-            _addIntSetting(
+            createIntSetting(
+              context,
               hostConfigSettings,
               widget.settings[key],
               subKey,
               subValue,
               false,
+              widget.showAdvanced,
+              widget,
+              setState,
               description: getSettingDescription('$key.$subKey'),
               validators: getSettingValidators('$key.$subKey'),
             );
@@ -737,13 +476,17 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
           break;
         case 'ApiUser':
           {
-            _addStringSetting(
+            createStringSetting(
+              context,
               hostConfigSettings,
               widget.settings[key],
               subKey,
               subValue,
               Icons.person,
               true,
+              widget.showAdvanced,
+              widget,
+              setState,
               description: getSettingDescription('$key.$subKey'),
               validators: getSettingValidators('$key.$subKey'),
             );
@@ -751,13 +494,17 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
           break;
         case 'HostNameOrIp':
           {
-            _addStringSetting(
+            createStringSetting(
+              context,
               hostConfigSettings,
               widget.settings[key],
               subKey,
               subValue,
               Icons.computer,
               false,
+              widget.showAdvanced,
+              widget,
+              setState,
               description: getSettingDescription('$key.$subKey'),
               validators: getSettingValidators('$key.$subKey'),
             );
@@ -765,13 +512,17 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
           break;
         case 'Path':
           {
-            _addStringSetting(
+            createStringSetting(
+              context,
               hostConfigSettings,
               widget.settings[key],
               subKey,
               subValue,
               Icons.route,
               true,
+              widget.showAdvanced,
+              widget,
+              setState,
               description: getSettingDescription('$key.$subKey'),
               validators: getSettingValidators('$key.$subKey'),
             );
@@ -779,7 +530,8 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
           break;
         case 'Protocol':
           {
-            _addStringListSetting(
+            createStringListSetting(
+              context,
               hostConfigSettings,
               widget.settings[key],
               subKey,
@@ -787,18 +539,25 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
               constants.protocolTypeList,
               Icons.http,
               true,
+              widget.showAdvanced,
+              widget,
+              setState,
               description: getSettingDescription(key),
             );
           }
           break;
         case 'TimeoutMs':
           {
-            _addIntSetting(
+            createIntSetting(
+              context,
               hostConfigSettings,
               widget.settings[key],
               subKey,
               subValue,
               true,
+              widget.showAdvanced,
+              widget,
+              setState,
               description: getSettingDescription('$key.$subKey'),
               validators: getSettingValidators('$key.$subKey'),
             );
@@ -817,12 +576,16 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
       switch (subKey) {
         case 'EncryptionToken':
           {
-            _addPasswordSetting(
+            createPasswordSetting(
+              context,
               encryptConfigSettings,
               widget.settings[key],
               subKey,
               subValue,
               false,
+              widget.showAdvanced,
+              widget,
+              setState,
               description: getSettingDescription('$key.$subKey'),
               validators: getSettingValidators('$key.$subKey'),
             );
@@ -830,13 +593,17 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
           break;
         case 'Path':
           {
-            _addStringSetting(
+            createStringSetting(
+              context,
               encryptConfigSettings,
               widget.settings[key],
               subKey,
               subValue,
               Icons.folder,
               false,
+              widget.showAdvanced,
+              widget,
+              setState,
               description: getSettingDescription('$key.$subKey'),
               validators: getSettingValidators('$key.$subKey'),
             );
@@ -878,13 +645,17 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
       switch (subKey) {
         case 'AccessKey':
           {
-            _addStringSetting(
+            createStringSetting(
+              context,
               s3ConfigSettings,
               widget.settings[key],
               subKey,
               subValue,
               Icons.key,
               false,
+              widget.showAdvanced,
+              widget,
+              setState,
               description: getSettingDescription('$key.$subKey'),
               validators: getSettingValidators('$key.$subKey'),
             );
@@ -892,13 +663,17 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
           break;
         case 'Bucket':
           {
-            _addStringSetting(
+            createStringSetting(
+              context,
               s3ConfigSettings,
               widget.settings[key],
               subKey,
               subValue,
               Icons.folder,
               false,
+              widget.showAdvanced,
+              widget,
+              setState,
               description: getSettingDescription('$key.$subKey'),
               validators: [
                 ...getSettingValidators('$key.$subKey'),
@@ -917,12 +692,16 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
           break;
         case 'EncryptionToken':
           {
-            _addPasswordSetting(
+            createPasswordSetting(
+              context,
               s3ConfigSettings,
               widget.settings[key],
               subKey,
               subValue,
               false,
+              widget.showAdvanced,
+              widget,
+              setState,
               description: getSettingDescription('$key.$subKey'),
               validators: getSettingValidators('$key.$subKey'),
             );
@@ -930,13 +709,17 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
           break;
         case 'Region':
           {
-            _addStringSetting(
+            createStringSetting(
+              context,
               s3ConfigSettings,
               widget.settings[key],
               subKey,
               subValue,
               Icons.map,
               false,
+              widget.showAdvanced,
+              widget,
+              setState,
               description: getSettingDescription('$key.$subKey'),
               validators: getSettingValidators('$key.$subKey'),
             );
@@ -944,12 +727,16 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
           break;
         case 'SecretKey':
           {
-            _addPasswordSetting(
+            createPasswordSetting(
+              context,
               s3ConfigSettings,
               widget.settings[key],
               subKey,
               subValue,
               false,
+              widget.showAdvanced,
+              widget,
+              setState,
               description: getSettingDescription('$key.$subKey'),
               validators: getSettingValidators('$key.$subKey'),
             );
@@ -957,12 +744,16 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
           break;
         case 'TimeoutMs':
           {
-            _addIntSetting(
+            createIntSetting(
+              context,
               s3ConfigSettings,
               widget.settings[key],
               subKey,
               subValue,
               true,
+              widget.showAdvanced,
+              widget,
+              setState,
               description: getSettingDescription('$key.$subKey'),
               validators: getSettingValidators('$key.$subKey'),
             );
@@ -970,13 +761,17 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
           break;
         case 'URL':
           {
-            _addStringSetting(
+            createStringSetting(
+              context,
               s3ConfigSettings,
               widget.settings[key],
               subKey,
               subValue,
               Icons.http,
               false,
+              widget.showAdvanced,
+              widget,
+              setState,
               description: getSettingDescription('$key.$subKey'),
               validators: getSettingValidators('$key.$subKey'),
             );
@@ -984,24 +779,32 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
           break;
         case 'UsePathStyle':
           {
-            _addBooleanSetting(
+            createBooleanSetting(
+              context,
               s3ConfigSettings,
               widget.settings[key],
               subKey,
               subValue,
               false,
+              widget.showAdvanced,
+              widget,
+              setState,
               description: getSettingDescription('$key.$subKey'),
             );
           }
           break;
         case 'UseRegionInURL':
           {
-            _addBooleanSetting(
+            createBooleanSetting(
+              context,
               s3ConfigSettings,
               widget.settings[key],
               subKey,
               subValue,
               false,
+              widget.showAdvanced,
+              widget,
+              setState,
               description: getSettingDescription('$key.$subKey'),
             );
           }
@@ -1020,12 +823,16 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
         case 'Enable':
           {
             List<SettingsTile> tempSettings = [];
-            _addBooleanSetting(
+            createBooleanSetting(
+              context,
               tempSettings,
               widget.settings[key],
               subKey,
               subValue,
               false,
+              widget.showAdvanced,
+              widget,
+              setState,
               description: getSettingDescription('$key.$subKey'),
             );
             remoteMountSettings.insertAll(0, tempSettings);
@@ -1033,12 +840,16 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
           break;
         case 'ApiPort':
           {
-            _addIntSetting(
+            createIntSetting(
+              context,
               remoteMountSettings,
               widget.settings[key],
               subKey,
               subValue,
               false,
+              widget.showAdvanced,
+              widget,
+              setState,
               description: getSettingDescription('$key.$subKey'),
               validators: getSettingValidators('$key.$subKey'),
             );
@@ -1046,12 +857,16 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
           break;
         case 'ClientPoolSize':
           {
-            _addIntSetting(
+            createIntSetting(
+              context,
               remoteMountSettings,
               widget.settings[key],
               subKey,
               subValue,
               true,
+              widget.showAdvanced,
+              widget,
+              setState,
               description: getSettingDescription('$key.$subKey'),
               validators: getSettingValidators('$key.$subKey'),
             );
@@ -1059,12 +874,16 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
           break;
         case 'EncryptionToken':
           {
-            _addPasswordSetting(
+            createPasswordSetting(
+              context,
               remoteMountSettings,
               widget.settings[key],
               subKey,
               subValue,
               false,
+              widget.showAdvanced,
+              widget,
+              setState,
               description: getSettingDescription('$key.$subKey'),
               validators: getSettingValidators('$key.$subKey'),
             );
@@ -1083,12 +902,16 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
       switch (subKey) {
         case 'ApiPort':
           {
-            _addIntSetting(
+            createIntSetting(
+              context,
               remoteConfigSettings,
               widget.settings[key],
               subKey,
               subValue,
               false,
+              widget.showAdvanced,
+              widget,
+              setState,
               description: getSettingDescription('$key.$subKey'),
               validators: getSettingValidators('$key.$subKey'),
             );
@@ -1096,12 +919,16 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
           break;
         case 'EncryptionToken':
           {
-            _addPasswordSetting(
+            createPasswordSetting(
+              context,
               remoteConfigSettings,
               widget.settings[key],
               subKey,
               subValue,
               false,
+              widget.showAdvanced,
+              widget,
+              setState,
               description: getSettingDescription('$key.$subKey'),
               validators: getSettingValidators('$key.$subKey'),
             );
@@ -1109,13 +936,17 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
           break;
         case 'HostNameOrIp':
           {
-            _addStringSetting(
+            createStringSetting(
+              context,
               remoteConfigSettings,
               widget.settings[key],
               subKey,
               subValue,
               Icons.computer,
               false,
+              widget.showAdvanced,
+              widget,
+              setState,
               description: getSettingDescription('$key.$subKey'),
               validators: getSettingValidators('$key.$subKey'),
             );
@@ -1123,12 +954,16 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
           break;
         case 'MaxConnections':
           {
-            _addIntSetting(
+            createIntSetting(
+              context,
               remoteConfigSettings,
               widget.settings[key],
               subKey,
               subValue,
               true,
+              widget.showAdvanced,
+              widget,
+              setState,
               description: getSettingDescription('$key.$subKey'),
               validators: getSettingValidators('$key.$subKey'),
             );
@@ -1136,12 +971,16 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
           break;
         case 'ReceiveTimeoutMs':
           {
-            _addIntSetting(
+            createIntSetting(
+              context,
               remoteConfigSettings,
               widget.settings[key],
               subKey,
               subValue,
               true,
+              widget.showAdvanced,
+              widget,
+              setState,
               description: getSettingDescription('$key.$subKey'),
               validators: getSettingValidators('$key.$subKey'),
             );
@@ -1149,12 +988,16 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
           break;
         case 'SendTimeoutMs':
           {
-            _addIntSetting(
+            createIntSetting(
+              context,
               remoteConfigSettings,
               widget.settings[key],
               subKey,
               subValue,
               true,
+              widget.showAdvanced,
+              widget,
+              setState,
               description: getSettingDescription('$key.$subKey'),
               validators: getSettingValidators('$key.$subKey'),
             );
@@ -1162,5 +1005,14 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
           break;
       }
     });
+  }
+
+  @override
+  void setState(VoidCallback fn) {
+    if (!mounted) {
+      return;
+    }
+
+    super.setState(fn);
   }
 }

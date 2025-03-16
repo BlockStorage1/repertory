@@ -16,7 +16,10 @@ class _HomeScreeState extends State<HomeScreen> {
     return Scaffold(
       appBar: AppBar(
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-        leading: const Icon(Icons.storage),
+        leading: IconButton(
+          onPressed: () => Navigator.pushNamed(context, '/settings'),
+          icon: const Icon(Icons.storage),
+        ),
         title: Text(widget.title),
       ),
       body: Padding(

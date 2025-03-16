@@ -42,6 +42,8 @@ private:
   void save() const;
 
 public:
+  [[nodiscard]] auto to_json() const -> nlohmann::json;
+
   [[nodiscard]] auto get_api_password() const -> std::string {
     return api_password_;
   }
