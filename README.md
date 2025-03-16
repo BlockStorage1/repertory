@@ -8,7 +8,8 @@ on Windows.
 1. [Details and Features](#details-and-features)
 2. [Minimum Requirements](#minimum-requirements)
    1. [Supported Operating Systems](#supported-operating-systems)
-3. [Usage](#usage)
+3. [GUI](#gui)
+4. [Usage](#usage)
    1. [Important Options](#important-options)
    2. [Sia](#sia)
       * [Sia Initial Configuration](#sia-initial-configuration)
@@ -18,21 +19,21 @@ on Windows.
       * [S3 Initial Configuration](#s3-initial-configuration)
       * [S3 Mounting](#s3-mounting)
       * [S3 Configuration File](#s3-configuration-file)
-4. [Data Directories](#data-directories)
+5. [Data Directories](#data-directories)
    1. [Linux Directories](#linux-directories)
    2. [Windows Directories](#windows-directories)
-5. [Remote Mounting](#remote-mounting)
+6. [Remote Mounting](#remote-mounting)
    1. [Server Setup](#server-setup)
       * [Remote Mount Configuration File Section](#remote-mount-configuration-file-section)
    2. [Client Setup](#client-setup)
       * [Client Remote Mounting](#client-remote-mounting)
       * [Remote Mount Configuration File](#remote-mount-configuration-file)
-6. [Compiling](#compiling)
+7. [Compiling](#compiling)
    1. [Linux Compilation](#linux-compilation)
    2. [Windows Setup](#windows-compilation)
-7. [Credits](#credits)
-8. [Developer Public Key](#developer-public-key)
-9. [Consult the Wiki for additional information](https://git.fifthgrid.com/BlockStorage/repertory/wiki)
+8. [Credits](#credits)
+9. [Developer Public Key](#developer-public-key)
+10. [Consult the Wiki for additional information](https://git.fifthgrid.com/BlockStorage/repertory/wiki)
 
 ## Details and Features
 
@@ -56,6 +57,20 @@ Only 64-bit operating systems are supported
 * Linux `arm64/aarch64`
 * Linux `amd64`
 * Windows 64-bit 10, 11
+
+## GUI
+
+As of `v2.0.5-rc`, mounts can be managed using the `Repertory Management Portal`.
+To launch the portal, execute the following command:
+
+* `repertory -ui`
+  * The default username is `repertory`
+  * The default password is `repertory`
+
+After first launch, `ui.json` will be created in the appropriate data directory.
+See [Data Directories](#data-directories).
+You should modify this file directly or use the portal to change the default
+username and password.
 
 ## Usage
 
