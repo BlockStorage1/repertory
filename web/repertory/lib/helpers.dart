@@ -64,7 +64,7 @@ Map<String, dynamic> createDefaultSettings(String mountType) {
     case 'Remote':
       return {
         'RemoteConfig': {
-          'ApiPort': 1,
+          'ApiPort': 20000,
           'EncryptionToken': '',
           'HostNameOrIp': '',
         },

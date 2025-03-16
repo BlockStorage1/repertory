@@ -179,6 +179,7 @@ class _AddMountScreenState extends State<AddMountScreen> {
                         }
                       }
 
+                      debugPrint('remote: ${_mountNameController.text}');
                       await mountList.add(
                         _mountType,
                         _mountNameController.text,
@@ -209,7 +210,7 @@ class _AddMountScreenState extends State<AddMountScreen> {
       if (_mountType == 'Remote') {
         _mountNameController.text =
             (_settings[_mountType]?['HostNameOrIp'].toString() ?? '') +
-            '_' +
+            ':' +
             (_settings[_mountType]?['ApiPort'].toString() ?? '');
       } else if (changed) {
         _mountNameController.text = mountType == 'Sia' ? 'default' : '';
