@@ -16,6 +16,8 @@
 
 ## v2.0.4-rc
 
+* Renamed setting `ApiAuth` to `ApiPassword`
+
 ### BREAKING CHANGES
 
 * `renterd` v2.0.0+ is now required. Prior versions will fail to mount.
@@ -31,7 +33,7 @@
 * Added Sia API version check prior to mounting
 * Added back `-cv` (check version) CLI option
 * Continue documentation updates
-* Fixed setting `ApiPassword` via `set_value_by_name`
+* Fixed setting `ApiAuth` via `set_value_by_name`
 * Fixed setting `HostConfig.ApiUser` via `set_value_by_name`
 * Fixed setting `HostConfig.Path` via `set_value_by_name`
 * Fixed setting `HostConfig.Protocol` via `set_value_by_name`
