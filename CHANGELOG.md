@@ -12,11 +12,10 @@
 ### Changes from v2.0.4-rc
 
 * Continue documentation updates
+* Renamed setting `ApiAuth` to `ApiPassword`
 * Require `--name,-na` option for encryption provider
 
 ## v2.0.4-rc
-
-* Renamed setting `ApiAuth` to `ApiPassword`
 
 ### BREAKING CHANGES
 
