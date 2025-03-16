@@ -16,8 +16,129 @@ class MountWidget extends StatefulWidget {
 }
 
 class _MountWidgetState extends State<MountWidget> {
-  Timer? _timer;
   bool _enabled = true;
+  Timer? _timer;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      margin: const EdgeInsets.all(0.0),
+      child: Consumer<Mount>(
+        builder: (context, mount, _) {
+          final textColor = Theme.of(context).colorScheme.onSurface;
+          final subTextColor =
+              Theme.of(context).brightness == Brightness.dark
+                  ? Colors.white38
+                  : Colors.black87;
+
+          final isMounted = mount.state == Icons.toggle_on;
+          final nameText = SelectableText(
+            formatMountName(mount.type, mount.name),
+            style: TextStyle(color: subTextColor),
+          );
+
+          return ListTile(
+            isThreeLine: true,
+            leading: IconButton(
+              icon: Icon(Icons.settings, color: textColor),
+              onPressed:
+                  () => Navigator.pushNamed(context, '/edit', arguments: mount),
+            ),
+            subtitle: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                nameText,
+                SelectableText(
+                  mount.path.isEmpty && mount.state == null
+                      ? 'loading...'
+                      : mount.path.isEmpty
+                      ? '<mount location not set>'
+                      : mount.path,
+                  style: TextStyle(color: subTextColor),
+                ),
+              ],
+            ),
+            title: SelectableText(
+              initialCaps(mount.type),
+              style: TextStyle(color: textColor, fontWeight: FontWeight.bold),
+            ),
+            trailing: IconButton(
+              icon: Icon(
+                mount.state ?? Icons.hourglass_top,
+                color:
+                    isMounted ? Color.fromARGB(255, 163, 96, 76) : subTextColor,
+              ),
+              onPressed: _createMountHandler(context, isMounted, mount),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  VoidCallback? _createMountHandler(context, isMounted, mount) {
+    return _enabled && mount.state != null
+        ? () async {
+          setState(() {
+            _enabled = false;
+          });
+
+          final location = await _getMountLocation(context, mount, isMounted);
+
+          cleanup() {
+            setState(() {
+              _enabled = true;
+            });
+          }
+
+          if (!isMounted && location == null) {
+            if (!context.mounted) {
+              return cleanup();
+            }
+
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: const Text(
+                  "Mount location is not set",
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            );
+
+            return cleanup();
+          }
+
+          final success = await mount.mount(isMounted, location: location);
+
+          if (success ||
+              isMounted ||
+              constants.navigatorKey.currentContext == null ||
+              !constants.navigatorKey.currentContext!.mounted) {
+            return cleanup();
+          }
+
+          ScaffoldMessenger.of(
+            constants.navigatorKey.currentContext!,
+          ).showSnackBar(
+            SnackBar(
+              content: const Text(
+                "Mount location not found",
+                textAlign: TextAlign.center,
+              ),
+            ),
+          );
+
+          return cleanup();
+        }
+        : null;
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    _timer = null;
+    super.dispose();
+  }
 
   Future<String?> _getMountLocation(context, mount, isMounted) async {
     if (isMounted) {
@@ -78,131 +199,6 @@ class _MountWidgetState extends State<MountWidget> {
         );
       },
     );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      margin: const EdgeInsets.all(0.0),
-      child: Consumer<Mount>(
-        builder: (context, mount, _) {
-          final textColor = Theme.of(context).colorScheme.onSurface;
-          final subTextColor =
-              Theme.of(context).brightness == Brightness.dark
-                  ? Colors.white38
-                  : Colors.black87;
-
-          final isMounted = mount.state == Icons.toggle_on;
-          final nameText = SelectableText(
-            formatMountName(mount.type, mount.name),
-            style: TextStyle(color: subTextColor),
-          );
-
-          return ListTile(
-            isThreeLine: true,
-            leading: IconButton(
-              icon: Icon(Icons.settings, color: textColor),
-              onPressed:
-                  () => Navigator.pushNamed(context, '/edit', arguments: mount),
-            ),
-            subtitle: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                nameText,
-                SelectableText(
-                  mount.path.isEmpty && mount.state == null
-                      ? 'loading...'
-                      : mount.path.isEmpty
-                      ? '<mount location not set>'
-                      : mount.path,
-                  style: TextStyle(color: subTextColor),
-                ),
-              ],
-            ),
-            title: SelectableText(
-              initialCaps(mount.type),
-              style: TextStyle(color: textColor, fontWeight: FontWeight.bold),
-            ),
-            trailing: IconButton(
-              icon: Icon(
-                mount.state ?? Icons.hourglass_top,
-                color:
-                    isMounted ? Color.fromARGB(255, 163, 96, 76) : subTextColor,
-              ),
-              onPressed:
-                  _enabled && mount.state != null
-                      ? () async {
-                        setState(() {
-                          _enabled = false;
-                        });
-
-                        final location = await _getMountLocation(
-                          context,
-                          mount,
-                          isMounted,
-                        );
-
-                        cleanup() {
-                          setState(() {
-                            _enabled = true;
-                          });
-                        }
-
-                        if (!isMounted && location == null) {
-                          if (!context.mounted) {
-                            return cleanup();
-                          }
-
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: const Text(
-                                "Mount location is not set",
-                                textAlign: TextAlign.center,
-                              ),
-                            ),
-                          );
-
-                          return cleanup();
-                        }
-
-                        final success = await mount.mount(
-                          isMounted,
-                          location: location,
-                        );
-
-                        if (success ||
-                            isMounted ||
-                            constants.navigatorKey.currentContext == null ||
-                            !constants.navigatorKey.currentContext!.mounted) {
-                          return cleanup();
-                        }
-
-                        ScaffoldMessenger.of(
-                          constants.navigatorKey.currentContext!,
-                        ).showSnackBar(
-                          SnackBar(
-                            content: const Text(
-                              "Mount location not found",
-                              textAlign: TextAlign.center,
-                            ),
-                          ),
-                        );
-
-                        return cleanup();
-                      }
-                      : null,
-            ),
-          );
-        },
-      ),
-    );
-  }
-
-  @override
-  void dispose() {
-    _timer?.cancel();
-    _timer = null;
-    super.dispose();
   }
 
   @override
