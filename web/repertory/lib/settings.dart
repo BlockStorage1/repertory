@@ -26,12 +26,10 @@ void createBooleanSetting(
         onPressed:
             (_) => setState(() {
               settings[key] = !value;
-              widget.onChanged?.call(widget.settings);
             }),
         onToggle: (bool nextValue) {
           setState(() {
             settings[key] = nextValue;
-            widget.onChanged?.call(widget.settings);
           });
         },
       ),
@@ -64,7 +62,6 @@ void createIntListSetting(
           onChanged: (newValue) {
             setState(() {
               settings[key] = int.parse(newValue ?? defaultValue.toString());
-              widget.onChanged?.call(widget.settings);
             });
           },
           items:
@@ -121,7 +118,6 @@ void createIntSetting(
                       }
                       setState(() {
                         settings[key] = int.parse(updatedValue);
-                        widget.onChanged?.call(widget.settings);
                       });
                       Navigator.of(context).pop();
                     },
@@ -197,7 +193,6 @@ void createPasswordSetting(
 
                       setState(() {
                         settings[key] = updatedValue1;
-                        widget.onChanged?.call(widget.settings);
                       });
                       Navigator.of(context).pop();
                     },
@@ -279,7 +274,6 @@ void createStringListSetting(
           onChanged:
               (newValue) => setState(() {
                 settings[key] = newValue;
-                widget.onChanged?.call(widget.settings);
               }),
           items:
               valueList.map<DropdownMenuItem<String>>((item) {
@@ -336,7 +330,6 @@ void createStringSetting(
                       }
                       setState(() {
                         settings[key] = updatedValue;
-                        widget.onChanged?.call(widget.settings);
                       });
                       Navigator.of(context).pop();
                     },

@@ -13,13 +13,11 @@ class MountSettingsWidget extends StatefulWidget {
   final bool isAdd;
   final bool showAdvanced;
   final Mount mount;
-  final Function? onChanged;
   final Map<String, dynamic> settings;
   const MountSettingsWidget({
     super.key,
     this.isAdd = false,
     required this.mount,
-    this.onChanged,
     required this.settings,
     required this.showAdvanced,
   });
