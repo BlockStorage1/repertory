@@ -4,7 +4,11 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:repertory/constants.dart' as constants;
 import 'package:repertory/helpers.dart'
-    show Validator, displayErrorMessage, getSettingValidators;
+    show
+        Validator,
+        displayErrorMessage,
+        getSettingDescription,
+        getSettingValidators;
 import 'package:repertory/models/mount.dart';
 import 'package:repertory/models/mount_list.dart';
 import 'package:settings_ui/settings_ui.dart';
@@ -29,12 +33,23 @@ class MountSettingsWidget extends StatefulWidget {
 }
 
 class _MountSettingsWidgetState extends State<MountSettingsWidget> {
-  void _addBooleanSetting(list, root, key, value, isAdvanced) {
+  Widget _createTitle(String key, String? description) {
+    return Text(description == null ? key : '$key [$description]');
+  }
+
+  void _addBooleanSetting(
+    list,
+    root,
+    key,
+    value,
+    isAdvanced, {
+    String? description,
+  }) {
     if (!isAdvanced || widget.showAdvanced) {
       list.add(
         SettingsTile.switchTile(
           leading: const Icon(Icons.quiz),
-          title: Text(key),
+          title: _createTitle(key, description),
           initialValue: (value as bool),
           onPressed:
               (_) => setState(() {
@@ -58,13 +73,14 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
     key,
     value,
     isAdvanced, {
+    String? description,
     List<Validator> validators = const [],
   }) {
     if (!isAdvanced || widget.showAdvanced) {
       list.add(
         SettingsTile.navigation(
           leading: const Icon(Icons.onetwothree),
-          title: Text(key),
+          title: _createTitle(key, description),
           value: Text(value.toString()),
           onPressed: (_) {
             String updatedValue = value.toString();
@@ -104,7 +120,7 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
                     keyboardType: TextInputType.number,
                     onChanged: (nextValue) => updatedValue = nextValue,
                   ),
-                  title: Text(key),
+                  title: _createTitle(key, description),
                 );
               },
             );
@@ -122,12 +138,13 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
     List<String> valueList,
     defaultValue,
     icon,
-    isAdvanced,
-  ) {
+    isAdvanced, {
+    String? description,
+  }) {
     if (!isAdvanced || widget.showAdvanced) {
       list.add(
         SettingsTile.navigation(
-          title: Text(key),
+          title: _createTitle(key, description),
           leading: Icon(icon),
           value: DropdownButton<String>(
             value: value.toString(),
@@ -156,13 +173,14 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
     key,
     value,
     isAdvanced, {
+    String? description,
     List<Validator> validators = const [],
   }) {
     if (!isAdvanced || widget.showAdvanced) {
       list.add(
         SettingsTile.navigation(
           leading: const Icon(Icons.password),
-          title: Text(key),
+          title: _createTitle(key, description),
           value: Text('*' * (value as String).length),
           onPressed: (_) {
             String updatedValue1 = value;
@@ -226,7 +244,7 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
                       ),
                     ],
                   ),
-                  title: Text(key),
+                  title: _createTitle(key, description),
                 );
               },
             );
@@ -243,12 +261,13 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
     value,
     List<String> valueList,
     icon,
-    isAdvanced,
-  ) {
+    isAdvanced, {
+    String? description,
+  }) {
     if (!isAdvanced || widget.showAdvanced) {
       list.add(
         SettingsTile.navigation(
-          title: Text(key),
+          title: _createTitle(key, description),
           leading: Icon(icon),
           value: DropdownButton<String>(
             value: value,
@@ -277,13 +296,14 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
     value,
     icon,
     isAdvanced, {
+    String? description,
     List<Validator> validators = const [],
   }) {
     if (!isAdvanced || widget.showAdvanced) {
       list.add(
         SettingsTile.navigation(
           leading: Icon(icon),
-          title: Text(key),
+          title: _createTitle(key, description),
           value: Text(value),
           onPressed: (_) {
             String updatedValue = value;
@@ -324,7 +344,7 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
                     ],
                     onChanged: (value) => updatedValue = value,
                   ),
-                  title: Text(key),
+                  title: _createTitle(key, description),
                 );
               },
             );
@@ -354,6 +374,7 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
               key,
               value,
               true,
+              description: getSettingDescription(key),
               validators: getSettingValidators(key),
             );
           }
@@ -366,6 +387,7 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
               key,
               value,
               true,
+              description: getSettingDescription(key),
               validators: getSettingValidators(key),
             );
           }
@@ -379,6 +401,7 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
               value,
               Icons.person,
               true,
+              description: getSettingDescription(key),
               validators: getSettingValidators(key),
             );
           }
@@ -393,6 +416,7 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
               constants.databaseTypeList,
               Icons.dataset,
               true,
+              description: getSettingDescription(key),
             );
           }
           break;
@@ -404,6 +428,7 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
               key,
               value,
               true,
+              description: getSettingDescription(key),
               validators: getSettingValidators(key),
             );
           }
@@ -416,6 +441,7 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
               key,
               value,
               true,
+              description: getSettingDescription(key),
             );
           }
           break;
@@ -427,6 +453,7 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
               key,
               value,
               true,
+              description: getSettingDescription(key),
             );
           }
           break;
@@ -440,6 +467,7 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
               constants.eventLevelList,
               Icons.event,
               false,
+              description: getSettingDescription(key),
             );
           }
           break;
@@ -451,6 +479,7 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
               key,
               value,
               true,
+              description: getSettingDescription(key),
               validators: getSettingValidators(key),
             );
           }
@@ -463,6 +492,7 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
               key,
               value,
               true,
+              description: getSettingDescription(key),
             );
           }
           break;
@@ -474,6 +504,7 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
               key,
               value,
               false,
+              description: getSettingDescription(key),
               validators: getSettingValidators(key),
             );
           }
@@ -486,6 +517,7 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
               key,
               value,
               true,
+              description: getSettingDescription(key),
               validators: getSettingValidators(key),
             );
           }
@@ -498,6 +530,7 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
               key,
               value,
               true,
+              description: getSettingDescription(key),
               validators: getSettingValidators(key),
             );
           }
@@ -512,6 +545,7 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
               constants.downloadTypeList,
               Icons.download,
               false,
+              description: getSettingDescription(key),
             );
           }
           break;
@@ -523,6 +557,7 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
               key,
               value,
               true,
+              description: getSettingDescription(key),
               validators: getSettingValidators(key),
             );
           }
@@ -538,6 +573,7 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
               512,
               Icons.animation,
               false,
+              description: getSettingDescription(key),
             );
           }
           break;
@@ -577,6 +613,7 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
                   subValue,
                   Icons.folder,
                   false,
+                  description: getSettingDescription('$key.$subKey'),
                   validators: [
                     ...getSettingValidators('$key.$subKey'),
                     (value) =>
@@ -651,6 +688,7 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
               subValue,
               Icons.support_agent,
               true,
+              description: getSettingDescription('$key.$subKey'),
               validators: getSettingValidators('$key.$subKey'),
             );
           }
@@ -663,6 +701,7 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
               subKey,
               subValue,
               false,
+              description: getSettingDescription('$key.$subKey'),
               validators: getSettingValidators('$key.$subKey'),
             );
           }
@@ -675,6 +714,7 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
               subKey,
               subValue,
               false,
+              description: getSettingDescription('$key.$subKey'),
               validators: getSettingValidators('$key.$subKey'),
             );
           }
@@ -688,6 +728,7 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
               subValue,
               Icons.person,
               true,
+              description: getSettingDescription('$key.$subKey'),
               validators: getSettingValidators('$key.$subKey'),
             );
           }
@@ -701,6 +742,7 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
               subValue,
               Icons.computer,
               false,
+              description: getSettingDescription('$key.$subKey'),
               validators: getSettingValidators('$key.$subKey'),
             );
           }
@@ -714,6 +756,7 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
               subValue,
               Icons.route,
               true,
+              description: getSettingDescription('$key.$subKey'),
               validators: getSettingValidators('$key.$subKey'),
             );
           }
@@ -728,6 +771,7 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
               constants.protocolTypeList,
               Icons.http,
               true,
+              description: getSettingDescription(key),
             );
           }
           break;
@@ -739,6 +783,7 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
               subKey,
               subValue,
               true,
+              description: getSettingDescription('$key.$subKey'),
               validators: getSettingValidators('$key.$subKey'),
             );
           }
@@ -762,6 +807,7 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
               subKey,
               subValue,
               false,
+              description: getSettingDescription('$key.$subKey'),
               validators: getSettingValidators('$key.$subKey'),
             );
           }
@@ -775,6 +821,7 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
               subValue,
               Icons.folder,
               false,
+              description: getSettingDescription('$key.$subKey'),
               validators: getSettingValidators('$key.$subKey'),
             );
           }
@@ -822,6 +869,7 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
               subValue,
               Icons.key,
               false,
+              description: getSettingDescription('$key.$subKey'),
               validators: getSettingValidators('$key.$subKey'),
             );
           }
@@ -835,6 +883,7 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
               subValue,
               Icons.folder,
               false,
+              description: getSettingDescription('$key.$subKey'),
               validators: [
                 ...getSettingValidators('$key.$subKey'),
                 (value) =>
@@ -858,6 +907,7 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
               subKey,
               subValue,
               false,
+              description: getSettingDescription('$key.$subKey'),
               validators: getSettingValidators('$key.$subKey'),
             );
           }
@@ -871,6 +921,7 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
               subValue,
               Icons.map,
               false,
+              description: getSettingDescription('$key.$subKey'),
               validators: getSettingValidators('$key.$subKey'),
             );
           }
@@ -883,6 +934,7 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
               subKey,
               subValue,
               false,
+              description: getSettingDescription('$key.$subKey'),
               validators: getSettingValidators('$key.$subKey'),
             );
           }
@@ -895,6 +947,7 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
               subKey,
               subValue,
               true,
+              description: getSettingDescription('$key.$subKey'),
               validators: getSettingValidators('$key.$subKey'),
             );
           }
@@ -908,6 +961,7 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
               subValue,
               Icons.http,
               false,
+              description: getSettingDescription('$key.$subKey'),
               validators: getSettingValidators('$key.$subKey'),
             );
           }
@@ -920,6 +974,7 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
               subKey,
               subValue,
               false,
+              description: getSettingDescription('$key.$subKey'),
             );
           }
           break;
@@ -931,6 +986,7 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
               subKey,
               subValue,
               false,
+              description: getSettingDescription('$key.$subKey'),
             );
           }
           break;
@@ -954,6 +1010,7 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
               subKey,
               subValue,
               false,
+              description: getSettingDescription('$key.$subKey'),
             );
             remoteMountSettings.insertAll(0, tempSettings);
           }
@@ -966,6 +1023,7 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
               subKey,
               subValue,
               false,
+              description: getSettingDescription('$key.$subKey'),
               validators: getSettingValidators('$key.$subKey'),
             );
           }
@@ -978,6 +1036,7 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
               subKey,
               subValue,
               true,
+              description: getSettingDescription('$key.$subKey'),
               validators: getSettingValidators('$key.$subKey'),
             );
           }
@@ -990,6 +1049,7 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
               subKey,
               subValue,
               false,
+              description: getSettingDescription('$key.$subKey'),
               validators: getSettingValidators('$key.$subKey'),
             );
           }
@@ -1013,6 +1073,7 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
               subKey,
               subValue,
               false,
+              description: getSettingDescription('$key.$subKey'),
               validators: getSettingValidators('$key.$subKey'),
             );
           }
@@ -1025,6 +1086,7 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
               subKey,
               subValue,
               false,
+              description: getSettingDescription('$key.$subKey'),
               validators: getSettingValidators('$key.$subKey'),
             );
           }
@@ -1038,6 +1100,7 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
               subValue,
               Icons.computer,
               false,
+              description: getSettingDescription('$key.$subKey'),
               validators: getSettingValidators('$key.$subKey'),
             );
           }
@@ -1050,6 +1113,7 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
               subKey,
               subValue,
               true,
+              description: getSettingDescription('$key.$subKey'),
               validators: getSettingValidators('$key.$subKey'),
             );
           }
@@ -1062,6 +1126,7 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
               subKey,
               subValue,
               true,
+              description: getSettingDescription('$key.$subKey'),
               validators: getSettingValidators('$key.$subKey'),
             );
           }
@@ -1074,6 +1139,7 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
               subKey,
               subValue,
               true,
+              description: getSettingDescription('$key.$subKey'),
               validators: getSettingValidators('$key.$subKey'),
             );
           }

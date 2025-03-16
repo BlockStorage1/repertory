@@ -122,6 +122,17 @@ String getBaseUri() {
   return Uri.base.origin;
 }
 
+String? getSettingDescription(String settingPath) {
+  switch (settingPath) {
+    case 'ApiPassword':
+      return "'repertory' REST API password";
+    case 'HostConfig.ApiPassword':
+      return "RENTERD_API_PASSWORD";
+    default:
+      return null;
+  }
+}
+
 List<Validator> getSettingValidators(String settingPath) {
   switch (settingPath) {
     case 'ApiPassword':
