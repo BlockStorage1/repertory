@@ -113,8 +113,6 @@ handlers::handlers(mgmt_app_config *config, httplib::Server *server)
     handle_put_set_value_by_name(req, res);
   });
 
-  event_system::instance().start();
-
   static std::atomic<httplib::Server *> this_server{server_};
   static const auto quit_handler = [](int /* sig */) {
     auto *ptr = this_server.load();
@@ -157,6 +155,8 @@ handlers::handlers(mgmt_app_config *config, httplib::Server *server)
                  config_->get_api_port(), port);
     return;
   }
+
+  event_system::instance().start();
 
   server_->listen("127.0.0.1", config_->get_api_port());
   this_server = nullptr;
