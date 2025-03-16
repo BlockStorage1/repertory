@@ -84,9 +84,9 @@ class _AddMountScreenState extends State<AddMountScreen> {
                 ),
               ),
             ),
-            if (_mountType.isNotEmpty && _mountType != "Remote")
+            if (_mountType.isNotEmpty && _mountType != 'Remote')
               const SizedBox(height: constants.padding),
-            if (_mountType.isNotEmpty && _mountType != "Remote")
+            if (_mountType.isNotEmpty && _mountType != 'Remote')
               Card(
                 margin: EdgeInsets.all(0.0),
                 child: Padding(
@@ -179,10 +179,11 @@ class _AddMountScreenState extends State<AddMountScreen> {
                         }
                       }
 
-                      debugPrint('remote: ${_mountNameController.text}');
                       await mountList.add(
                         _mountType,
-                        _mountNameController.text,
+                        _mountType == 'Remote'
+                            ? '${_settings[_mountType]!['RemoteConfig']['HostNameOrIp']}_${_settings[_mountType]!['RemoteConfig']['ApiPort']}'
+                            : _mountNameController.text,
                         _settings[_mountType]!,
                       );
 
@@ -208,10 +209,7 @@ class _AddMountScreenState extends State<AddMountScreen> {
 
       _mountType = mountType;
       if (_mountType == 'Remote') {
-        _mountNameController.text =
-            (_settings[_mountType]?['HostNameOrIp'].toString() ?? '') +
-            ':' +
-            (_settings[_mountType]?['ApiPort'].toString() ?? '');
+        _mountNameController.text = 'remote';
       } else if (changed) {
         _mountNameController.text = mountType == 'Sia' ? 'default' : '';
       }
