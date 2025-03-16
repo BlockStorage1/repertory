@@ -168,9 +168,6 @@ class _MountWidgetState extends State<MountWidget> {
                           isActive,
                           location: location,
                         );
-                        debugPrint(
-                          'success: $success, active: $isActive, mounted: ${context.mounted}',
-                        );
 
                         if (success ||
                             isActive ||
