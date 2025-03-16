@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:repertory/constants.dart' as constants;
 import 'package:repertory/helpers.dart'
-    show getSettingDescription, getSettingValidators;
+    show getSettingDescription, getSettingValidators, trimNotEmptyValidator;
 import 'package:repertory/models/mount.dart';
 import 'package:repertory/models/mount_list.dart';
 import 'package:repertory/settings.dart';
@@ -79,7 +79,7 @@ class _UISettingsWidgetState extends State<UISettingsWidget> {
               widget,
               setState,
               description: getSettingDescription(key),
-              validators: getSettingValidators(key),
+              validators: [...getSettingValidators(key), trimNotEmptyValidator],
             );
           }
           break;

@@ -126,6 +126,8 @@ String? getSettingDescription(String settingPath) {
   switch (settingPath) {
     case 'ApiPassword':
       return "HTTP basic authentication password";
+    case 'ApiUser':
+      return "HTTP basic authentication user";
     case 'HostConfig.ApiPassword':
       return "RENTERD_API_PASSWORD";
     default:
