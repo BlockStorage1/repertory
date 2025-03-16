@@ -130,11 +130,6 @@ class Mount with ChangeNotifier {
         ),
       );
 
-      if (response.statusCode == 404) {
-        _mountList?.reset();
-        return null;
-      }
-
       if (response.statusCode != 200) {
         return null;
       }
