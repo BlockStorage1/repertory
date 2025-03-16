@@ -2,7 +2,6 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
-import 'package:repertory/constants.dart' as constants;
 import 'package:repertory/helpers.dart';
 import 'package:repertory/models/mount_list.dart';
 import 'package:repertory/types/mount_config.dart';
@@ -18,6 +17,7 @@ class Mount with ChangeNotifier {
   }
 
   String? get bucket => mountConfig.bucket;
+  String get id => '${type}_$name';
   String get name => mountConfig.name;
   String get path => mountConfig.path;
   IconData? get state => mountConfig.state;

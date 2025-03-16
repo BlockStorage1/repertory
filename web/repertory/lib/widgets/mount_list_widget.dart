@@ -15,6 +15,7 @@ class MountListWidget extends StatelessWidget {
           itemBuilder: (context, idx) {
             return ChangeNotifierProvider(
               create: (context) => mountList.items[idx],
+              key: ValueKey(mountList.items[idx].id),
               child: Padding(
                 padding: EdgeInsets.only(
                   bottom:
@@ -22,7 +23,7 @@ class MountListWidget extends StatelessWidget {
                           ? 0.0
                           : constants.padding,
                 ),
-                child: const MountWidget(),
+                child: MountWidget(),
               ),
             );
           },
