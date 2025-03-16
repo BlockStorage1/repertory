@@ -96,7 +96,7 @@ Map<String, dynamic> createDefaultSettings(String mountType) {
   return {};
 }
 
-void displayErrorMessage(context, text) {
+void displayErrorMessage(context, String text) {
   if (!context.mounted) {
     return;
   }

@@ -24,14 +24,13 @@ class _MountWidgetState extends State<MountWidget> {
     return Card(
       margin: const EdgeInsets.all(0.0),
       child: Consumer<Mount>(
-        builder: (context, mount, _) {
+        builder: (context, Mount mount, _) {
           final textColor = Theme.of(context).colorScheme.onSurface;
           final subTextColor =
               Theme.of(context).brightness == Brightness.dark
                   ? Colors.white38
                   : Colors.black87;
 
-          final isMounted = mount.state == Icons.toggle_on;
           final nameText = SelectableText(
             formatMountName(mount.type, mount.name),
             style: TextStyle(color: subTextColor),
@@ -49,7 +48,7 @@ class _MountWidgetState extends State<MountWidget> {
               children: [
                 nameText,
                 SelectableText(
-                  mount.path.isEmpty && mount.state == null
+                  mount.path.isEmpty && mount.mounted == null
                       ? 'loading...'
                       : mount.path.isEmpty
                       ? '<mount location not set>'
@@ -59,16 +58,22 @@ class _MountWidgetState extends State<MountWidget> {
               ],
             ),
             title: SelectableText(
-              initialCaps(mount.type),
+              mount.provider,
               style: TextStyle(color: textColor, fontWeight: FontWeight.bold),
             ),
             trailing: IconButton(
               icon: Icon(
-                mount.state ?? Icons.hourglass_top,
+                mount.mounted == null
+                    ? Icons.hourglass_top
+                    : mount.mounted!
+                    ? Icons.toggle_on
+                    : Icons.toggle_off,
                 color:
-                    isMounted ? Color.fromARGB(255, 163, 96, 76) : subTextColor,
+                    mount.mounted ?? false
+                        ? Color.fromARGB(255, 163, 96, 76)
+                        : subTextColor,
               ),
-              onPressed: _createMountHandler(context, isMounted, mount),
+              onPressed: _createMountHandler(context, mount),
             ),
           );
         },
@@ -76,14 +81,14 @@ class _MountWidgetState extends State<MountWidget> {
     );
   }
 
-  VoidCallback? _createMountHandler(context, isMounted, mount) {
-    return _enabled && mount.state != null
+  VoidCallback? _createMountHandler(context, Mount mount) {
+    return _enabled && mount.mounted != null
         ? () async {
           setState(() {
             _enabled = false;
           });
 
-          final location = await _getMountLocation(context, mount, isMounted);
+          final location = await _getMountLocation(context, mount);
 
           cleanup() {
             setState(() {
@@ -91,15 +96,15 @@ class _MountWidgetState extends State<MountWidget> {
             });
           }
 
-          if (!isMounted && location == null) {
+          if (!mount.mounted! && location == null) {
             displayErrorMessage(context, "Mount location is not set");
             return cleanup();
           }
 
-          final success = await mount.mount(isMounted, location: location);
+          final success = await mount.mount(mount.mounted!, location: location);
 
           if (success ||
-              isMounted ||
+              mount.mounted! ||
               constants.navigatorKey.currentContext == null ||
               !constants.navigatorKey.currentContext!.mounted) {
             return cleanup();
@@ -118,12 +123,12 @@ class _MountWidgetState extends State<MountWidget> {
     super.dispose();
   }
 
-  Future<String?> _getMountLocation(context, mount, isMounted) async {
-    if (isMounted) {
+  Future<String?> _getMountLocation(context, Mount mount) async {
+    if (mount.mounted ?? false) {
       return null;
     }
 
-    if (!mount.path.isEmpty) {
+    if (mount.path.isNotEmpty) {
       return mount.path;
     }
 

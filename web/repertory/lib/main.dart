@@ -62,7 +62,7 @@ class _MyAppState extends State<MyApp> {
             return EditMountScreen(
               mount: mount,
               title:
-                  '${initialCaps(mount.type)} [${formatMountName(mount.type, mount.name)}] Settings',
+                  '${mount.provider} [${formatMountName(mount.type, mount.name)}] Settings',
             );
           },
         );

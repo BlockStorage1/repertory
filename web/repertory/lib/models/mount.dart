@@ -18,9 +18,10 @@ class Mount with ChangeNotifier {
 
   String? get bucket => mountConfig.bucket;
   String get id => '${type}_$name';
+  bool? get mounted => mountConfig.mounted;
   String get name => mountConfig.name;
   String get path => mountConfig.path;
-  IconData? get state => mountConfig.state;
+  String get provider => mountConfig.provider;
   String get type => mountConfig.type;
 
   Future<void> _fetch() async {
@@ -76,7 +77,7 @@ class Mount with ChangeNotifier {
 
   Future<bool> mount(bool unmount, {String? location}) async {
     try {
-      mountConfig.state = null;
+      mountConfig.mounted = null;
       notifyListeners();
 
       final response = await http.post(
