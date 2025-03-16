@@ -72,7 +72,7 @@ See [Data Directories](#data-directories).
 You should modify this file directly or use the portal to change the default
 username and password.
 
-* Screenshot *
+### Screenshot
 
 <a href="https://ibb.co/fVyJqnbF"><img src="https://i.ibb.co/fVyJqnbF/repertory-portal.png" alt="repertory-portal" border="0"></a>
 
