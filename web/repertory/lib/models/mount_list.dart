@@ -115,6 +115,11 @@ class MountList with ChangeNotifier {
       await constants.navigatorKey.currentState?.pushReplacementNamed('/');
     }
 
+    displayErrorMessage(
+      constants.navigatorKey.currentContext!,
+      'Mount removed externally. Reloading...',
+    );
+
     _mountList = [];
     notifyListeners();
 
