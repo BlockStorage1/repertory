@@ -34,13 +34,14 @@ namespace repertory::cli::actions {
 ui(std::vector<const char *> args, const std::string & /*data_directory*/,
    const provider_type & /* prov */, const std::string & /* unique_id */,
    std::string /* user */, std::string /* password */) -> exit_code {
-  auto ui_port{default_ui_mgmt_port};
+
+  ui::mgmt_app_config config{};
 
   std::string data;
   auto res = utils::cli::parse_string_option(
       args, utils::cli::options::ui_port_option, data);
   if (res == exit_code::success && not data.empty()) {
-    ui_port = utils::string::to_uint16(data);
+    config.set_api_port(utils::string::to_uint16(data));
   }
 
   if (not utils::file::change_to_process_directory()) {
@@ -51,9 +52,6 @@ ui(std::vector<const char *> args, const std::string & /*data_directory*/,
   if (not server.set_mount_point("/ui", "./web")) {
     return exit_code::ui_mount_failed;
   }
-
-  ui::mgmt_app_config config{};
-  config.set_api_port(ui_port);
 
   ui::handlers handlers(&config, &server);
   return exit_code::success;
