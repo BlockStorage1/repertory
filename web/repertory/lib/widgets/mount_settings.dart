@@ -150,40 +150,6 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
     }
   }
 
-  void _addListSetting(
-    list,
-    root,
-    key,
-    value,
-    List<String> valueList,
-    icon,
-    isAdvanced,
-  ) {
-    if (!isAdvanced || widget.showAdvanced) {
-      list.add(
-        SettingsTile.navigation(
-          title: Text(key),
-          leading: Icon(icon),
-          value: DropdownButton<String>(
-            value: value,
-            onChanged:
-                (newValue) => setState(() {
-                  root[key] = newValue;
-                  widget.onChanged?.call(widget.settings);
-                }),
-            items:
-                valueList.map<DropdownMenuItem<String>>((item) {
-                  return DropdownMenuItem<String>(
-                    value: item,
-                    child: Text(item),
-                  );
-                }).toList(),
-          ),
-        ),
-      );
-    }
-  }
-
   void _addPasswordSetting(
     list,
     root,
@@ -265,6 +231,40 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
               },
             );
           },
+        ),
+      );
+    }
+  }
+
+  void _addStringListSetting(
+    list,
+    root,
+    key,
+    value,
+    List<String> valueList,
+    icon,
+    isAdvanced,
+  ) {
+    if (!isAdvanced || widget.showAdvanced) {
+      list.add(
+        SettingsTile.navigation(
+          title: Text(key),
+          leading: Icon(icon),
+          value: DropdownButton<String>(
+            value: value,
+            onChanged:
+                (newValue) => setState(() {
+                  root[key] = newValue;
+                  widget.onChanged?.call(widget.settings);
+                }),
+            items:
+                valueList.map<DropdownMenuItem<String>>((item) {
+                  return DropdownMenuItem<String>(
+                    value: item,
+                    child: Text(item),
+                  );
+                }).toList(),
+          ),
         ),
       );
     }
@@ -385,7 +385,7 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
           break;
         case 'DatabaseType':
           {
-            _addListSetting(
+            _addStringListSetting(
               commonSettings,
               widget.settings,
               key,
@@ -432,7 +432,7 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
           break;
         case 'EventLevel':
           {
-            _addListSetting(
+            _addStringListSetting(
               commonSettings,
               widget.settings,
               key,
@@ -504,7 +504,7 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
           break;
         case 'PreferredDownloadType':
           {
-            _addListSetting(
+            _addStringListSetting(
               commonSettings,
               widget.settings,
               key,
@@ -720,7 +720,7 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
           break;
         case 'Protocol':
           {
-            _addListSetting(
+            _addStringListSetting(
               hostConfigSettings,
               widget.settings[key],
               subKey,
