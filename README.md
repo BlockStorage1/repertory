@@ -72,6 +72,8 @@ See [Data Directories](#data-directories).
 You should modify this file directly or use the portal to change the default
 username and password.
 
+![Portal](https://ibb.co/rKmMVHMx)
+
 ## Usage
 
 ### Important Options
