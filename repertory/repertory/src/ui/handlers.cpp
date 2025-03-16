@@ -118,6 +118,10 @@ handlers::handlers(mgmt_app_config *config, httplib::Server *server)
     handle_put_set_value_by_name(req, res);
   });
 
+  server->Put("/api/v1/settings", [this](auto &&req, auto &&res) {
+    handle_put_settings(req, res);
+  });
+
   static std::atomic<httplib::Server *> this_server{server_};
   static const auto quit_handler = [](int /* sig */) {
     auto *ptr = this_server.load();
@@ -381,6 +385,25 @@ void handlers::handle_put_set_value_by_name(auto &&req, auto &&res) const {
   auto value = req.get_param_value("value");
 
   set_key_value(prov, name, key, value);
+
+  res.status = http_error_codes::ok;
+}
+
+void handlers::handle_put_settings(auto &&req, auto &&res) const {
+  nlohmann::json data = nlohmann::json::parse(req.get_param_value("data"));
+
+  if (data.contains(JSON_API_PASSWORD)) {
+    config_->set_api_password(data.at(JSON_API_PASSWORD).get<std::string>());
+  }
+
+  if (data.contains(JSON_API_PORT)) {
+    config_->set_api_port(
+        utils::string::to_uint16(data.at(JSON_API_PORT).get<std::string>()));
+  }
+
+  if (data.contains(JSON_API_USER)) {
+    config_->set_api_user(data.at(JSON_API_USER).get<std::string>());
+  }
 
   res.status = http_error_codes::ok;
 }

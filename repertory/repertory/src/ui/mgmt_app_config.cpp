@@ -147,12 +147,30 @@ void mgmt_app_config::save() const {
   }
 }
 
+void mgmt_app_config::set_api_password(std::string_view api_password) {
+  if (api_password_ == std::string{api_password}) {
+    return;
+  }
+
+  api_password_ = std::string{api_password};
+  save();
+}
+
 void mgmt_app_config::set_api_port(std::uint16_t api_port) {
   if (api_port_ == api_port) {
     return;
   }
 
   api_port_ = api_port;
+  save();
+}
+
+void mgmt_app_config::set_api_user(std::string_view api_user) {
+  if (api_user_ == std::string{api_user}) {
+    return;
+  }
+
+  api_user_ = std::string{api_user};
   save();
 }
 

@@ -1,21 +1,23 @@
+import 'dart:convert' show jsonDecode, jsonEncode;
+
 import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-import 'package:repertory/constants.dart' as constants;
+import 'package:http/http.dart' as http;
 import 'package:repertory/helpers.dart'
-    show getSettingDescription, getSettingValidators, trimNotEmptyValidator;
-import 'package:repertory/models/mount.dart';
-import 'package:repertory/models/mount_list.dart';
+    show
+        convertAllToString,
+        getBaseUri,
+        getSettingDescription,
+        getSettingValidators,
+        trimNotEmptyValidator;
 import 'package:repertory/settings.dart';
 import 'package:settings_ui/settings_ui.dart';
 
 class UISettingsWidget extends StatefulWidget {
   final bool showAdvanced;
-  final Function? onChanged;
   final Map<String, dynamic> settings;
   const UISettingsWidget({
     super.key,
-    this.onChanged,
     required this.settings,
     required this.showAdvanced,
   });
@@ -25,6 +27,8 @@ class UISettingsWidget extends StatefulWidget {
 }
 
 class _UISettingsWidgetState extends State<UISettingsWidget> {
+  late Map<String, dynamic> _origSettings;
+
   @override
   Widget build(BuildContext context) {
     List<SettingsTile> commonSettings = [];
@@ -92,6 +96,32 @@ class _UISettingsWidgetState extends State<UISettingsWidget> {
         SettingsSection(title: const Text('Settings'), tiles: commonSettings),
       ],
     );
+  }
+
+  @override
+  void dispose() {
+    if (!DeepCollectionEquality().equals(widget.settings, _origSettings)) {
+      http
+          .put(
+            Uri.parse(
+              Uri.encodeFull(
+                '${getBaseUri()}/api/v1/settings?data=${convertAllToString(widget.settings)})',
+              ),
+            ),
+          )
+          .then((_) {})
+          .catchError((e) {
+            debugPrint('$e');
+          });
+    }
+
+    super.dispose();
+  }
+
+  @override
+  void initState() {
+    _origSettings = jsonDecode(jsonEncode(widget.settings));
+    super.initState();
   }
 
   @override

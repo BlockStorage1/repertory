@@ -52,7 +52,8 @@ class _MyAppState extends State<MyApp> {
         '/add':
             (context) => const AddMountScreen(title: constants.addMountTitle),
         '/settings':
-            (context) => const EditSettingsScreen(title: constants.appTitle),
+            (context) =>
+                const EditSettingsScreen(title: constants.appSettingsTitle),
       },
       onGenerateRoute: (settings) {
         if (settings.name != '/edit') {

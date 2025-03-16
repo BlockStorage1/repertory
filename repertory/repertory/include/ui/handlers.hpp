@@ -71,6 +71,8 @@ private:
 
   void handle_put_set_value_by_name(auto &&req, auto &&res) const;
 
+  void handle_put_settings(auto &&req, auto &&res) const;
+
   auto launch_process(provider_type prov, std::string_view name,
                       std::string_view args, bool background = false) const
       -> std::vector<std::string>;

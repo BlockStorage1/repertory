@@ -56,7 +56,11 @@ public:
                                         std::string_view name) const
       -> std::string;
 
+  void set_api_password(std::string_view api_password);
+
   void set_api_port(std::uint16_t api_port);
+
+  void set_api_user(std::string_view api_user);
 
   void set_mount_location(provider_type prov, std::string_view name,
                           std::string_view location);
