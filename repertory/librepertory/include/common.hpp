@@ -57,7 +57,7 @@ using json = nlohmann::json;
 inline constexpr const std::string_view REPERTORY = "repertory";
 inline constexpr const std::wstring_view REPERTORY_W = L"repertory";
 
-inline constexpr const std::uint64_t REPERTORY_CONFIG_VERSION = 1ULL;
+inline constexpr const std::uint64_t REPERTORY_CONFIG_VERSION = 2ULL;
 inline constexpr const std::string_view REPERTORY_DATA_NAME = "repertory2";
 inline constexpr const std::string_view REPERTORY_MIN_REMOTE_VERSION = "2.0.0";
 

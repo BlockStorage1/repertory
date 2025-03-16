@@ -23,7 +23,7 @@
 #define REPERTORY_INCLUDE_TYPES_REPERTORY_HPP_
 
 namespace repertory {
-constexpr const auto default_api_auth_size{48U};
+constexpr const auto default_api_password_size{48U};
 constexpr const auto default_download_timeout_secs{30U};
 constexpr const auto default_eviction_delay_mins{1U};
 constexpr const auto default_high_freq_interval_secs{std::uint16_t{30U}};
@@ -462,7 +462,6 @@ using meta_provider_callback = std::function<void(directory_item &)>;
 
 inline constexpr const auto JSON_ACCESS_KEY{"AccessKey"};
 inline constexpr const auto JSON_AGENT_STRING{"AgentString"};
-inline constexpr const auto JSON_API_AUTH{"ApiAuth"};
 inline constexpr const auto JSON_API_PARENT{"ApiParent"};
 inline constexpr const auto JSON_API_PASSWORD{"ApiPassword"};
 inline constexpr const auto JSON_API_PATH{"ApiPath"};

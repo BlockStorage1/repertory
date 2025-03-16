@@ -31,7 +31,7 @@
 * Added Sia API version check prior to mounting
 * Added back `-cv` (check version) CLI option
 * Continue documentation updates
-* Fixed setting `ApiAuth` via `set_value_by_name`
+* Fixed setting `ApiPassword` via `set_value_by_name`
 * Fixed setting `HostConfig.ApiUser` via `set_value_by_name`
 * Fixed setting `HostConfig.Path` via `set_value_by_name`
 * Fixed setting `HostConfig.Protocol` via `set_value_by_name`

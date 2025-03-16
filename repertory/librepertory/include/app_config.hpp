@@ -73,7 +73,7 @@ public:
 
 private:
   provider_type prov_;
-  atomic<std::string> api_auth_;
+  atomic<std::string> api_password_;
   std::atomic<std::uint16_t> api_port_;
   atomic<std::string> api_user_;
   std::atomic<bool> config_changed_;
@@ -123,7 +123,7 @@ private:
   auto set_value(dest &dst, const source &src) -> bool;
 
 public:
-  [[nodiscard]] auto get_api_auth() const -> std::string;
+  [[nodiscard]] auto get_api_password() const -> std::string;
 
   [[nodiscard]] auto get_api_port() const -> std::uint16_t;
 
@@ -201,7 +201,7 @@ public:
 
   void save();
 
-  void set_api_auth(const std::string &value);
+  void set_api_password(const std::string &value);
 
   void set_api_port(std::uint16_t value);
 

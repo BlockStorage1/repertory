@@ -346,7 +346,7 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
 
     widget.settings.forEach((key, value) {
       switch (key) {
-        case 'ApiAuth':
+        case 'ApiPassword':
           {
             _addPasswordSetting(
               commonSettings,

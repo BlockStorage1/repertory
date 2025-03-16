@@ -124,7 +124,7 @@ String getBaseUri() {
 
 List<Validator> getSettingValidators(String settingPath) {
   switch (settingPath) {
-    case 'ApiAuth':
+    case 'ApiPassword':
       return [notEmptyValidator];
     case 'DatabaseType':
       return [(value) => constants.databaseTypeList.contains(value)];

@@ -90,7 +90,7 @@ mgmt_app_config::mgmt_app_config() {
 
     nlohmann::json data;
     if (utils::file::read_json_file(config_file, data)) {
-      api_auth_ = data.at(JSON_API_PASSWORD).get<std::string>();
+      api_password_ = data.at(JSON_API_PASSWORD).get<std::string>();
       api_port_ = data.at(JSON_API_PORT).get<std::uint16_t>();
       api_user_ = data.at(JSON_API_USER).get<std::string>();
       locations_ = from_json(data.at(JSON_MOUNT_LOCATIONS));
@@ -135,7 +135,7 @@ void mgmt_app_config::save() const {
     }
 
     nlohmann::json data;
-    data[JSON_API_PASSWORD] = api_auth_;
+    data[JSON_API_PASSWORD] = api_password_;
     data[JSON_API_PORT] = api_port_;
     data[JSON_API_USER] = api_user_;
     data[JSON_MOUNT_LOCATIONS] = to_json(locations_);

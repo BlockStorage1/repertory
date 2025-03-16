@@ -66,7 +66,7 @@ void app_config::set_stop_requested() { stop_requested.store(true); }
 app_config::app_config(const provider_type &prov,
                        std::string_view data_directory)
     : prov_(prov),
-      api_auth_(utils::generate_random_string(default_api_auth_size)),
+      api_password_(utils::generate_random_string(default_api_password_size)),
       api_port_(default_rpc_port(prov)),
       api_user_(std::string{REPERTORY}),
       config_changed_(false),
@@ -124,7 +124,7 @@ app_config::app_config(const provider_type &prov,
   }
 
   value_get_lookup_ = {
-      {JSON_API_AUTH, [this]() { return get_api_auth(); }},
+      {JSON_API_PASSWORD, [this]() { return get_api_password(); }},
       {JSON_API_PORT, [this]() { return std::to_string(get_api_port()); }},
       {JSON_API_USER, [this]() { return get_api_user(); }},
       {JSON_DATABASE_TYPE,
@@ -253,10 +253,10 @@ app_config::app_config(const provider_type &prov,
 
   value_set_lookup_ = {
       {
-          JSON_API_AUTH,
+          JSON_API_PASSWORD,
           [this](const std::string &value) {
-            set_api_auth(value);
-            return get_api_auth();
+            set_api_password(value);
+            return get_api_password();
           },
       },
       {
@@ -755,7 +755,9 @@ auto app_config::default_rpc_port(const provider_type &prov) -> std::uint16_t {
   return PROVIDER_RPC_PORTS.at(static_cast<std::size_t>(prov));
 }
 
-auto app_config::get_api_auth() const -> std::string { return api_auth_; }
+auto app_config::get_api_password() const -> std::string {
+  return api_password_;
+}
 
 auto app_config::get_api_port() const -> std::uint16_t { return api_port_; }
 
@@ -816,7 +818,7 @@ auto app_config::get_host_config() const -> host_config { return host_config_; }
 
 auto app_config::get_json() const -> json {
   json ret = {
-      {JSON_API_AUTH, api_auth_},
+      {JSON_API_PASSWORD, api_password_},
       {JSON_API_PORT, api_port_},
       {JSON_API_USER, api_user_},
       {JSON_DOWNLOAD_TIMEOUT_SECS, download_timeout_secs_},
@@ -1037,7 +1039,7 @@ auto app_config::load() -> bool {
     auto found{true};
     auto json_document = json::parse(json_text);
 
-    get_value(json_document, JSON_API_AUTH, api_auth_, found);
+    get_value(json_document, JSON_API_PASSWORD, api_password_, found);
     get_value(json_document, JSON_API_PORT, api_port_, found);
     get_value(json_document, JSON_API_USER, api_user_, found);
     get_value(json_document, JSON_DATABASE_TYPE, db_type_, found);
@@ -1094,6 +1096,13 @@ auto app_config::load() -> bool {
           set_value(max_cache_size_bytes_, default_max_cache_size_bytes);
         }
       }
+
+      if (version_ == 2U) {
+        if (json_document.contains("ApiAuth")) {
+          api_password_ = json_document.at("ApiAuth").get<std::string>();
+        }
+      }
+
       found = false;
     }
 
@@ -1132,8 +1141,8 @@ void app_config::save() {
   });
 }
 
-void app_config::set_api_auth(const std::string &value) {
-  set_value(api_auth_, value);
+void app_config::set_api_password(const std::string &value) {
+  set_value(api_password_, value);
 }
 
 void app_config::set_api_port(std::uint16_t value) {

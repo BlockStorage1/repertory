@@ -31,7 +31,7 @@ namespace repertory::rpc {
                                        const httplib::Request &req) -> bool {
   REPERTORY_USES_FUNCTION_NAME();
 
-  if (cfg.get_api_auth().empty() || cfg.get_api_user().empty()) {
+  if (cfg.get_api_password().empty() || cfg.get_api_user().empty()) {
     utils::error::raise_error(function_name,
                               "authorization user or password is not set");
     return false;
@@ -70,7 +70,7 @@ namespace repertory::rpc {
   auth.erase(auth.begin());
 
   auto pwd = utils::string::join(auth, ':');
-  if ((user != cfg.get_api_user()) || (pwd != cfg.get_api_auth())) {
+  if ((user != cfg.get_api_user()) || (pwd != cfg.get_api_password())) {
     utils::error::raise_error(function_name, "authorization failed");
     return false;
   }

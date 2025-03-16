@@ -30,7 +30,7 @@ public:
   mgmt_app_config();
 
 private:
-  atomic<std::string> api_auth_{"repertory"};
+  atomic<std::string> api_password_{"repertory"};
   std::atomic<std::uint16_t> api_port_{default_ui_mgmt_port};
   atomic<std::string> api_user_{"repertory"};
   std::unordered_map<provider_type,
@@ -42,7 +42,9 @@ private:
   void save() const;
 
 public:
-  [[nodiscard]] auto get_api_auth() const -> std::string { return api_auth_; }
+  [[nodiscard]] auto get_api_password() const -> std::string {
+    return api_password_;
+  }
 
   [[nodiscard]] auto get_api_port() const -> std::uint16_t { return api_port_; }
 

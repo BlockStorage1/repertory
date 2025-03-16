@@ -132,7 +132,7 @@ Only 64-bit operating systems are supported
 
 ```json
 {
-  "ApiAuth": "<random generated rpc password>",
+  "ApiPassword": "<random generated rpc password>",
   "ApiPort": 10000,
   "ApiUser": "repertory",
   "DatabaseType": "rocksdb",
@@ -220,7 +220,7 @@ Only 64-bit operating systems are supported
 
 ```json
 {
-  "ApiAuth": "<random generated rpc password>",
+  "ApiPassword": "<random generated rpc password>",
   "ApiPort": 10100,
   "ApiUser": "repertory",
   "DatabaseType": "rocksdb",
@@ -360,7 +360,7 @@ for S3 providers.
 
 ```json
 {
-  "ApiAuth": "<random generated rpc password>",
+  "ApiPassword": "<random generated rpc password>",
   "ApiPort": 10010,
   "ApiUser": "repertory",
   "EnableDriveEvents": false,
