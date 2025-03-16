@@ -105,7 +105,7 @@ class _UISettingsWidgetState extends State<UISettingsWidget> {
           .put(
             Uri.parse(
               Uri.encodeFull(
-                '${getBaseUri()}/api/v1/settings?data=${jsonEncode(convertAllToString(widget.settings))})',
+                '${getBaseUri()}/api/v1/settings?data=${jsonEncode(convertAllToString(widget.settings))}',
               ),
             ),
           )
