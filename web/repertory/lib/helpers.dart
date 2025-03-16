@@ -62,7 +62,13 @@ Map<String, dynamic> createDefaultSettings(String mountType) {
         'EncryptConfig': {'EncryptionToken': '', 'Path': ''},
       };
     case 'Remote':
-      return {'EventLevel': 'info'};
+      return {
+        'RemoteConfig': {
+          'ApiPort': 1,
+          'EncryptionToken': '',
+          'HostNameOrIp': '',
+        },
+      };
     case 'S3':
       return {
         'S3Config': {
