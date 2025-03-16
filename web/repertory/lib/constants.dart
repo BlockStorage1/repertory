@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart' show GlobalKey, NavigatorState;
 
-const addMountTitle = 'New Mount Settings';
+const addMountTitle = 'Add New Mount';
 const appTitle = 'Repertory Management Portal';
 const databaseTypeList = ['rocksdb', 'sqlite'];
 const downloadTypeList = ['default', 'direct', 'ring_buffer'];
