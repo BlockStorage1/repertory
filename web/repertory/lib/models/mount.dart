@@ -150,7 +150,7 @@ class Mount with ChangeNotifier {
       final response = await http.get(
         Uri.parse(
           Uri.encodeFull(
-            '${getBaseUri()}/api/v1/get_mount_location?name=$name&type=$type',
+            '${getBaseUri()}/api/v1/mount_location?name=$name&type=$type',
           ),
         ),
       );
