@@ -464,7 +464,7 @@ auto handlers::launch_process(provider_type prov, std::string_view name,
   recur_mutex_lock inst_lock(inst_mtx);
   if (background) {
 #if defined(_WIN32)
-    system(fmt::format(R"(start "" /b {})", cmd_line).c_str());
+    system(fmt::format(R"(start "" {})", cmd_line).c_str());
 #elif defined(__linux__) // defined(__linux__)
     system(fmt::format("nohup {} 1>/dev/null 2>&1", cmd_line).c_str());
 #else                    // !defined(__linux__) && !defined(_WIN32)
