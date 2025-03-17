@@ -9,6 +9,7 @@ import 'package:repertory/types/mount_config.dart';
 class Mount with ChangeNotifier {
   final MountConfig mountConfig;
   final MountList? _mountList;
+  bool _isMounting = false;
   Mount(this.mountConfig, this._mountList, {isAdd = false}) {
     if (isAdd) {
       return;
@@ -77,6 +78,8 @@ class Mount with ChangeNotifier {
 
   Future<bool> mount(bool unmount, {String? location}) async {
     try {
+      _isMounting = true;
+
       mountConfig.mounted = null;
       notifyListeners();
 
@@ -89,11 +92,13 @@ class Mount with ChangeNotifier {
       );
 
       if (response.statusCode == 404) {
+        _isMounting = false;
         _mountList?.reset();
         return true;
       }
 
-      await refresh();
+      await refresh(force: true);
+      _isMounting = false;
 
       if (!unmount && response.statusCode == 500) {
         return false;
@@ -102,10 +107,15 @@ class Mount with ChangeNotifier {
       debugPrint('$e');
     }
 
+    _isMounting = false;
     return true;
   }
 
-  Future<void> refresh() async {
+  Future<void> refresh({bool force = false}) async {
+    if (!force && _isMounting) {
+      return;
+    }
+
     await _fetch();
     return _fetchStatus();
   }
