@@ -168,8 +168,10 @@ handlers::handlers(mgmt_app_config *config, httplib::Server *server)
   event_system::instance().start();
 
   server_->listen("127.0.0.1", config_->get_api_port());
-  server_->stop();
-  this_server = nullptr;
+  if (this_server != nullptr) {
+    this_server = nullptr;
+    server_->stop();
+  }
 }
 
 handlers::~handlers() { event_system::instance().stop(); }
@@ -373,6 +375,7 @@ void handlers::handle_post_mount(auto &&req, auto &&res) const {
     }
 
     launch_process(prov, name, fmt::format(R"("{}")", location), true);
+    config_->set_mount_location(prov, name, location);
   }
 
   res.status = http_error_codes::ok;
@@ -464,7 +467,7 @@ auto handlers::launch_process(provider_type prov, std::string_view name,
   recur_mutex_lock inst_lock(inst_mtx);
   if (background) {
 #if defined(_WIN32)
-    system(fmt::format(R"(start "" {})", cmd_line).c_str());
+    system(fmt::format(R"(start "" /MIN {})", cmd_line).c_str());
 #elif defined(__linux__) // defined(__linux__)
     system(fmt::format("nohup {} 1>/dev/null 2>&1", cmd_line).c_str());
 #else                    // !defined(__linux__) && !defined(_WIN32)
