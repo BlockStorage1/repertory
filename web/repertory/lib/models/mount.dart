@@ -159,7 +159,8 @@ class Mount with ChangeNotifier {
         return null;
       }
 
-      return jsonDecode(response.body)['Location'] as String;
+      final location = jsonDecode(response.body)['Location'] as String;
+      return location.trim().isEmpty ? null : location;
     } catch (e) {
       debugPrint('$e');
     }
