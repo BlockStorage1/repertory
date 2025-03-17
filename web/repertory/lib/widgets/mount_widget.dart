@@ -110,7 +110,7 @@ class _MountWidgetState extends State<MountWidget> {
             return cleanup();
           }
 
-          displayErrorMessage(context, "Mount location not found");
+          displayErrorMessage(context, "Mount location is not available");
           return cleanup();
         }
         : null;

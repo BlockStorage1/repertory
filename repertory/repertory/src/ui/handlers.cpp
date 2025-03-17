@@ -363,7 +363,11 @@ void handlers::handle_post_mount(auto &&req, auto &&res) const {
   if (unmount) {
     launch_process(prov, name, "-unmount");
   } else {
+#if defined(_WIN32)
+    if (utils::file::directory{location}.exists()) {
+#else  // !defined(_WIN32)
     if (not utils::file::directory{location}.exists()) {
+#endif // defined(_WIN32)
       res.status = http_error_codes::internal_error;
       return;
     }
