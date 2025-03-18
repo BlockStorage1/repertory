@@ -102,7 +102,6 @@ class _MountWidgetState extends State<MountWidget> {
           }
 
           final success = await mount.mount(mount.mounted!, location: location);
-
           if (success ||
               mount.mounted! ||
               constants.navigatorKey.currentContext == null ||
@@ -111,7 +110,7 @@ class _MountWidgetState extends State<MountWidget> {
           }
 
           displayErrorMessage(context, "Mount location is not available");
-          return cleanup();
+          cleanup();
         }
         : null;
   }

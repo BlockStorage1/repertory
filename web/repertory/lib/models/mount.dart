@@ -10,6 +10,8 @@ class Mount with ChangeNotifier {
   final MountConfig mountConfig;
   final MountList? _mountList;
   bool _isMounting = false;
+  bool _isRefreshing = false;
+
   Mount(this.mountConfig, this._mountList, {isAdd = false}) {
     if (isAdd) {
       return;
@@ -42,8 +44,11 @@ class Mount with ChangeNotifier {
         return;
       }
 
-      mountConfig.updateSettings(jsonDecode(response.body));
+      if (_isMounting) {
+        return;
+      }
 
+      mountConfig.updateSettings(jsonDecode(response.body));
       notifyListeners();
     } catch (e) {
       debugPrint('$e');
@@ -69,6 +74,10 @@ class Mount with ChangeNotifier {
         return;
       }
 
+      if (_isMounting) {
+        return;
+      }
+
       mountConfig.updateStatus(jsonDecode(response.body));
       notifyListeners();
     } catch (e) {
@@ -82,6 +91,11 @@ class Mount with ChangeNotifier {
 
       mountConfig.mounted = null;
       notifyListeners();
+
+      var count = 0;
+      while (_isRefreshing && count++ < 10) {
+        await Future.delayed(Duration(seconds: 1));
+      }
 
       final response = await http.post(
         Uri.parse(
@@ -112,12 +126,20 @@ class Mount with ChangeNotifier {
   }
 
   Future<void> refresh({bool force = false}) async {
-    if (!force && _isMounting) {
+    if (_isRefreshing || (!force && _isMounting)) {
       return;
     }
 
-    await _fetch();
-    return _fetchStatus();
+    _isRefreshing = true;
+
+    try {
+      await _fetch();
+      await _fetchStatus();
+    } catch (e) {
+      debugPrint('$e');
+    }
+
+    _isRefreshing = false;
   }
 
   Future<void> setValue(String key, String value) async {
