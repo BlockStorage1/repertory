@@ -126,7 +126,7 @@ class Mount with ChangeNotifier {
   }
 
   Future<void> refresh({bool force = false}) async {
-    if (_isRefreshing || (!force && _isMounting)) {
+    if (!force && (_isMounting || _isRefreshing)) {
       return;
     }
 
