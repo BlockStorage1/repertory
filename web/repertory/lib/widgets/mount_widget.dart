@@ -84,6 +84,12 @@ class _MountWidgetState extends State<MountWidget> {
   VoidCallback? _createMountHandler(context, Mount mount) {
     return _enabled && mount.mounted != null
         ? () async {
+          if (mount.mounted == null) {
+            return;
+          }
+
+          final mounted = mount.mounted!;
+
           setState(() {
             _enabled = false;
           });
@@ -96,12 +102,12 @@ class _MountWidgetState extends State<MountWidget> {
             });
           }
 
-          if (!mount.mounted! && location == null) {
+          if (!mounted && location == null) {
             displayErrorMessage(context, "Mount location is not set");
             return cleanup();
           }
 
-          final success = await mount.mount(mount.mounted!, location: location);
+          final success = await mount.mount(mounted, location: location);
           if (success ||
               mount.mounted! ||
               constants.navigatorKey.currentContext == null ||
