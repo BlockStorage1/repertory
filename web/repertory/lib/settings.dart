@@ -16,11 +16,12 @@ void createBooleanSetting(
   widget,
   Function setState, {
   String? description,
+  IconData icon = Icons.quiz,
 }) {
   if (!isAdvanced || showAdvanced) {
     list.add(
       SettingsTile.switchTile(
-        leading: const Icon(Icons.quiz),
+        leading: Icon(icon),
         title: createSettingTitle(context, key, description),
         initialValue: (value as bool),
         onPressed: (_) => setState(() => settings[key] = !value),
@@ -83,12 +84,13 @@ void createIntSetting(
   widget,
   Function setState, {
   String? description,
+  IconData icon = Icons.onetwothree,
   List<Validator> validators = const [],
 }) {
   if (!isAdvanced || widget.showAdvanced) {
     list.add(
       SettingsTile.navigation(
-        leading: const Icon(Icons.onetwothree),
+        leading: Icon(icon),
         title: createSettingTitle(context, key, description),
         value: Text(value.toString()),
         onPressed: (_) {
@@ -147,12 +149,13 @@ void createPasswordSetting(
   widget,
   Function setState, {
   String? description,
+  IconData icon = Icons.password,
   List<Validator> validators = const [],
 }) {
   if (!isAdvanced || widget.showAdvanced) {
     list.add(
       SettingsTile.navigation(
-        leading: const Icon(Icons.password),
+        leading: Icon(icon),
         title: createSettingTitle(context, key, description),
         value: Text('*' * (value as String).length),
         onPressed: (_) {
