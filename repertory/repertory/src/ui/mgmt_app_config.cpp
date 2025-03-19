@@ -45,7 +45,7 @@ namespace {
     return map_of_maps;
   }
 
-  for (const auto &[prov, map] : map_of_maps) {
+  for (auto &[prov, map] : map_of_maps) {
     for (const auto &[key, value] :
          json[repertory::provider_type_to_string(prov)].items()) {
       map[key] = value;
