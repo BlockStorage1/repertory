@@ -109,13 +109,16 @@ class _MountWidgetState extends State<MountWidget> {
 
           final success = await mount.mount(mounted, location: location);
           if (success ||
-              mount.mounted! ||
+              mounted ||
               constants.navigatorKey.currentContext == null ||
               !constants.navigatorKey.currentContext!.mounted) {
             return cleanup();
           }
 
-          displayErrorMessage(context, "Mount location is not available");
+          displayErrorMessage(
+            context,
+            "Mount location is not available: $location",
+          );
           cleanup();
         }
         : null;

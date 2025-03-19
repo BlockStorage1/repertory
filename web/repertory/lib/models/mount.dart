@@ -85,6 +85,29 @@ class Mount with ChangeNotifier {
     }
   }
 
+  Future<String?> getMountLocation() async {
+    try {
+      final response = await http.get(
+        Uri.parse(
+          Uri.encodeFull(
+            '${getBaseUri()}/api/v1/mount_location?name=$name&type=$type',
+          ),
+        ),
+      );
+
+      if (response.statusCode != 200) {
+        return null;
+      }
+
+      final location = jsonDecode(response.body)['Location'] as String;
+      return location.trim().isEmpty ? null : location;
+    } catch (e) {
+      debugPrint('$e');
+    }
+
+    return null;
+  }
+
   Future<bool> mount(bool unmount, {String? location}) async {
     try {
       _isMounting = true;
@@ -165,28 +188,5 @@ class Mount with ChangeNotifier {
     } catch (e) {
       debugPrint('$e');
     }
-  }
-
-  Future<String?> getMountLocation() async {
-    try {
-      final response = await http.get(
-        Uri.parse(
-          Uri.encodeFull(
-            '${getBaseUri()}/api/v1/mount_location?name=$name&type=$type',
-          ),
-        ),
-      );
-
-      if (response.statusCode != 200) {
-        return null;
-      }
-
-      final location = jsonDecode(response.body)['Location'] as String;
-      return location.trim().isEmpty ? null : location;
-    } catch (e) {
-      debugPrint('$e');
-    }
-
-    return null;
   }
 }

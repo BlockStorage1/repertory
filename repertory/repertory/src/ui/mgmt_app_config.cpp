@@ -46,8 +46,12 @@ namespace {
   }
 
   for (auto &[prov, map] : map_of_maps) {
-    for (const auto &[key, value] :
-         json[repertory::provider_type_to_string(prov)].items()) {
+    auto prov_str = repertory::provider_type_to_string(prov);
+    if (!json.contains(prov_str)) {
+      continue;
+    }
+
+    for (const auto &[key, value] : json.at(prov_str).items()) {
       map[key] = value;
     }
   }
