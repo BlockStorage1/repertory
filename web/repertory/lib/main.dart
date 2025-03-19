@@ -8,8 +8,15 @@ import 'package:repertory/screens/add_mount_screen.dart';
 import 'package:repertory/screens/edit_mount_screen.dart';
 import 'package:repertory/screens/edit_settings_screen.dart';
 import 'package:repertory/screens/home_screen.dart';
+import 'package:sodium_libs/sodium_libs.dart' show SodiumInit;
 
-void main() {
+void main() async {
+  try {
+    constants.setSodium(await SodiumInit.init());
+  } catch (e) {
+    debugPrint('$e');
+  }
+
   runApp(
     ChangeNotifierProvider(create: (_) => MountList(), child: const MyApp()),
   );
