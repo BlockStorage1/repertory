@@ -23,14 +23,9 @@ void createBooleanSetting(
         leading: const Icon(Icons.quiz),
         title: createSettingTitle(context, key, description),
         initialValue: (value as bool),
-        onPressed:
-            (_) => setState(() {
-              settings[key] = !value;
-            }),
+        onPressed: (_) => setState(() => settings[key] = !value),
         onToggle: (bool nextValue) {
-          setState(() {
-            settings[key] = nextValue;
-          });
+          setState(() => settings[key] = nextValue);
         },
       ),
     );
@@ -60,9 +55,12 @@ void createIntListSetting(
         value: DropdownButton<String>(
           value: value.toString(),
           onChanged: (newValue) {
-            setState(() {
-              settings[key] = int.parse(newValue ?? defaultValue.toString());
-            });
+            setState(
+              () =>
+                  settings[key] = int.parse(
+                    newValue ?? defaultValue.toString(),
+                  ),
+            );
           },
           items:
               valueList.map<DropdownMenuItem<String>>((item) {
@@ -116,9 +114,7 @@ void createIntSetting(
                           "Setting '$key' is not valid",
                         );
                       }
-                      setState(() {
-                        settings[key] = int.parse(updatedValue);
-                      });
+                      setState(() => settings[key] = int.parse(updatedValue));
                       Navigator.of(context).pop();
                     },
                   ),
@@ -191,9 +187,7 @@ void createPasswordSetting(
                         );
                       }
 
-                      setState(() {
-                        settings[key] = updatedValue1;
-                      });
+                      setState(() => settings[key] = updatedValue1);
                       Navigator.of(context).pop();
                     },
                   ),
@@ -271,10 +265,7 @@ void createStringListSetting(
         leading: Icon(icon),
         value: DropdownButton<String>(
           value: value,
-          onChanged:
-              (newValue) => setState(() {
-                settings[key] = newValue;
-              }),
+          onChanged: (newValue) => setState(() => settings[key] = newValue),
           items:
               valueList.map<DropdownMenuItem<String>>((item) {
                 return DropdownMenuItem<String>(value: item, child: Text(item));
@@ -328,9 +319,7 @@ void createStringSetting(
                           "Setting '$key' is not valid",
                         );
                       }
-                      setState(() {
-                        settings[key] = updatedValue;
-                      });
+                      setState(() => settings[key] = updatedValue);
                       Navigator.of(context).pop();
                     },
                   ),
