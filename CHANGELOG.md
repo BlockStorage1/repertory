@@ -12,6 +12,7 @@
 ### Changes from v2.0.4-rc
 
 * Continue documentation updates
+* Removed passwords and secret key values from API calls
 * Renamed setting `ApiAuth` to `ApiPassword`
 * Require `--name,-na` option for encryption provider
 

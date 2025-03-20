@@ -47,8 +47,10 @@ void server::handle_get_config(const httplib::Request & /*req*/,
 void server::handle_get_config_value_by_name(const httplib::Request &req,
                                              httplib::Response &res) {
   auto name = req.get_param_value("name");
-  auto data = json(
-      {{"value", clean_json_value(name, config_.get_value_by_name(name))}});
+  auto data = json({{
+      "value",
+      clean_json_value(name, config_.get_value_by_name(name)),
+  }});
   res.set_content(data.dump(), "application/json");
   res.status = http_error_codes::ok;
 }
@@ -58,7 +60,10 @@ void server::handle_set_config_value_by_name(const httplib::Request &req,
   auto name = req.get_param_value("name");
   auto value = req.get_param_value("value");
 
-  json data = {{"value", config_.set_value_by_name(name, value)}};
+  json data = {{
+      "value",
+      clean_json_value(name, config_.set_value_by_name(name, value)),
+  }};
   res.set_content(data.dump(), "application/json");
   res.status = http_error_codes::ok;
 }
