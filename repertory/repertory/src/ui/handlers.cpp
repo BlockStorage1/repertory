@@ -322,7 +322,7 @@ void handlers::handle_get_mount_status(auto &&req, auto &&res) const {
 
 void handlers::handle_get_settings(auto &&res) const {
   auto settings = config_->to_json();
-  settings.erase(JSON_API_PASSWORD);
+  settings[JSON_API_PASSWORD] = "";
   settings.erase(JSON_MOUNT_LOCATIONS);
   res.set_content(settings.dump(), "application/json");
   res.status = http_error_codes::ok;
