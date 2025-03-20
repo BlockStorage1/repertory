@@ -94,10 +94,11 @@ class MountList with ChangeNotifier {
     Map<String, dynamic> mountConfig,
   ) async {
     try {
+      final map = await convertAllToString(mountConfig);
       await http.post(
         Uri.parse(
           Uri.encodeFull(
-            '${getBaseUri()}/api/v1/add_mount?name=$name&type=$type&config=${jsonEncode(convertAllToString(mountConfig))}',
+            '${getBaseUri()}/api/v1/add_mount?name=$name&type=$type&config=${jsonEncode(map)}',
           ),
         ),
       );

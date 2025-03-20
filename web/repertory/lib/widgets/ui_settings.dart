@@ -1,4 +1,4 @@
-import 'dart:convert' show jsonDecode, jsonEncode;
+import 'dart:convert' show jsonEncode;
 
 import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
@@ -100,21 +100,24 @@ class _UISettingsWidgetState extends State<UISettingsWidget> {
 
   @override
   void dispose() {
-    debugPrint('current: ${jsonEncode(widget.settings)}');
-    debugPrint('orig: ${jsonEncode(widget.origSettings)}');
     if (!DeepCollectionEquality().equals(
       widget.settings,
       widget.origSettings,
     )) {
-      http
-          .put(
-            Uri.parse(
-              Uri.encodeFull(
-                '${getBaseUri()}/api/v1/settings?data=${jsonEncode(convertAllToString(widget.settings))}',
-              ),
-            ),
-          )
-          .then((_) {})
+      convertAllToString(widget.settings)
+          .then((map) async {
+            try {
+              await http.put(
+                Uri.parse(
+                  Uri.encodeFull(
+                    '${getBaseUri()}/api/v1/settings?data=${jsonEncode(map)}',
+                  ),
+                ),
+              );
+            } catch (e) {
+              debugPrint('$e');
+            }
+          })
           .catchError((e) {
             debugPrint('$e');
           });

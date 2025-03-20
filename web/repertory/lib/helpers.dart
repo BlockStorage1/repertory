@@ -8,6 +8,10 @@ import 'package:sodium_libs/sodium_libs.dart';
 
 typedef Validator = bool Function(String);
 
+class NullPasswordException implements Exception {
+  String error() => 'password cannot be null';
+}
+
 // ignore: prefer_function_declarations_over_variables
 final Validator noRestrictedChars = (value) {
   return [
@@ -226,8 +230,13 @@ bool validateSettings(
   return failed.isEmpty;
 }
 
-Map<String, dynamic> convertAllToString(Map<String, dynamic> settings) {
-  final password = 'test';
+Future<Map<String, dynamic>> convertAllToString(
+  Map<String, dynamic> settings,
+) async {
+  final password = await promptPassword();
+  if (password == null) {
+    throw NullPasswordException();
+  }
 
   settings.forEach((key, value) {
     if (value is Map<String, dynamic>) {
@@ -260,11 +269,9 @@ String encryptValue(String value, String password) {
     message: Uint8List.fromList(password.toCharArray()),
   );
 
-  debugPrint("key: ${base64Encode(keyHash)}");
   final crypto = sodium.crypto.aeadXChaCha20Poly1305IETF;
 
   final nonce = sodium.secureRandom(crypto.nonceBytes).extractBytes();
-  debugPrint("nonce: ${base64Encode(nonce)}");
   final data = crypto.encrypt(
     additionalData: Uint8List.fromList('repertory'.toCharArray()),
     key: SecureKey.fromList(sodium, keyHash),
@@ -273,4 +280,43 @@ String encryptValue(String value, String password) {
   );
 
   return base64Encode(Uint8List.fromList([...nonce, ...data]));
+}
+
+Future<String?> promptPassword() async {
+  if (constants.navigatorKey.currentContext == null) {
+    return null;
+  }
+
+  String updatedValue1 = '';
+  return await showDialog(
+    context: constants.navigatorKey.currentContext!,
+    builder: (context) {
+      return AlertDialog(
+        actions: [
+          TextButton(
+            child: const Text('Cancel'),
+            onPressed: () => Navigator.of(context).pop(null),
+          ),
+          TextButton(
+            child: const Text('OK'),
+            onPressed: () {
+              if (updatedValue1.isEmpty) {
+                return displayErrorMessage(context, "Password is not valid");
+              }
+
+              Navigator.of(context).pop(updatedValue1);
+            },
+          ),
+        ],
+        content: TextField(
+          autofocus: true,
+          controller: TextEditingController(text: updatedValue1),
+          obscureText: true,
+          obscuringCharacter: '*',
+          onChanged: (value) => updatedValue1 = value,
+        ),
+        title: const Text('Enter Authentication Password'),
+      );
+    },
+  );
 }
