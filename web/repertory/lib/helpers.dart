@@ -259,6 +259,10 @@ Future<Map<String, dynamic>> convertAllToString(
 }
 
 String encryptValue(String value, String password) {
+  if (value.isEmpty) {
+    return value;
+  }
+
   final sodium = constants.sodium;
   if (sodium == null) {
     return value;
