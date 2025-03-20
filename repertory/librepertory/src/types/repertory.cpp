@@ -48,7 +48,10 @@ void clean_json_config(provider_type prov, nlohmann::json &data) {
   case provider_type::sia:
     data[JSON_REMOTE_MOUNT][JSON_ENCRYPTION_TOKEN] = "";
     data[JSON_HOST_CONFIG][JSON_API_PASSWORD] = "";
+
     break;
+  default:
+    return;
   }
 }
 
