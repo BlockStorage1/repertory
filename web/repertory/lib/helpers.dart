@@ -256,13 +256,15 @@ String encryptValue(String value, String password) {
   }
 
   final keyHash = sodium.crypto.genericHash(
-    outLen: sodium.crypto.aeadChaCha20Poly1305.keyBytes,
+    outLen: sodium.crypto.aeadXChaCha20Poly1305IETF.keyBytes,
     message: Uint8List.fromList(password.toCharArray()),
   );
 
+  debugPrint("key: ${base64Encode(keyHash)}");
   final crypto = sodium.crypto.aeadXChaCha20Poly1305IETF;
 
   final nonce = sodium.secureRandom(crypto.nonceBytes).extractBytes();
+  debugPrint("nonce: ${base64Encode(nonce)}");
   final data = crypto.encrypt(
     additionalData: Uint8List.fromList('repertory'.toCharArray()),
     key: SecureKey.fromList(sodium, keyHash),
