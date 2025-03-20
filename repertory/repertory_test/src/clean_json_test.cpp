@@ -70,14 +70,26 @@ TEST(clean_json_test, can_clean_encrypt_config) {
       fmt::format("{}.{}", JSON_REMOTE_MOUNT, JSON_ENCRYPTION_TOKEN), "moose");
 
   auto data = cfg.get_json();
-  EXPECT_FALSE(data.at(JSON_API_PASSWORD).empty());
-  EXPECT_FALSE(data.at(JSON_ENCRYPT_CONFIG).at(JSON_ENCRYPTION_TOKEN).empty());
-  EXPECT_FALSE(data.at(JSON_REMOTE_MOUNT).at(JSON_ENCRYPTION_TOKEN).empty());
+  EXPECT_FALSE(data.at(JSON_API_PASSWORD).get<std::string>().empty());
+  EXPECT_FALSE(data.at(JSON_ENCRYPT_CONFIG)
+                   .at(JSON_ENCRYPTION_TOKEN)
+                   .get<std::string>()
+                   .empty());
+  EXPECT_FALSE(data.at(JSON_REMOTE_MOUNT)
+                   .at(JSON_ENCRYPTION_TOKEN)
+                   .get<std::string>()
+                   .empty());
 
   clean_json_config(cfg.get_provider_type(), data);
-  EXPECT_TRUE(data.at(JSON_API_PASSWORD).empty());
-  EXPECT_TRUE(data.at(JSON_ENCRYPT_CONFIG).at(JSON_ENCRYPTION_TOKEN).empty());
-  EXPECT_TRUE(data.at(JSON_REMOTE_MOUNT).at(JSON_ENCRYPTION_TOKEN).empty());
+  EXPECT_TRUE(data.at(JSON_API_PASSWORD).get<std::string>().empty());
+  EXPECT_TRUE(data.at(JSON_ENCRYPT_CONFIG)
+                  .at(JSON_ENCRYPTION_TOKEN)
+                  .get<std::string>()
+                  .empty());
+  EXPECT_TRUE(data.at(JSON_REMOTE_MOUNT)
+                  .at(JSON_ENCRYPTION_TOKEN)
+                  .get<std::string>()
+                  .empty());
 }
 
 TEST(clean_json_test, can_clean_remote_config) {
@@ -92,12 +104,18 @@ TEST(clean_json_test, can_clean_remote_config) {
       fmt::format("{}.{}", JSON_REMOTE_CONFIG, JSON_ENCRYPTION_TOKEN), "moose");
 
   auto data = cfg.get_json();
-  EXPECT_FALSE(data.at(JSON_API_PASSWORD).empty());
-  EXPECT_FALSE(data.at(JSON_REMOTE_CONFIG).at(JSON_ENCRYPTION_TOKEN).empty());
+  EXPECT_FALSE(data.at(JSON_API_PASSWORD).get<std::string>().empty());
+  EXPECT_FALSE(data.at(JSON_REMOTE_CONFIG)
+                   .at(JSON_ENCRYPTION_TOKEN)
+                   .get<std::string>()
+                   .empty());
 
   clean_json_config(cfg.get_provider_type(), data);
-  EXPECT_TRUE(data.at(JSON_API_PASSWORD).empty());
-  EXPECT_TRUE(data.at(JSON_REMOTE_CONFIG).at(JSON_ENCRYPTION_TOKEN).empty());
+  EXPECT_TRUE(data.at(JSON_API_PASSWORD).get<std::string>().empty());
+  EXPECT_TRUE(data.at(JSON_REMOTE_CONFIG)
+                  .at(JSON_ENCRYPTION_TOKEN)
+                  .get<std::string>()
+                  .empty());
 }
 
 TEST(clean_json_test, can_clean_s3_config) {
@@ -116,16 +134,30 @@ TEST(clean_json_test, can_clean_s3_config) {
                         "moose");
 
   auto data = cfg.get_json();
-  EXPECT_FALSE(data.at(JSON_API_PASSWORD).empty());
-  EXPECT_FALSE(data.at(JSON_REMOTE_MOUNT).at(JSON_ENCRYPTION_TOKEN).empty());
-  EXPECT_FALSE(data.at(JSON_S3_CONFIG).at(JSON_ENCRYPTION_TOKEN).empty());
-  EXPECT_FALSE(data.at(JSON_S3_CONFIG).at(JSON_SECRET_KEY).empty());
+  EXPECT_FALSE(data.at(JSON_API_PASSWORD).get<std::string>().empty());
+  EXPECT_FALSE(data.at(JSON_REMOTE_MOUNT)
+                   .at(JSON_ENCRYPTION_TOKEN)
+                   .get<std::string>()
+                   .empty());
+  EXPECT_FALSE(data.at(JSON_S3_CONFIG)
+                   .at(JSON_ENCRYPTION_TOKEN)
+                   .get<std::string>()
+                   .empty());
+  EXPECT_FALSE(
+      data.at(JSON_S3_CONFIG).at(JSON_SECRET_KEY).get<std::string>().empty());
 
   clean_json_config(cfg.get_provider_type(), data);
-  EXPECT_TRUE(data.at(JSON_API_PASSWORD).empty());
-  EXPECT_TRUE(data.at(JSON_REMOTE_MOUNT).at(JSON_ENCRYPTION_TOKEN).empty());
-  EXPECT_TRUE(data.at(JSON_S3_CONFIG).at(JSON_ENCRYPTION_TOKEN).empty());
-  EXPECT_TRUE(data.at(JSON_S3_CONFIG).at(JSON_SECRET_KEY).empty());
+  EXPECT_TRUE(data.at(JSON_API_PASSWORD).get<std::string>().empty());
+  EXPECT_TRUE(data.at(JSON_REMOTE_MOUNT)
+                  .at(JSON_ENCRYPTION_TOKEN)
+                  .get<std::string>()
+                  .empty());
+  EXPECT_TRUE(data.at(JSON_S3_CONFIG)
+                  .at(JSON_ENCRYPTION_TOKEN)
+                  .get<std::string>()
+                  .empty());
+  EXPECT_TRUE(
+      data.at(JSON_S3_CONFIG).at(JSON_SECRET_KEY).get<std::string>().empty());
 }
 
 TEST(clean_json_test, can_clean_sia_config) {
@@ -142,13 +174,25 @@ TEST(clean_json_test, can_clean_sia_config) {
       fmt::format("{}.{}", JSON_REMOTE_MOUNT, JSON_ENCRYPTION_TOKEN), "moose");
 
   auto data = cfg.get_json();
-  EXPECT_FALSE(data.at(JSON_API_PASSWORD).empty());
-  EXPECT_FALSE(data.at(JSON_HOST_CONFIG).at(JSON_API_PASSWORD).empty());
-  EXPECT_FALSE(data.at(JSON_REMOTE_MOUNT).at(JSON_ENCRYPTION_TOKEN).empty());
+  EXPECT_FALSE(data.at(JSON_API_PASSWORD).get<std::string>().empty());
+  EXPECT_FALSE(data.at(JSON_HOST_CONFIG)
+                   .at(JSON_API_PASSWORD)
+                   .get<std::string>()
+                   .empty());
+  EXPECT_FALSE(data.at(JSON_REMOTE_MOUNT)
+                   .at(JSON_ENCRYPTION_TOKEN)
+                   .get<std::string>()
+                   .empty());
 
   clean_json_config(cfg.get_provider_type(), data);
-  EXPECT_TRUE(data.at(JSON_API_PASSWORD).empty());
-  EXPECT_TRUE(data.at(JSON_HOST_CONFIG).at(JSON_API_PASSWORD).empty());
-  EXPECT_TRUE(data.at(JSON_REMOTE_MOUNT).at(JSON_ENCRYPTION_TOKEN).empty());
+  EXPECT_TRUE(data.at(JSON_API_PASSWORD).get<std::string>().empty());
+  EXPECT_TRUE(data.at(JSON_HOST_CONFIG)
+                  .at(JSON_API_PASSWORD)
+                  .get<std::string>()
+                  .empty());
+  EXPECT_TRUE(data.at(JSON_REMOTE_MOUNT)
+                  .at(JSON_ENCRYPTION_TOKEN)
+                  .get<std::string>()
+                  .empty());
 }
 } // namespace repertory
