@@ -241,7 +241,7 @@ Future<Map<String, dynamic>> convertAllToString(
   Future<Map<String, dynamic>> convert(Map<String, dynamic> settings) async {
     for (var entry in settings.entries) {
       if (entry.value is Map<String, dynamic>) {
-        convert(entry.value);
+        await convert(entry.value);
         continue;
       }
 
