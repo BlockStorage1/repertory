@@ -1,4 +1,4 @@
-import 'dart:convert' show jsonDecode;
+import 'dart:convert' show jsonDecode, jsonEncode;
 
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
@@ -28,6 +28,7 @@ class _EditSettingsScreenState extends State<EditSettingsScreen> {
           }
 
           return UISettingsWidget(
+            origSettings: jsonDecode(jsonEncode(snapshot.requireData)),
             settings: snapshot.requireData,
             showAdvanced: false,
           );
@@ -56,7 +57,6 @@ class _EditSettingsScreenState extends State<EditSettingsScreen> {
     return {};
   }
 
-  // UISettingsWidget(settings: {}, showAdvanced: false),
   @override
   void setState(VoidCallback fn) {
     if (!mounted) {

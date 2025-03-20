@@ -16,8 +16,10 @@ import 'package:settings_ui/settings_ui.dart';
 class UISettingsWidget extends StatefulWidget {
   final bool showAdvanced;
   final Map<String, dynamic> settings;
+  final Map<String, dynamic> origSettings;
   const UISettingsWidget({
     super.key,
+    required this.origSettings,
     required this.settings,
     required this.showAdvanced,
   });
@@ -27,8 +29,6 @@ class UISettingsWidget extends StatefulWidget {
 }
 
 class _UISettingsWidgetState extends State<UISettingsWidget> {
-  late Map<String, dynamic> _origSettings;
-
   @override
   Widget build(BuildContext context) {
     List<SettingsTile> commonSettings = [];
@@ -100,7 +100,12 @@ class _UISettingsWidgetState extends State<UISettingsWidget> {
 
   @override
   void dispose() {
-    if (!DeepCollectionEquality().equals(widget.settings, _origSettings)) {
+    debugPrint('current: ${jsonEncode(widget.settings)}');
+    debugPrint('orig: ${jsonEncode(widget.origSettings)}');
+    if (!DeepCollectionEquality().equals(
+      widget.settings,
+      widget.origSettings,
+    )) {
       http
           .put(
             Uri.parse(
@@ -116,12 +121,6 @@ class _UISettingsWidgetState extends State<UISettingsWidget> {
     }
 
     super.dispose();
-  }
-
-  @override
-  void initState() {
-    _origSettings = jsonDecode(jsonEncode(widget.settings));
-    super.initState();
   }
 
   @override
