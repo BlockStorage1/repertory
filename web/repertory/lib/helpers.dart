@@ -1,7 +1,10 @@
+import 'dart:convert';
+
 import 'package:collection/collection.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:repertory/constants.dart' as constants;
+import 'package:sodium_libs/sodium_libs.dart';
 
 typedef Validator = bool Function(String);
 
@@ -230,7 +233,11 @@ Map<String, dynamic> convertAllToString(Map<String, dynamic> settings) {
       return;
     }
 
-    if (value is String) {
+    if (key == 'ApiPassword' ||
+        key == 'EncryptionToken' ||
+        key == 'SecretKey') {
+      value = encryptValue(value);
+    } else if (value is String) {
       return;
     }
 
@@ -238,4 +245,29 @@ Map<String, dynamic> convertAllToString(Map<String, dynamic> settings) {
   });
 
   return settings;
+}
+
+String encryptValue(String value) {
+  final sodium = constants.sodium;
+  if (sodium == null) {
+    return value;
+  }
+
+  final keyHash = sodium.crypto.genericHash(
+    outLen: sodium.crypto.aeadChaCha20Poly1305.keyBytes,
+    message: Uint8List.fromList('test'.toCharArray()),
+  );
+
+  final crypto = sodium.crypto.aeadXChaCha20Poly1305IETF;
+
+  final data = crypto.encrypt(
+    additionalData: Uint8List.fromList(
+      'repertory'.toCharArray(),
+    ),
+    key: SecureKey.fromList(sodium, keyHash),
+    message: Uint8List.fromList(value.toCharArray()),
+    nonce: sodium.secureRandom(crypto.nonceBytes).extractBytes(),
+  );
+
+  return base64Encode(data);
 }
