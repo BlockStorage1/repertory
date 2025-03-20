@@ -273,7 +273,7 @@ Future<Map<String, dynamic>> convertAllToString(
     return settings;
   }
 
-  return await convert(settings);
+  return convert(settings);
 }
 
 String encryptValue(String value, String password) {
