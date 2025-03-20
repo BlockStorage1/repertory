@@ -3,9 +3,12 @@ import 'dart:convert' show jsonEncode;
 import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:repertory/constants.dart' as constants;
 import 'package:repertory/helpers.dart'
     show
+        AuthenticationFailedException,
         convertAllToString,
+        displayErrorMessage,
         getBaseUri,
         getSettingDescription,
         getSettingValidators,
@@ -104,22 +107,36 @@ class _UISettingsWidgetState extends State<UISettingsWidget> {
       widget.settings,
       widget.origSettings,
     )) {
+      displayAuthError() {
+        if (constants.navigatorKey.currentContext != null) {
+          displayErrorMessage(
+            constants.navigatorKey.currentContext!,
+            "Authentication failed",
+          );
+        }
+      }
+
       convertAllToString(widget.settings)
           .then((map) async {
             try {
-              await http.put(
+              final response = await http.put(
                 Uri.parse(
                   Uri.encodeFull(
                     '${getBaseUri()}/api/v1/settings?data=${jsonEncode(map)}',
                   ),
                 ),
               );
+              if (response.statusCode == 500) {
+                displayAuthError();
+              }
             } catch (e) {
               debugPrint('$e');
+              displayAuthError();
             }
           })
           .catchError((e) {
             debugPrint('$e');
+            displayAuthError();
           });
     }
 

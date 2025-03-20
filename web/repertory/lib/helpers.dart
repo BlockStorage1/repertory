@@ -12,6 +12,10 @@ class NullPasswordException implements Exception {
   String error() => 'password cannot be null';
 }
 
+class AuthenticationFailedException implements Exception {
+  String error() => 'failed to authenticate user';
+}
+
 // ignore: prefer_function_declarations_over_variables
 final Validator noRestrictedChars = (value) {
   return [
@@ -231,29 +235,36 @@ bool validateSettings(
 }
 
 Future<Map<String, dynamic>> convertAllToString(
-  Map<String, dynamic> settings,
-) async {
-  final password = await promptPassword();
-  if (password == null) {
-    throw NullPasswordException();
+  Map<String, dynamic> settings, {
+  String? password,
+}) async {
+  for (var entry in settings.entries) {
+    if (entry.value is Map<String, dynamic>) {
+      convertAllToString(entry.value, password: password);
+      continue;
+    }
+
+    if (entry.key == 'ApiPassword' ||
+        entry.key == 'EncryptionToken' ||
+        entry.key == 'SecretKey') {
+      if (entry.value.isEmpty) {
+        continue;
+      }
+
+      if (password == null) {
+        password = await promptPassword();
+        if (password == null) {
+          throw NullPasswordException();
+        }
+      }
+
+      settings[entry.key] = encryptValue(entry.value, password);
+    } else if (entry.value is String) {
+      continue;
+    }
+
+    settings[entry.key] = entry.value.toString();
   }
-
-  settings.forEach((key, value) {
-    if (value is Map<String, dynamic>) {
-      convertAllToString(value);
-      return;
-    }
-
-    if (key == 'ApiPassword' ||
-        key == 'EncryptionToken' ||
-        key == 'SecretKey') {
-      value = encryptValue(value, password);
-    } else if (value is String) {
-      return;
-    }
-
-    settings[key] = value.toString();
-  });
 
   return settings;
 }
