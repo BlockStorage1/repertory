@@ -27,6 +27,7 @@
 #include "types/repertory.hpp"
 #include "ui/mgmt_app_config.hpp"
 #include "utils/common.hpp"
+#include "utils/config.hpp"
 #include "utils/error_utils.hpp"
 #include "utils/file.hpp"
 #include "utils/hash.hpp"
@@ -36,13 +37,15 @@
 namespace {
 [[nodiscard]] auto decrypt(std::string_view data, std::string_view password)
     -> std::string {
+  REPERTORY_USES_FUNCTION_NAME();
+
   auto decoded = macaron::Base64::Decode(data);
   repertory::data_buffer buffer(decoded.size());
 
   auto key = repertory::utils::encryption::create_hash_blake2b_256(password);
 
-  std::uint64_t size{};
-  crypto_aead_xchacha20poly1305_ietf_decrypt(
+  unsigned long long size{};
+  auto res = crypto_aead_xchacha20poly1305_ietf_decrypt(
       reinterpret_cast<unsigned char *>(buffer.data()), &size, nullptr,
       reinterpret_cast<const unsigned char *>(
           &decoded.at(crypto_aead_xchacha20poly1305_IETF_NPUBBYTES)),
@@ -50,6 +53,10 @@ namespace {
       reinterpret_cast<const unsigned char *>(REPERTORY.data()), 9U,
       reinterpret_cast<const unsigned char *>(decoded.data()),
       reinterpret_cast<const unsigned char *>(key.data()));
+  if (res != 0) {
+    throw repertory::utils::error::create_exception(function_name,
+                                                    {"decryption failed"});
+  }
 
   return std::string(
       buffer.begin(),
