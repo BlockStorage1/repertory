@@ -143,12 +143,12 @@ TEST(clean_json_test, can_clean_sia_config) {
 
   auto data = cfg.get_json();
   EXPECT_FALSE(data.at(JSON_API_PASSWORD).empty());
-  EXPECT_FALSE(data.at(JSON_HOST_CONFIG_CONFIG).at(JSON_API_PASSWORD).empty());
+  EXPECT_FALSE(data.at(JSON_HOST_CONFIG).at(JSON_API_PASSWORD).empty());
   EXPECT_FALSE(data.at(JSON_REMOTE_MOUNT).at(JSON_ENCRYPTION_TOKEN).empty());
 
   clean_json_config(cfg.get_provider_type(), data);
   EXPECT_TRUE(data.at(JSON_API_PASSWORD).empty());
-  EXPECT_TRUE(data.at(JSON_HOST_CONFIG_CONFIG).at(JSON_API_PASSWORD).empty());
+  EXPECT_TRUE(data.at(JSON_HOST_CONFIG).at(JSON_API_PASSWORD).empty());
   EXPECT_TRUE(data.at(JSON_REMOTE_MOUNT).at(JSON_ENCRYPTION_TOKEN).empty());
 }
 } // namespace repertory
