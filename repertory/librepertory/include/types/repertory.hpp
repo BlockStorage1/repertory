@@ -314,6 +314,11 @@ provider_type_from_string(std::string_view type,
 
 [[nodiscard]] auto provider_type_to_string(provider_type type) -> std::string;
 
+void clean_json_config(provider_type prov, nlohmann::json &data);
+
+[[nodiscard]] auto clean_json_value(std::string_view name,
+                                    std::string_view data) -> std::string;
+
 #if defined(_WIN32)
 struct open_file_data final {
   PVOID directory_buffer{nullptr};

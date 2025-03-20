@@ -26,6 +26,48 @@
 #include "utils/string.hpp"
 
 namespace repertory {
+void clean_json_config(provider_type prov, nlohmann::json &data) {
+  data[JSON_API_PASSWORD] = "";
+
+  switch (prov) {
+  case provider_type::encrypt:
+    data[JSON_ENCRYPT_CONFIG][JSON_ENCRYPTION_TOKEN] = "";
+    data[JSON_REMOTE_MOUNT][JSON_ENCRYPTION_TOKEN] = "";
+    break;
+
+  case provider_type::remote:
+    data[JSON_REMOTE_CONFIG][JSON_ENCRYPTION_TOKEN] = "";
+    break;
+
+  case provider_type::s3:
+    data[JSON_REMOTE_MOUNT][JSON_ENCRYPTION_TOKEN] = "";
+    data[JSON_S3_CONFIG][JSON_ENCRYPTION_TOKEN] = "";
+    data[JSON_S3_CONFIG][JSON_SECRET_KEY] = "";
+    break;
+
+  case provider_type::sia:
+    data[JSON_REMOTE_MOUNT][JSON_ENCRYPTION_TOKEN] = "";
+    data[JSON_HOST_CONFIG][JSON_API_PASSWORD] = "";
+    break;
+  }
+}
+
+auto clean_json_value(std::string_view name, std::string_view data)
+    -> std::string {
+  if (name ==
+          fmt::format("{}.{}", JSON_ENCRYPT_CONFIG, JSON_ENCRYPTION_TOKEN) ||
+      name == fmt::format("{}.{}", JSON_HOST_CONFIG, JSON_API_PASSWORD) ||
+      name == fmt::format("{}.{}", JSON_REMOTE_CONFIG, JSON_ENCRYPTION_TOKEN) ||
+      name == fmt::format("{}.{}", JSON_REMOTE_MOUNT, JSON_ENCRYPTION_TOKEN) ||
+      name == fmt::format("{}.{}", JSON_S3_CONFIG, JSON_ENCRYPTION_TOKEN) ||
+      name == fmt::format("{}.{}", JSON_S3_CONFIG, JSON_SECRET_KEY) ||
+      name == JSON_API_PASSWORD) {
+    return "";
+  }
+
+  return std::string{data};
+}
+
 auto database_type_from_string(std::string type, database_type default_type)
     -> database_type {
   type = utils::string::to_lower(utils::string::trim(type));

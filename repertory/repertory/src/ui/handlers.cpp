@@ -218,6 +218,8 @@ void handlers::handle_get_mount(auto &&req, auto &&res) const {
   lines.erase(lines.begin());
 
   auto result = nlohmann::json::parse(utils::string::join(lines, '\n'));
+  clean_json_config(prov, result);
+
   res.set_content(result.dump(), "application/json");
   res.status = http_error_codes::ok;
 }
@@ -320,6 +322,7 @@ void handlers::handle_get_mount_status(auto &&req, auto &&res) const {
 
 void handlers::handle_get_settings(auto &&res) const {
   auto settings = config_->to_json();
+  settings.erase(JSON_API_PASSWORD);
   settings.erase(JSON_MOUNT_LOCATIONS);
   res.set_content(settings.dump(), "application/json");
   res.status = http_error_codes::ok;
