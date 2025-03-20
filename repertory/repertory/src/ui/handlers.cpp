@@ -440,7 +440,9 @@ void handlers::handle_put_settings(auto &&req, auto &&res) const {
   nlohmann::json data = nlohmann::json::parse(req.get_param_value("data"));
 
   if (data.contains(JSON_API_PASSWORD)) {
-    config_->set_api_password(data.at(JSON_API_PASSWORD).get<std::string>());
+    auto password = decrypt(data.at(JSON_API_PASSWORD).get<std::string>(),
+                            config_->get_api_password());
+    config_->set_api_password(password);
   }
 
   if (data.contains(JSON_API_PORT)) {
