@@ -235,41 +235,45 @@ bool validateSettings(
 }
 
 Future<Map<String, dynamic>> convertAllToString(
-  Map<String, dynamic> settings, {
-  String? password,
-}) async {
-  for (var entry in settings.entries) {
-    if (entry.value is Map<String, dynamic>) {
-      convertAllToString(entry.value, password: password);
-      continue;
-    }
-
-    if (entry.key == 'ApiPassword' ||
-        entry.key == 'EncryptionToken' ||
-        entry.key == 'SecretKey') {
-      if (entry.value.isEmpty) {
+  Map<String, dynamic> settings,
+) async {
+  String? password;
+  Future<Map<String, dynamic>> convert(Map<String, dynamic> settings) async {
+    for (var entry in settings.entries) {
+      if (entry.value is Map<String, dynamic>) {
+        convert(entry.value);
         continue;
       }
 
-      if (password == null) {
-        password = await promptPassword();
-        if (password == null) {
-          throw NullPasswordException();
+      if (entry.key == 'ApiPassword' ||
+          entry.key == 'EncryptionToken' ||
+          entry.key == 'SecretKey') {
+        if (entry.value.isEmpty) {
+          continue;
         }
+
+        if (password == null) {
+          password = await promptPassword();
+          if (password == null) {
+            throw NullPasswordException();
+          }
+        }
+
+        settings[entry.key] = encryptValue(entry.value, password!);
+        continue;
       }
 
-      settings[entry.key] = encryptValue(entry.value, password);
-      continue;
+      if (entry.value is String) {
+        continue;
+      }
+
+      settings[entry.key] = entry.value.toString();
     }
 
-    if (entry.value is String) {
-      continue;
-    }
-
-    settings[entry.key] = entry.value.toString();
+    return settings;
   }
 
-  return settings;
+  return await convert(settings);
 }
 
 String encryptValue(String value, String password) {
