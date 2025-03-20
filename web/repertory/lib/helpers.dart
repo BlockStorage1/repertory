@@ -227,6 +227,8 @@ bool validateSettings(
 }
 
 Map<String, dynamic> convertAllToString(Map<String, dynamic> settings) {
+  final password = 'test';
+
   settings.forEach((key, value) {
     if (value is Map<String, dynamic>) {
       convertAllToString(value);
@@ -236,7 +238,7 @@ Map<String, dynamic> convertAllToString(Map<String, dynamic> settings) {
     if (key == 'ApiPassword' ||
         key == 'EncryptionToken' ||
         key == 'SecretKey') {
-      value = encryptValue(value);
+      value = encryptValue(value, password);
     } else if (value is String) {
       return;
     }
@@ -247,7 +249,7 @@ Map<String, dynamic> convertAllToString(Map<String, dynamic> settings) {
   return settings;
 }
 
-String encryptValue(String value) {
+String encryptValue(String value, String password) {
   final sodium = constants.sodium;
   if (sodium == null) {
     return value;
@@ -255,19 +257,18 @@ String encryptValue(String value) {
 
   final keyHash = sodium.crypto.genericHash(
     outLen: sodium.crypto.aeadChaCha20Poly1305.keyBytes,
-    message: Uint8List.fromList('test'.toCharArray()),
+    message: Uint8List.fromList(password.toCharArray()),
   );
 
   final crypto = sodium.crypto.aeadXChaCha20Poly1305IETF;
 
+  final nonce = sodium.secureRandom(crypto.nonceBytes).extractBytes();
   final data = crypto.encrypt(
-    additionalData: Uint8List.fromList(
-      'repertory'.toCharArray(),
-    ),
+    additionalData: Uint8List.fromList('repertory'.toCharArray()),
     key: SecureKey.fromList(sodium, keyHash),
     message: Uint8List.fromList(value.toCharArray()),
-    nonce: sodium.secureRandom(crypto.nonceBytes).extractBytes(),
+    nonce: nonce,
   );
 
-  return base64Encode(data);
+  return base64Encode(Uint8List.fromList([...nonce, ...data]));
 }

@@ -29,10 +29,33 @@
 #include "utils/common.hpp"
 #include "utils/error_utils.hpp"
 #include "utils/file.hpp"
+#include "utils/hash.hpp"
 #include "utils/path.hpp"
 #include "utils/string.hpp"
 
 namespace {
+[[nodiscard]] auto decrypt(std::string_view data, std::string_view password)
+    -> std::string {
+  auto decoded = macaron::Base64::Decode(data);
+  repertory::data_buffer buffer(decoded.size());
+
+  auto key = repertory::utils::encryption::create_hash_blake2b_256(password);
+
+  std::uint64_t size{};
+  crypto_aead_xchacha20poly1305_ietf_decrypt(
+      reinterpret_cast<unsigned char *>(buffer.data()), &size, nullptr,
+      reinterpret_cast<const unsigned char *>(
+          &decoded.at(crypto_aead_xchacha20poly1305_IETF_NPUBBYTES)),
+      decoded.size() - crypto_aead_xchacha20poly1305_IETF_NPUBBYTES,
+      reinterpret_cast<const unsigned char *>(REPERTORY.data()), 9U,
+      reinterpret_cast<const unsigned char *>(decoded.data()),
+      reinterpret_cast<const unsigned char *>(key.data()));
+
+  return std::string(
+      buffer.begin(),
+      std::next(buffer.begin(), static_cast<std::int64_t>(size)));
+}
+
 [[nodiscard]] constexpr auto is_restricted(std::string_view data) -> bool {
   constexpr std::string_view invalid_chars = "&;|><$()`{}!*?";
   return data.find_first_of(invalid_chars) != std::string_view::npos;
@@ -386,6 +409,7 @@ void handlers::handle_post_mount(auto &&req, auto &&res) const {
 
 void handlers::handle_put_set_value_by_name(auto &&req, auto &&res) const {
   auto name = req.get_param_value("name");
+
   auto prov = provider_type_from_string(req.get_param_value("type"));
 
   if (not data_directory_exists(prov, name)) {
@@ -394,7 +418,18 @@ void handlers::handle_put_set_value_by_name(auto &&req, auto &&res) const {
   }
 
   auto key = req.get_param_value("key");
+  auto last_key{key};
   auto value = req.get_param_value("value");
+
+  auto parts = utils::string::split(key, '.', false);
+  if (parts.size() > 1U) {
+    last_key = parts.at(parts.size() - 1U);
+  }
+
+  if (last_key == JSON_API_PASSWORD || last_key == JSON_ENCRYPTION_TOKEN ||
+      last_key == JSON_SECRET_KEY) {
+    value = decrypt(value, config_->get_api_password());
+  }
 
   set_key_value(prov, name, key, value);
 
