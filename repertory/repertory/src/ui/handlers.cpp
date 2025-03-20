@@ -436,6 +436,10 @@ void handlers::handle_put_set_value_by_name(auto &&req, auto &&res) const {
   if (last_key == JSON_API_PASSWORD || last_key == JSON_ENCRYPTION_TOKEN ||
       last_key == JSON_SECRET_KEY) {
     value = decrypt(value, config_->get_api_password());
+    if (value.empty()) {
+      res.status = http_error_codes::ok;
+      return;
+    }
   }
 
   set_key_value(prov, name, key, value);
@@ -449,7 +453,9 @@ void handlers::handle_put_settings(auto &&req, auto &&res) const {
   if (data.contains(JSON_API_PASSWORD)) {
     auto password = decrypt(data.at(JSON_API_PASSWORD).get<std::string>(),
                             config_->get_api_password());
-    config_->set_api_password(password);
+    if (not password.empty()) {
+      config_->set_api_password(password);
+    }
   }
 
   if (data.contains(JSON_API_PORT)) {
