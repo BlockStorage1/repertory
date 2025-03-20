@@ -259,7 +259,10 @@ Future<Map<String, dynamic>> convertAllToString(
       }
 
       settings[entry.key] = encryptValue(entry.value, password);
-    } else if (entry.value is String) {
+      continue;
+    }
+
+    if (entry.value is String) {
       continue;
     }
 
