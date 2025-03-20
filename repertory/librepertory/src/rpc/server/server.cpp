@@ -39,7 +39,7 @@ server::server(app_config &config) : config_(config) {}
 void server::handle_get_config(const httplib::Request & /*req*/,
                                httplib::Response &res) {
   auto data = config_.get_json();
-  clean_json_config(data);
+  clean_json_config(config_.get_provider_type(), data);
   res.set_content(data.dump(), "application/json");
   res.status = http_error_codes::ok;
 }
