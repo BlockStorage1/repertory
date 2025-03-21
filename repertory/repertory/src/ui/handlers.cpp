@@ -26,6 +26,7 @@
 #include "rpc/common.hpp"
 #include "types/repertory.hpp"
 #include "ui/mgmt_app_config.hpp"
+#include "utils/collection.hpp"
 #include "utils/common.hpp"
 #include "utils/config.hpp"
 #include "utils/error_utils.hpp"
@@ -42,7 +43,11 @@ namespace {
     return std::string{data};
   }
 
-  auto decoded = macaron::Base64::Decode(data);
+  repertory::data_buffer decoded;
+  if (not repertory::utils::collection::from_hex_string(data, decoded)) {
+    throw repertory::utils::error::create_exception(function_name,
+                                                    {"decryption failed"});
+  }
   repertory::data_buffer buffer(decoded.size());
 
   auto key = repertory::utils::encryption::create_hash_blake2b_256(password);

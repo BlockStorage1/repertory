@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:convert/convert.dart';
 import 'package:collection/collection.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -270,6 +271,7 @@ Future<Map<String, dynamic>> convertAllToString(
           }
         }
 
+        debugPrint('password|$password');
         settings[entry.key] = encryptValue(entry.value, password!);
         continue;
       }
@@ -312,7 +314,7 @@ String encryptValue(String value, String password) {
     nonce: nonce,
   );
 
-  return base64Encode(Uint8List.fromList([...nonce, ...data]));
+  return hex.encode(nonce + data);
 }
 
 Future<String?> promptPassword() async {
@@ -320,7 +322,7 @@ Future<String?> promptPassword() async {
     return null;
   }
 
-  String updatedValue1 = '';
+  String password = '';
   return await showDialog(
     context: constants.navigatorKey.currentContext!,
     builder: (context) {
@@ -333,23 +335,54 @@ Future<String?> promptPassword() async {
           TextButton(
             child: const Text('OK'),
             onPressed: () {
-              if (updatedValue1.isEmpty) {
+              if (password.isEmpty) {
                 return displayErrorMessage(context, "Password is not valid");
               }
 
-              Navigator.of(context).pop(updatedValue1);
+              Navigator.of(context).pop(password);
             },
           ),
         ],
         content: TextField(
           autofocus: true,
-          controller: TextEditingController(text: updatedValue1),
+          controller: TextEditingController(text: password),
           obscureText: true,
           obscuringCharacter: '*',
-          onChanged: (value) => updatedValue1 = value,
+          onChanged: (value) => password = value,
         ),
         title: const Text('Enter Authentication Password'),
       );
     },
   );
+}
+
+Map<String, dynamic> getChanged(
+  Map<String, dynamic> original,
+  Map<String, dynamic> updated,
+) {
+  if (DeepCollectionEquality().equals(original, updated)) {
+    return {};
+  }
+
+  Map<String, dynamic> changedSettings = {};
+  original.forEach((key, value) {
+    if (DeepCollectionEquality().equals(value, updated[key])) {
+      return;
+    }
+
+    if (value is Map<String, dynamic>) {
+      changedSettings[key] = <String, dynamic>{};
+      value.forEach((subKey, subValue) {
+        if (DeepCollectionEquality().equals(subValue, updated[key][subKey])) {
+          return;
+        }
+
+        changedSettings[key][subKey] = updated[key][subKey];
+      });
+    } else {
+      changedSettings[key] = updated[key];
+    }
+  });
+
+  return changedSettings;
 }

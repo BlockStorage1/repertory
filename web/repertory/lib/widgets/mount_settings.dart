@@ -1,9 +1,12 @@
-import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:repertory/constants.dart' as constants;
 import 'package:repertory/helpers.dart'
-    show convertAllToString, getSettingDescription, getSettingValidators;
+    show
+        convertAllToString,
+        getChanged,
+        getSettingDescription,
+        getSettingValidators;
 import 'package:repertory/models/mount.dart';
 import 'package:repertory/models/mount_list.dart';
 import 'package:repertory/settings.dart';
@@ -614,30 +617,12 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
   @override
   void dispose() {
     if (!widget.isAdd) {
-      var settings = widget.mount.mountConfig.settings;
-      Map<String, dynamic> changedSettings = {};
-      if (!DeepCollectionEquality().equals(widget.settings, settings)) {
-        widget.settings.forEach((key, value) {
-          if (!DeepCollectionEquality().equals(settings[key], value)) {
-            if (value is Map<String, dynamic>) {
-              changedSettings[key] = <String, dynamic>{};
-              value.forEach((subKey, subValue) {
-                if (!DeepCollectionEquality().equals(
-                  settings[key][subKey],
-                  subValue,
-                )) {
-                  changedSettings[key][subKey] = subValue;
-                }
-              });
-            } else {
-              changedSettings[key] = value;
-            }
-          }
-        });
-      }
-
-      if (changedSettings.isNotEmpty) {
-        convertAllToString(changedSettings).then((map) {
+      final settings = getChanged(
+        widget.mount.mountConfig.settings,
+        widget.settings,
+      );
+      if (settings.isNotEmpty) {
+        convertAllToString(settings).then((map) {
           map.forEach((key, value) {
             if (value is Map<String, dynamic>) {
               value.forEach((subKey, subValue) {
