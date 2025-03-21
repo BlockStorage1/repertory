@@ -271,7 +271,6 @@ Future<Map<String, dynamic>> convertAllToString(
           }
         }
 
-        debugPrint('password|$password');
         settings[entry.key] = encryptValue(entry.value, password!);
         continue;
       }
