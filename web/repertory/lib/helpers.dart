@@ -347,7 +347,7 @@ Future<String?> promptPassword() async {
           obscuringCharacter: '*',
           onChanged: (value) => password = value,
         ),
-        title: const Text('Enter Authentication Password'),
+        title: const Text('Enter Repertory Portal Password'),
       );
     },
   );

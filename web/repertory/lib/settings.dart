@@ -161,63 +161,107 @@ void createPasswordSetting(
         onPressed: (_) {
           String updatedValue1 = value;
           String updatedValue2 = value;
+          bool hidePassword1 = true;
+          bool hidePassword2 = true;
           showDialog(
             context: context,
             builder: (context) {
-              return AlertDialog(
-                actions: [
-                  TextButton(
-                    child: const Text('Cancel'),
-                    onPressed: () => Navigator.of(context).pop(),
-                  ),
-                  TextButton(
-                    child: const Text('OK'),
-                    onPressed: () {
-                      if (updatedValue1 != updatedValue2) {
-                        return displayErrorMessage(
-                          context,
-                          "Setting '$key' does not match",
-                        );
-                      }
+              return StatefulBuilder(
+                builder: (context, setDialogState) {
+                  return AlertDialog(
+                    actions: [
+                      TextButton(
+                        child: const Text('Cancel'),
+                        onPressed: () => Navigator.of(context).pop(),
+                      ),
+                      TextButton(
+                        child: const Text('OK'),
+                        onPressed: () {
+                          if (updatedValue1 != updatedValue2) {
+                            return displayErrorMessage(
+                              context,
+                              "Setting '$key' does not match",
+                            );
+                          }
 
-                      final result = validators.firstWhereOrNull(
-                        (validator) => !validator(updatedValue1),
-                      );
-                      if (result != null) {
-                        return displayErrorMessage(
-                          context,
-                          "Setting '$key' is not valid",
-                        );
-                      }
+                          final result = validators.firstWhereOrNull(
+                            (validator) => !validator(updatedValue1),
+                          );
+                          if (result != null) {
+                            return displayErrorMessage(
+                              context,
+                              "Setting '$key' is not valid",
+                            );
+                          }
 
-                      setState(() => settings[key] = updatedValue1);
-                      Navigator.of(context).pop();
-                    },
-                  ),
-                ],
-                content: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    TextField(
-                      autofocus: true,
-                      controller: TextEditingController(text: updatedValue1),
-                      obscureText: true,
-                      obscuringCharacter: '*',
-                      onChanged: (value) => updatedValue1 = value,
+                          setState(() => settings[key] = updatedValue1);
+                          Navigator.of(context).pop();
+                        },
+                      ),
+                    ],
+                    content: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisAlignment: MainAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Row(
+                          children: [
+                            Expanded(
+                              child: TextField(
+                                autofocus: true,
+                                controller: TextEditingController(
+                                  text: updatedValue1,
+                                ),
+                                obscureText: hidePassword1,
+                                obscuringCharacter: '*',
+                                onChanged: (value) => updatedValue1 = value,
+                              ),
+                            ),
+                            IconButton(
+                              onPressed:
+                                  () => setDialogState(
+                                    () => hidePassword1 = !hidePassword1,
+                                  ),
+                              icon: Icon(
+                                hidePassword1
+                                    ? Icons.visibility
+                                    : Icons.visibility_off,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: constants.padding),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: TextField(
+                                autofocus: false,
+                                controller: TextEditingController(
+                                  text: updatedValue2,
+                                ),
+                                obscureText: hidePassword2,
+                                obscuringCharacter: '*',
+                                onChanged: (value) => updatedValue2 = value,
+                              ),
+                            ),
+                            IconButton(
+                              onPressed:
+                                  () => setDialogState(
+                                    () => hidePassword2 = !hidePassword2,
+                                  ),
+                              icon: Icon(
+                                hidePassword2
+                                    ? Icons.visibility
+                                    : Icons.visibility_off,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
                     ),
-                    const SizedBox(height: constants.padding),
-                    TextField(
-                      autofocus: false,
-                      controller: TextEditingController(text: updatedValue2),
-                      obscureText: true,
-                      obscuringCharacter: '*',
-                      onChanged: (value) => updatedValue2 = value,
-                    ),
-                  ],
-                ),
-                title: createSettingTitle(context, key, description),
+                    title: createSettingTitle(context, key, description),
+                  );
+                },
               );
             },
           );
