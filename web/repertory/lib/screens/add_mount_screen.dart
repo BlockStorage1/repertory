@@ -164,7 +164,7 @@ class _AddMountScreenState extends State<AddMountScreen> {
                         }
                       }
 
-                      await mountList.add(
+                      final success = await mountList.add(
                         _mountType,
                         _mountType == 'Remote'
                             ? '${_settings[_mountType]!['RemoteConfig']['HostNameOrIp']}_${_settings[_mountType]!['RemoteConfig']['ApiPort']}'
@@ -172,9 +172,10 @@ class _AddMountScreenState extends State<AddMountScreen> {
                         _settings[_mountType]!,
                       );
 
-                      if (!context.mounted) {
+                      if (!success || !context.mounted) {
                         return;
                       }
+
                       Navigator.pop(context);
                     },
                     label: const Text('Add'),

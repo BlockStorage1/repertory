@@ -71,6 +71,29 @@ namespace {
       std::next(buffer.begin(), static_cast<std::int64_t>(size)));
 }
 
+[[nodiscard]] auto decrypt_value(const repertory::ui::mgmt_app_config *config,
+                                 std::string_view key, std::string_view value,
+                                 bool &skip) -> std::string {
+  auto last_key{key};
+  auto parts = repertory::utils::string::split(key, '.', false);
+  if (parts.size() > 1U) {
+    last_key = parts.at(parts.size() - 1U);
+  }
+
+  if (last_key == repertory::JSON_API_PASSWORD ||
+      last_key == repertory::JSON_ENCRYPTION_TOKEN ||
+      last_key == repertory::JSON_SECRET_KEY) {
+    auto decrypted = decrypt(value, config->get_api_password());
+    if (decrypted.empty()) {
+      skip = true;
+    }
+
+    return decrypted;
+  }
+
+  return std::string{value};
+}
+
 [[nodiscard]] constexpr auto is_restricted(std::string_view data) -> bool {
   constexpr std::string_view invalid_chars = "&;|><$()`{}!*?";
   return data.find_first_of(invalid_chars) != std::string_view::npos;
@@ -376,16 +399,35 @@ void handlers::handle_post_add_mount(auto &&req, auto &&res) const {
 
   auto cfg = nlohmann::json::parse(req.get_param_value("config"));
 
-  launch_process(prov, name, "-gc");
+  std::map<std::string, std::string> values{};
   for (const auto &[key, value] : cfg.items()) {
     if (value.is_object()) {
       for (const auto &[key2, value2] : value.items()) {
-        set_key_value(prov, name, fmt::format("{}.{}", key, key2),
-                      value2.template get<std::string>());
+        auto subKey = fmt::format("{}.{}", key, key2);
+        auto skip{false};
+        auto decrypted = decrypt_value(
+            config_, subKey, value2.template get<std::string>(), skip);
+        if (skip) {
+          continue;
+        }
+        values[subKey] = decrypted;
       }
-    } else {
-      set_key_value(prov, name, key, value.template get<std::string>());
+
+      continue;
     }
+
+    auto skip{false};
+    auto decrypted =
+        decrypt_value(config_, key, value.template get<std::string>(), skip);
+    if (skip) {
+      continue;
+    }
+    values[key] = decrypted;
+  }
+
+  launch_process(prov, name, "-gc");
+  for (auto &[key, value] : values) {
+    set_key_value(prov, name, key, value);
   }
 
   res.status = http_error_codes::ok;
@@ -433,24 +475,13 @@ void handlers::handle_put_set_value_by_name(auto &&req, auto &&res) const {
   }
 
   auto key = req.get_param_value("key");
-  auto last_key{key};
   auto value = req.get_param_value("value");
 
-  auto parts = utils::string::split(key, '.', false);
-  if (parts.size() > 1U) {
-    last_key = parts.at(parts.size() - 1U);
+  auto skip{false};
+  value = decrypt_value(config_, key, value, skip);
+  if (not skip) {
+    set_key_value(prov, name, key, value);
   }
-
-  if (last_key == JSON_API_PASSWORD || last_key == JSON_ENCRYPTION_TOKEN ||
-      last_key == JSON_SECRET_KEY) {
-    value = decrypt(value, config_->get_api_password());
-    if (value.empty()) {
-      res.status = http_error_codes::ok;
-      return;
-    }
-  }
-
-  set_key_value(prov, name, key, value);
 
   res.status = http_error_codes::ok;
 }

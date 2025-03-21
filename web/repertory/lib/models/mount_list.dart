@@ -88,25 +88,58 @@ class MountList with ChangeNotifier {
     });
   }
 
-  Future<void> add(
+  Future<bool> add(
     String type,
     String name,
     Map<String, dynamic> mountConfig,
   ) async {
+    var ret = false;
+
+    displayError() {
+      if (constants.navigatorKey.currentContext == null) {
+        return;
+      }
+
+      displayErrorMessage(
+        constants.navigatorKey.currentContext!,
+        'Add mount failed. Please try again.',
+      );
+    }
+
     try {
       final map = await convertAllToString(mountConfig);
-      await http.post(
+      final response = await http.post(
         Uri.parse(
           Uri.encodeFull(
             '${getBaseUri()}/api/v1/add_mount?name=$name&type=$type&config=${jsonEncode(map)}',
           ),
         ),
       );
+
+      switch (response.statusCode) {
+        case 200:
+          ret = true;
+          break;
+        case 404:
+          reset();
+          break;
+        case 500:
+          displayAuthError();
+          break;
+        default:
+          displayError();
+          break;
+      }
     } catch (e) {
       debugPrint('$e');
+      displayError();
     }
 
-    return _fetch();
+    if (ret) {
+      await _fetch();
+    }
+
+    return ret;
   }
 
   Future<void> reset() async {
@@ -125,11 +158,5 @@ class MountList with ChangeNotifier {
     notifyListeners();
 
     return _fetch();
-  }
-
-  void remove(String name) {
-    _mountList.removeWhere((item) => item.name == name);
-
-    notifyListeners();
   }
 }
