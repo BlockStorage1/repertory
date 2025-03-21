@@ -107,7 +107,7 @@ class MountList with ChangeNotifier {
     }
 
     try {
-      final map = await convertAllToString(mountConfig);
+      final map = await convertAllToString(jsonDecode(jsonEncode(mountConfig)));
       final response = await http.post(
         Uri.parse(
           Uri.encodeFull(
