@@ -1,16 +1,13 @@
 import 'dart:convert' show jsonEncode;
 
-import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
-import 'package:repertory/constants.dart' as constants;
 import 'package:repertory/helpers.dart'
     show
-        AuthenticationFailedException,
         convertAllToString,
         displayAuthError,
-        displayErrorMessage,
         getBaseUri,
+        getChanged,
         getSettingDescription,
         getSettingValidators,
         trimNotEmptyValidator;
@@ -104,11 +101,9 @@ class _UISettingsWidgetState extends State<UISettingsWidget> {
 
   @override
   void dispose() {
-    if (!DeepCollectionEquality().equals(
-      widget.settings,
-      widget.origSettings,
-    )) {
-      convertAllToString(widget.settings)
+    final settings = getChanged(widget.origSettings, widget.settings);
+    if (settings.isNotEmpty) {
+      convertAllToString(settings)
           .then((map) async {
             try {
               final response = await http.put(
