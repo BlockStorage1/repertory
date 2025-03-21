@@ -364,25 +364,26 @@ Map<String, dynamic> getChanged(
     return {};
   }
 
-  Map<String, dynamic> changedSettings = {};
+  Map<String, dynamic> changed = {};
   original.forEach((key, value) {
     if (DeepCollectionEquality().equals(value, updated[key])) {
       return;
     }
 
     if (value is Map<String, dynamic>) {
-      changedSettings[key] = <String, dynamic>{};
+      changed[key] = <String, dynamic>{};
       value.forEach((subKey, subValue) {
         if (DeepCollectionEquality().equals(subValue, updated[key][subKey])) {
           return;
         }
 
-        changedSettings[key][subKey] = updated[key][subKey];
+        changed[key][subKey] = updated[key][subKey];
       });
-    } else {
-      changedSettings[key] = updated[key];
+      return;
     }
+
+    changed[key] = updated[key];
   });
 
-  return changedSettings;
+  return changed;
 }
