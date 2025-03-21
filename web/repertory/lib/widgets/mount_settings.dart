@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:repertory/constants.dart' as constants;
 import 'package:repertory/helpers.dart'
-    show getSettingDescription, getSettingValidators;
+    show convertAllToString, getSettingDescription, getSettingValidators;
 import 'package:repertory/models/mount.dart';
 import 'package:repertory/models/mount_list.dart';
 import 'package:repertory/settings.dart';
@@ -615,22 +615,39 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
   void dispose() {
     if (!widget.isAdd) {
       var settings = widget.mount.mountConfig.settings;
+      Map<String, dynamic> changedSettings = {};
       if (!DeepCollectionEquality().equals(widget.settings, settings)) {
         widget.settings.forEach((key, value) {
           if (!DeepCollectionEquality().equals(settings[key], value)) {
             if (value is Map<String, dynamic>) {
+              changedSettings[key] = <String, dynamic>{};
               value.forEach((subKey, subValue) {
                 if (!DeepCollectionEquality().equals(
                   settings[key][subKey],
                   subValue,
                 )) {
-                  widget.mount.setValue('$key.$subKey', subValue.toString());
+                  changedSettings[key][subKey] = subValue;
                 }
               });
             } else {
-              widget.mount.setValue(key, value.toString());
+              changedSettings[key] = value;
             }
           }
+        });
+      }
+
+      if (changedSettings.isNotEmpty) {
+        convertAllToString(changedSettings).then((map) {
+          map.forEach((key, value) {
+            if (value is Map<String, dynamic>) {
+              value.forEach((subKey, subValue) {
+                widget.mount.setValue('$key.$subKey', subValue);
+              });
+              return;
+            }
+
+            widget.mount.setValue(key, value);
+          });
         });
       }
     }

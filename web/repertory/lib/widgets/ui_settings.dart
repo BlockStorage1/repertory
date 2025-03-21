@@ -8,6 +8,7 @@ import 'package:repertory/helpers.dart'
     show
         AuthenticationFailedException,
         convertAllToString,
+        displayAuthError,
         displayErrorMessage,
         getBaseUri,
         getSettingDescription,
@@ -107,15 +108,6 @@ class _UISettingsWidgetState extends State<UISettingsWidget> {
       widget.settings,
       widget.origSettings,
     )) {
-      displayAuthError() {
-        if (constants.navigatorKey.currentContext != null) {
-          displayErrorMessage(
-            constants.navigatorKey.currentContext!,
-            "Authentication failed",
-          );
-        }
-      }
-
       convertAllToString(widget.settings)
           .then((map) async {
             try {

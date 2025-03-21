@@ -107,6 +107,17 @@ Map<String, dynamic> createDefaultSettings(String mountType) {
   return {};
 }
 
+void displayAuthError() {
+  if (constants.navigatorKey.currentContext == null) {
+    return;
+  }
+
+  displayErrorMessage(
+    constants.navigatorKey.currentContext!,
+    "Authentication failed",
+  );
+}
+
 void displayErrorMessage(context, String text) {
   if (!context.mounted) {
     return;

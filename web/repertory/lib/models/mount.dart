@@ -180,6 +180,11 @@ class Mount with ChangeNotifier {
         return;
       }
 
+      if (response.statusCode == 500) {
+        displayAuthError();
+        return;
+      }
+
       if (response.statusCode != 200) {
         return;
       }
