@@ -154,7 +154,10 @@ handlers::handlers(mgmt_app_config *config, httplib::Server *server)
     }
 
     res.set_content(data.dump(), "application/json");
-    res.status = http_error_codes::internal_error;
+    res.status = utils::string::ends_with(data["error"].get<std::string>(),
+                                          "|decryption failed")
+                     ? http_error_codes::unauthorized
+                     : http_error_codes::internal_error;
   });
 
   server->Get("/api/v1/mount",
