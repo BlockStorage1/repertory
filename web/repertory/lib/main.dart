@@ -116,7 +116,7 @@ class AuthCheck extends StatelessWidget {
               constants.navigatorKey.currentContext!,
             ).pushNamedAndRemoveUntil('/auth', (Route<dynamic> route) => false);
           });
-          return SizedBox.shrink();
+          return child;
         }
 
         return child;
