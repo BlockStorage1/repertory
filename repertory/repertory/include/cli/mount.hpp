@@ -28,8 +28,8 @@
 #include "providers/provider.hpp"
 #include "types/repertory.hpp"
 #include "utils/cli_utils.hpp"
-#include "utils/file.hpp"
 #include "utils/com_init_wrapper.hpp"
+#include "utils/file.hpp"
 
 #if defined(_WIN32)
 #include "drives/winfsp/remotewinfsp/remote_client.hpp"
@@ -57,19 +57,19 @@ mount(std::vector<const char *> args, std::string data_directory,
       int &mount_result, provider_type prov, const std::string &remote_host,
       std::uint16_t remote_port, const std::string &unique_id) -> exit_code {
   lock_data lock(prov, unique_id);
-  auto res = lock.grab_lock();
-  if (res == lock_result::locked) {
+  auto lock_result = lock.grab_lock();
+  if (lock_result == lock_result::locked) {
     std::cerr << app_config::get_provider_display_name(prov)
               << " mount is already active" << std::endl;
     return exit_code::mount_active;
   }
 
-  if (res != lock_result::success) {
+  if (lock_result != lock_result::success) {
     return exit_code::lock_failed;
   }
 
-  if (utils::cli::has_option(
-      args, utils::cli::options::generate_config_option)) {
+  if (utils::cli::has_option(args,
+                             utils::cli::options::generate_config_option)) {
     app_config config(prov, data_directory);
     if (prov == provider_type::remote) {
       auto remote_config = config.get_remote_config();
@@ -86,8 +86,8 @@ mount(std::vector<const char *> args, std::string data_directory,
               << " Configuration" << std::endl;
     std::cout << config.get_config_file_path() << std::endl;
     return utils::file::file(config.get_config_file_path()).exists()
-              ? exit_code::success
-              : exit_code::file_creation_failed;
+               ? exit_code::success
+               : exit_code::file_creation_failed;
   }
 
 #if defined(_WIN32)
@@ -100,8 +100,8 @@ mount(std::vector<const char *> args, std::string data_directory,
   app_config config(prov, data_directory);
   {
     lock_data global_lock(provider_type::unknown, "global");
-    res = global_lock.grab_lock();
-    if (res != lock_result::success) {
+    lock_result = global_lock.grab_lock();
+    if (lock_result != lock_result::success) {
       return exit_code::lock_failed;
     }
 
@@ -146,8 +146,8 @@ mount(std::vector<const char *> args, std::string data_directory,
   if (prov == provider_type::remote) {
     try {
       std::uint16_t port{};
-      if (not utils::get_next_available_port(config.get_remote_config().api_port,
-                                             port)) {
+      if (not utils::get_next_available_port(
+              config.get_remote_config().api_port, port)) {
         std::cerr << "FATAL: Unable to get available port" << std::endl;
         return exit_code::startup_exception;
       }
