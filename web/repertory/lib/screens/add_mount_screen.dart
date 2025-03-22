@@ -28,7 +28,6 @@ class _AddMountScreenState extends State<AddMountScreen> {
     "S3": createDefaultSettings("S3"),
     "Sia": createDefaultSettings("Sia"),
   };
-  bool _showAdvanced = false;
 
   @override
   Widget build(BuildContext context) {
@@ -37,29 +36,13 @@ class _AddMountScreenState extends State<AddMountScreen> {
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
         title: Text(widget.title),
         actions: [
-          Row(
-            children: [
-              Row(
-                children: [
-                  const Text("Advanced"),
-                  IconButton(
-                    icon: Icon(
-                      _showAdvanced ? Icons.toggle_on : Icons.toggle_off,
-                    ),
-                    onPressed:
-                        () => setState(() => _showAdvanced = !_showAdvanced),
-                  ),
-                ],
-              ),
-              Consumer<Auth>(
-                builder: (context, auth, _) {
-                  return IconButton(
-                    icon: const Icon(Icons.logout),
-                    onPressed: () => auth.logoff(),
-                  );
-                },
-              ),
-            ],
+          Consumer<Auth>(
+            builder: (context, auth, _) {
+              return IconButton(
+                icon: const Icon(Icons.logout),
+                onPressed: () => auth.logoff(),
+              );
+            },
           ),
         ],
       ),
@@ -141,7 +124,7 @@ class _AddMountScreenState extends State<AddMountScreen> {
                           isAdd: true,
                           mount: _mount!,
                           settings: _settings[_mountType]!,
-                          showAdvanced: _showAdvanced,
+                          showAdvanced: false,
                         ),
                       ),
                     ),
