@@ -123,6 +123,7 @@ mount(std::vector<const char *> args, std::string data_directory,
       std::cerr << "failed to set mount state" << std::endl;
     }
     lock.release();
+    global_lock.release();
 
     mount_result = utils::run_process_elevated(args);
     lock_data prov_lock(prov, unique_id);
