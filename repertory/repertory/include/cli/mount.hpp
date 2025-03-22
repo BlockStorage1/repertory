@@ -97,23 +97,22 @@ mount(std::vector<const char *> args, std::string data_directory,
   }
 #endif // defined(_WIN32)
 
+  lock_data global_lock(provider_type::unknown, "global");
+  lock_result = global_lock.grab_lock();
+  if (lock_result != lock_result::success) {
+    std::cerr << "FATAL: Unable to get global lock" << std::endl;
+    return exit_code::lock_failed;
+  }
+
   auto drive_args = utils::cli::parse_drive_options(args, prov, data_directory);
   app_config config(prov, data_directory);
   {
-    lock_data global_lock(provider_type::unknown, "global");
-    lock_result = global_lock.grab_lock();
-    if (lock_result != lock_result::success) {
-      std::cerr << "FATAL: Unable to get global lock" << std::endl;
-      return exit_code::lock_failed;
-    }
 
     std::uint16_t port{};
     if (not utils::get_next_available_port(config.get_api_port(), port)) {
       std::cerr << "FATAL: Unable to get available port" << std::endl;
       return exit_code::startup_exception;
     }
-    global_lock.release();
-
     config.set_api_port(port);
   }
 
