@@ -933,24 +933,26 @@ auto app_config::get_preferred_download_type() const -> download_type {
 auto app_config::get_provider_display_name(const provider_type &prov)
     -> std::string {
   static const std::array<std::string,
-                          static_cast<std::size_t>(provider_type::unknown)>
+                          static_cast<std::size_t>(provider_type::unknown+1U)>
       PROVIDER_DISPLAY_NAMES = {
           "Sia",
           "Remote",
           "S3",
           "Encrypt",
+          "Unknown",
       };
   return PROVIDER_DISPLAY_NAMES.at(static_cast<std::size_t>(prov));
 }
 
 auto app_config::get_provider_name(const provider_type &prov) -> std::string {
   static const std::array<std::string,
-                          static_cast<std::size_t>(provider_type::unknown)>
+                          static_cast<std::size_t>(provider_type::unknown+1U)>
       PROVIDER_NAMES = {
           "sia",
           "remote",
           "s3",
           "encrypt",
+          "unknown",
       };
   return PROVIDER_NAMES.at(static_cast<std::size_t>(prov));
 }
