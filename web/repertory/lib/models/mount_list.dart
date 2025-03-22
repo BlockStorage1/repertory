@@ -6,15 +6,20 @@ import 'package:flutter/material.dart' show ModalRoute;
 import 'package:http/http.dart' as http;
 import 'package:repertory/constants.dart' as constants;
 import 'package:repertory/helpers.dart';
+import 'package:repertory/models/auth.dart';
 import 'package:repertory/models/mount.dart';
 import 'package:repertory/types/mount_config.dart';
 
 class MountList with ChangeNotifier {
-  MountList() {
+  final Auth _auth;
+
+  MountList(this._auth) {
     _fetch();
   }
 
   List<Mount> _mountList = [];
+
+  Auth get auth => _auth;
 
   UnmodifiableListView<Mount> get items =>
       UnmodifiableListView<Mount>(_mountList);
@@ -46,8 +51,9 @@ class MountList with ChangeNotifier {
 
   Future<void> _fetch() async {
     try {
+      final auth = await _auth.createAuth();
       final response = await http.get(
-        Uri.parse('${getBaseUri()}/api/v1/mount_list'),
+        Uri.parse('${getBaseUri()}/api/v1/mount_list?auth=$auth'),
       );
 
       if (response.statusCode == 404) {
@@ -64,7 +70,10 @@ class MountList with ChangeNotifier {
       jsonDecode(response.body).forEach((type, value) {
         nextList.addAll(
           value
-              .map((name) => Mount(MountConfig(type: type, name: name), this))
+              .map(
+                (name) =>
+                    Mount(_auth, MountConfig(type: type, name: name), this),
+              )
               .toList(),
         );
       });
@@ -107,11 +116,15 @@ class MountList with ChangeNotifier {
     }
 
     try {
-      final map = await convertAllToString(jsonDecode(jsonEncode(mountConfig)));
+      final auth = await _auth.createAuth();
+      final map = await convertAllToString(
+        jsonDecode(jsonEncode(mountConfig)),
+        _auth.key,
+      );
       final response = await http.post(
         Uri.parse(
           Uri.encodeFull(
-            '${getBaseUri()}/api/v1/add_mount?name=$name&type=$type&config=${jsonEncode(map)}',
+            '${getBaseUri()}/api/v1/add_mount?auth=$auth&name=$name&type=$type&config=${jsonEncode(map)}',
           ),
         ),
       );

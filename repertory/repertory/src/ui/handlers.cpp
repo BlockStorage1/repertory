@@ -23,7 +23,6 @@
 
 #include "app_config.hpp"
 #include "events/event_system.hpp"
-#include "rpc/common.hpp"
 #include "types/repertory.hpp"
 #include "ui/mgmt_app_config.hpp"
 #include "utils/collection.hpp"
@@ -60,7 +59,8 @@ namespace {
       reinterpret_cast<const unsigned char *>(
           &decoded.at(crypto_aead_xchacha20poly1305_IETF_NPUBBYTES)),
       decoded.size() - crypto_aead_xchacha20poly1305_IETF_NPUBBYTES,
-      reinterpret_cast<const unsigned char *>(REPERTORY.data()), 9U,
+      reinterpret_cast<const unsigned char *>(REPERTORY.data()),
+      REPERTORY.length(),
       reinterpret_cast<const unsigned char *>(decoded.data()),
       reinterpret_cast<const unsigned char *>(key.data()));
   if (res != 0) {
@@ -109,15 +109,27 @@ handlers::handlers(mgmt_app_config *config, httplib::Server *server)
   REPERTORY_USES_FUNCTION_NAME();
 
   server_->set_pre_routing_handler(
-      [this](auto &&req, auto &&res) -> httplib::Server::HandlerResponse {
-        if (rpc::check_authorization(*config_, req)) {
+      [this](const httplib::Request &req,
+             auto &&res) -> httplib::Server::HandlerResponse {
+        if (req.path == "/api/v1/nonce" || req.path == "/ui" ||
+            req.path.starts_with("/ui/")) {
           return httplib::Server::HandlerResponse::Unhandled;
         }
 
+        auto auth =
+            decrypt(req.get_param_value("auth"), config_->get_api_password());
+        if (utils::string::begins_with(
+                auth, fmt::format("{}_", config_->get_api_user()))) {
+          auto nonce = auth.substr(config_->get_api_user().length() + 1U);
+
+          mutex_lock lock(nonce_mtx_);
+          if (nonce_lookup_.contains(nonce)) {
+            nonce_lookup_.erase(nonce);
+            return httplib::Server::HandlerResponse::Unhandled;
+          }
+        }
+
         res.status = http_error_codes::unauthorized;
-        res.set_header(
-            "WWW-Authenticate",
-            R"(Basic realm="Repertory Management Portal", charset="UTF-8")");
         return httplib::Server::HandlerResponse::Handled;
       });
 
@@ -155,15 +167,16 @@ handlers::handlers(mgmt_app_config *config, httplib::Server *server)
     handle_get_mount_list(res);
   });
 
-  server->Get("/api/v1/mount_status",
-              [this](const httplib::Request &req, auto &&res) {
-                handle_get_mount_status(req, res);
-              });
+  server->Get("/api/v1/mount_status", [this](auto &&req, auto &&res) {
+    handle_get_mount_status(req, res);
+  });
 
-  server->Get("/api/v1/settings",
-              [this](const httplib::Request & /* req */, auto &&res) {
-                handle_get_settings(res);
-              });
+  server->Get("/api/v1/nonce",
+              [this](auto && /* req */, auto &&res) { handle_get_nonce(res); });
+
+  server->Get("/api/v1/settings", [this](auto && /* req */, auto &&res) {
+    handle_get_settings(res);
+  });
 
   server->Post("/api/v1/add_mount", [this](auto &&req, auto &&res) {
     handle_post_add_mount(req, res);
@@ -225,6 +238,9 @@ handlers::handlers(mgmt_app_config *config, httplib::Server *server)
 
   event_system::instance().start();
 
+  nonce_thread_ =
+      std::make_unique<std::thread>([this]() { removed_expired_nonces(); });
+
   server_->listen("127.0.0.1", config_->get_api_port());
   if (this_server != nullptr) {
     this_server = nullptr;
@@ -232,7 +248,20 @@ handlers::handlers(mgmt_app_config *config, httplib::Server *server)
   }
 }
 
-handlers::~handlers() { event_system::instance().stop(); }
+handlers::~handlers() {
+  if (nonce_thread_) {
+    stop_requested = true;
+
+    unique_mutex_lock lock(nonce_mtx_);
+    nonce_notify_.notify_all();
+    lock.unlock();
+
+    nonce_thread_->join();
+    nonce_thread_.reset();
+  }
+
+  event_system::instance().stop();
+}
 
 auto handlers::data_directory_exists(provider_type prov,
                                      std::string_view name) const -> bool {
@@ -253,7 +282,8 @@ auto handlers::data_directory_exists(provider_type prov,
   return ret;
 }
 
-void handlers::handle_get_mount(auto &&req, auto &&res) const {
+void handlers::handle_get_mount(const httplib::Request &req,
+                                httplib::Response &res) const {
   REPERTORY_USES_FUNCTION_NAME();
 
   auto prov = provider_type_from_string(req.get_param_value("type"));
@@ -282,7 +312,7 @@ void handlers::handle_get_mount(auto &&req, auto &&res) const {
   res.status = http_error_codes::ok;
 }
 
-void handlers::handle_get_mount_list(auto &&res) const {
+void handlers::handle_get_mount_list(httplib::Response &res) const {
   auto data_dir = utils::file::directory{app_config::get_root_data_directory()};
 
   nlohmann::json result;
@@ -311,7 +341,8 @@ void handlers::handle_get_mount_list(auto &&res) const {
   res.status = http_error_codes::ok;
 }
 
-void handlers::handle_get_mount_location(auto &&req, auto &&res) const {
+void handlers::handle_get_mount_location(const httplib::Request &req,
+                                         httplib::Response &res) const {
   auto name = req.get_param_value("name");
   auto prov = provider_type_from_string(req.get_param_value("type"));
 
@@ -329,7 +360,8 @@ void handlers::handle_get_mount_location(auto &&req, auto &&res) const {
   res.status = http_error_codes::ok;
 }
 
-void handlers::handle_get_mount_status(auto &&req, auto &&res) const {
+void handlers::handle_get_mount_status(const httplib::Request &req,
+                                       httplib::Response &res) const {
   REPERTORY_USES_FUNCTION_NAME();
 
   auto name = req.get_param_value("name");
@@ -379,7 +411,18 @@ void handlers::handle_get_mount_status(auto &&req, auto &&res) const {
   res.status = http_error_codes::ok;
 }
 
-void handlers::handle_get_settings(auto &&res) const {
+void handlers::handle_get_nonce(httplib::Response &res) {
+  mutex_lock lock(nonce_mtx_);
+
+  nonce_data nonce{};
+  nonce_lookup_[nonce.nonce] = nonce;
+
+  nlohmann::json data({{"nonce", nonce.nonce}});
+  res.set_content(data.dump(), "application/json");
+  res.status = http_error_codes::ok;
+}
+
+void handlers::handle_get_settings(httplib::Response &res) const {
   auto settings = config_->to_json();
   settings[JSON_API_PASSWORD] = "";
   settings.erase(JSON_MOUNT_LOCATIONS);
@@ -387,7 +430,8 @@ void handlers::handle_get_settings(auto &&res) const {
   res.status = http_error_codes::ok;
 }
 
-void handlers::handle_post_add_mount(auto &&req, auto &&res) const {
+void handlers::handle_post_add_mount(const httplib::Request &req,
+                                     httplib::Response &res) const {
   auto name = req.get_param_value("name");
   auto prov = provider_type_from_string(req.get_param_value("type"));
   if (data_directory_exists(prov, name)) {
@@ -431,7 +475,8 @@ void handlers::handle_post_add_mount(auto &&req, auto &&res) const {
   res.status = http_error_codes::ok;
 }
 
-void handlers::handle_post_mount(auto &&req, auto &&res) const {
+void handlers::handle_post_mount(const httplib::Request &req,
+                                 httplib::Response &res) const {
   auto name = req.get_param_value("name");
   auto prov = provider_type_from_string(req.get_param_value("type"));
 
@@ -462,7 +507,8 @@ void handlers::handle_post_mount(auto &&req, auto &&res) const {
   res.status = http_error_codes::ok;
 }
 
-void handlers::handle_put_set_value_by_name(auto &&req, auto &&res) const {
+void handlers::handle_put_set_value_by_name(const httplib::Request &req,
+                                            httplib::Response &res) const {
   auto name = req.get_param_value("name");
   auto prov = provider_type_from_string(req.get_param_value("type"));
 
@@ -483,7 +529,8 @@ void handlers::handle_put_set_value_by_name(auto &&req, auto &&res) const {
   res.status = http_error_codes::ok;
 }
 
-void handlers::handle_put_settings(auto &&req, auto &&res) const {
+void handlers::handle_put_settings(const httplib::Request &req,
+                                   httplib::Response &res) const {
   nlohmann::json data = nlohmann::json::parse(req.get_param_value("data"));
 
   if (data.contains(JSON_API_PASSWORD)) {
@@ -618,6 +665,38 @@ auto handlers::launch_process(provider_type prov, std::string_view name,
 
   return utils::string::split(utils::string::replace(data, "\r", ""), '\n',
                               false);
+}
+
+void handlers::removed_expired_nonces() {
+  unique_mutex_lock lock(nonce_mtx_);
+  lock.unlock();
+
+  while (not stop_requested) {
+    lock.lock();
+    auto nonces = nonce_lookup_;
+    lock.unlock();
+
+    for (const auto &[key, value] : nonces) {
+      if (std::chrono::duration_cast<std::chrono::seconds>(
+              std::chrono::system_clock::now() - value.creation)
+              .count() >= nonce_timeout) {
+        lock.lock();
+        nonce_lookup_.erase(key);
+        lock.unlock();
+      }
+    }
+
+    if (stop_requested) {
+      break;
+    }
+
+    lock.lock();
+    if (stop_requested) {
+      break;
+    }
+    nonce_notify_.wait_for(lock, std::chrono::seconds(1U));
+    lock.unlock();
+  }
 }
 
 void handlers::set_key_value(provider_type prov, std::string_view name,

@@ -2,6 +2,7 @@ import 'dart:convert' show jsonEncode;
 
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:provider/provider.dart';
 import 'package:repertory/helpers.dart'
     show
         convertAllToString,
@@ -11,6 +12,7 @@ import 'package:repertory/helpers.dart'
         getSettingDescription,
         getSettingValidators,
         trimNotEmptyValidator;
+import 'package:repertory/models/auth.dart';
 import 'package:repertory/settings.dart';
 import 'package:settings_ui/settings_ui.dart';
 
@@ -103,13 +105,15 @@ class _UISettingsWidgetState extends State<UISettingsWidget> {
   void dispose() {
     final settings = getChanged(widget.origSettings, widget.settings);
     if (settings.isNotEmpty) {
-      convertAllToString(settings)
+      final authProvider = Provider.of<Auth>(context, listen: false);
+      convertAllToString(settings, authProvider.key)
           .then((map) async {
             try {
+              final auth = await authProvider.createAuth();
               final response = await http.put(
                 Uri.parse(
                   Uri.encodeFull(
-                    '${getBaseUri()}/api/v1/settings?data=${jsonEncode(map)}',
+                    '${getBaseUri()}/api/v1/settings?auth=$auth&data=${jsonEncode(map)}',
                   ),
                 ),
               );

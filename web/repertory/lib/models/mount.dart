@@ -3,16 +3,18 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:repertory/helpers.dart';
+import 'package:repertory/models/auth.dart';
 import 'package:repertory/models/mount_list.dart';
 import 'package:repertory/types/mount_config.dart';
 
 class Mount with ChangeNotifier {
+  final Auth _auth;
   final MountConfig mountConfig;
   final MountList? _mountList;
   bool _isMounting = false;
   bool _isRefreshing = false;
 
-  Mount(this.mountConfig, this._mountList, {isAdd = false}) {
+  Mount(this._auth, this.mountConfig, this._mountList, {isAdd = false}) {
     if (isAdd) {
       return;
     }
@@ -29,9 +31,12 @@ class Mount with ChangeNotifier {
 
   Future<void> _fetch() async {
     try {
+      final auth = await _auth.createAuth();
       final response = await http.get(
         Uri.parse(
-          Uri.encodeFull('${getBaseUri()}/api/v1/mount?name=$name&type=$type'),
+          Uri.encodeFull(
+            '${getBaseUri()}/api/v1/mount?auth=$auth&name=$name&type=$type',
+          ),
         ),
       );
 
@@ -57,10 +62,11 @@ class Mount with ChangeNotifier {
 
   Future<void> _fetchStatus() async {
     try {
+      final auth = await _auth.createAuth();
       final response = await http.get(
         Uri.parse(
           Uri.encodeFull(
-            '${getBaseUri()}/api/v1/mount_status?name=$name&type=$type',
+            '${getBaseUri()}/api/v1/mount_status?auth=$auth&name=$name&type=$type',
           ),
         ),
       );
@@ -87,10 +93,11 @@ class Mount with ChangeNotifier {
 
   Future<String?> getMountLocation() async {
     try {
+      final auth = await _auth.createAuth();
       final response = await http.get(
         Uri.parse(
           Uri.encodeFull(
-            '${getBaseUri()}/api/v1/mount_location?name=$name&type=$type',
+            '${getBaseUri()}/api/v1/mount_location?auth=$auth&name=$name&type=$type',
           ),
         ),
       );
@@ -120,10 +127,11 @@ class Mount with ChangeNotifier {
         await Future.delayed(Duration(seconds: 1));
       }
 
+      final auth = await _auth.createAuth();
       final response = await http.post(
         Uri.parse(
           Uri.encodeFull(
-            '${getBaseUri()}/api/v1/mount?unmount=$unmount&name=$name&type=$type&location=$location',
+            '${getBaseUri()}/api/v1/mount?auth=$auth&unmount=$unmount&name=$name&type=$type&location=$location',
           ),
         ),
       );
@@ -167,10 +175,11 @@ class Mount with ChangeNotifier {
 
   Future<void> setValue(String key, String value) async {
     try {
+      final auth = await _auth.createAuth();
       final response = await http.put(
         Uri.parse(
           Uri.encodeFull(
-            '${getBaseUri()}/api/v1/set_value_by_name?name=$name&type=$type&key=$key&value=$value',
+            '${getBaseUri()}/api/v1/set_value_by_name?auth=$auth&name=$name&type=$type&key=$key&value=$value',
           ),
         ),
       );

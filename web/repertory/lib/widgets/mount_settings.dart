@@ -7,6 +7,7 @@ import 'package:repertory/helpers.dart'
         getChanged,
         getSettingDescription,
         getSettingValidators;
+import 'package:repertory/models/auth.dart';
 import 'package:repertory/models/mount.dart';
 import 'package:repertory/models/mount_list.dart';
 import 'package:repertory/settings.dart';
@@ -622,7 +623,8 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
         widget.settings,
       );
       if (settings.isNotEmpty) {
-        convertAllToString(settings).then((map) {
+        final authProvider = Provider.of<Auth>(context, listen: false);
+        convertAllToString(settings, authProvider.key).then((map) {
           map.forEach((key, value) {
             if (value is Map<String, dynamic>) {
               value.forEach((subKey, subValue) {

@@ -2,7 +2,9 @@ import 'dart:convert' show jsonDecode, jsonEncode;
 
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:provider/provider.dart';
 import 'package:repertory/helpers.dart';
+import 'package:repertory/models/auth.dart';
 import 'package:repertory/widgets/ui_settings.dart';
 
 class EditSettingsScreen extends StatefulWidget {
@@ -41,8 +43,9 @@ class _EditSettingsScreenState extends State<EditSettingsScreen> {
 
   Future<Map<String, dynamic>> _grabSettings() async {
     try {
+      final auth = await Provider.of<Auth>(context, listen: false).createAuth();
       final response = await http.get(
-        Uri.parse('${getBaseUri()}/api/v1/settings'),
+        Uri.parse('${getBaseUri()}/api/v1/settings?auth=$auth'),
       );
 
       if (response.statusCode != 200) {

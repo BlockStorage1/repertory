@@ -246,8 +246,8 @@ bool validateSettings(
 
 Future<Map<String, dynamic>> convertAllToString(
   Map<String, dynamic> settings,
+  SecureKey key,
 ) async {
-  String? password;
   Future<Map<String, dynamic>> convert(Map<String, dynamic> settings) async {
     for (var entry in settings.entries) {
       if (entry.value is Map<String, dynamic>) {
@@ -262,14 +262,7 @@ Future<Map<String, dynamic>> convertAllToString(
           continue;
         }
 
-        if (password == null) {
-          password = await promptPassword();
-          if (password == null) {
-            throw NullPasswordException();
-          }
-        }
-
-        settings[entry.key] = encryptValue(entry.value, password!);
+        settings[entry.key] = encryptValue(entry.value, key);
         continue;
       }
 
@@ -286,7 +279,7 @@ Future<Map<String, dynamic>> convertAllToString(
   return convert(settings);
 }
 
-String encryptValue(String value, String password) {
+String encryptValue(String value, SecureKey key) {
   if (value.isEmpty) {
     return value;
   }
@@ -296,17 +289,12 @@ String encryptValue(String value, String password) {
     return value;
   }
 
-  final keyHash = sodium.crypto.genericHash(
-    outLen: sodium.crypto.aeadXChaCha20Poly1305IETF.keyBytes,
-    message: Uint8List.fromList(password.toCharArray()),
-  );
-
   final crypto = sodium.crypto.aeadXChaCha20Poly1305IETF;
 
   final nonce = sodium.secureRandom(crypto.nonceBytes).extractBytes();
   final data = crypto.encrypt(
     additionalData: Uint8List.fromList('repertory'.toCharArray()),
-    key: SecureKey.fromList(sodium, keyHash),
+    key: key,
     message: Uint8List.fromList(value.toCharArray()),
     nonce: nonce,
   );

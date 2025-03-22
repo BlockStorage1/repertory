@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:repertory/constants.dart' as constants;
 import 'package:repertory/helpers.dart';
+import 'package:repertory/models/auth.dart';
 import 'package:repertory/models/mount.dart';
 import 'package:repertory/models/mount_list.dart';
 import 'package:repertory/screens/add_mount_screen.dart';
+import 'package:repertory/screens/auth_screen.dart';
 import 'package:repertory/screens/edit_mount_screen.dart';
 import 'package:repertory/screens/edit_settings_screen.dart';
 import 'package:repertory/screens/home_screen.dart';
@@ -17,8 +19,15 @@ void main() async {
     debugPrint('$e');
   }
 
+  final auth = Auth();
   runApp(
-    ChangeNotifierProvider(create: (_) => MountList(), child: const MyApp()),
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => auth),
+        ChangeNotifierProvider(create: (_) => MountList(auth)),
+      ],
+      child: const MyApp(),
+    ),
   );
 }
 
@@ -55,12 +64,18 @@ class _MyAppState extends State<MyApp> {
       title: constants.appTitle,
       initialRoute: '/',
       routes: {
-        '/': (context) => const HomeScreen(title: constants.appTitle),
-        '/add':
-            (context) => const AddMountScreen(title: constants.addMountTitle),
-        '/settings':
+        '/':
             (context) =>
-                const EditSettingsScreen(title: constants.appSettingsTitle),
+                const AuthCheck(child: HomeScreen(title: constants.appTitle)),
+        '/add':
+            (context) => const AuthCheck(
+              child: AddMountScreen(title: constants.addMountTitle),
+            ),
+        '/auth': (context) => const AuthScreen(title: constants.appTitle),
+        '/settings':
+            (context) => const AuthCheck(
+              child: EditSettingsScreen(title: constants.appSettingsTitle),
+            ),
       },
       onGenerateRoute: (settings) {
         if (settings.name != '/edit') {
@@ -70,13 +85,34 @@ class _MyAppState extends State<MyApp> {
         final mount = settings.arguments as Mount;
         return MaterialPageRoute(
           builder: (context) {
-            return EditMountScreen(
-              mount: mount,
-              title:
-                  '${mount.provider} [${formatMountName(mount.type, mount.name)}] Settings',
+            return AuthCheck(
+              child: EditMountScreen(
+                mount: mount,
+                title:
+                    '${mount.provider} [${formatMountName(mount.type, mount.name)}] Settings',
+              ),
             );
           },
         );
+      },
+    );
+  }
+}
+
+class AuthCheck extends StatelessWidget {
+  final Widget child;
+  const AuthCheck({super.key, required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    return Consumer<Auth>(
+      builder: (context, auth, __) {
+        if (!auth.authenticated) {
+          Navigator.of(context).pushReplacementNamed('/auth');
+          return SizedBox.shrink();
+        }
+
+        return child;
       },
     );
   }
