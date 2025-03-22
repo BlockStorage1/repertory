@@ -9,7 +9,7 @@ import 'package:sodium_libs/sodium_libs.dart';
 
 class Auth with ChangeNotifier {
   bool _authenticated = false;
-  SecureKey _key = SecureKey.random(constants.sodium, 128);
+  SecureKey _key = SecureKey.random(constants.sodium, 32);
   String _user = "";
 
   bool get authenticated => _authenticated;
@@ -53,6 +53,7 @@ class Auth with ChangeNotifier {
   void logoff() {
     _authenticated = false;
     _user = "";
+
     notifyListeners();
   }
 }

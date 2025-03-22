@@ -14,7 +14,11 @@ class MountList with ChangeNotifier {
   final Auth _auth;
 
   MountList(this._auth) {
-    _fetch();
+    _auth.addListener(() {
+      if (_auth.authenticated) {
+        _fetch();
+      }
+    });
   }
 
   List<Mount> _mountList = [];
@@ -57,6 +61,7 @@ class MountList with ChangeNotifier {
       );
 
       if (response.statusCode == 401) {
+        displayAuthError();
         _auth.logoff();
         return;
       }

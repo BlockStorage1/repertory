@@ -62,7 +62,7 @@ class _MyAppState extends State<MyApp> {
         snackBarTheme: snackBarTheme,
       ),
       title: constants.appTitle,
-      initialRoute: '/',
+      initialRoute: '/auth',
       routes: {
         '/':
             (context) =>
@@ -108,7 +108,14 @@ class AuthCheck extends StatelessWidget {
     return Consumer<Auth>(
       builder: (context, auth, __) {
         if (!auth.authenticated) {
-          Navigator.of(context).pushReplacementNamed('/auth');
+          Future.delayed(Duration(milliseconds: 1), () {
+            if (constants.navigatorKey.currentContext == null) {
+              return;
+            }
+            Navigator.of(
+              constants.navigatorKey.currentContext!,
+            ).pushNamedAndRemoveUntil('/auth', (Route<dynamic> route) => false);
+          });
           return SizedBox.shrink();
         }
 
