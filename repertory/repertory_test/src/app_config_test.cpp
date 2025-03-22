@@ -128,7 +128,7 @@ std::atomic<std::uint64_t> app_config_test::idx{0U};
 
 static void defaults_tests(const json &json_data, provider_type prov) {
   json json_defaults = {
-      {JSON_API_PORT, app_config::default_rpc_port(prov)},
+      {JSON_API_PORT, app_config::default_rpc_port()},
       {JSON_API_USER, std::string{REPERTORY}},
       {JSON_DOWNLOAD_TIMEOUT_SECS, default_download_timeout_secs},
       {JSON_DATABASE_TYPE, database_type::rocksdb},

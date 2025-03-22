@@ -505,6 +505,9 @@ void handlers::handle_post_mount(const httplib::Request &req,
       return;
     }
 
+    static std::mutex mount_mtx;
+    mutex_lock lock(mount_mtx);
+
     launch_process(prov, name, {location}, true);
     config_->set_mount_location(prov, name, location);
   }

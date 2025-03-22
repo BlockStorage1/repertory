@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:math';
 
 import 'package:collection/collection.dart';
 import 'package:flutter/foundation.dart';
@@ -111,9 +112,18 @@ class MountList with ChangeNotifier {
   Future<bool> add(
     String type,
     String name,
-    Map<String, dynamic> mountConfig,
+    Map<String, dynamic> settings,
   ) async {
     var ret = false;
+
+    var apiPort = settings['ApiPort'] ?? 10000;
+    for (var mount in _mountList) {
+      var port = mount.mountConfig.settings['ApiPort'] as int?;
+      if (port != null) {
+        apiPort = max(apiPort, port + 1);
+      }
+    }
+    settings["ApiPort"] = apiPort;
 
     displayError() {
       if (constants.navigatorKey.currentContext == null) {
@@ -129,7 +139,7 @@ class MountList with ChangeNotifier {
     try {
       final auth = await _auth.createAuth();
       final map = await convertAllToString(
-        jsonDecode(jsonEncode(mountConfig)),
+        jsonDecode(jsonEncode(settings)),
         _auth.key,
       );
       final response = await http.post(

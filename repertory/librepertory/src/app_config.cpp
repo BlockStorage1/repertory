@@ -67,7 +67,7 @@ app_config::app_config(const provider_type &prov,
                        std::string_view data_directory)
     : prov_(prov),
       api_password_(utils::generate_random_string(default_api_password_size)),
-      api_port_(default_rpc_port(prov)),
+      api_port_(default_rpc_port()),
       api_user_(std::string{REPERTORY}),
       config_changed_(false),
       download_timeout_secs_(default_download_timeout_secs),
@@ -743,17 +743,7 @@ auto app_config::default_remote_api_port(const provider_type &prov)
   return PROVIDER_REMOTE_PORTS.at(static_cast<std::size_t>(prov));
 }
 
-auto app_config::default_rpc_port(const provider_type &prov) -> std::uint16_t {
-  static const std::array<std::uint16_t,
-                          static_cast<std::size_t>(provider_type::unknown)>
-      PROVIDER_RPC_PORTS = {
-          10000U,
-          10010U,
-          10100U,
-          10002U,
-      };
-  return PROVIDER_RPC_PORTS.at(static_cast<std::size_t>(prov));
-}
+auto app_config::default_rpc_port() -> std::uint16_t { return 10000U; }
 
 auto app_config::get_api_password() const -> std::string {
   return api_password_;

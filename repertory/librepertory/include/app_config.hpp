@@ -43,8 +43,7 @@ public:
   [[nodiscard]] static auto default_remote_api_port(const provider_type &prov)
       -> std::uint16_t;
 
-  [[nodiscard]] static auto default_rpc_port(const provider_type &prov)
-      -> std::uint16_t;
+  [[nodiscard]] static auto default_rpc_port() -> std::uint16_t;
 
   [[nodiscard]] static auto get_provider_display_name(const provider_type &prov)
       -> std::string;
