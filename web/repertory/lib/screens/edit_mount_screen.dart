@@ -1,6 +1,9 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:repertory/constants.dart' as constants;
+import 'package:repertory/models/auth.dart';
 import 'package:repertory/models/mount.dart';
 import 'package:repertory/widgets/mount_settings.dart';
 
@@ -25,10 +28,25 @@ class _EditMountScreenState extends State<EditMountScreen> {
         actions: [
           Row(
             children: [
-              const Text("Advanced"),
-              IconButton(
-                icon: Icon(_showAdvanced ? Icons.toggle_on : Icons.toggle_off),
-                onPressed: () => setState(() => _showAdvanced = !_showAdvanced),
+              Row(
+                children: [
+                  const Text("Advanced"),
+                  IconButton(
+                    icon: Icon(
+                      _showAdvanced ? Icons.toggle_on : Icons.toggle_off,
+                    ),
+                    onPressed:
+                        () => setState(() => _showAdvanced = !_showAdvanced),
+                  ),
+                ],
+              ),
+              Consumer<Auth>(
+                builder: (context, auth, _) {
+                  return IconButton(
+                    icon: const Icon(Icons.logout),
+                    onPressed: () => auth.logoff(),
+                  );
+                },
               ),
             ],
           ),

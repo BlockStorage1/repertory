@@ -39,10 +39,25 @@ class _AddMountScreenState extends State<AddMountScreen> {
         actions: [
           Row(
             children: [
-              const Text("Advanced"),
-              IconButton(
-                icon: Icon(_showAdvanced ? Icons.toggle_on : Icons.toggle_off),
-                onPressed: () => setState(() => _showAdvanced = !_showAdvanced),
+              Row(
+                children: [
+                  const Text("Advanced"),
+                  IconButton(
+                    icon: Icon(
+                      _showAdvanced ? Icons.toggle_on : Icons.toggle_off,
+                    ),
+                    onPressed:
+                        () => setState(() => _showAdvanced = !_showAdvanced),
+                  ),
+                ],
+              ),
+              Consumer<Auth>(
+                builder: (context, auth, _) {
+                  return IconButton(
+                    icon: const Icon(Icons.logout),
+                    onPressed: () => auth.logoff(),
+                  );
+                },
               ),
             ],
           ),

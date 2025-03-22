@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:repertory/constants.dart' as constants;
+import 'package:repertory/models/auth.dart';
 import 'package:repertory/widgets/mount_list_widget.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -21,6 +23,16 @@ class _HomeScreeState extends State<HomeScreen> {
           icon: const Icon(Icons.storage),
         ),
         title: Text(widget.title),
+        actions: [
+          Consumer<Auth>(
+            builder: (context, auth, _) {
+              return IconButton(
+                icon: const Icon(Icons.logout),
+                onPressed: () => auth.logoff(),
+              );
+            },
+          ),
+        ],
       ),
       body: Padding(
         padding: const EdgeInsets.all(constants.padding),

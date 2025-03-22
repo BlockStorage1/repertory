@@ -22,6 +22,16 @@ class _EditSettingsScreenState extends State<EditSettingsScreen> {
       appBar: AppBar(
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
         title: Text(widget.title),
+        actions: [
+          Consumer<Auth>(
+            builder: (context, auth, _) {
+              return IconButton(
+                icon: const Icon(Icons.logout),
+                onPressed: () => auth.logoff(),
+              );
+            },
+          ),
+        ],
       ),
       body: FutureBuilder(
         builder: (context, snapshot) {
