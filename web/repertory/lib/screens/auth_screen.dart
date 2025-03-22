@@ -26,7 +26,15 @@ class _AuthScreenState extends State<AuthScreen> {
       body: Consumer<Auth>(
         builder: (context, auth, _) {
           if (auth.authenticated) {
-            Navigator.of(context).pushReplacementNamed('/');
+            Future.delayed(Duration(milliseconds: 1), () {
+              if (constants.navigatorKey.currentContext == null) {
+                return;
+              }
+
+              Navigator.of(
+                constants.navigatorKey.currentContext!,
+              ).pushNamedAndRemoveUntil('/', (Route<dynamic> route) => false);
+            });
             return SizedBox.shrink();
           }
 
