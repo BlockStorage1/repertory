@@ -572,7 +572,6 @@ auto handlers::launch_process(provider_type prov, std::string_view name,
     std::vector<const char *> exec_args;
     exec_args.reserve(args.size() + 1U);
     for (const auto &arg : args) {
-      fmt::println("{}", arg);
       exec_args.push_back(arg.c_str());
     }
     exec_args.push_back(nullptr);
