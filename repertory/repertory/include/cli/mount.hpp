@@ -98,7 +98,7 @@ mount(std::vector<const char *> args, std::string data_directory,
 #endif // defined(_WIN32)
 
   lock_data global_lock(provider_type::unknown, "global");
-  lock_result = global_lock.grab_lock();
+  lock_result = global_lock.grab_lock(100U);
   if (lock_result != lock_result::success) {
     std::cerr << "FATAL: Unable to get global lock" << std::endl;
     return exit_code::lock_failed;
@@ -112,6 +112,7 @@ mount(std::vector<const char *> args, std::string data_directory,
       std::cerr << "FATAL: Unable to get available port" << std::endl;
       return exit_code::startup_exception;
     }
+    fmt::println("port|{}", port);
     config.set_api_port(port);
   }
 
@@ -168,6 +169,7 @@ mount(std::vector<const char *> args, std::string data_directory,
         std::cerr << "failed to set mount state" << std::endl;
       }
 
+      global_lock.release();
       mount_result = drive.mount(drive_args);
       return exit_code::mount_result;
     } catch (const std::exception &e) {
@@ -188,6 +190,8 @@ mount(std::vector<const char *> args, std::string data_directory,
     if (not lock.set_mount_state(true, "", -1)) {
       std::cerr << "failed to set mount state" << std::endl;
     }
+
+    global_lock.release();
     mount_result = drive.mount(drive_args);
     return exit_code::mount_result;
   } catch (const std::exception &e) {

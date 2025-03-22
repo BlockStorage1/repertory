@@ -109,6 +109,8 @@ handlers::handlers(mgmt_app_config *config, httplib::Server *server)
       server_(server) {
   REPERTORY_USES_FUNCTION_NAME();
 
+  server->set_socket_options([](auto && /* sock */) {});
+
   server_->set_pre_routing_handler(
       [this](const httplib::Request &req,
              auto &&res) -> httplib::Server::HandlerResponse {

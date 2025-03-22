@@ -143,8 +143,11 @@ void server::start() {
 
   initialize(*server_);
 
-  server_thread_ = std::make_unique<std::thread>(
-      [this]() { server_->listen("127.0.0.1", config_.get_api_port()); });
+  fmt::println("port|{}", config_.get_api_port());
+  server_thread_ = std::make_unique<std::thread>([this]() {
+    server_->set_socket_options([](auto && /* sock */) {});
+    server_->listen("127.0.0.1", config_.get_api_port());
+  });
   event_system::instance().raise<service_start_end>(function_name, "server");
 }
 
