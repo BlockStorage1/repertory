@@ -28,6 +28,7 @@
 #include "providers/provider.hpp"
 #include "types/repertory.hpp"
 #include "utils/cli_utils.hpp"
+#include "utils/file.hpp"
 #include "utils/com_init_wrapper.hpp"
 
 #if defined(_WIN32)
@@ -65,6 +66,28 @@ mount(std::vector<const char *> args, std::string data_directory,
 
   if (res != lock_result::success) {
     return exit_code::lock_failed;
+  }
+
+  if (utils::cli::has_option(
+      args, utils::cli::options::generate_config_option)) {
+    app_config config(prov, data_directory);
+    if (prov == provider_type::remote) {
+      auto remote_config = config.get_remote_config();
+      remote_config.host_name_or_ip = remote_host;
+      remote_config.api_port = remote_port;
+      config.set_remote_config(remote_config);
+    } else if (prov == provider_type::sia &&
+               config.get_sia_config().bucket.empty()) {
+      [[maybe_unused]] auto bucket =
+          config.set_value_by_name("SiaConfig.Bucket", unique_id);
+    }
+
+    std::cout << "Generated " << app_config::get_provider_display_name(prov)
+              << " Configuration" << std::endl;
+    std::cout << config.get_config_file_path() << std::endl;
+    return utils::file::file(config.get_config_file_path()).exists()
+              ? exit_code::success
+              : exit_code::file_creation_failed;
   }
 
 #if defined(_WIN32)
