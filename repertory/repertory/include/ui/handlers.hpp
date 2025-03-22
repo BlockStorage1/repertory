@@ -23,7 +23,6 @@
 #define REPERTORY_INCLUDE_UI_HANDLERS_HPP_
 
 #include "events/consumers/console_consumer.hpp"
-#include <unordered_map>
 
 namespace repertory::ui {
 class mgmt_app_config;
@@ -74,7 +73,8 @@ private:
   void handle_put_settings(auto &&req, auto &&res) const;
 
   auto launch_process(provider_type prov, std::string_view name,
-                      std::string_view args, bool background = false) const
+                      std::vector<std::string> args,
+                      bool background = false) const
       -> std::vector<std::string>;
 
   void set_key_value(provider_type prov, std::string_view name,

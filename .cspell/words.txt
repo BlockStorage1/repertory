@@ -3,6 +3,7 @@ _mkgmtime
 _sh_denyno
 _sh_denyrd
 _sh_denyrw
+_spawnv
 aarch64
 advapi32
 armv8
@@ -121,6 +122,7 @@ icui18n
 icuuc
 iostreams
 iphlpapi
+ipstream
 jthread
 libbitcoin
 libbitcoinsystem
@@ -165,6 +167,7 @@ nuspell_version
 oleaut32
 openal_version
 openssldir
+pistream
 pkgconfig
 plarge_integer
 plex

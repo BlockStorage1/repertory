@@ -35,6 +35,8 @@
 #include "utils/path.hpp"
 #include "utils/string.hpp"
 
+#include <boost/process.hpp>
+
 namespace {
 [[nodiscard]] auto decrypt(std::string_view data, std::string_view password)
     -> std::string {
@@ -92,11 +94,6 @@ namespace {
   }
 
   return std::string{value};
-}
-
-[[nodiscard]] constexpr auto is_restricted(std::string_view data) -> bool {
-  constexpr std::string_view invalid_chars = "&;|><$()`{}!*?";
-  return data.find_first_of(invalid_chars) != std::string_view::npos;
 }
 } // namespace
 
@@ -267,7 +264,7 @@ void handlers::handle_get_mount(auto &&req, auto &&res) const {
     return;
   }
 
-  auto lines = launch_process(prov, name, "-dc");
+  auto lines = launch_process(prov, name, {"-dc"});
 
   if (lines.at(0U) != "0") {
     throw utils::error::create_exception(function_name, {
@@ -348,7 +345,8 @@ void handlers::handle_get_mount_status(auto &&req, auto &&res) const {
   switch (prov) {
   case provider_type::remote: {
     auto parts = utils::string::split(name, '_', false);
-    status_name = fmt::format("{}{}:{}", status_name, parts[0U], parts[1U]);
+    status_name =
+        fmt::format("{}{}:{}", status_name, parts.at(0U), parts.at(1U));
   } break;
 
   case provider_type::encrypt:
@@ -366,7 +364,7 @@ void handlers::handle_get_mount_status(auto &&req, auto &&res) const {
                                          });
   }
 
-  auto lines = launch_process(prov, name, "-status");
+  auto lines = launch_process(prov, name, {"-status"});
 
   nlohmann::json result(
       nlohmann::json::parse(utils::string::join(lines, '\n')).at(status_name));
@@ -425,7 +423,7 @@ void handlers::handle_post_add_mount(auto &&req, auto &&res) const {
     values[key] = decrypted;
   }
 
-  launch_process(prov, name, "-gc");
+  launch_process(prov, name, {"-gc"});
   for (auto &[key, value] : values) {
     set_key_value(prov, name, key, value);
   }
@@ -446,7 +444,7 @@ void handlers::handle_post_mount(auto &&req, auto &&res) const {
   auto unmount = utils::string::to_bool(req.get_param_value("unmount"));
 
   if (unmount) {
-    launch_process(prov, name, "-unmount");
+    launch_process(prov, name, {"-unmount"});
   } else {
 #if defined(_WIN32)
     if (utils::file::directory{location}.exists()) {
@@ -457,7 +455,7 @@ void handlers::handle_post_mount(auto &&req, auto &&res) const {
       return;
     }
 
-    launch_process(prov, name, fmt::format(R"("{}")", location), true);
+    launch_process(prov, name, {location}, true);
     config_->set_mount_location(prov, name, location);
   }
 
@@ -466,7 +464,6 @@ void handlers::handle_post_mount(auto &&req, auto &&res) const {
 
 void handlers::handle_put_set_value_by_name(auto &&req, auto &&res) const {
   auto name = req.get_param_value("name");
-
   auto prov = provider_type_from_string(req.get_param_value("type"));
 
   if (not data_directory_exists(prov, name)) {
@@ -510,34 +507,34 @@ void handlers::handle_put_settings(auto &&req, auto &&res) const {
 }
 
 auto handlers::launch_process(provider_type prov, std::string_view name,
-                              std::string_view args, bool background) const
+                              std::vector<std::string> args,
+                              bool background) const
     -> std::vector<std::string> {
   REPERTORY_USES_FUNCTION_NAME();
 
-  if (is_restricted(name) || is_restricted(args)) {
-    throw utils::error::create_exception(function_name,
-                                         {
-                                             "invalid data detected",
-                                         });
-  }
-
-  std::string str_type;
   switch (prov) {
   case provider_type::encrypt:
-    str_type = fmt::format("-en -na {}", name);
+    args.insert(args.begin(), "-en");
+    args.insert(std::next(args.begin()), "-na");
+    args.insert(std::next(args.begin(), 2U), std::string{name});
     break;
 
   case provider_type::remote: {
     auto parts = utils::string::split(name, '_', false);
-    str_type = fmt::format("-rm {}:{}", parts[0U], parts[1U]);
+    args.insert(args.begin(), "-rm");
+    args.insert(std::next(args.begin()),
+                fmt::format("{}:{}", parts.at(0U), parts.at(1U)));
   } break;
 
   case provider_type::s3:
-    str_type = fmt::format("-s3 -na {}", name);
+    args.insert(args.begin(), "-s3");
+    args.insert(std::next(args.begin()), "-na");
+    args.insert(std::next(args.begin(), 2U), std::string{name});
     break;
 
   case provider_type::sia:
-    str_type = fmt::format("-na {}", name);
+    args.insert(args.begin(), "-na");
+    args.insert(std::next(args.begin()), std::string{name});
     break;
 
   default:
@@ -549,8 +546,6 @@ auto handlers::launch_process(provider_type prov, std::string_view name,
                                          });
   }
 
-  auto cmd_line = fmt::format(R"({} {} {})", repertory_binary_, str_type, args);
-
   unique_mutex_lock lock(mtx_);
   auto &inst_mtx = mtx_lookup_[fmt::format(
       "{}-{}", name, app_config::get_provider_name(prov))];
@@ -559,33 +554,53 @@ auto handlers::launch_process(provider_type prov, std::string_view name,
   recur_mutex_lock inst_lock(inst_mtx);
   if (background) {
 #if defined(_WIN32)
-    system(fmt::format(R"(start "" /MIN {})", cmd_line).c_str());
+    std::array<char, MAX_PATH + 1U> path{};
+    ::GetSystemDirectoryA(path.data(), path.size());
+
+    args.insert(args.begin(), utils::path::combine(path.data(), {"cmd.exe"}));
+    args.insert(std::next(args.begin()), "/c");
+    args.insert(std::next(args.begin(), 2U), "start");
+    args.insert(std::next(args.begin(), 3U), "");
+    args.insert(std::next(args.begin(), 4U), "/MIN");
+    args.insert(std::next(args.begin(), 5U), repertory_binary_);
 #elif defined(__linux__) // defined(__linux__)
-    system(fmt::format("nohup {} 1>/dev/null 2>&1", cmd_line).c_str());
+    args.insert(args.begin(), "nohup");
+    args.insert(std::next(args.begin()), repertory_binary_);
+    args.emplace_back("1>/dev/null");
+    args.emplace_back("2>&1");
+    args.emplace_back("&");
+#else                    // !defined(__linux__) && !defined(_WIN32)
+    build fails here
+#endif                   // defined(_WIN32)
+
+    std::vector<const char *> exec_args;
+    exec_args.reserve(args.size() + 1U);
+    for (const auto &arg : args) {
+      fmt::println("{}", arg);
+      exec_args.push_back(arg.c_str());
+    }
+    exec_args.push_back(nullptr);
+
+#if defined(_WIN32)
+    _spawnv(_P_DETACH, exec_args.at(0U),
+            const_cast<char *const *>(exec_args.data()));
+#elif defined(__linux__) // defined(__linux__)
+    execvp(exec_args.at(0U), const_cast<char *const *>(exec_args.data()));
 #else                    // !defined(__linux__) && !defined(_WIN32)
     build fails here
 #endif                   // defined(_WIN32)
     return {};
   }
 
-  auto *pipe = popen(cmd_line.c_str(), "r");
-  if (pipe == nullptr) {
-    throw utils::error::create_exception(function_name,
-                                         {
-                                             "failed to execute command",
-                                             provider_type_to_string(prov),
-                                             name,
-                                         });
-  }
+  boost::process::ipstream out;
+  boost::process::child proc(repertory_binary_, boost::process::args(args),
+                             boost::process::std_out > out);
 
   std::string data;
-  std::array<char, 1024U> buffer{};
-  while (std::feof(pipe) == 0) {
-    while (std::fgets(buffer.data(), buffer.size(), pipe) != nullptr) {
-      data += buffer.data();
-    }
+  std::string line;
+  while (out && std::getline(out, line)) {
+    data += line + "\n";
   }
-  pclose(pipe);
 
   return utils::string::split(utils::string::replace(data, "\r", ""), '\n',
                               false);
@@ -594,10 +609,10 @@ auto handlers::launch_process(provider_type prov, std::string_view name,
 void handlers::set_key_value(provider_type prov, std::string_view name,
                              std::string_view key,
                              std::string_view value) const {
-#if defined(_WIN32)
-  launch_process(prov, name, fmt::format(R"(-set {} "{}")", key, value));
-#else  // !defined(_WIN32)
-  launch_process(prov, name, fmt::format("-set {} '{}'", key, value));
-#endif // defined(_WIN32)
+  std::vector<std::string> args;
+  args.emplace_back("-set");
+  args.emplace_back(key);
+  args.emplace_back(value);
+  launch_process(prov, name, args, false);
 }
 } // namespace repertory::ui
