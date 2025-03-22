@@ -564,11 +564,7 @@ auto handlers::launch_process(provider_type prov, std::string_view name,
     args.insert(std::next(args.begin(), 4U), "/MIN");
     args.insert(std::next(args.begin(), 5U), repertory_binary_);
 #elif defined(__linux__) // defined(__linux__)
-    args.insert(args.begin(), "nohup");
-    args.insert(std::next(args.begin()), repertory_binary_);
-    args.emplace_back("1>/dev/null");
-    args.emplace_back("2>&1");
-    args.emplace_back("&");
+    args.insert(args.begin(), repertory_binary_);
 #else                    // !defined(__linux__) && !defined(_WIN32)
     build fails here
 #endif                   // defined(_WIN32)
@@ -585,6 +581,25 @@ auto handlers::launch_process(provider_type prov, std::string_view name,
     _spawnv(_P_DETACH, exec_args.at(0U),
             const_cast<char *const *>(exec_args.data()));
 #elif defined(__linux__) // defined(__linux__)
+    auto pid = fork();
+    if (pid < 0) {
+      throw utils::error::create_exception(function_name, {"mount failed"});
+    }
+
+    if (pid != 0) {
+      return {};
+    }
+
+    setsid();
+    chdir("/");
+    close(STDIN_FILENO);
+    close(STDOUT_FILENO);
+    close(STDERR_FILENO);
+    open("/dev/null", O_RDONLY);
+    open("/dev/null", O_WRONLY);
+    open("/dev/null", O_WRONLY);
+
+    signal(SIGCHLD, SIG_IGN);
     execvp(exec_args.at(0U), const_cast<char *const *>(exec_args.data()));
 #else                    // !defined(__linux__) && !defined(_WIN32)
     build fails here
