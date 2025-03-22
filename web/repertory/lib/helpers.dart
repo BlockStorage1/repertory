@@ -285,10 +285,6 @@ String encryptValue(String value, SecureKey key) {
   }
 
   final sodium = constants.sodium;
-  if (sodium == null) {
-    return value;
-  }
-
   final crypto = sodium.crypto.aeadXChaCha20Poly1305IETF;
 
   final nonce = sodium.secureRandom(crypto.nonceBytes).extractBytes();
@@ -300,45 +296,6 @@ String encryptValue(String value, SecureKey key) {
   );
 
   return hex.encode(nonce + data);
-}
-
-Future<String?> promptPassword() async {
-  if (constants.navigatorKey.currentContext == null) {
-    return null;
-  }
-
-  String password = '';
-  return await showDialog(
-    context: constants.navigatorKey.currentContext!,
-    builder: (context) {
-      return AlertDialog(
-        actions: [
-          TextButton(
-            child: const Text('Cancel'),
-            onPressed: () => Navigator.of(context).pop(null),
-          ),
-          TextButton(
-            child: const Text('OK'),
-            onPressed: () {
-              if (password.isEmpty) {
-                return displayErrorMessage(context, "Password is not valid");
-              }
-
-              Navigator.of(context).pop(password);
-            },
-          ),
-        ],
-        content: TextField(
-          autofocus: true,
-          controller: TextEditingController(text: password),
-          obscureText: true,
-          obscuringCharacter: '*',
-          onChanged: (value) => password = value,
-        ),
-        title: const Text('Enter Repertory Portal Password'),
-      );
-    },
-  );
 }
 
 Map<String, dynamic> getChanged(

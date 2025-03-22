@@ -9,17 +9,14 @@ import 'package:sodium_libs/sodium_libs.dart';
 
 class Auth with ChangeNotifier {
   bool _authenticated = false;
-  SecureKey? _key;
+  SecureKey _key = SecureKey.random(constants.sodium, 128);
   String _user = "";
 
   bool get authenticated => _authenticated;
-  SecureKey get key => _key!;
+  SecureKey get key => _key;
 
   Future<void> authenticate(String user, String password) async {
     final sodium = constants.sodium;
-    if (sodium == null) {
-      return;
-    }
 
     final keyHash = sodium.crypto.genericHash(
       outLen: sodium.crypto.aeadXChaCha20Poly1305IETF.keyBytes,
@@ -40,16 +37,22 @@ class Auth with ChangeNotifier {
       );
 
       if (response.statusCode != 200) {
+        logoff();
         return "";
       }
 
       final nonce = jsonDecode(response.body)["nonce"];
-      debugPrint('nonce: $nonce');
       return encryptValue('${_user}_$nonce', key);
     } catch (e) {
       debugPrint('$e');
     }
 
     return "";
+  }
+
+  void logoff() {
+    _authenticated = false;
+    _user = "";
+    notifyListeners();
   }
 }

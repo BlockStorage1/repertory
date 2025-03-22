@@ -43,10 +43,16 @@ class _EditSettingsScreenState extends State<EditSettingsScreen> {
 
   Future<Map<String, dynamic>> _grabSettings() async {
     try {
-      final auth = await Provider.of<Auth>(context, listen: false).createAuth();
+      final authProvider = Provider.of<Auth>(context, listen: false);
+      final auth = await authProvider.createAuth();
       final response = await http.get(
         Uri.parse('${getBaseUri()}/api/v1/settings?auth=$auth'),
       );
+
+      if (response.statusCode == 401) {
+        authProvider.logoff();
+        return {};
+      }
 
       if (response.statusCode != 200) {
         return {};

@@ -15,9 +15,8 @@ const ringBufferSizeList = ['128', '256', '512', '1024', '2048'];
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
 Sodium? _sodium;
-
 void setSodium(Sodium sodium) {
   _sodium = sodium;
 }
 
-Sodium? get sodium => _sodium;
+Sodium get sodium => _sodium!;

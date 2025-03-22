@@ -68,9 +68,10 @@ namespace {
                                                     {"decryption failed"});
   }
 
-  return std::string(
+  return {
       buffer.begin(),
-      std::next(buffer.begin(), static_cast<std::int64_t>(size)));
+      std::next(buffer.begin(), static_cast<std::int64_t>(size)),
+  };
 }
 
 [[nodiscard]] auto decrypt_value(const repertory::ui::mgmt_app_config *config,

@@ -56,6 +56,11 @@ class MountList with ChangeNotifier {
         Uri.parse('${getBaseUri()}/api/v1/mount_list?auth=$auth'),
       );
 
+      if (response.statusCode == 401) {
+        _auth.logoff();
+        return;
+      }
+
       if (response.statusCode == 404) {
         reset();
         return;
@@ -133,11 +138,12 @@ class MountList with ChangeNotifier {
         case 200:
           ret = true;
           break;
+        case 401:
+          displayAuthError();
+          _auth.logoff();
+          break;
         case 404:
           reset();
-          break;
-        case 500:
-          displayAuthError();
           break;
         default:
           displayError();

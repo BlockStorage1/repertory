@@ -117,17 +117,18 @@ class _UISettingsWidgetState extends State<UISettingsWidget> {
                   ),
                 ),
               );
-              if (response.statusCode == 500) {
+
+              if (response.statusCode == 401) {
                 displayAuthError();
+                authProvider.logoff();
+                return;
               }
             } catch (e) {
               debugPrint('$e');
-              displayAuthError();
             }
           })
           .catchError((e) {
             debugPrint('$e');
-            displayAuthError();
           });
     }
 

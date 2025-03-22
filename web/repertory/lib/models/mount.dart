@@ -40,6 +40,11 @@ class Mount with ChangeNotifier {
         ),
       );
 
+      if (response.statusCode == 401) {
+        _auth.logoff();
+        return;
+      }
+
       if (response.statusCode == 404) {
         _mountList?.reset();
         return;
@@ -71,6 +76,11 @@ class Mount with ChangeNotifier {
         ),
       );
 
+      if (response.statusCode == 401) {
+        _auth.logoff();
+        return;
+      }
+
       if (response.statusCode == 404) {
         _mountList?.reset();
         return;
@@ -101,6 +111,11 @@ class Mount with ChangeNotifier {
           ),
         ),
       );
+
+      if (response.statusCode == 401) {
+        _auth.logoff();
+        return null;
+      }
 
       if (response.statusCode != 200) {
         return null;
@@ -135,6 +150,12 @@ class Mount with ChangeNotifier {
           ),
         ),
       );
+
+      if (response.statusCode == 401) {
+        displayAuthError();
+        _auth.logoff();
+        return false;
+      }
 
       if (response.statusCode == 404) {
         _isMounting = false;
@@ -184,13 +205,13 @@ class Mount with ChangeNotifier {
         ),
       );
 
-      if (response.statusCode == 404) {
-        _mountList?.reset();
+      if (response.statusCode == 401) {
+        _auth.logoff();
         return;
       }
 
-      if (response.statusCode == 500) {
-        displayAuthError();
+      if (response.statusCode == 404) {
+        _mountList?.reset();
         return;
       }
 
