@@ -65,6 +65,7 @@ mount(std::vector<const char *> args, std::string data_directory,
   }
 
   if (lock_result != lock_result::success) {
+    std::cerr << "FATAL: Unable to get provider lock" << std::endl;
     return exit_code::lock_failed;
   }
 
@@ -102,6 +103,7 @@ mount(std::vector<const char *> args, std::string data_directory,
     lock_data global_lock(provider_type::unknown, "global");
     lock_result = global_lock.grab_lock();
     if (lock_result != lock_result::success) {
+      std::cerr << "FATAL: Unable to get global lock" << std::endl;
       return exit_code::lock_failed;
     }
 
