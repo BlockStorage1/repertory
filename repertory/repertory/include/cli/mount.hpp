@@ -107,7 +107,6 @@ mount(std::vector<const char *> args, std::string data_directory,
   auto drive_args = utils::cli::parse_drive_options(args, prov, data_directory);
   app_config config(prov, data_directory);
   {
-
     std::uint16_t port{};
     if (not utils::get_next_available_port(config.get_api_port(), port)) {
       std::cerr << "FATAL: Unable to get available port" << std::endl;
