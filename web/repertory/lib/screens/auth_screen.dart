@@ -35,7 +35,7 @@ class _AuthScreenState extends State<AuthScreen> {
               child: Padding(
                 padding: const EdgeInsets.all(constants.padding),
                 child: SizedBox(
-                  width: 400,
+                  width: 300,
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     mainAxisAlignment: MainAxisAlignment.start,
@@ -48,6 +48,7 @@ class _AuthScreenState extends State<AuthScreen> {
                       ),
                       const SizedBox(height: constants.padding),
                       TextField(
+                        autofocus: true,
                         decoration: InputDecoration(labelText: 'Username'),
                         controller: _userController,
                       ),
