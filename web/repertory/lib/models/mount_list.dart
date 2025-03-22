@@ -14,6 +14,7 @@ class MountList with ChangeNotifier {
   final Auth _auth;
 
   MountList(this._auth) {
+    _auth.mountList = this;
     _auth.addListener(() {
       if (_auth.authenticated) {
         _fetch();
@@ -166,6 +167,11 @@ class MountList with ChangeNotifier {
     return ret;
   }
 
+  void clear() {
+    _mountList = [];
+    notifyListeners();
+  }
+
   Future<void> reset() async {
     if (constants.navigatorKey.currentContext == null ||
         ModalRoute.of(constants.navigatorKey.currentContext!)?.settings.name !=
@@ -178,8 +184,7 @@ class MountList with ChangeNotifier {
       'Mount removed externally. Reloading...',
     );
 
-    _mountList = [];
-    notifyListeners();
+    clear();
 
     return _fetch();
   }

@@ -5,12 +5,14 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:repertory/constants.dart' as constants;
 import 'package:repertory/helpers.dart';
+import 'package:repertory/models/mount_list.dart';
 import 'package:sodium_libs/sodium_libs.dart';
 
 class Auth with ChangeNotifier {
   bool _authenticated = false;
   SecureKey _key = SecureKey.random(constants.sodium, 32);
   String _user = "";
+  MountList? mountList;
 
   bool get authenticated => _authenticated;
   SecureKey get key => _key;
@@ -53,6 +55,7 @@ class Auth with ChangeNotifier {
   void logoff() {
     _authenticated = false;
     _user = "";
+    mountList?.clear();
 
     notifyListeners();
   }
