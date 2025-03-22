@@ -92,8 +92,7 @@ private:
   void handle_post_add_mount(const httplib::Request &req,
                              httplib::Response &res) const;
 
-  void handle_post_mount(const httplib::Request &req,
-                         httplib::Response &res) const;
+  void handle_post_mount(const httplib::Request &req, httplib::Response &res);
 
   void handle_put_set_value_by_name(const httplib::Request &req,
                                     httplib::Response &res) const;

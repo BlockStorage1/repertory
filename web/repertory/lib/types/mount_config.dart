@@ -4,7 +4,7 @@ import 'package:repertory/helpers.dart' show initialCaps;
 class MountConfig {
   bool? mounted;
   final String _name;
-  String _path = '';
+  String path = '';
   Map<String, dynamic> _settings = {};
   final String _type;
   MountConfig({required name, required type, Map<String, dynamic>? settings})
@@ -17,7 +17,6 @@ class MountConfig {
 
   String? get bucket => _settings['${provider}Config']?["Bucket"] as String;
   String get name => _name;
-  String get path => _path;
   String get provider => initialCaps(_type);
   UnmodifiableMapView<String, dynamic> get settings =>
       UnmodifiableMapView<String, dynamic>(_settings);
@@ -28,7 +27,7 @@ class MountConfig {
   }
 
   void updateStatus(Map<String, dynamic> status) {
-    _path = status['Location'] as String;
+    path = status['Location'] as String;
     mounted = status['Active'] as bool;
   }
 }

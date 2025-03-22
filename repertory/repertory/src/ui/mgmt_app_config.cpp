@@ -181,10 +181,6 @@ void mgmt_app_config::set_mount_location(provider_type prov,
     return;
   }
 
-  if (location.empty()) {
-    return;
-  }
-
   recur_mutex_lock lock(mtx_);
   if (locations_[prov][std::string{name}] == std::string{location}) {
     return;

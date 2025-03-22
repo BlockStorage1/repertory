@@ -480,7 +480,7 @@ void handlers::handle_post_add_mount(const httplib::Request &req,
 }
 
 void handlers::handle_post_mount(const httplib::Request &req,
-                                 httplib::Response &res) const {
+                                 httplib::Response &res) {
   auto name = req.get_param_value("name");
   auto prov = provider_type_from_string(req.get_param_value("type"));
 
@@ -500,6 +500,7 @@ void handlers::handle_post_mount(const httplib::Request &req,
 #else  // !defined(_WIN32)
     if (not utils::file::directory{location}.exists()) {
 #endif // defined(_WIN32)
+      config_->set_mount_location(prov, name, "");
       res.status = http_error_codes::internal_error;
       return;
     }

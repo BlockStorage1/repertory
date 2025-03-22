@@ -163,12 +163,15 @@ class Mount with ChangeNotifier {
         return true;
       }
 
+      final badLocation = (!unmount && response.statusCode == 500);
+      if (badLocation) {
+        mountConfig.path = "";
+      }
+
       await refresh(force: true);
       _isMounting = false;
 
-      if (!unmount && response.statusCode == 500) {
-        return false;
-      }
+      return !badLocation;
     } catch (e) {
       debugPrint('$e');
     }
