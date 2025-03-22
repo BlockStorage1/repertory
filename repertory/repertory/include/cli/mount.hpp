@@ -55,10 +55,8 @@ namespace repertory::cli::actions {
 mount(std::vector<const char *> args, std::string data_directory,
       int &mount_result, provider_type prov, const std::string &remote_host,
       std::uint16_t remote_port, const std::string &unique_id) -> exit_code {
-  auto ret = exit_code::success;
-
   lock_data lock(prov, unique_id);
-  const auto res = lock.grab_lock();
+  auto res = lock.grab_lock();
   if (res == lock_result::locked) {
     std::cerr << app_config::get_provider_display_name(prov)
               << " mount is already active" << std::endl;
@@ -66,7 +64,7 @@ mount(std::vector<const char *> args, std::string data_directory,
   }
 
   if (res != lock_result::success) {
-    ret = exit_code::lock_failed;
+    return exit_code::lock_failed;
   }
 
 #if defined(_WIN32)

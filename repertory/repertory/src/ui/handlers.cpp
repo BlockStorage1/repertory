@@ -510,6 +510,8 @@ void handlers::handle_post_mount(const httplib::Request &req,
 
     launch_process(prov, name, {location}, true);
     config_->set_mount_location(prov, name, location);
+
+    launch_process(prov, name, {"-status"});
   }
 
   res.status = http_error_codes::ok;
