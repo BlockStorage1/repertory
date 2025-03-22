@@ -3,6 +3,7 @@ import 'dart:convert' show jsonEncode;
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:provider/provider.dart';
+import 'package:repertory/constants.dart' as constants;
 import 'package:repertory/helpers.dart'
     show
         convertAllToString,
@@ -105,11 +106,23 @@ class _UISettingsWidgetState extends State<UISettingsWidget> {
   void dispose() {
     final settings = getChanged(widget.origSettings, widget.settings);
     if (settings.isNotEmpty) {
-      final authProvider = Provider.of<Auth>(context, listen: false);
-      convertAllToString(settings, authProvider.key)
+      debugPrint("start");
+      final key =
+          Provider.of<Auth>(
+            constants.navigatorKey.currentContext!,
+            listen: false,
+          ).key;
+      convertAllToString(settings, key)
           .then((map) async {
+            debugPrint("map");
             try {
+              final authProvider = Provider.of<Auth>(
+                constants.navigatorKey.currentContext!,
+                listen: false,
+              );
               final auth = await authProvider.createAuth();
+
+              debugPrint("auth");
               final response = await http.put(
                 Uri.parse(
                   Uri.encodeFull(
@@ -121,7 +134,6 @@ class _UISettingsWidgetState extends State<UISettingsWidget> {
               if (response.statusCode == 401) {
                 displayAuthError();
                 authProvider.logoff();
-                return;
               }
             } catch (e) {
               debugPrint('$e');

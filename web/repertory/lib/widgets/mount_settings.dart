@@ -623,17 +623,22 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
         widget.settings,
       );
       if (settings.isNotEmpty) {
-        final authProvider = Provider.of<Auth>(context, listen: false);
-        convertAllToString(settings, authProvider.key).then((map) {
+        final mount = widget.mount;
+        final key =
+            Provider.of<Auth>(
+              constants.navigatorKey.currentContext!,
+              listen: false,
+            ).key;
+        convertAllToString(settings, key).then((map) {
           map.forEach((key, value) {
             if (value is Map<String, dynamic>) {
               value.forEach((subKey, subValue) {
-                widget.mount.setValue('$key.$subKey', subValue);
+                mount.setValue('$key.$subKey', subValue);
               });
               return;
             }
 
-            widget.mount.setValue(key, value);
+            mount.setValue(key, value);
           });
         });
       }
