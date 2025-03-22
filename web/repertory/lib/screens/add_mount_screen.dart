@@ -131,9 +131,11 @@ class _AddMountScreenState extends State<AddMountScreen> {
                   ),
                 if (_mount != null) const SizedBox(height: constants.padding),
                 if (_mount != null)
-                  Builder(
-                    builder: (context) {
-                      return ElevatedButton.icon(
+                  Row(
+                    children: [
+                      ElevatedButton.icon(
+                        label: const Text('Add'),
+                        icon: const Icon(Icons.add),
                         onPressed: () async {
                           final mountList = Provider.of<MountList>(context);
 
@@ -186,10 +188,16 @@ class _AddMountScreenState extends State<AddMountScreen> {
 
                           Navigator.pop(context);
                         },
-                        label: const Text('Add'),
-                        icon: const Icon(Icons.add),
-                      );
-                    },
+                      ),
+                      if (_mountType == 'Sia' || _mountType == 'S3') ...[
+                        const SizedBox(width: constants.padding),
+                        ElevatedButton.icon(
+                          label: const Text('Test'),
+                          icon: const Icon(Icons.check),
+                          onPressed: () async {},
+                        ),
+                      ],
+                    ],
                   ),
               ],
             );

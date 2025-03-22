@@ -2,8 +2,10 @@ import 'package:flutter/material.dart' show GlobalKey, NavigatorState;
 import 'package:sodium_libs/sodium_libs.dart';
 
 const addMountTitle = 'Add New Mount';
+const appLogonTitle = 'Repertory Portal Login';
 const appSettingsTitle = 'Portal Settings';
 const appTitle = 'Repertory Management Portal';
+const logonWidth = 300.0;
 const databaseTypeList = ['rocksdb', 'sqlite'];
 const downloadTypeList = ['default', 'direct', 'ring_buffer'];
 const eventLevelList = ['critical', 'error', 'warn', 'info', 'debug', 'trace'];
