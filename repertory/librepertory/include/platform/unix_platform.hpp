@@ -51,8 +51,6 @@ private:
   [[nodiscard]] auto get_lock_file() -> std::string;
 
 private:
-  void release();
-
   [[nodiscard]] static auto wait_for_lock(int fd,
                                           std::uint8_t retry_count = 30u)
       -> int;
@@ -61,6 +59,8 @@ public:
   [[nodiscard]] auto get_mount_state(json &mount_state) -> bool;
 
   [[nodiscard]] auto grab_lock(std::uint8_t retry_count = 30u) -> lock_result;
+
+  void release();
 
   [[nodiscard]] auto set_mount_state(bool active,
                                      const std::string &mount_location, int pid)
