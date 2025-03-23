@@ -25,8 +25,8 @@
 #include "utils/string.hpp"
 
 namespace repertory::utils {
-auto compare_version_strings(std::string version1, std::string version2)
-    -> std::int32_t {
+auto compare_version_strings(std::string version1,
+                             std::string version2) -> std::int32_t {
 
   if (utils::string::contains(version1, "-")) {
     version1 = utils::string::split(version1, '-', true)[0U];
