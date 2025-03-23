@@ -143,9 +143,15 @@ void server::start() {
 
   initialize(*server_);
 
-  fmt::println("port|{}", config_.get_api_port());
   server_thread_ = std::make_unique<std::thread>([this]() {
-    server_->set_socket_options([](auto && /* sock */) {});
+#ifdef _WIN32
+    server_->set_socket_options([](auto &&sock) {
+      int enable = 1;
+      setsockopt(sock, SOL_SOCKET, SO_EXCLUSIVEADDRUSE,
+                 reinterpret_cast<const char *>(&enable), sizeof(enable));
+    });
+#endif //  _WIN32
+
     server_->listen("127.0.0.1", config_.get_api_port());
   });
   event_system::instance().raise<service_start_end>(function_name, "server");

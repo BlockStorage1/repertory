@@ -112,7 +112,6 @@ mount(std::vector<const char *> args, std::string data_directory,
       std::cerr << "FATAL: Unable to get available port" << std::endl;
       return exit_code::startup_exception;
     }
-    fmt::println("port|{}", port);
     config.set_api_port(port);
   }
 
@@ -147,13 +146,6 @@ mount(std::vector<const char *> args, std::string data_directory,
             << " Drive" << std::endl;
   if (prov == provider_type::remote) {
     try {
-      std::uint16_t port{};
-      if (not utils::get_next_available_port(
-              config.get_remote_config().api_port, port)) {
-        std::cerr << "FATAL: Unable to get available port" << std::endl;
-        return exit_code::startup_exception;
-      }
-
       auto remote_cfg = config.get_remote_config();
       remote_cfg.host_name_or_ip = remote_host;
       remote_cfg.api_port = remote_port;
