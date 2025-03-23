@@ -47,16 +47,7 @@ lock_data::lock_data(const provider_type &pt, std::string unique_id /*= ""*/)
 lock_data::lock_data()
     : pt_(provider_type::sia), unique_id_(""), mutex_id_(""), lock_fd_(-1) {}
 
-lock_data::~lock_data() {
-  if (lock_fd_ != -1) {
-    if (lock_status_ == 0) {
-      unlink(get_lock_file().c_str());
-      flock(lock_fd_, LOCK_UN);
-    }
-
-    close(lock_fd_);
-  }
-}
+lock_data::~lock_data() { release(); }
 
 auto lock_data::get_lock_data_file() -> std::string {
   const auto dir = get_state_directory();
@@ -123,6 +114,20 @@ auto lock_data::grab_lock(std::uint8_t retry_count) -> lock_result {
   default:
     return lock_result::failure;
   }
+}
+
+void lock_data::release() {
+  if (lock_fd_ == -1) {
+    return;
+  }
+
+  if (lock_status_ == 0) {
+    unlink(get_lock_file().c_str());
+    flock(lock_fd_, LOCK_UN);
+  }
+
+  close(lock_fd_);
+  lock_fd_ = -1;
 }
 
 auto lock_data::set_mount_state(bool active, const std::string &mount_location,

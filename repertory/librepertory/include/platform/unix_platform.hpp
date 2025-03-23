@@ -41,7 +41,7 @@ private:
   const std::string unique_id_;
   const std::string mutex_id_;
   int lock_fd_;
-  int lock_status_ = EWOULDBLOCK;
+  int lock_status_{EWOULDBLOCK};
 
 private:
   [[nodiscard]] static auto get_state_directory() -> std::string;
@@ -51,8 +51,11 @@ private:
   [[nodiscard]] auto get_lock_file() -> std::string;
 
 private:
-  [[nodiscard]] static auto
-  wait_for_lock(int fd, std::uint8_t retry_count = 30u) -> int;
+  void release();
+
+  [[nodiscard]] static auto wait_for_lock(int fd,
+                                          std::uint8_t retry_count = 30u)
+      -> int;
 
 public:
   [[nodiscard]] auto get_mount_state(json &mount_state) -> bool;
@@ -60,8 +63,8 @@ public:
   [[nodiscard]] auto grab_lock(std::uint8_t retry_count = 30u) -> lock_result;
 
   [[nodiscard]] auto set_mount_state(bool active,
-                                     const std::string &mount_location,
-                                     int pid) -> bool;
+                                     const std::string &mount_location, int pid)
+      -> bool;
 };
 
 [[nodiscard]] auto create_meta_attributes(
