@@ -195,6 +195,7 @@ class _MountWidgetState extends State<MountWidget> {
                             (value) => setState(() => currentLocation = value),
                       )
                       : DropdownButton<String>(
+                        hint: const Text("Select drive"),
                         value: currentLocation,
                         onChanged:
                             (value) => setState(() => currentLocation = value),
