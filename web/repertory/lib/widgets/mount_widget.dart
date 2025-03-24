@@ -62,10 +62,16 @@ class _MountWidgetState extends State<MountWidget> {
               style: TextStyle(color: textColor, fontWeight: FontWeight.bold),
             ),
             trailing: Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                if (mount.mounted != null && !mount.mounted!)
+                if (mount.path.isNotEmpty &&
+                    mount.mounted != null &&
+                    !mount.mounted!)
                   IconButton(
                     icon: Icon(Icons.clear),
+                    color: subTextColor,
                     onPressed: () => mount.clearMountLocation(),
                   ),
                 IconButton(
