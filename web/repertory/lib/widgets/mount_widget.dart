@@ -149,39 +149,66 @@ class _MountWidgetState extends State<MountWidget> {
       return location;
     }
 
+    final available = await mount.getAvailableLocations();
+
     String? currentLocation;
     return await showDialog(
       context: context,
       builder: (context) {
-        return AlertDialog(
-          actions: [
-            TextButton(
-              child: const Text('Cancel'),
-              onPressed: () => Navigator.of(context).pop(null),
-            ),
-            TextButton(
-              child: const Text('OK'),
-              onPressed: () {
-                final result = getSettingValidators('Path').firstWhereOrNull(
-                  (validator) => !validator(currentLocation ?? ''),
-                );
-                if (result != null) {
-                  return displayErrorMessage(
-                    context,
-                    "Mount location is not valid",
-                  );
-                }
-                Navigator.of(context).pop(currentLocation);
-              },
-            ),
-          ],
-          content: TextField(
-            autofocus: true,
-            controller: TextEditingController(text: currentLocation),
-            inputFormatters: [FilteringTextInputFormatter.deny(RegExp(r'\s'))],
-            onChanged: (value) => currentLocation = value,
-          ),
-          title: const Text('Set Mount Location'),
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              actions: [
+                TextButton(
+                  child: const Text('Cancel'),
+                  onPressed: () => Navigator.of(context).pop(null),
+                ),
+                TextButton(
+                  child: const Text('OK'),
+                  onPressed: () {
+                    final result = getSettingValidators(
+                      'Path',
+                    ).firstWhereOrNull(
+                      (validator) => !validator(currentLocation ?? ''),
+                    );
+                    if (result != null) {
+                      return displayErrorMessage(
+                        context,
+                        "Mount location is not valid",
+                      );
+                    }
+                    Navigator.of(context).pop(currentLocation);
+                  },
+                ),
+              ],
+              content:
+                  available.isEmpty
+                      ? TextField(
+                        autofocus: true,
+                        controller: TextEditingController(
+                          text: currentLocation,
+                        ),
+                        inputFormatters: [
+                          FilteringTextInputFormatter.deny(RegExp(r'\s')),
+                        ],
+                        onChanged:
+                            (value) => setState(() => currentLocation = value),
+                      )
+                      : DropdownButton<String>(
+                        value: currentLocation,
+                        onChanged:
+                            (value) => setState(() => currentLocation = value),
+                        items:
+                            available.map<DropdownMenuItem<String>>((item) {
+                              return DropdownMenuItem<String>(
+                                value: item,
+                                child: Text(item),
+                              );
+                            }).toList(),
+                      ),
+              title: const Text('Set Mount Location'),
+            );
+          },
         );
       },
     );

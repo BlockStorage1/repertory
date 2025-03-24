@@ -101,6 +101,34 @@ class Mount with ChangeNotifier {
     }
   }
 
+  Future<List<String>> getAvailableLocations() async {
+    try {
+      final auth = await _auth.createAuth();
+      final response = await http.get(
+        Uri.parse(
+          Uri.encodeFull(
+            '${getBaseUri()}/api/v1/mount_location?auth=$auth&name=$name&type=$type',
+          ),
+        ),
+      );
+
+      if (response.statusCode == 401) {
+        _auth.logoff();
+        return <String>[];
+      }
+
+      if (response.statusCode != 200) {
+        return <String>[];
+      }
+
+      return jsonDecode(response.body) as List<String>;
+    } catch (e) {
+      debugPrint('$e');
+    }
+
+    return <String>[];
+  }
+
   Future<String?> getMountLocation() async {
     try {
       final auth = await _auth.createAuth();

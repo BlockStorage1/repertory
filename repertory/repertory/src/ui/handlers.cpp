@@ -168,6 +168,10 @@ handlers::handlers(mgmt_app_config *config, httplib::Server *server)
                      : http_error_codes::internal_error;
   });
 
+  server->Get("/api/v1/locations", [this](auto && /* req */, auto &&res) {
+    handle_get_available_locations(res);
+  });
+
   server->Get("/api/v1/mount",
               [this](auto &&req, auto &&res) { handle_get_mount(req, res); });
 
@@ -292,6 +296,35 @@ auto handlers::data_directory_exists(provider_type prov,
       fmt::format("{}-{}", name, app_config::get_provider_name(prov)));
   lock.unlock();
   return ret;
+}
+
+void handlers::handle_get_available_locations(httplib::Response &res) const {
+#if defined(_WIN32)
+  constexpr const std::array<std::string_view, 26U> letters{
+      "A:", "B:", "C:", "D:", "E:", "F:", "G:", "H:", "I:",
+      "J:", "K:", "L:", "M:", "N:", "O:", "P:", "Q:", "R:",
+      "S:", "T:", "U:", "V:", "W:", "X:", "Y:", "Z:",
+  };
+
+  auto available = std::accumulate(
+      letters.begin(), letters.end(), std::vector<std::string_view>(),
+      [](auto &&vec, auto &&letter) -> std::vector<std::string_view> {
+        if (utils::file::directory{utils::path::combine(letter, {"\\"})}
+                .exists()) {
+          return vec;
+        }
+
+        vec.emplace_back(letter);
+        return vec;
+      });
+
+  res.set_content(nlohmann::json(available).dump(), "application/json");
+#else  // !defined(_WIN32)
+  res.set_content(nlohmann::json(std::vector<std::string_view>()).dump(),
+                  "application/json");
+#endif // defined(_WIN32)
+
+  res.status = http_error_codes::ok;
 }
 
 void handlers::handle_get_mount(const httplib::Request &req,
