@@ -106,9 +106,7 @@ class Mount with ChangeNotifier {
       final auth = await _auth.createAuth();
       final response = await http.get(
         Uri.parse(
-          Uri.encodeFull(
-            '${getBaseUri()}/api/v1/mount_location?auth=$auth&name=$name&type=$type',
-          ),
+          Uri.encodeFull('${getBaseUri()}/api/v1/locations?auth=$auth'),
         ),
       );
 
@@ -121,6 +119,7 @@ class Mount with ChangeNotifier {
         return <String>[];
       }
 
+      debugPrint("response|$jsonDecode(response.body)");
       return jsonDecode(response.body) as List<String>;
     } catch (e) {
       debugPrint('$e');
