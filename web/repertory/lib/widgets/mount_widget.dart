@@ -61,19 +61,28 @@ class _MountWidgetState extends State<MountWidget> {
               mount.provider,
               style: TextStyle(color: textColor, fontWeight: FontWeight.bold),
             ),
-            trailing: IconButton(
-              icon: Icon(
-                mount.mounted == null
-                    ? Icons.hourglass_top
-                    : mount.mounted!
-                    ? Icons.toggle_on
-                    : Icons.toggle_off,
-                color:
-                    mount.mounted ?? false
-                        ? Color.fromARGB(255, 163, 96, 76)
-                        : subTextColor,
-              ),
-              onPressed: _createMountHandler(context, mount),
+            trailing: Row(
+              children: [
+                if (mount.mounted != null && !mount.mounted!)
+                  IconButton(
+                    icon: Icon(Icons.clear),
+                    onPressed: () => mount.clearPath(),
+                  ),
+                IconButton(
+                  icon: Icon(
+                    mount.mounted == null
+                        ? Icons.hourglass_top
+                        : mount.mounted!
+                        ? Icons.toggle_on
+                        : Icons.toggle_off,
+                    color:
+                        mount.mounted ?? false
+                            ? Color.fromARGB(255, 163, 96, 76)
+                            : subTextColor,
+                  ),
+                  onPressed: _createMountHandler(context, mount),
+                ),
+              ],
             ),
           );
         },
