@@ -119,8 +119,15 @@ class Mount with ChangeNotifier {
         return <String>[];
       }
 
-      debugPrint("response|$jsonDecode(response.body)");
-      return jsonDecode(response.body) as List<String>;
+      List<String> ret = [];
+      {
+        final list = jsonDecode(response.body) as List;
+        for (var item in list) {
+          ret.add(item as String);
+        }
+      }
+
+      return ret;
     } catch (e) {
       debugPrint('$e');
     }
