@@ -168,6 +168,10 @@ handlers::handlers(mgmt_app_config *config, httplib::Server *server)
                      : http_error_codes::internal_error;
   });
 
+  server->Delete("/api/v1/mount_location", [this](auto &&req, auto &&res) {
+    handle_delete_mount_location(req, res);
+  });
+
   server->Get("/api/v1/locations", [this](auto && /* req */, auto &&res) {
     handle_get_available_locations(res);
   });
@@ -296,6 +300,22 @@ auto handlers::data_directory_exists(provider_type prov,
       fmt::format("{}-{}", name, app_config::get_provider_name(prov)));
   lock.unlock();
   return ret;
+}
+
+void handlers::handle_delete_mount_location(const httplib::Request &req,
+                                            httplib::Response &res) const {
+  REPERTORY_USES_FUNCTION_NAME();
+
+  auto prov = provider_type_from_string(req.get_param_value("type"));
+  auto name = req.get_param_value("name");
+
+  if (not data_directory_exists(prov, name)) {
+    res.status = http_error_codes::not_found;
+    return;
+  }
+
+  config_->set_mount_location(prov, name, "");
+  res.status = http_error_codes::ok;
 }
 
 void handlers::handle_get_available_locations(httplib::Response &res) const {

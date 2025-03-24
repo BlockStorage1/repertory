@@ -74,6 +74,9 @@ private:
   [[nodiscard]] auto data_directory_exists(provider_type prov,
                                            std::string_view name) const -> bool;
 
+  void handle_delete_mount_location(const httplib::Request &req,
+                                    httplib::Response &res) const;
+
   void handle_get_available_locations(httplib::Response &res) const;
 
   void handle_get_mount(const httplib::Request &req,
