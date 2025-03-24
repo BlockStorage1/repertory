@@ -66,7 +66,7 @@ class _MountWidgetState extends State<MountWidget> {
                 if (mount.mounted != null && !mount.mounted!)
                   IconButton(
                     icon: Icon(Icons.clear),
-                    onPressed: () => mount.clearPath(),
+                    onPressed: () => mount.clearMountLocation(),
                   ),
                 IconButton(
                   icon: Icon(

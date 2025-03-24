@@ -101,6 +101,35 @@ class Mount with ChangeNotifier {
     }
   }
 
+  Future<void> clearMountLocation() async {
+    try {
+      mountConfig.path = "";
+
+      final auth = await _auth.createAuth();
+      final response = await http.delete(
+        Uri.parse(
+          Uri.encodeFull(
+            '${getBaseUri()}/api/v1/mount_location?auth=$auth&name=$name&type=$type',
+          ),
+        ),
+      );
+
+      if (response.statusCode == 401) {
+        _auth.logoff();
+        return;
+      }
+
+      if (response.statusCode == 404) {
+        _mountList?.reset();
+        return;
+      }
+
+      return refresh();
+    } catch (e) {
+      debugPrint('$e');
+    }
+  }
+
   Future<List<String>> getAvailableLocations() async {
     try {
       final auth = await _auth.createAuth();
@@ -245,35 +274,6 @@ class Mount with ChangeNotifier {
       }
 
       if (response.statusCode != 200) {
-        return;
-      }
-
-      return refresh();
-    } catch (e) {
-      debugPrint('$e');
-    }
-  }
-
-  Future<void> clearPath() async {
-    try {
-      mountConfig.path = "";
-
-      final auth = await _auth.createAuth();
-      final response = await http.delete(
-        Uri.parse(
-          Uri.encodeFull(
-            '${getBaseUri()}/api/v1/mount_location?auth=$auth&name=$name&type=$type',
-          ),
-        ),
-      );
-
-      if (response.statusCode == 401) {
-        _auth.logoff();
-        return;
-      }
-
-      if (response.statusCode == 404) {
-        _mountList?.reset();
         return;
       }
 
