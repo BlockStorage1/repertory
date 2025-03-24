@@ -70,9 +70,10 @@ class _MountWidgetState extends State<MountWidget> {
                     mount.mounted != null &&
                     !mount.mounted!)
                   IconButton(
-                    icon: const Icon(Icons.backspace),
+                    icon: const Icon(Icons.remove),
                     color: subTextColor,
                     onPressed: () => mount.clearMountLocation(),
+                    tooltip: 'Clear Mount Location',
                   ),
                 IconButton(
                   icon: Icon(
