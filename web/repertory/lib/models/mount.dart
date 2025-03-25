@@ -101,15 +101,15 @@ class Mount with ChangeNotifier {
     }
   }
 
-  Future<void> clearMountLocation() async {
+  Future<void> setMountLocation(String location) async {
     try {
-      mountConfig.path = "";
+      mountConfig.path = location;
 
       final auth = await _auth.createAuth();
-      final response = await http.delete(
+      final response = await http.put(
         Uri.parse(
           Uri.encodeFull(
-            '${getBaseUri()}/api/v1/mount_location?auth=$auth&name=$name&type=$type',
+            '${getBaseUri()}/api/v1/mount_location?auth=$auth&name=$name&type=$type&location=$location',
           ),
         ),
       );

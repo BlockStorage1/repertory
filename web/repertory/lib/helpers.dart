@@ -329,3 +329,67 @@ Map<String, dynamic> getChanged(
 
   return changed;
 }
+
+Future<String?> editMountLocation(
+  context,
+  List<String> available, {
+  bool allowEmpty = false,
+  String? location,
+}) async {
+  String? currentLocation = location;
+  final controller = TextEditingController(text: currentLocation);
+  return await showDialog(
+    context: context,
+    builder: (context) {
+      return StatefulBuilder(
+        builder: (context, setState) {
+          return AlertDialog(
+            actions: [
+              TextButton(
+                child: const Text('Cancel'),
+                onPressed: () => Navigator.of(context).pop(null),
+              ),
+              TextButton(
+                child: const Text('OK'),
+                onPressed: () {
+                  final result = getSettingValidators('Path').firstWhereOrNull(
+                    (validator) => !validator(currentLocation ?? ''),
+                  );
+                  if (result != null) {
+                    return displayErrorMessage(
+                      context,
+                      "Mount location is not valid",
+                    );
+                  }
+                  Navigator.of(context).pop(currentLocation);
+                },
+              ),
+            ],
+            content:
+                available.isEmpty
+                    ? TextField(
+                      autofocus: true,
+                      controller: controller,
+                      onChanged:
+                          (value) => setState(() => currentLocation = value),
+                    )
+                    : DropdownButton<String>(
+                      hint: const Text("Select drive"),
+                      value: currentLocation,
+                      onChanged:
+                          (value) => setState(() => currentLocation = value),
+                      items:
+                          available.map<DropdownMenuItem<String>>((item) {
+                            return DropdownMenuItem<String>(
+                              value: item,
+                              child: Text(item),
+                            );
+                          }).toList(),
+                    ),
+            title: const Text('Set Mount Location'),
+          );
+        },
+      );
+    },
+  );
+}

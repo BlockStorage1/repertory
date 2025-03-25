@@ -17,6 +17,7 @@ class MountWidget extends StatefulWidget {
 
 class _MountWidgetState extends State<MountWidget> {
   bool _enabled = true;
+  bool _editEnabled = true;
   Timer? _timer;
 
   @override
@@ -66,14 +67,26 @@ class _MountWidgetState extends State<MountWidget> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                if (mount.path.isNotEmpty &&
-                    mount.mounted != null &&
-                    !mount.mounted!)
+                if (mount.mounted != null && !mount.mounted!)
                   IconButton(
-                    icon: const Icon(Icons.remove),
+                    icon: const Icon(Icons.edit),
                     color: subTextColor,
-                    onPressed: () => mount.clearMountLocation(),
-                    tooltip: 'Clear Mount Location',
+                    tooltip: 'Edit location',
+                    onPressed: () async {
+                      setState(() => _editEnabled = false);
+                      final available = await mount.getAvailableLocations();
+                      if (context.mounted) {
+                        final location = await editMountLocation(
+                          context,
+                          available,
+                          location: mount.path,
+                        );
+                        if (location != null) {
+                          await mount.setMountLocation(location);
+                        }
+                      }
+                      setState(() => _editEnabled = true);
+                    },
                   ),
                 IconButton(
                   icon: Icon(
@@ -87,6 +100,12 @@ class _MountWidgetState extends State<MountWidget> {
                             ? Color.fromARGB(255, 163, 96, 76)
                             : subTextColor,
                   ),
+                  tooltip:
+                      mount.mounted == null
+                          ? ''
+                          : mount.mounted!
+                          ? 'Unmount'
+                          : 'Mount',
                   onPressed: _createMountHandler(context, mount),
                 ),
               ],
@@ -165,70 +184,7 @@ class _MountWidgetState extends State<MountWidget> {
       return location;
     }
 
-    final available = await mount.getAvailableLocations();
-
-    String? currentLocation;
-    return await showDialog(
-      context: context,
-      builder: (context) {
-        return StatefulBuilder(
-          builder: (context, setState) {
-            return AlertDialog(
-              actions: [
-                TextButton(
-                  child: const Text('Cancel'),
-                  onPressed: () => Navigator.of(context).pop(null),
-                ),
-                TextButton(
-                  child: const Text('OK'),
-                  onPressed: () {
-                    final result = getSettingValidators(
-                      'Path',
-                    ).firstWhereOrNull(
-                      (validator) => !validator(currentLocation ?? ''),
-                    );
-                    if (result != null) {
-                      return displayErrorMessage(
-                        context,
-                        "Mount location is not valid",
-                      );
-                    }
-                    Navigator.of(context).pop(currentLocation);
-                  },
-                ),
-              ],
-              content:
-                  available.isEmpty
-                      ? TextField(
-                        autofocus: true,
-                        controller: TextEditingController(
-                          text: currentLocation,
-                        ),
-                        inputFormatters: [
-                          FilteringTextInputFormatter.deny(RegExp(r'\s')),
-                        ],
-                        onChanged:
-                            (value) => setState(() => currentLocation = value),
-                      )
-                      : DropdownButton<String>(
-                        hint: const Text("Select drive"),
-                        value: currentLocation,
-                        onChanged:
-                            (value) => setState(() => currentLocation = value),
-                        items:
-                            available.map<DropdownMenuItem<String>>((item) {
-                              return DropdownMenuItem<String>(
-                                value: item,
-                                child: Text(item),
-                              );
-                            }).toList(),
-                      ),
-              title: const Text('Set Mount Location'),
-            );
-          },
-        );
-      },
-    );
+    return editMountLocation(context, await mount.getAvailableLocations());
   }
 
   @override

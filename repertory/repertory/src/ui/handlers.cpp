@@ -168,10 +168,6 @@ handlers::handlers(mgmt_app_config *config, httplib::Server *server)
                      : http_error_codes::internal_error;
   });
 
-  server->Delete("/api/v1/mount_location", [this](auto &&req, auto &&res) {
-    handle_delete_mount_location(req, res);
-  });
-
   server->Get("/api/v1/locations", [this](auto && /* req */, auto &&res) {
     handle_get_available_locations(res);
   });
@@ -204,6 +200,10 @@ handlers::handlers(mgmt_app_config *config, httplib::Server *server)
 
   server->Post("/api/v1/mount",
                [this](auto &&req, auto &&res) { handle_post_mount(req, res); });
+
+  server->Put("/api/v1/mount_location", [this](auto &&req, auto &&res) {
+    handle_put_mount_location(req, res);
+  });
 
   server->Put("/api/v1/set_value_by_name", [this](auto &&req, auto &&res) {
     handle_put_set_value_by_name(req, res);
@@ -302,23 +302,24 @@ auto handlers::data_directory_exists(provider_type prov,
   return ret;
 }
 
-void handlers::handle_delete_mount_location(const httplib::Request &req,
-                                            httplib::Response &res) const {
+void handlers::handle_put_mount_location(const httplib::Request &req,
+                                         httplib::Response &res) const {
   REPERTORY_USES_FUNCTION_NAME();
 
   auto prov = provider_type_from_string(req.get_param_value("type"));
   auto name = req.get_param_value("name");
+  auto location = req.get_param_value("location");
 
   if (not data_directory_exists(prov, name)) {
     res.status = http_error_codes::not_found;
     return;
   }
 
-  config_->set_mount_location(prov, name, "");
+  config_->set_mount_location(prov, name, location);
   res.status = http_error_codes::ok;
 }
 
-void handlers::handle_get_available_locations(httplib::Response &res) const {
+void handlers::handle_get_available_locations(httplib::Response &res) {
 #if defined(_WIN32)
   constexpr const std::array<std::string_view, 26U> letters{
       "A:", "B:", "C:", "D:", "E:", "F:", "G:", "H:", "I:",
