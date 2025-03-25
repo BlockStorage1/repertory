@@ -511,14 +511,14 @@ void handlers::handle_post_add_mount(const httplib::Request &req,
   for (const auto &[key, value] : cfg.items()) {
     if (value.is_object()) {
       for (const auto &[key2, value2] : value.items()) {
-        auto subKey = fmt::format("{}.{}", key, key2);
+        auto sub_key = fmt::format("{}.{}", key, key2);
         auto skip{false};
         auto decrypted = decrypt_value(
-            config_, subKey, value2.template get<std::string>(), skip);
+            config_, sub_key, value2.template get<std::string>(), skip);
         if (skip) {
           continue;
         }
-        values[subKey] = decrypted;
+        values[sub_key] = decrypted;
       }
 
       continue;
