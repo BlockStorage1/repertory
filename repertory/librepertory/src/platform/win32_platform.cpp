@@ -37,6 +37,8 @@ auto create_lock_id(provider_type prov, std::string unique_id) {
                      app_config::get_provider_name(prov), unique_id);
 }
 
+lock_data::~lock_data() { release(); }
+
 lock_data::lock_data(provider_type prov, std::string unique_id)
     : prov_(prov),
       mutex_id_(create_lock_id(prov, unique_id)),
@@ -126,6 +128,10 @@ void lock_data::release() {
   }
 
   if ((mutex_state_ == WAIT_OBJECT_0) || (mutex_state_ == WAIT_ABANDONED)) {
+    if (mutex_state_ == WAIT_OBJECT_0) {
+      [[maybe_unused]] auto success{set_mount_state(false, "", -1)};
+    }
+
     ::ReleaseMutex(mutex_handle_);
   }
 

@@ -36,7 +36,7 @@ public:
   lock_data(const lock_data &) = delete;
   lock_data(lock_data &&) = delete;
 
-  ~lock_data() { release(); }
+  ~lock_data();
 
   auto operator=(const lock_data &) -> lock_data & = delete;
   auto operator=(lock_data &&) -> lock_data & = delete;
