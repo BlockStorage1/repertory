@@ -438,9 +438,7 @@ void handlers::handle_get_mount_status(const httplib::Request &req,
 
   auto lines = launch_process(prov, name, {"-status"});
 
-  auto result{
-      nlohmann::json::parse(utils::string::join(lines, '\n')),
-  };
+  auto result = nlohmann::json::parse(utils::string::join(lines, '\n'));
   if (result.at("Location").get<std::string>().empty()) {
     result.at("Location") = config_->get_mount_location(prov, name);
   } else if (result.at("Active").get<bool>()) {
@@ -578,7 +576,7 @@ void handlers::handle_put_set_value_by_name(const httplib::Request &req,
 
 void handlers::handle_put_settings(const httplib::Request &req,
                                    httplib::Response &res) const {
-  nlohmann::json data = nlohmann::json::parse(req.get_param_value("data"));
+  auto data = nlohmann::json::parse(req.get_param_value("data"));
 
   if (data.contains(JSON_API_PASSWORD)) {
     auto password = decrypt(data.at(JSON_API_PASSWORD).get<std::string>(),
