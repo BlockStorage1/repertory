@@ -14,6 +14,7 @@
 * Continue documentation updates
 * Fixed `-status` command erasing active mount information
 * Fixed overlapping HTTP REST API port's
+* Refactored/fixed instance locking
 * Removed passwords and secret key values from API calls
 * Renamed setting `ApiAuth` to `ApiPassword`
 * Require `--name,-na` option for encryption provider
