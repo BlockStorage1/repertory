@@ -3,7 +3,8 @@ import 'package:collection/collection.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:repertory/constants.dart' as constants;
-import 'package:sodium_libs/sodium_libs.dart';
+import 'package:repertory/models/auth.dart';
+import 'package:sodium_libs/sodium_libs.dart' show SecureKey, StringX;
 
 typedef Validator = bool Function(String);
 
@@ -106,8 +107,8 @@ Map<String, dynamic> createDefaultSettings(String mountType) {
   return {};
 }
 
-void displayAuthError() {
-  if (constants.navigatorKey.currentContext == null) {
+void displayAuthError(Auth auth) {
+  if (!auth.authenticated || constants.navigatorKey.currentContext == null) {
     return;
   }
 

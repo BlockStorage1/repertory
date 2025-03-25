@@ -54,9 +54,11 @@ class Auth with ChangeNotifier {
 
   void logoff() {
     _authenticated = false;
+    _key = SecureKey.random(constants.sodium, 32);
     _user = "";
-    mountList?.clear();
 
     notifyListeners();
+
+    mountList?.clear();
   }
 }

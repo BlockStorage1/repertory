@@ -207,7 +207,7 @@ class Mount with ChangeNotifier {
       );
 
       if (response.statusCode == 401) {
-        displayAuthError();
+        displayAuthError(_auth);
         _auth.logoff();
         return false;
       }

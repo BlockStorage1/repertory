@@ -106,7 +106,6 @@ class _UISettingsWidgetState extends State<UISettingsWidget> {
   void dispose() {
     final settings = getChanged(widget.origSettings, widget.settings);
     if (settings.isNotEmpty) {
-      debugPrint("start");
       final key =
           Provider.of<Auth>(
             constants.navigatorKey.currentContext!,
@@ -114,15 +113,13 @@ class _UISettingsWidgetState extends State<UISettingsWidget> {
           ).key;
       convertAllToString(settings, key)
           .then((map) async {
-            debugPrint("map");
             try {
               final authProvider = Provider.of<Auth>(
                 constants.navigatorKey.currentContext!,
                 listen: false,
               );
-              final auth = await authProvider.createAuth();
 
-              debugPrint("auth");
+              final auth = await authProvider.createAuth();
               final response = await http.put(
                 Uri.parse(
                   Uri.encodeFull(
@@ -132,7 +129,7 @@ class _UISettingsWidgetState extends State<UISettingsWidget> {
               );
 
               if (response.statusCode == 401) {
-                displayAuthError();
+                displayAuthError(authProvider);
                 authProvider.logoff();
               }
             } catch (e) {

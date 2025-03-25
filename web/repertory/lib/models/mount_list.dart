@@ -63,7 +63,7 @@ class MountList with ChangeNotifier {
       );
 
       if (response.statusCode == 401) {
-        displayAuthError();
+        displayAuthError(_auth);
         _auth.logoff();
         return;
       }
@@ -155,7 +155,7 @@ class MountList with ChangeNotifier {
           ret = true;
           break;
         case 401:
-          displayAuthError();
+          displayAuthError(_auth);
           _auth.logoff();
           break;
         case 404:
