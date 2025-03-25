@@ -30,7 +30,7 @@ class i_provider;
 
 class lock_data final {
 public:
-  explicit lock_data(const provider_type &prov, std::string unique_id);
+  lock_data(provider_type prov, std::string_view unique_id);
 
   lock_data(const lock_data &) = delete;
   lock_data(lock_data &&) = delete;
@@ -42,19 +42,21 @@ public:
 
 private:
   std::string mutex_id_;
-  int lock_fd_;
+
+private:
+  int handle_{};
   int lock_status_{EWOULDBLOCK};
 
 private:
   [[nodiscard]] static auto get_state_directory() -> std::string;
 
-  [[nodiscard]] static auto get_lock_data_file() -> std::string;
+  [[nodiscard]] auto get_lock_data_file() const -> std::string;
 
-  [[nodiscard]] auto get_lock_file() -> std::string;
+  [[nodiscard]] auto get_lock_file() const -> std::string;
 
 private:
-  [[nodiscard]] static auto wait_for_lock(int fd,
-                                          std::uint8_t retry_count = 30u)
+  [[nodiscard]] static auto wait_for_lock(int handle,
+                                          std::uint8_t retry_count = 30U)
       -> int;
 
 public:
