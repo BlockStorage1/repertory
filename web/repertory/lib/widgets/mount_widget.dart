@@ -69,7 +69,7 @@ class _MountWidgetState extends State<MountWidget> {
               children: [
                 if (mount.mounted != null && !mount.mounted!)
                   IconButton(
-                    icon: const Icon(Icons.edit),
+                    icon: const Icon(Icons.create_new_folder),
                     color: subTextColor,
                     tooltip: 'Edit mount location',
                     onPressed: () async {
