@@ -464,8 +464,9 @@ void handlers::handle_get_mount_status(const httplib::Request &req,
 
   auto lines = launch_process(prov, name, {"-status"});
 
-  nlohmann::json result(
-      nlohmann::json::parse(utils::string::join(lines, '\n')).at(status_name));
+  auto result{
+      nlohmann::json::parse(utils::string::join(lines, '\n')),
+  };
   if (result.at("Location").get<std::string>().empty()) {
     result.at("Location") = config_->get_mount_location(prov, name);
   } else if (result.at("Active").get<bool>()) {
