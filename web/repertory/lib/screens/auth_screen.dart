@@ -38,6 +38,19 @@ class _AuthScreenState extends State<AuthScreen> {
             return SizedBox.shrink();
           }
 
+          createLoginHandler() {
+            return _enabled
+                ? () async {
+                  setState(() => _enabled = false);
+                  await auth.authenticate(
+                    _userController.text,
+                    _passwordController.text,
+                  );
+                  setState(() => _enabled = true);
+                }
+                : null;
+          }
+
           return Center(
             child: Card(
               child: Padding(
@@ -59,26 +72,26 @@ class _AuthScreenState extends State<AuthScreen> {
                         autofocus: true,
                         decoration: InputDecoration(labelText: 'Username'),
                         controller: _userController,
+                        textInputAction: TextInputAction.next,
                       ),
                       const SizedBox(height: constants.padding),
                       TextField(
                         obscureText: true,
                         decoration: InputDecoration(labelText: 'Password'),
                         controller: _passwordController,
+                        textInputAction: TextInputAction.go,
+                        onSubmitted: (_) {
+                          final handler = createLoginHandler();
+                          if (handler == null) {
+                            return;
+                          }
+
+                          handler();
+                        },
                       ),
                       const SizedBox(height: constants.padding),
                       ElevatedButton(
-                        onPressed:
-                            _enabled
-                                ? () async {
-                                  setState(() => _enabled = false);
-                                  await auth.authenticate(
-                                    _userController.text,
-                                    _passwordController.text,
-                                  );
-                                  setState(() => _enabled = true);
-                                }
-                                : null,
+                        onPressed: createLoginHandler(),
                         child: const Text('Login'),
                       ),
                     ],
