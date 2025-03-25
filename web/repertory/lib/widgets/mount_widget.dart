@@ -71,7 +71,7 @@ class _MountWidgetState extends State<MountWidget> {
                   IconButton(
                     icon: const Icon(Icons.edit),
                     color: subTextColor,
-                    tooltip: 'Edit location',
+                    tooltip: 'Edit mount location',
                     onPressed: () async {
                       setState(() => _editEnabled = false);
                       final available = await mount.getAvailableLocations();
