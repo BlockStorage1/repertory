@@ -684,6 +684,7 @@ auto handlers::launch_process(provider_type prov, std::string_view name,
     args.insert(std::next(args.begin(), 5U), repertory_binary_);
 #elif defined(__linux__) // defined(__linux__)
     args.insert(args.begin(), repertory_binary_);
+    args.insert(std::next(args.begin()), "-f");
 #else                    // !defined(__linux__) && !defined(_WIN32)
     build fails here
 #endif                   // defined(_WIN32)
@@ -698,7 +699,7 @@ auto handlers::launch_process(provider_type prov, std::string_view name,
 #if defined(_WIN32)
     _spawnv(_P_DETACH, exec_args.at(0U),
             const_cast<char *const *>(exec_args.data()));
-#elif defined(__linux__) // defined(__linux__)
+#else
     auto pid = fork();
     if (pid < 0) {
       throw utils::error::create_exception(function_name, {"mount failed"});
@@ -717,11 +718,8 @@ auto handlers::launch_process(provider_type prov, std::string_view name,
     open("/dev/null", O_WRONLY);
     open("/dev/null", O_WRONLY);
 
-    signal(SIGCHLD, SIG_IGN);
     execvp(exec_args.at(0U), const_cast<char *const *>(exec_args.data()));
-#else                    // !defined(__linux__) && !defined(_WIN32)
-    build fails here
-#endif                   // defined(_WIN32)
+#endif // defined(_WIN32)
     return {};
   }
 
