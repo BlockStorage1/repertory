@@ -21,7 +21,7 @@
 */
 #if !defined(_WIN32)
 
-#include "platform/unix_platform.hpp"
+#include "platform/platform.hpp"
 
 #include "app_config.hpp"
 #include "events/event_system.hpp"
@@ -36,11 +36,6 @@
 #include "utils/unix.hpp"
 
 namespace repertory {
-auto create_lock_id(provider_type prov, std::string unique_id) {
-  return fmt::format("{}_{}_{}", REPERTORY_DATA_NAME,
-                     app_config::get_provider_name(prov), unique_id);
-}
-
 lock_data::lock_data(const provider_type &prov, std::string unique_id)
     : mutex_id_(create_lock_id(prov, unique_id)) {
   lock_fd_ = open(get_lock_file().c_str(), O_CREAT | O_RDWR, S_IWUSR | S_IRUSR);

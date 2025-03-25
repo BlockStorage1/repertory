@@ -26,8 +26,6 @@
 #include "types/repertory.hpp"
 
 namespace repertory {
-[[nodiscard]] auto create_lock_id(provider_type prov, std::string unique_id);
-
 class i_provider;
 
 class lock_data final {
@@ -42,7 +40,6 @@ public:
   auto operator=(lock_data &&) -> lock_data & = delete;
 
 private:
-  provider_type prov_;
   std::string mutex_id_;
   HANDLE mutex_handle_{INVALID_HANDLE_VALUE};
   DWORD mutex_state_{WAIT_FAILED};

@@ -22,6 +22,12 @@
 #ifndef REPERTORY_INCLUDE_PLATFORM_PLATFORM_HPP_
 #define REPERTORY_INCLUDE_PLATFORM_PLATFORM_HPP_
 
+#include "types/repertory.hpp"
+
+namespace repertory {
+[[nodiscard]] auto create_lock_id(provider_type prov, std::string unique_id);
+}
+
 #if defined(_WIN32)
 #include "platform/win32_platform.hpp"
 #include "utils/windows.hpp"

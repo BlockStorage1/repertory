@@ -26,8 +26,6 @@
 #include "types/repertory.hpp"
 
 namespace repertory {
-[[nodiscard]] auto create_lock_id(provider_type prov, std::string unique_id);
-
 class i_provider;
 
 class lock_data final {

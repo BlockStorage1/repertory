@@ -21,9 +21,8 @@
 */
 #if defined(_WIN32)
 
-#include "platform/win32_platform.hpp"
+#include "platform/platform.hpp"
 
-#include "app_config.hpp"
 #include "events/event_system.hpp"
 #include "events/types/filesystem_item_added.hpp"
 #include "providers/i_provider.hpp"
@@ -32,18 +31,12 @@
 #include "utils/string.hpp"
 
 namespace repertory {
-auto create_lock_id(provider_type prov, std::string unique_id) {
-  return fmt::format("{}_{}_{}", REPERTORY_DATA_NAME,
-                     app_config::get_provider_name(prov), unique_id);
-}
-
-lock_data::~lock_data() { release(); }
-
 lock_data::lock_data(provider_type prov, std::string unique_id)
-    : prov_(prov),
-      mutex_id_(create_lock_id(prov, unique_id)),
+    : mutex_id_(create_lock_id(prov, unique_id)),
       mutex_handle_(::CreateMutex(nullptr, FALSE,
                                   create_lock_id(prov, unique_id).c_str())) {}
+
+lock_data::~lock_data() { release(); }
 
 auto lock_data::get_current_mount_state(json &mount_state) -> bool {
   REPERTORY_USES_FUNCTION_NAME();
