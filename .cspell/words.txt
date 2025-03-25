@@ -115,6 +115,7 @@ googletest
 gpath
 gtest_version
 has_setxattr
+hkey
 httpapi
 httplib
 icudata

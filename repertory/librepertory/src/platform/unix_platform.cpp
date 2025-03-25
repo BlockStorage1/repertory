@@ -159,7 +159,11 @@ auto lock_data::set_mount_state(bool active, const std::string &mount_location,
             {"Location", active ? mount_location : ""},
             {"PID", active ? pid : -1},
         };
-        ret = utils::file::write_json_file(get_lock_data_file(), json_data);
+        if (mount_location.empty() && not active) {
+          ret = utils::file::file{get_lock_data_file()}.delete();
+        } else {
+          ret = utils::file::write_json_file(get_lock_data_file(), json_data);
+        }
       } else {
         ret = true;
       }
