@@ -36,16 +36,13 @@
 #include "utils/unix.hpp"
 
 namespace repertory {
-lock_data::lock_data(const provider_type &pt, std::string unique_id /*= ""*/)
-    : pt_(pt),
+lock_data::lock_data(const provider_type &prov, std::string unique_id /*= ""*/)
+    : prov_(prov),
       unique_id_(std::move(unique_id)),
-      mutex_id_("repertory_" + app_config::get_provider_name(pt) + "_" +
+      mutex_id_("repertory_" + app_config::get_provider_name(prov) + "_" +
                 unique_id_) {
   lock_fd_ = open(get_lock_file().c_str(), O_CREAT | O_RDWR, S_IWUSR | S_IRUSR);
 }
-
-lock_data::lock_data()
-    : pt_(provider_type::sia), unique_id_(""), mutex_id_(""), lock_fd_(-1) {}
 
 lock_data::~lock_data() { release(); }
 
@@ -105,9 +102,6 @@ auto lock_data::grab_lock(std::uint8_t retry_count) -> lock_result {
   lock_status_ = wait_for_lock(lock_fd_, retry_count);
   switch (lock_status_) {
   case 0:
-    if (not set_mount_state(false, "", -1)) {
-      utils::error::raise_error(function_name, "failed to set mount state");
-    }
     return lock_result::success;
   case EWOULDBLOCK:
     return lock_result::locked;
@@ -140,7 +134,7 @@ auto lock_data::set_mount_state(bool active, const std::string &mount_location,
   if (handle != -1) {
     if (wait_for_lock(handle) == 0) {
       const auto mount_id =
-          app_config::get_provider_display_name(pt_) + unique_id_;
+          app_config::get_provider_display_name(prov_) + unique_id_;
       json mount_state;
       if (not utils::file::read_json_file(get_lock_data_file(), mount_state)) {
         utils::error::raise_error(function_name,

@@ -28,13 +28,13 @@
 #include "providers/provider.hpp"
 #include "types/repertory.hpp"
 #include "utils/cli_utils.hpp"
-#include "utils/com_init_wrapper.hpp"
 #include "utils/file.hpp"
 
 #if defined(_WIN32)
 #include "drives/winfsp/remotewinfsp/remote_client.hpp"
 #include "drives/winfsp/remotewinfsp/remote_winfsp_drive.hpp"
 #include "drives/winfsp/winfsp_drive.hpp"
+#include "utils/com_init_wrapper.hpp"
 
 using repertory_drive = repertory::winfsp_drive;
 using remote_client = repertory::remote_winfsp::remote_client;
@@ -56,6 +56,15 @@ namespace repertory::cli::actions {
 mount(std::vector<const char *> args, std::string data_directory,
       int &mount_result, provider_type prov, const std::string &remote_host,
       std::uint16_t remote_port, const std::string &unique_id) -> exit_code {
+  lock_data global_lock(provider_type::unknown, "global");
+  {
+    auto lock_result = global_lock.grab_lock(100U);
+    if (lock_result != lock_result::success) {
+      std::cerr << "FATAL: Unable to get global lock" << std::endl;
+      return exit_code::lock_failed;
+    }
+  }
+
   lock_data lock(prov, unique_id);
   auto lock_result = lock.grab_lock();
   if (lock_result == lock_result::locked) {
@@ -96,13 +105,6 @@ mount(std::vector<const char *> args, std::string data_directory,
     ::ShowWindow(::GetConsoleWindow(), SW_HIDE);
   }
 #endif // defined(_WIN32)
-
-  lock_data global_lock(provider_type::unknown, "global");
-  lock_result = global_lock.grab_lock(100U);
-  if (lock_result != lock_result::success) {
-    std::cerr << "FATAL: Unable to get global lock" << std::endl;
-    return exit_code::lock_failed;
-  }
 
   auto drive_args = utils::cli::parse_drive_options(args, prov, data_directory);
   app_config config(prov, data_directory);

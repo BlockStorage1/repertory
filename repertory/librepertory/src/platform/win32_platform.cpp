@@ -89,23 +89,9 @@ auto lock_data::grab_lock(std::uint8_t retry_count) -> lock_result {
     }
 
     switch (mutex_state_) {
-    case WAIT_OBJECT_0: {
+    case WAIT_OBJECT_0:
       ret = lock_result::success;
-      auto should_reset = true;
-      json mount_state;
-      if (get_mount_state(pt_, mount_state)) {
-        if (mount_state["Active"].get<bool>() &&
-            mount_state["Location"] == "elevating") {
-          should_reset = false;
-        }
-      }
-
-      if (should_reset) {
-        if (not set_mount_state(false, "", -1)) {
-          utils::error::raise_error(function_name, "failed to set mount state");
-        }
-      }
-    } break;
+      break;
 
     case WAIT_TIMEOUT:
       ret = lock_result::locked;

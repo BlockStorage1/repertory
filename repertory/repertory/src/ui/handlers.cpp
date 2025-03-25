@@ -168,7 +168,7 @@ handlers::handlers(mgmt_app_config *config, httplib::Server *server)
                      : http_error_codes::internal_error;
   });
 
-  server->Get("/api/v1/locations", [this](auto && /* req */, auto &&res) {
+  server->Get("/api/v1/locations", [](auto && /* req */, auto &&res) {
     handle_get_available_locations(res);
   });
 
@@ -567,12 +567,12 @@ void handlers::handle_post_mount(const httplib::Request &req,
       return;
     }
 
+    config_->set_mount_location(prov, name, location);
+
     static std::mutex mount_mtx;
     mutex_lock lock(mount_mtx);
 
     launch_process(prov, name, {location}, true);
-    config_->set_mount_location(prov, name, location);
-
     launch_process(prov, name, {"-status"});
   }
 

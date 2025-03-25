@@ -30,16 +30,20 @@ class i_provider;
 
 class lock_data final {
 public:
-  explicit lock_data(const provider_type &pt, std::string unique_id /*= ""*/);
+  explicit lock_data(const provider_type &prov, std::string unique_id /*= ""*/);
 
-  lock_data();
+  lock_data(const lock_data &) = delete;
+  lock_data(lock_data &&) = delete;
+
+  auto operator=(const lock_data &) -> lock_data & = delete;
+  auto operator=(lock_data &&) -> lock_data & = delete;
 
   ~lock_data();
 
 private:
-  const provider_type pt_;
-  const std::string unique_id_;
-  const std::string mutex_id_;
+  provider_type prov_;
+  std::string unique_id_;
+  std::string mutex_id_;
   int lock_fd_;
   int lock_status_{EWOULDBLOCK};
 
