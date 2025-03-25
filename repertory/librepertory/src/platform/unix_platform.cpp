@@ -69,15 +69,27 @@ auto lock_data::get_lock_file() const -> std::string {
 }
 
 auto lock_data::get_mount_state(json &mount_state) -> bool {
-  auto handle =
-      open(get_lock_data_file().c_str(), O_CREAT | O_RDWR, S_IWUSR | S_IRUSR);
+  auto handle = open(get_lock_data_file().c_str(), O_RDWR, S_IWUSR | S_IRUSR);
   if (handle == -1) {
-    return false;
+    mount_state = {
+        {"Active", false},
+        {"Location", ""},
+        {"PID", -1},
+    };
+
+    return true;
   }
 
   auto ret{false};
   if (wait_for_lock(handle) == 0) {
     ret = utils::file::read_json_file(get_lock_data_file(), mount_state);
+    if (ret && mount_state.empty()) {
+      mount_state = {
+          {"Active", false},
+          {"Location", ""},
+          {"PID", -1},
+      };
+    }
     flock(handle, LOCK_UN);
   }
 
