@@ -25,7 +25,8 @@
 #include "types/repertory.hpp"
 
 namespace repertory {
-[[nodiscard]] auto create_lock_id(provider_type prov, std::string unique_id);
+[[nodiscard]] auto create_lock_id(provider_type prov,
+                                  std::string_view unique_id);
 }
 
 #if defined(_WIN32)

@@ -24,7 +24,7 @@
 #include "app_config.hpp"
 
 namespace repertory {
-auto create_lock_id(provider_type prov, std::string unique_id) {
+auto create_lock_id(provider_type prov, std::string_view unique_id) {
   return fmt::format("{}_{}_{}", REPERTORY_DATA_NAME,
                      app_config::get_provider_name(prov), unique_id);
 }
