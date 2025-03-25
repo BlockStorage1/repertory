@@ -26,11 +26,13 @@
 #include "types/repertory.hpp"
 
 namespace repertory {
+[[nodiscard]] auto create_lock_id(provider_type prov, std::string unique_id);
+
 class i_provider;
 
 class lock_data final {
 public:
-  explicit lock_data(const provider_type &prov, std::string unique_id /*= ""*/);
+  explicit lock_data(const provider_type &prov, std::string unique_id);
 
   lock_data(const lock_data &) = delete;
   lock_data(lock_data &&) = delete;
@@ -42,7 +44,6 @@ public:
 
 private:
   provider_type prov_;
-  std::string unique_id_;
   std::string mutex_id_;
   int lock_fd_;
   int lock_status_{EWOULDBLOCK};

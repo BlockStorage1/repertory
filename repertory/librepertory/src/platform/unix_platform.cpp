@@ -36,49 +36,58 @@
 #include "utils/unix.hpp"
 
 namespace repertory {
-lock_data::lock_data(const provider_type &prov, std::string unique_id /*= ""*/)
-    : prov_(prov),
-      unique_id_(std::move(unique_id)),
-      mutex_id_("repertory_" + app_config::get_provider_name(prov) + "_" +
-                unique_id_) {
+auto create_lock_id(provider_type prov, std::string unique_id) {
+  return fmt::format("{}_{}_{}", REPERTORY_DATA_NAME,
+                     app_config::get_provider_name(prov), unique_id);
+}
+
+lock_data::lock_data(const provider_type &prov, std::string unique_id)
+    : prov_(prov), mutex_id_(create_lock_id(prov, unique_id)) {
   lock_fd_ = open(get_lock_file().c_str(), O_CREAT | O_RDWR, S_IWUSR | S_IRUSR);
 }
 
 lock_data::~lock_data() { release(); }
 
 auto lock_data::get_lock_data_file() -> std::string {
-  const auto dir = get_state_directory();
+  auto dir = get_state_directory();
   if (not utils::file::directory(dir).create_directory()) {
     throw startup_exception("failed to create directory|sp|" + dir + "|err|" +
                             std::to_string(utils::get_last_error_code()));
   }
+
   return utils::path::combine(
-      dir, {"mountstate_" + std::to_string(getuid()) + ".json"});
+      dir, {
+               fmt::format("{}_{}.json", mutex_id_, getuid()),
+           });
 }
 
 auto lock_data::get_lock_file() -> std::string {
-  const auto dir = get_state_directory();
+  auto dir = get_state_directory();
   if (not utils::file::directory(dir).create_directory()) {
     throw startup_exception("failed to create directory|sp|" + dir + "|err|" +
                             std::to_string(utils::get_last_error_code()));
   }
 
-  return utils::path::combine(dir,
-                              {mutex_id_ + "_" + std::to_string(getuid())});
+  return utils::path::combine(
+      dir, {
+               fmt::format("{}_{}.lock", mutex_id_, getuid()),
+           });
 }
 
 auto lock_data::get_mount_state(json &mount_state) -> bool {
-  auto ret = false;
   auto fd =
       open(get_lock_data_file().c_str(), O_CREAT | O_RDWR, S_IWUSR | S_IRUSR);
-  if (fd != -1) {
-    if (wait_for_lock(fd) == 0) {
-      ret = utils::file::read_json_file(get_lock_data_file(), mount_state);
-      flock(fd, LOCK_UN);
-    }
-
-    close(fd);
+  if (fd == -1) {
+    return false;
   }
+
+  auto ret{false};
+  if (wait_for_lock(fd) == 0) {
+    ret = utils::file::read_json_file(get_lock_data_file(), mount_state);
+    flock(fd, LOCK_UN);
+  }
+
+  close(fd);
   return ret;
 }
 
@@ -93,8 +102,6 @@ auto lock_data::get_state_directory() -> std::string {
 }
 
 auto lock_data::grab_lock(std::uint8_t retry_count) -> lock_result {
-  REPERTORY_USES_FUNCTION_NAME();
-
   if (lock_fd_ == -1) {
     return lock_result::failure;
   }
@@ -116,7 +123,7 @@ void lock_data::release() {
   }
 
   if (lock_status_ == 0) {
-    unlink(get_lock_file().c_str());
+    utils::file::file{get_lock_file()}.delete();
     flock(lock_fd_, LOCK_UN);
   }
 
@@ -128,59 +135,55 @@ auto lock_data::set_mount_state(bool active, const std::string &mount_location,
                                 int pid) -> bool {
   REPERTORY_USES_FUNCTION_NAME();
 
-  auto ret = false;
   auto handle =
       open(get_lock_data_file().c_str(), O_CREAT | O_RDWR, S_IWUSR | S_IRUSR);
-  if (handle != -1) {
-    if (wait_for_lock(handle) == 0) {
-      const auto mount_id =
-          app_config::get_provider_display_name(prov_) + unique_id_;
-      json mount_state;
-      if (not utils::file::read_json_file(get_lock_data_file(), mount_state)) {
-        utils::error::raise_error(function_name,
-                                  "failed to read mount state file|sp|" +
-                                      get_lock_file());
-      }
-      if ((mount_state.find(mount_id) == mount_state.end()) ||
-          (mount_state[mount_id].find("Active") ==
-           mount_state[mount_id].end()) ||
-          (mount_state[mount_id]["Active"].get<bool>() != active) ||
-          (active && ((mount_state[mount_id].find("Location") ==
-                       mount_state[mount_id].end()) ||
-                      (mount_state[mount_id]["Location"].get<std::string>() !=
-                       mount_location)))) {
-        const auto lines = utils::file::read_file_lines(get_lock_data_file());
-        const auto txt = std::accumulate(
-            lines.begin(), lines.end(), std::string(),
-            [](auto &&val, auto &&line) -> auto { return val + line; });
-        auto json_data = json::parse(txt.empty() ? "{}" : txt);
-        json_data[mount_id] = {
-            {"Active", active},
-            {"Location", active ? mount_location : ""},
-            {"PID", active ? pid : -1},
-        };
-        if (mount_location.empty() && not active) {
-          ret = utils::file::file{get_lock_data_file()}.delete();
-        } else {
-          ret = utils::file::write_json_file(get_lock_data_file(), json_data);
-        }
-      } else {
-        ret = true;
-      }
+  if (handle == -1) {
+    return false;
+  }
 
-      flock(handle, LOCK_UN);
+  auto ret{false};
+  if (wait_for_lock(handle) == 0) {
+    json mount_state;
+    if (not utils::file::read_json_file(get_lock_data_file(), mount_state)) {
+      utils::error::raise_error(function_name,
+                                "failed to read mount state file|sp|" +
+                                    get_lock_file());
+    }
+    if ((mount_state.find("Active") == mount_state.end()) ||
+        (mount_state.get<bool>() != active) ||
+        (active && ((mount_state.find("Location") == mount_state.end()) ||
+                    (mount_state.get<std::string>() != mount_location)))) {
+      auto lines = utils::file::read_file_lines(get_lock_data_file());
+      auto txt = std::accumulate(
+          lines.begin(), lines.end(), std::string(),
+          [](auto &&val, auto &&line) -> auto { return val + line; });
+      auto json_data = json::parse(txt.empty() ? "{}" : txt);
+      json_data = {
+          {"Active", active},
+          {"Location", active ? mount_location : ""},
+          {"PID", active ? pid : -1},
+      };
+      if (mount_location.empty() && not active) {
+        ret = utils::file::file{get_lock_data_file()}.delete();
+      } else {
+        ret = utils::file::write_json_file(get_lock_data_file(), json_data);
+      }
+    } else {
+      ret = true;
     }
 
-    close(handle);
+    flock(handle, LOCK_UN);
   }
+
+  close(handle);
   return ret;
 }
 
 auto lock_data::wait_for_lock(int fd, std::uint8_t retry_count) -> int {
-  static constexpr const std::uint32_t max_sleep = 100U;
+  static constexpr const std::uint32_t max_sleep{100U};
 
-  auto lock_status = EWOULDBLOCK;
-  auto remain = static_cast<std::uint32_t>(retry_count * max_sleep);
+  auto lock_status{EWOULDBLOCK};
+  auto remain{static_cast<std::uint32_t>(retry_count * max_sleep)};
   while ((remain > 0) && (lock_status == EWOULDBLOCK)) {
     lock_status = flock(fd, LOCK_EX | LOCK_NB);
     if (lock_status == -1) {
@@ -231,7 +234,7 @@ auto provider_meta_handler(i_provider &provider, bool directory,
                            const api_file &file) -> api_error {
   REPERTORY_USES_FUNCTION_NAME();
 
-  const auto meta = create_meta_attributes(
+  auto meta = create_meta_attributes(
       file.accessed_date,
       directory ? FILE_ATTRIBUTE_DIRECTORY : FILE_ATTRIBUTE_ARCHIVE,
       file.changed_date, file.creation_date, directory, getgid(), file.key,

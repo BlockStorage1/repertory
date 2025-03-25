@@ -23,20 +23,16 @@
 #define REPERTORY_INCLUDE_PLATFORM_WINPLATFORM_HPP_
 #if defined(_WIN32)
 
-#include "app_config.hpp"
 #include "types/repertory.hpp"
 
 namespace repertory {
+[[nodiscard]] auto create_lock_id(provider_type prov, std::string unique_id);
+
 class i_provider;
 
 class lock_data final {
 public:
-  explicit lock_data(const provider_type &prov, std::string unique_id /*= ""*/)
-      : prov_(prov),
-        unique_id_(std::move(unique_id)),
-        mutex_id_("repertory_" + app_config::get_provider_name(prov) + "_" +
-                  unique_id_),
-        mutex_handle_(::CreateMutex(nullptr, FALSE, mutex_id_.c_str())) {}
+  explicit lock_data(provider_type prov, std::string unique_id);
   lock_data(const lock_data &) = delete;
   lock_data(lock_data &&) = delete;
 
@@ -47,18 +43,14 @@ public:
 
 private:
   provider_type prov_;
-  std::string unique_id_;
   std::string mutex_id_;
-  HANDLE mutex_handle_{};
+  HANDLE mutex_handle_{INVALID_HANDLE_VALUE};
   DWORD mutex_state_{WAIT_FAILED};
 
+  [[nodiscard]] auto get_current_mount_state(json &mount_state) -> bool;
+
 public:
-  [[nodiscard]] auto get_mount_state(provider_type prov, json &mount_state)
-      -> bool;
-
-  [[nodiscard]] static auto get_mount_state(json &mount_state) -> bool;
-
-  [[nodiscard]] auto get_unique_id() const -> std::string { return unique_id_; }
+  [[nodiscard]] auto get_mount_state(json &mount_state) -> bool;
 
   [[nodiscard]] auto grab_lock(std::uint8_t retry_count = 30U) -> lock_result;
 

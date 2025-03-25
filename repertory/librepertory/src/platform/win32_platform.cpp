@@ -23,76 +23,79 @@
 
 #include "platform/win32_platform.hpp"
 
+#include "app_config.hpp"
 #include "events/event_system.hpp"
 #include "events/types/filesystem_item_added.hpp"
 #include "providers/i_provider.hpp"
 #include "utils/string.hpp"
 
 namespace repertory {
-auto lock_data::get_mount_state(provider_type /*pt*/, json &mount_state)
-    -> bool {
-  if (not get_mount_state(mount_state)) {
-    return false;
-  }
-
-  auto mount_id = app_config::get_provider_display_name(prov_) + unique_id_;
-  mount_state = mount_state[mount_id].empty() ? json({
-                                                    {"Active", false},
-                                                    {"Location", ""},
-                                                    {"PID", -1},
-                                                })
-                                              : mount_state[mount_id];
-
-  return true;
+auto create_lock_id(provider_type prov, std::string unique_id) {
+  return fmt::format("{}_{}_{}", REPERTORY_DATA_NAME,
+                     app_config::get_provider_name(prov), unique_id);
 }
 
-auto lock_data::get_mount_state(json &mount_state) -> bool {
+lock_data::lock_data(provider_type prov, std::string unique_id)
+    : prov_(prov),
+      mutex_id_(create_lock_id(prov, unique_id)),
+      mutex_handle_(::CreateMutex(nullptr, FALSE,
+                                  create_lock_id(prov, unique_id).c_str())) {}
+
+auto lock_data::get_current_mount_state(json &mount_state) -> bool {
   HKEY key{};
-  auto ret = (::RegCreateKeyEx(
-                  HKEY_CURRENT_USER,
-                  ("SOFTWARE\\" + std::string{REPERTORY_DATA_NAME} + "\\Mounts")
-                      .c_str(),
-                  0, nullptr, 0, KEY_ALL_ACCESS, nullptr, &key,
-                  nullptr) == ERROR_SUCCESS);
+  auto ret = (::RegCreateKeyExA(HKEY_CURRENT_USER,
+                                fmt::format(R"(SOFTWARE\{}\Mounts\\{})",
+                                            REPERTORY_DATA_NAME, mutex_id_)
+                                    .c_str(),
+                                0, nullptr, 0, KEY_ALL_ACCESS, nullptr, &key,
+                                nullptr) == ERROR_SUCCESS);
   if (not ret) {
     return ret;
   }
 
   std::string data;
   DWORD data_size{};
-  DWORD idx{};
-  std::string name;
-  name.resize(32767U);
-  auto name_size{static_cast<DWORD>(name.size())};
-  while (ret &&
-         (::RegEnumValue(key, idx, name.data(), &name_size, nullptr, nullptr,
-                         nullptr, &data_size) == ERROR_SUCCESS)) {
 
-    data.resize(data_size);
-    ret = (::RegEnumValue(key, idx, name.data(), &name_size, nullptr, nullptr,
-                          reinterpret_cast<LPBYTE>(data.data()),
-                          &data_size) == ERROR_SUCCESS);
-    if (ret) {
-      mount_state[name] = json::parse(data);
-      name_size = static_cast<DWORD>(name.size());
-      data_size = 0U;
-    }
+  DWORD type{REG_SZ};
+  ::RegGetValueA(key, nullptr, nullptr, 0, &type, data.data(), &data_size);
 
-    ++idx;
+  data.resize(data_size);
+  ret = (::RegGetValueA(key, nullptr, nullptr, 0, &type, data.data(),
+                        &data_size) == ERROR_SUCCESS);
+  if (ret && data_size != 0U) {
+    mount_state = json::parse(data);
   }
 
   ::RegCloseKey(key);
   return ret;
 }
 
+auto lock_data::get_mount_state(json &mount_state) -> bool {
+  if (not get_current_mount_state(mount_state)) {
+    return false;
+  }
+
+  mount_state = mount_state.empty() ? json({
+                                          {"Active", false},
+                                          {"Location", ""},
+                                          {"PID", -1},
+                                      })
+                                    : mount_state;
+
+  return true;
+}
+
 auto lock_data::grab_lock(std::uint8_t retry_count) -> lock_result {
+  static constexpr const std::uint32_t max_sleep{100U};
+
   if (mutex_handle_ == INVALID_HANDLE_VALUE) {
     return lock_result::failure;
   }
 
   for (std::uint8_t idx = 0U;
-       (idx <= retry_count) && ((mutex_state_ = ::WaitForSingleObject(
-                                     mutex_handle_, 100)) == WAIT_TIMEOUT);
+       (idx <= retry_count) &&
+       ((mutex_state_ = ::WaitForSingleObject(mutex_handle_, max_sleep)) ==
+        WAIT_TIMEOUT);
        ++idx) {
   }
 
@@ -127,28 +130,22 @@ auto lock_data::set_mount_state(bool active, std::string_view mount_location,
     return false;
   }
 
-  auto mount_id{app_config::get_provider_display_name(prov_) + unique_id_};
-
   json mount_state;
   [[maybe_unused]] auto success{get_mount_state(mount_state)};
-  if (not((mount_state.find(mount_id) == mount_state.end()) ||
-          (mount_state[mount_id].find("Active") ==
-           mount_state[mount_id].end()) ||
-          (mount_state[mount_id]["Active"].get<bool>() != active) ||
-          (active && ((mount_state[mount_id].find("Location") ==
-                       mount_state[mount_id].end()) ||
-                      (mount_state[mount_id]["Location"].get<std::string>() !=
-                       mount_location))))) {
+  if (not((mount_state.find("Active") == mount_state.end()) ||
+          (mount_state.get<bool>() != active) ||
+          (active && ((mount_state.find("Location") == mount_state.end()) ||
+                      (mount_state.get<std::string>() != mount_location))))) {
     return true;
   }
 
   HKEY key{};
-  if (::RegCreateKeyEx(
-          HKEY_CURRENT_USER,
-          ("SOFTWARE\\" + std::string{REPERTORY_DATA_NAME} + "\\Mounts")
-              .c_str(),
-          0, nullptr, 0, KEY_ALL_ACCESS, nullptr, &key,
-          nullptr) != ERROR_SUCCESS) {
+  if (::RegCreateKeyExA(HKEY_CURRENT_USER,
+                        fmt::format(R"(SOFTWARE\{}\Mounts\\{})",
+                                    REPERTORY_DATA_NAME, mutex_id_)
+                            .c_str(),
+                        0, nullptr, 0, KEY_ALL_ACCESS, nullptr, &key,
+                        nullptr) != ERROR_SUCCESS) {
     return false;
   }
 
@@ -163,14 +160,24 @@ auto lock_data::set_mount_state(bool active, std::string_view mount_location,
 
   auto ret{false};
   if (mount_location.empty() && not active) {
-    ret = (::RegDeleteKey(key, mount_id.c_str()) == ERROR_SUCCESS);
+    ::RegCloseKey(key);
+
+    if (::RegCreateKeyExA(
+            HKEY_CURRENT_USER,
+            fmt::format(R"(SOFTWARE\{}\Mounts)", REPERTORY_DATA_NAME).c_str(),
+            0, nullptr, 0, KEY_ALL_ACCESS, nullptr, &key,
+            nullptr) != ERROR_SUCCESS) {
+      return false;
+    }
+
+    ret = (::RegDeleteKeyA(key, mutex_id_.c_str()) == ERROR_SUCCESS);
   } else {
-    ret = (::RegSetValueEx(key, mount_id.c_str(), 0, REG_SZ,
+    ret = (::RegSetValueEx(key, nullptr, 0, REG_SZ,
                            reinterpret_cast<const BYTE *>(data.c_str()),
                            static_cast<DWORD>(data.size())) == ERROR_SUCCESS);
   }
-  ::RegCloseKey(key);
 
+  ::RegCloseKey(key);
   return ret;
 }
 
@@ -221,4 +228,4 @@ auto provider_meta_handler(i_provider &provider, bool directory,
 }
 } // namespace repertory
 
-#endif //_WIN32
+#endif // defined(_WIN32)
