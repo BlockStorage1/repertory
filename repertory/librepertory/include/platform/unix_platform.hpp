@@ -43,7 +43,6 @@ public:
   ~lock_data();
 
 private:
-  provider_type prov_;
   std::string mutex_id_;
   int lock_fd_;
   int lock_status_{EWOULDBLOCK};

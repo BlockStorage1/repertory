@@ -42,7 +42,7 @@ auto create_lock_id(provider_type prov, std::string unique_id) {
 }
 
 lock_data::lock_data(const provider_type &prov, std::string unique_id)
-    : prov_(prov), mutex_id_(create_lock_id(prov, unique_id)) {
+    : mutex_id_(create_lock_id(prov, unique_id)) {
   lock_fd_ = open(get_lock_file().c_str(), O_CREAT | O_RDWR, S_IWUSR | S_IRUSR);
 }
 
