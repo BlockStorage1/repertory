@@ -386,7 +386,7 @@ Future<String?> editMountLocation(
                             );
                           }).toList(),
                     ),
-            title: const Text('Set Mount Location'),
+            title: const Text('Mount Location'),
           );
         },
       );
