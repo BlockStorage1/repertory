@@ -60,12 +60,12 @@ private:
 public:
   [[nodiscard]] auto get_mount_state(json &mount_state) -> bool;
 
-  [[nodiscard]] auto grab_lock(std::uint8_t retry_count = 30u) -> lock_result;
+  [[nodiscard]] auto grab_lock(std::uint8_t retry_count = 30U) -> lock_result;
 
   void release();
 
   [[nodiscard]] auto set_mount_state(bool active,
-                                     const std::string &mount_location, int pid)
+                                     std::string_view mount_location, int pid)
       -> bool;
 };
 
