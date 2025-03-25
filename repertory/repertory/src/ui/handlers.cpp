@@ -682,12 +682,9 @@ auto handlers::launch_process(provider_type prov, std::string_view name,
     args.insert(std::next(args.begin(), 3U), "");
     args.insert(std::next(args.begin(), 4U), "/MIN");
     args.insert(std::next(args.begin(), 5U), repertory_binary_);
-#elif defined(__linux__) // defined(__linux__)
+#else  // !defined(_WIN32)
     args.insert(args.begin(), repertory_binary_);
-    args.insert(std::next(args.begin()), "-f");
-#else                    // !defined(__linux__) && !defined(_WIN32)
-    build fails here
-#endif                   // defined(_WIN32)
+#endif // defined(_WIN32)
 
     std::vector<const char *> exec_args;
     exec_args.reserve(args.size() + 1U);
@@ -699,26 +696,22 @@ auto handlers::launch_process(provider_type prov, std::string_view name,
 #if defined(_WIN32)
     _spawnv(_P_DETACH, exec_args.at(0U),
             const_cast<char *const *>(exec_args.data()));
-#else
+#else  // !defined(_WIN32)
     auto pid = fork();
-    if (pid < 0) {
-      throw utils::error::create_exception(function_name, {"mount failed"});
+    if (pid == 0) {
+      setsid();
+      chdir("/");
+      close(STDIN_FILENO);
+      close(STDOUT_FILENO);
+      close(STDERR_FILENO);
+      open("/dev/null", O_RDONLY);
+      open("/dev/null", O_WRONLY);
+      open("/dev/null", O_WRONLY);
+
+      execvp(exec_args.at(0U), const_cast<char *const *>(exec_args.data()));
+    } else {
+      signal(SIGCHLD, SIG_IGN);
     }
-
-    if (pid != 0) {
-      return {};
-    }
-
-    setsid();
-    chdir("/");
-    close(STDIN_FILENO);
-    close(STDOUT_FILENO);
-    close(STDERR_FILENO);
-    open("/dev/null", O_RDONLY);
-    open("/dev/null", O_WRONLY);
-    open("/dev/null", O_WRONLY);
-
-    execvp(exec_args.at(0U), const_cast<char *const *>(exec_args.data()));
 #endif // defined(_WIN32)
     return {};
   }
