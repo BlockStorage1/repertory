@@ -90,10 +90,10 @@ auto lock_data::get_state_directory() -> std::string {
 #if defined(__APPLE__)
   return utils::path::absolute("~/Library/Application Support/" +
                                std::string{REPERTORY_DATA_NAME} + "/state");
-#else
+#else  // !defined(__APPLE__)
   return utils::path::absolute("~/.local/" + std::string{REPERTORY_DATA_NAME} +
                                "/state");
-#endif
+#endif // defined(__APPLE__)
 }
 
 auto lock_data::grab_lock(std::uint8_t retry_count) -> lock_result {
