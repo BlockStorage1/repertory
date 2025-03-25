@@ -115,17 +115,23 @@ void displayAuthError(Auth auth) {
   displayErrorMessage(
     constants.navigatorKey.currentContext!,
     "Authentication failed",
+    clear: true,
   );
 }
 
-void displayErrorMessage(context, String text) {
+void displayErrorMessage(context, String text, {bool clear = false}) {
   if (!context.mounted) {
     return;
   }
 
-  ScaffoldMessenger.of(
-    context,
-  ).showSnackBar(SnackBar(content: Text(text, textAlign: TextAlign.center)));
+  final messenger = ScaffoldMessenger.of(context);
+  if (clear) {
+    messenger.removeCurrentSnackBar();
+  }
+
+  messenger.showSnackBar(
+    SnackBar(content: Text(text, textAlign: TextAlign.center)),
+  );
 }
 
 String formatMountName(String type, String name) {
