@@ -150,23 +150,20 @@ auto lock_data::set_mount_state(bool active, const std::string &mount_location,
                                     get_lock_file());
     }
     if ((mount_state.find("Active") == mount_state.end()) ||
-        (mount_state.get<bool>() != active) ||
-        (active && ((mount_state.find("Location") == mount_state.end()) ||
-                    (mount_state.get<std::string>() != mount_location)))) {
-      auto lines = utils::file::read_file_lines(get_lock_data_file());
-      auto txt = std::accumulate(
-          lines.begin(), lines.end(), std::string(),
-          [](auto &&val, auto &&line) -> auto { return val + line; });
-      auto json_data = json::parse(txt.empty() ? "{}" : txt);
-      json_data = {
-          {"Active", active},
-          {"Location", active ? mount_location : ""},
-          {"PID", active ? pid : -1},
-      };
+        (mount_state["Active"].get<bool>() != active) ||
+        (active &&
+         ((mount_state.find("Location") == mount_state.end()) ||
+          (mount_state["Location"].get<std::string>() != mount_location)))) {
       if (mount_location.empty() && not active) {
         ret = utils::file::file{get_lock_data_file()}.delete();
       } else {
-        ret = utils::file::write_json_file(get_lock_data_file(), json_data);
+        ret = utils::file::write_json_file(
+            get_lock_data_file(),
+            {
+                {"Active", active},
+                {"Location", active ? mount_location : ""},
+                {"PID", active ? pid : -1},
+            });
       }
     } else {
       ret = true;

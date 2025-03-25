@@ -84,5 +84,5 @@ public:
                                          const api_file &file) -> api_error;
 } // namespace repertory
 
-#endif // _WIN32
+#endif // !defined(_WIN32)
 #endif // REPERTORY_INCLUDE_PLATFORM_UNIXPLATFORM_HPP_

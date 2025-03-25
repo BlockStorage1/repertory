@@ -27,6 +27,8 @@
 #include "events/event_system.hpp"
 #include "events/types/filesystem_item_added.hpp"
 #include "providers/i_provider.hpp"
+#include "utils/config.hpp"
+#include "utils/error_utils.hpp"
 #include "utils/string.hpp"
 
 namespace repertory {
@@ -42,28 +44,35 @@ lock_data::lock_data(provider_type prov, std::string unique_id)
                                   create_lock_id(prov, unique_id).c_str())) {}
 
 auto lock_data::get_current_mount_state(json &mount_state) -> bool {
+  REPERTORY_USES_FUNCTION_NAME();
+
   HKEY key{};
-  auto ret = (::RegCreateKeyExA(HKEY_CURRENT_USER,
-                                fmt::format(R"(SOFTWARE\{}\Mounts\\{})",
-                                            REPERTORY_DATA_NAME, mutex_id_)
-                                    .c_str(),
-                                0, nullptr, 0, KEY_ALL_ACCESS, nullptr, &key,
-                                nullptr) == ERROR_SUCCESS);
-  if (not ret) {
-    return ret;
+  if (::RegOpenKeyEx(HKEY_CURRENT_USER,
+                     fmt::format(R"(SOFTWARE\{}\Mounts\{})",
+                                 REPERTORY_DATA_NAME, mutex_id_)
+                         .c_str(),
+                     0, KEY_ALL_ACCESS, &key) != ERROR_SUCCESS) {
+    return true;
   }
 
   std::string data;
   DWORD data_size{};
 
   DWORD type{REG_SZ};
-  ::RegGetValueA(key, nullptr, nullptr, 0, &type, data.data(), &data_size);
+  ::RegGetValueA(key, nullptr, nullptr, RRF_RT_REG_SZ, &type, nullptr,
+                 &data_size);
 
   data.resize(data_size);
-  ret = (::RegGetValueA(key, nullptr, nullptr, 0, &type, data.data(),
-                        &data_size) == ERROR_SUCCESS);
+  auto res = ::RegGetValueA(key, nullptr, nullptr, RRF_RT_REG_SZ, &type,
+                            data.data(), &data_size);
+  auto ret = res == ERROR_SUCCESS || res == ERROR_FILE_NOT_FOUND;
   if (ret && data_size != 0U) {
-    mount_state = json::parse(data);
+    try {
+      mount_state = json::parse(data);
+    } catch (const std::exception &e) {
+      utils::error::raise_error(function_name, e, "failed to read mount state");
+      ret = false;
+    }
   }
 
   ::RegCloseKey(key);
@@ -133,30 +142,22 @@ auto lock_data::set_mount_state(bool active, std::string_view mount_location,
   json mount_state;
   [[maybe_unused]] auto success{get_mount_state(mount_state)};
   if (not((mount_state.find("Active") == mount_state.end()) ||
-          (mount_state.get<bool>() != active) ||
-          (active && ((mount_state.find("Location") == mount_state.end()) ||
-                      (mount_state.get<std::string>() != mount_location))))) {
+          (mount_state["Active"].get<bool>() != active) ||
+          (active &&
+           ((mount_state.find("Location") == mount_state.end()) ||
+            (mount_state["Location"].get<std::string>() != mount_location))))) {
     return true;
   }
 
   HKEY key{};
   if (::RegCreateKeyExA(HKEY_CURRENT_USER,
-                        fmt::format(R"(SOFTWARE\{}\Mounts\\{})",
+                        fmt::format(R"(SOFTWARE\{}\Mounts\{})",
                                     REPERTORY_DATA_NAME, mutex_id_)
                             .c_str(),
                         0, nullptr, 0, KEY_ALL_ACCESS, nullptr, &key,
                         nullptr) != ERROR_SUCCESS) {
     return false;
   }
-
-  auto data{
-      json({
-               {"Active", active},
-               {"Location", active ? mount_location : ""},
-               {"PID", active ? pid : -1},
-           })
-          .dump(),
-  };
 
   auto ret{false};
   if (mount_location.empty() && not active) {
@@ -172,6 +173,14 @@ auto lock_data::set_mount_state(bool active, std::string_view mount_location,
 
     ret = (::RegDeleteKeyA(key, mutex_id_.c_str()) == ERROR_SUCCESS);
   } else {
+    auto data{
+        json({
+                 {"Active", active},
+                 {"Location", active ? mount_location : ""},
+                 {"PID", active ? pid : -1},
+             })
+            .dump(),
+    };
     ret = (::RegSetValueEx(key, nullptr, 0, REG_SZ,
                            reinterpret_cast<const BYTE *>(data.c_str()),
                            static_cast<DWORD>(data.size())) == ERROR_SUCCESS);
