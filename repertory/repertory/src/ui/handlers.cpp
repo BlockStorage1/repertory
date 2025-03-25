@@ -428,38 +428,12 @@ void handlers::handle_get_mount_location(const httplib::Request &req,
 
 void handlers::handle_get_mount_status(const httplib::Request &req,
                                        httplib::Response &res) const {
-  REPERTORY_USES_FUNCTION_NAME();
-
   auto name = req.get_param_value("name");
   auto prov = provider_type_from_string(req.get_param_value("type"));
 
   if (not data_directory_exists(prov, name)) {
     res.status = http_error_codes::not_found;
     return;
-  }
-
-  auto status_name = app_config::get_provider_display_name(prov);
-
-  switch (prov) {
-  case provider_type::remote: {
-    auto parts = utils::string::split(name, '_', false);
-    status_name =
-        fmt::format("{}{}:{}", status_name, parts.at(0U), parts.at(1U));
-  } break;
-
-  case provider_type::encrypt:
-  case provider_type::sia:
-  case provider_type::s3:
-    status_name = fmt::format("{}{}", status_name, name);
-    break;
-
-  default:
-    throw utils::error::create_exception(function_name,
-                                         {
-                                             "provider is not supported",
-                                             provider_type_to_string(prov),
-                                             name,
-                                         });
   }
 
   auto lines = launch_process(prov, name, {"-status"});
