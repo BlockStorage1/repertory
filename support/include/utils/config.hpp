@@ -399,6 +399,13 @@ using vlc_string_t = std::unique_ptr<char, vlc_string_deleter>;
 #include "spdlog/spdlog.h"
 #endif // defined(PROJECT_ENABLE_SPDLOG)
 
+#if defined(PROJECT_ENABLE_FMT)
+#include "fmt/chrono.h"
+#include "fmt/core.h"
+#include "fmt/format.h"
+#include "fmt/ranges.h"
+#endif // defined(PROJECT_ENABLE_FMT)
+
 #if defined(PROJECT_ENABLE_STDUUID)
 #include "uuid.h"
 #endif // defined(PROJECT_ENABLE_STDUUID)

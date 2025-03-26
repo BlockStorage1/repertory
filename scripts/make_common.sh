@@ -18,6 +18,8 @@ fi
 ln -sf "${PROJECT_BUILD_DIR}/build/compile_commands.json" "${PROJECT_SOURCE_DIR}/compile_commands.json"
 
 pushd "${PROJECT_BUILD_DIR}"
+export CMAKE_BUILD_PARALLEL_LEVEL=${NUM_JOBS}
+
 cmake "${PROJECT_SOURCE_DIR}" \
   -G"Unix Makefiles" \
   -DPROJECT_COMPANY_NAME="${PROJECT_COMPANY_NAME}" \
@@ -34,10 +36,10 @@ if [ "${PROJECT_BUILD_CLEAN}" == "clean" ]; then
   popd
 fi
 
-make -j${NUM_JOBS} || exit 1
+make || exit 1
 
 pushd build
-make -j${NUM_JOBS} || exit 1
+make -j${CMAKE_BUILD_PARALLEL_LEVEL} || exit 1
 popd
 popd
 
@@ -78,6 +80,11 @@ EOF
     rsync -av --progress "${PROJECT_BUILD_DIR}/build/${APP}${PROJECT_APP_BINARY_EXT}" "${PROJECT_DIST_DIR}/"
   fi
 done
+
+if [ -f "${PROJECT_SOURCE_DIR}/web/${PROJECT_NAME}/pubspec.yaml" ]; then
+  rsync -av --progress "${PROJECT_SOURCE_DIR}/web/${PROJECT_NAME}/build/web/" \
+    "${PROJECT_DIST_DIR}/web/"
+fi
 
 if [ "${PROJECT_IS_MINGW}" == "1" ]; then
   . "${PROJECT_SCRIPTS_DIR}/copy_mingw64_deps.sh" "$1" "$2" "$3" "$4" "$5"

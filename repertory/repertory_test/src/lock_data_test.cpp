@@ -62,13 +62,16 @@ TEST(lock_data_test, set_and_unset_mount_state) {
 
   json mount_state;
   EXPECT_TRUE(l.get_mount_state(mount_state));
-
   EXPECT_STREQ(R"({"Active":true,"Location":"C:","PID":99})",
-               mount_state["Sia1"].dump().c_str());
+               mount_state.dump().c_str());
+
+  EXPECT_TRUE(l2.get_mount_state(mount_state));
   EXPECT_STREQ(R"({"Active":true,"Location":"D:","PID":97})",
-               mount_state["Remote1"].dump().c_str());
+               mount_state.dump().c_str());
+
+  EXPECT_TRUE(l3.get_mount_state(mount_state));
   EXPECT_STREQ(R"({"Active":true,"Location":"E:","PID":96})",
-               mount_state["Remote2"].dump().c_str());
+               mount_state.dump().c_str());
 
   EXPECT_TRUE(l.set_mount_state(false, "C:", 99));
   EXPECT_TRUE(l2.set_mount_state(false, "D:", 98));
@@ -76,11 +79,15 @@ TEST(lock_data_test, set_and_unset_mount_state) {
 
   EXPECT_TRUE(l.get_mount_state(mount_state));
   EXPECT_STREQ(R"({"Active":false,"Location":"","PID":-1})",
-               mount_state["Sia1"].dump().c_str());
+               mount_state.dump().c_str());
+
+  EXPECT_TRUE(l2.get_mount_state(mount_state));
   EXPECT_STREQ(R"({"Active":false,"Location":"","PID":-1})",
-               mount_state["Remote1"].dump().c_str());
+               mount_state.dump().c_str());
+
+  EXPECT_TRUE(l3.get_mount_state(mount_state));
   EXPECT_STREQ(R"({"Active":false,"Location":"","PID":-1})",
-               mount_state["Remote2"].dump().c_str());
+               mount_state.dump().c_str());
 }
 #else
 TEST(lock_data_test, set_and_unset_mount_state) {
@@ -91,14 +98,13 @@ TEST(lock_data_test, set_and_unset_mount_state) {
   EXPECT_TRUE(l.get_mount_state(mount_state));
 
   EXPECT_STREQ(R"({"Active":true,"Location":"/mnt/1","PID":99})",
-               mount_state["Sia1"].dump().c_str());
+               mount_state.dump().c_str());
 
   EXPECT_TRUE(l.set_mount_state(false, "/mnt/1", 99));
 
   EXPECT_TRUE(l.get_mount_state(mount_state));
-
   EXPECT_STREQ(R"({"Active":false,"Location":"","PID":-1})",
-               mount_state["Sia1"].dump().c_str());
+               mount_state.dump().c_str());
 }
 #endif
 } // namespace repertory

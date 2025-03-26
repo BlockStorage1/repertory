@@ -44,11 +44,13 @@ struct repertory_exception_handler final
   }
 };
 
-std::unique_ptr<repertory_exception_handler> handler{([]() -> auto * {
-  auto *ptr = new repertory_exception_handler{};
-  repertory::utils::error::set_exception_handler(ptr);
-  return ptr;
-})()};
+const auto repertory_handler{
+    ([]() -> auto {
+      auto ptr = std::make_unique<repertory_exception_handler>();
+      repertory::utils::error::set_exception_handler(ptr.get());
+      return ptr;
+    })(),
+};
 } // namespace
 
 namespace repertory::utils::error {

@@ -128,7 +128,7 @@ std::atomic<std::uint64_t> app_config_test::idx{0U};
 
 static void defaults_tests(const json &json_data, provider_type prov) {
   json json_defaults = {
-      {JSON_API_PORT, app_config::default_rpc_port(prov)},
+      {JSON_API_PORT, app_config::default_rpc_port()},
       {JSON_API_USER, std::string{REPERTORY}},
       {JSON_DOWNLOAD_TIMEOUT_SECS, default_download_timeout_secs},
       {JSON_DATABASE_TYPE, database_type::rocksdb},
@@ -185,9 +185,9 @@ static void defaults_tests(const json &json_data, provider_type prov) {
   }
 
   fmt::println("testing default|{}-{}", app_config::get_provider_name(prov),
-               JSON_API_AUTH);
-  ASSERT_EQ(std::size_t(default_api_auth_size),
-            json_data.at(JSON_API_AUTH).get<std::string>().size());
+               JSON_API_PASSWORD);
+  ASSERT_EQ(std::size_t(default_api_password_size),
+            json_data.at(JSON_API_PASSWORD).get<std::string>().size());
   for (const auto &[key, value] : json_defaults.items()) {
     fmt::println("testing default|{}-{}", app_config::get_provider_name(prov),
                  key);
@@ -216,11 +216,11 @@ static void common_tests(app_config &config, provider_type prov) {
   ASSERT_EQ(config.get_provider_type(), prov);
 
   std::map<std::string_view, std::function<void(app_config &)>> methods{
-      {JSON_API_AUTH,
+      {JSON_API_PASSWORD,
        [](app_config &cfg) {
-         test_getter_setter(cfg, &app_config::get_api_auth,
-                            &app_config::set_api_auth, "", "auth",
-                            JSON_API_AUTH, "auth2");
+         test_getter_setter(cfg, &app_config::get_api_password,
+                            &app_config::set_api_password, "", "auth",
+                            JSON_API_PASSWORD, "auth2");
        }},
       {JSON_API_PORT,
        [](app_config &cfg) {

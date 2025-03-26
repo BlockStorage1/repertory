@@ -15,6 +15,7 @@ if [ "${PROJECT_IS_MINGW}" == "1" ] && [ "${PROJECT_STATIC_LINK}" == "OFF" ]; th
     /mingw64/bin/libstdc++-6.dll
     /mingw64/bin/libwinpthread-1.dll
     /mingw64/bin/libzlib1.dll
+    /mingw64/bin/libzstd.dll
     /mingw64/bin/zlib1.dll
   )
 

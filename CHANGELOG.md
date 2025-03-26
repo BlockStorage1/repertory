@@ -1,11 +1,28 @@
 # Changelog
 
+## v2.0.5-rc
+
+### Issues
+
+* \#39 Create management portal in Flutter
+
+### Changes from v2.0.4-rc
+
+* Continue documentation updates
+* Fixed `-status` command erasing active mount information
+* Fixed overlapping HTTP REST API port's
+* Refactored/fixed instance locking
+* Removed passwords and secret key values from API calls
+* Renamed setting `ApiAuth` to `ApiPassword`
+* Require `--name,-na` option for encryption provider
+
 ## v2.0.4-rc
 
 ### BREAKING CHANGES
 
 * `renterd` v2.0.0+ is now required. Prior versions will fail to mount.
 
+<!-- markdownlint-disable-next-line -->
 ### Issues
 
 * \#35 [bug] Low frequency check is set to '0' instead of 1 hour by default
