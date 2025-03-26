@@ -29,9 +29,7 @@
 #include "events/types/service_stop_end.hpp"
 #include "events/types/unmount_requested.hpp"
 #include "rpc/common.hpp"
-#include "utils/base64.hpp"
 #include "utils/error_utils.hpp"
-#include "utils/string.hpp"
 
 namespace repertory {
 server::server(app_config &config) : config_(config) {}
