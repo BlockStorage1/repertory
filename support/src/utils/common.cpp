@@ -25,8 +25,8 @@
 #include "utils/string.hpp"
 
 namespace repertory::utils {
-auto compare_version_strings(std::string version1,
-                             std::string version2) -> std::int32_t {
+auto compare_version_strings(std::string version1, std::string version2)
+    -> std::int32_t {
 
   if (utils::string::contains(version1, "-")) {
     version1 = utils::string::split(version1, '-', true)[0U];
@@ -157,7 +157,7 @@ auto get_next_available_port(std::uint16_t first_port,
         ++check_port;
         continue;
       }
-
+      acceptor.set_option(boost::asio::ip::tcp::acceptor::linger(true, 0));
       acceptor.bind({tcp::v4(), static_cast<std::uint16_t>(check_port)},
                     error_code);
       if (error_code) {

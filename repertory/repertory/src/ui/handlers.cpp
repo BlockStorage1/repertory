@@ -109,13 +109,17 @@ handlers::handlers(mgmt_app_config *config, httplib::Server *server)
       server_(server) {
   REPERTORY_USES_FUNCTION_NAME();
 
-#ifdef _WIN32
   server_->set_socket_options([](auto &&sock) {
-    int enable = 1;
+#if defined(_WIN32)
+    int enable{1};
     setsockopt(sock, SOL_SOCKET, SO_EXCLUSIVEADDRUSE,
                reinterpret_cast<const char *>(&enable), sizeof(enable));
+#else  //  !defined(_WIN32)
+    linger opt{1, 0};
+    setsockopt(sock, SOL_SOCKET, SO_LINGER,
+               reinterpret_cast<const char *>(&opt), sizeof(opt));
+#endif // defined(_WIN32)
   });
-#endif //  _WIN32
 
   server_->set_pre_routing_handler(
       [this](const httplib::Request &req,

@@ -144,13 +144,17 @@ void server::start() {
   initialize(*server_);
 
   server_thread_ = std::make_unique<std::thread>([this]() {
-#ifdef _WIN32
     server_->set_socket_options([](auto &&sock) {
-      int enable = 1;
+#if defined(_WIN32)
+      int enable{1};
       setsockopt(sock, SOL_SOCKET, SO_EXCLUSIVEADDRUSE,
                  reinterpret_cast<const char *>(&enable), sizeof(enable));
+#else  //  !defined(_WIN32)
+      linger opt{1, 0};
+      setsockopt(sock, SOL_SOCKET, SO_LINGER,
+                 reinterpret_cast<const char *>(&opt), sizeof(opt));
+#endif // defined(_WIN32)
     });
-#endif //  _WIN32
 
     server_->listen("127.0.0.1", config_.get_api_port());
   });
