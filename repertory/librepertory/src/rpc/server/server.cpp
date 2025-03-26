@@ -28,64 +28,16 @@
 #include "events/types/service_stop_begin.hpp"
 #include "events/types/service_stop_end.hpp"
 #include "events/types/unmount_requested.hpp"
-#include "utils/base64.hpp"
+#include "rpc/common.hpp"
 #include "utils/error_utils.hpp"
-#include "utils/string.hpp"
 
 namespace repertory {
 server::server(app_config &config) : config_(config) {}
 
-auto server::check_authorization(const httplib::Request &req) -> bool {
-  REPERTORY_USES_FUNCTION_NAME();
-
-  if (config_.get_api_auth().empty() || config_.get_api_user().empty()) {
-    utils::error::raise_error(function_name,
-                              "authorization user or password is not set");
-    return false;
-  }
-
-  auto authorization = req.get_header_value("Authorization");
-  if (authorization.empty()) {
-    utils::error::raise_error(function_name, "Authorization header is not set");
-    return false;
-  }
-
-  auto auth_parts = utils::string::split(authorization, ' ', true);
-  if (auth_parts.empty()) {
-    utils::error::raise_error(function_name, "Authorization header is empty");
-    return false;
-  }
-
-  auto auth_type = auth_parts[0U];
-  if (auth_type != "Basic") {
-    utils::error::raise_error(function_name, "Authorization is not Basic");
-    return false;
-  }
-
-  auto data = macaron::Base64::Decode(authorization.substr(6U));
-  auto auth_str = std::string(data.begin(), data.end());
-
-  auto auth = utils::string::split(auth_str, ':', false);
-  if (auth.size() < 2U) {
-    utils::error::raise_error(function_name, "Authorization is not valid");
-    return false;
-  }
-
-  auto user = auth.at(0U);
-  auth.erase(auth.begin());
-
-  auto pwd = utils::string::join(auth, ':');
-  if ((user != config_.get_api_user()) || (pwd != config_.get_api_auth())) {
-    utils::error::raise_error(function_name, "Authorization failed");
-    return false;
-  }
-
-  return true;
-}
-
 void server::handle_get_config(const httplib::Request & /*req*/,
                                httplib::Response &res) {
   auto data = config_.get_json();
+  clean_json_config(config_.get_provider_type(), data);
   res.set_content(data.dump(), "application/json");
   res.status = http_error_codes::ok;
 }
@@ -93,7 +45,10 @@ void server::handle_get_config(const httplib::Request & /*req*/,
 void server::handle_get_config_value_by_name(const httplib::Request &req,
                                              httplib::Response &res) {
   auto name = req.get_param_value("name");
-  auto data = json({{"value", config_.get_value_by_name(name)}});
+  auto data = json({{
+      "value",
+      clean_json_value(name, config_.get_value_by_name(name)),
+  }});
   res.set_content(data.dump(), "application/json");
   res.status = http_error_codes::ok;
 }
@@ -103,7 +58,10 @@ void server::handle_set_config_value_by_name(const httplib::Request &req,
   auto name = req.get_param_value("name");
   auto value = req.get_param_value("value");
 
-  json data = {{"value", config_.set_value_by_name(name, value)}};
+  json data = {{
+      "value",
+      clean_json_value(name, config_.set_value_by_name(name, value)),
+  }};
   res.set_content(data.dump(), "application/json");
   res.status = http_error_codes::ok;
 }
@@ -173,7 +131,7 @@ void server::start() {
 
   server_->set_pre_routing_handler(
       [this](auto &&req, auto &&res) -> httplib::Server::HandlerResponse {
-        if (check_authorization(req)) {
+        if (rpc::check_authorization(config_, req)) {
           return httplib::Server::HandlerResponse::Unhandled;
         }
 
@@ -183,8 +141,21 @@ void server::start() {
 
   initialize(*server_);
 
-  server_thread_ = std::make_unique<std::thread>(
-      [this]() { server_->listen("127.0.0.1", config_.get_api_port()); });
+  server_thread_ = std::make_unique<std::thread>([this]() {
+    server_->set_socket_options([](auto &&sock) {
+#if defined(_WIN32)
+      int enable{1};
+      setsockopt(sock, SOL_SOCKET, SO_EXCLUSIVEADDRUSE,
+                 reinterpret_cast<const char *>(&enable), sizeof(enable));
+#else  //  !defined(_WIN32)
+      linger opt{1, 0};
+      setsockopt(sock, SOL_SOCKET, SO_LINGER,
+                 reinterpret_cast<const char *>(&opt), sizeof(opt));
+#endif // defined(_WIN32)
+    });
+
+    server_->listen("127.0.0.1", config_.get_api_port());
+  });
   event_system::instance().raise<service_start_end>(function_name, "server");
 }
 

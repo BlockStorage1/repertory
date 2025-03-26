@@ -3,6 +3,7 @@ _mkgmtime
 _sh_denyno
 _sh_denyrd
 _sh_denyrw
+_spawnv
 aarch64
 advapi32
 armv8
@@ -114,6 +115,7 @@ googletest
 gpath
 gtest_version
 has_setxattr
+hkey
 httpapi
 httplib
 icudata
@@ -121,6 +123,7 @@ icui18n
 icuuc
 iostreams
 iphlpapi
+ipstream
 jthread
 libbitcoin
 libbitcoinsystem
@@ -142,6 +145,7 @@ libuuid_include_dirs
 libvlc
 linkflags
 localappdata
+lpbyte
 lptr
 lpwstr
 markdownlint
@@ -154,8 +158,10 @@ mtune
 musl-libc
 nana
 ncrypt
+nlohmann
 nlohmann_json
 nmakeprg
+nohup
 nominmax
 ntstatus
 nullptr
@@ -163,6 +169,7 @@ nuspell_version
 oleaut32
 openal_version
 openssldir
+pistream
 pkgconfig
 plarge_integer
 plex

@@ -40,8 +40,6 @@ private:
   std::mutex start_stop_mutex_;
 
 private:
-  [[nodiscard]] auto check_authorization(const httplib::Request &req) -> bool;
-
   void handle_get_config(const httplib::Request &req, httplib::Response &res);
 
   void handle_get_config_value_by_name(const httplib::Request &req,

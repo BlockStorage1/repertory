@@ -30,38 +30,45 @@ class i_provider;
 
 class lock_data final {
 public:
-  explicit lock_data(const provider_type &pt, std::string unique_id /*= ""*/);
+  lock_data(provider_type prov, std::string_view unique_id);
 
-  lock_data();
+  lock_data(const lock_data &) = delete;
+  lock_data(lock_data &&) = delete;
+
+  auto operator=(const lock_data &) -> lock_data & = delete;
+  auto operator=(lock_data &&) -> lock_data & = delete;
 
   ~lock_data();
 
 private:
-  const provider_type pt_;
-  const std::string unique_id_;
-  const std::string mutex_id_;
-  int lock_fd_;
-  int lock_status_ = EWOULDBLOCK;
+  std::string mutex_id_;
+
+private:
+  int handle_{};
+  int lock_status_{EWOULDBLOCK};
 
 private:
   [[nodiscard]] static auto get_state_directory() -> std::string;
 
-  [[nodiscard]] static auto get_lock_data_file() -> std::string;
+  [[nodiscard]] auto get_lock_data_file() const -> std::string;
 
-  [[nodiscard]] auto get_lock_file() -> std::string;
+  [[nodiscard]] auto get_lock_file() const -> std::string;
 
 private:
-  [[nodiscard]] static auto
-  wait_for_lock(int fd, std::uint8_t retry_count = 30u) -> int;
+  [[nodiscard]] static auto wait_for_lock(int handle,
+                                          std::uint8_t retry_count = 30U)
+      -> int;
 
 public:
   [[nodiscard]] auto get_mount_state(json &mount_state) -> bool;
 
-  [[nodiscard]] auto grab_lock(std::uint8_t retry_count = 30u) -> lock_result;
+  [[nodiscard]] auto grab_lock(std::uint8_t retry_count = 30U) -> lock_result;
+
+  void release();
 
   [[nodiscard]] auto set_mount_state(bool active,
-                                     const std::string &mount_location,
-                                     int pid) -> bool;
+                                     std::string_view mount_location, int pid)
+      -> bool;
 };
 
 [[nodiscard]] auto create_meta_attributes(
@@ -76,5 +83,5 @@ public:
                                          const api_file &file) -> api_error;
 } // namespace repertory
 
-#endif // _WIN32
+#endif // !defined(_WIN32)
 #endif // REPERTORY_INCLUDE_PLATFORM_UNIXPLATFORM_HPP_

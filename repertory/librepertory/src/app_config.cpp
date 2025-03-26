@@ -66,8 +66,8 @@ void app_config::set_stop_requested() { stop_requested.store(true); }
 app_config::app_config(const provider_type &prov,
                        std::string_view data_directory)
     : prov_(prov),
-      api_auth_(utils::generate_random_string(default_api_auth_size)),
-      api_port_(default_rpc_port(prov)),
+      api_password_(utils::generate_random_string(default_api_password_size)),
+      api_port_(default_rpc_port()),
       api_user_(std::string{REPERTORY}),
       config_changed_(false),
       download_timeout_secs_(default_download_timeout_secs),
@@ -124,7 +124,7 @@ app_config::app_config(const provider_type &prov,
   }
 
   value_get_lookup_ = {
-      {JSON_API_AUTH, [this]() { return get_api_auth(); }},
+      {JSON_API_PASSWORD, [this]() { return get_api_password(); }},
       {JSON_API_PORT, [this]() { return std::to_string(get_api_port()); }},
       {JSON_API_USER, [this]() { return get_api_user(); }},
       {JSON_DATABASE_TYPE,
@@ -253,10 +253,10 @@ app_config::app_config(const provider_type &prov,
 
   value_set_lookup_ = {
       {
-          JSON_API_AUTH,
+          JSON_API_PASSWORD,
           [this](const std::string &value) {
-            set_api_auth(value);
-            return get_api_auth();
+            set_api_password(value);
+            return get_api_password();
           },
       },
       {
@@ -699,34 +699,35 @@ auto app_config::default_api_port(const provider_type &prov) -> std::uint16_t {
   return PROVIDER_API_PORTS.at(static_cast<std::size_t>(prov));
 }
 
-auto app_config::default_data_directory(const provider_type &prov)
-    -> std::string {
+auto app_config::get_root_data_directory() -> std::string {
 #if defined(_WIN32)
-  auto data_directory =
-      utils::path::combine(utils::get_local_app_data_directory(),
-                           {
-                               REPERTORY_DATA_NAME,
-                               app_config::get_provider_name(prov),
-                           });
+  auto data_directory = utils::path::combine(
+      utils::get_local_app_data_directory(), {
+                                                 REPERTORY_DATA_NAME,
+                                             });
 #else // !defined(_WIN32)
 #if defined(__APPLE__)
-  auto data_directory =
-      utils::path::combine("~", {
-                                    "Library",
-                                    "Application Support",
-                                    REPERTORY_DATA_NAME,
-                                    app_config::get_provider_name(prov),
-                                });
+  auto data_directory = utils::path::combine("~", {
+                                                      "Library",
+                                                      "Application Support",
+                                                      REPERTORY_DATA_NAME,
+                                                  });
 #else  // !defined(__APPLE__)
-  auto data_directory =
-      utils::path::combine("~", {
-                                    ".local",
-                                    REPERTORY_DATA_NAME,
-                                    app_config::get_provider_name(prov),
-                                });
+  auto data_directory = utils::path::combine("~", {
+                                                      ".local",
+                                                      REPERTORY_DATA_NAME,
+                                                  });
 #endif // defined(__APPLE__)
 #endif // defined(_WIN32)
   return data_directory;
+}
+
+auto app_config::default_data_directory(const provider_type &prov)
+    -> std::string {
+  return utils::path::combine(app_config::get_root_data_directory(),
+                              {
+                                  app_config::get_provider_name(prov),
+                              });
 }
 
 auto app_config::default_remote_api_port(const provider_type &prov)
@@ -741,19 +742,12 @@ auto app_config::default_remote_api_port(const provider_type &prov)
       };
   return PROVIDER_REMOTE_PORTS.at(static_cast<std::size_t>(prov));
 }
-auto app_config::default_rpc_port(const provider_type &prov) -> std::uint16_t {
-  static const std::array<std::uint16_t,
-                          static_cast<std::size_t>(provider_type::unknown)>
-      PROVIDER_RPC_PORTS = {
-          10000U,
-          10010U,
-          10100U,
-          10002U,
-      };
-  return PROVIDER_RPC_PORTS.at(static_cast<std::size_t>(prov));
-}
 
-auto app_config::get_api_auth() const -> std::string { return api_auth_; }
+auto app_config::default_rpc_port() -> std::uint16_t { return 10000U; }
+
+auto app_config::get_api_password() const -> std::string {
+  return api_password_;
+}
 
 auto app_config::get_api_port() const -> std::uint16_t { return api_port_; }
 
@@ -814,7 +808,7 @@ auto app_config::get_host_config() const -> host_config { return host_config_; }
 
 auto app_config::get_json() const -> json {
   json ret = {
-      {JSON_API_AUTH, api_auth_},
+      {JSON_API_PASSWORD, api_password_},
       {JSON_API_PORT, api_port_},
       {JSON_API_USER, api_user_},
       {JSON_DOWNLOAD_TIMEOUT_SECS, download_timeout_secs_},
@@ -939,24 +933,18 @@ auto app_config::get_preferred_download_type() const -> download_type {
 auto app_config::get_provider_display_name(const provider_type &prov)
     -> std::string {
   static const std::array<std::string,
-                          static_cast<std::size_t>(provider_type::unknown)>
+                          static_cast<std::size_t>(provider_type::unknown) + 1U>
       PROVIDER_DISPLAY_NAMES = {
-          "Sia",
-          "Remote",
-          "S3",
-          "Encrypt",
+          "Sia", "Remote", "S3", "Encrypt", "Unknown",
       };
   return PROVIDER_DISPLAY_NAMES.at(static_cast<std::size_t>(prov));
 }
 
 auto app_config::get_provider_name(const provider_type &prov) -> std::string {
   static const std::array<std::string,
-                          static_cast<std::size_t>(provider_type::unknown)>
+                          static_cast<std::size_t>(provider_type::unknown) + 1U>
       PROVIDER_NAMES = {
-          "sia",
-          "remote",
-          "s3",
-          "encrypt",
+          "sia", "remote", "s3", "encrypt", "unknown",
       };
   return PROVIDER_NAMES.at(static_cast<std::size_t>(prov));
 }
@@ -1035,7 +1023,7 @@ auto app_config::load() -> bool {
     auto found{true};
     auto json_document = json::parse(json_text);
 
-    get_value(json_document, JSON_API_AUTH, api_auth_, found);
+    get_value(json_document, JSON_API_PASSWORD, api_password_, found);
     get_value(json_document, JSON_API_PORT, api_port_, found);
     get_value(json_document, JSON_API_USER, api_user_, found);
     get_value(json_document, JSON_DATABASE_TYPE, db_type_, found);
@@ -1092,6 +1080,13 @@ auto app_config::load() -> bool {
           set_value(max_cache_size_bytes_, default_max_cache_size_bytes);
         }
       }
+
+      if (version_ == 2U) {
+        if (json_document.contains("ApiAuth")) {
+          api_password_ = json_document.at("ApiAuth").get<std::string>();
+        }
+      }
+
       found = false;
     }
 
@@ -1130,8 +1125,8 @@ void app_config::save() {
   });
 }
 
-void app_config::set_api_auth(const std::string &value) {
-  set_value(api_auth_, value);
+void app_config::set_api_password(const std::string &value) {
+  set_value(api_password_, value);
 }
 
 void app_config::set_api_port(std::uint16_t value) {

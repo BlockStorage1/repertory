@@ -21,9 +21,8 @@
 */
 #if !defined(_WIN32)
 
-#include "platform/unix_platform.hpp"
+#include "platform/platform.hpp"
 
-#include "app_config.hpp"
 #include "events/event_system.hpp"
 #include "events/types/filesystem_item_added.hpp"
 #include "providers/i_provider.hpp"
@@ -36,61 +35,65 @@
 #include "utils/unix.hpp"
 
 namespace repertory {
-lock_data::lock_data(const provider_type &pt, std::string unique_id /*= ""*/)
-    : pt_(pt),
-      unique_id_(std::move(unique_id)),
-      mutex_id_("repertory_" + app_config::get_provider_name(pt) + "_" +
-                unique_id_) {
-  lock_fd_ = open(get_lock_file().c_str(), O_CREAT | O_RDWR, S_IWUSR | S_IRUSR);
+lock_data::lock_data(provider_type prov, std::string_view unique_id)
+    : mutex_id_(create_lock_id(prov, unique_id)) {
+  handle_ = open(get_lock_file().c_str(), O_CREAT | O_RDWR, S_IWUSR | S_IRUSR);
 }
 
-lock_data::lock_data()
-    : pt_(provider_type::sia), unique_id_(""), mutex_id_(""), lock_fd_(-1) {}
+lock_data::~lock_data() { release(); }
 
-lock_data::~lock_data() {
-  if (lock_fd_ != -1) {
-    if (lock_status_ == 0) {
-      unlink(get_lock_file().c_str());
-      flock(lock_fd_, LOCK_UN);
-    }
-
-    close(lock_fd_);
-  }
-}
-
-auto lock_data::get_lock_data_file() -> std::string {
-  const auto dir = get_state_directory();
+auto lock_data::get_lock_data_file() const -> std::string {
+  auto dir = get_state_directory();
   if (not utils::file::directory(dir).create_directory()) {
     throw startup_exception("failed to create directory|sp|" + dir + "|err|" +
                             std::to_string(utils::get_last_error_code()));
   }
+
   return utils::path::combine(
-      dir, {"mountstate_" + std::to_string(getuid()) + ".json"});
+      dir, {
+               fmt::format("{}_{}.json", mutex_id_, getuid()),
+           });
 }
 
-auto lock_data::get_lock_file() -> std::string {
-  const auto dir = get_state_directory();
+auto lock_data::get_lock_file() const -> std::string {
+  auto dir = get_state_directory();
   if (not utils::file::directory(dir).create_directory()) {
     throw startup_exception("failed to create directory|sp|" + dir + "|err|" +
                             std::to_string(utils::get_last_error_code()));
   }
 
-  return utils::path::combine(dir,
-                              {mutex_id_ + "_" + std::to_string(getuid())});
+  return utils::path::combine(
+      dir, {
+               fmt::format("{}_{}.lock", mutex_id_, getuid()),
+           });
 }
 
 auto lock_data::get_mount_state(json &mount_state) -> bool {
-  auto ret = false;
-  auto fd =
-      open(get_lock_data_file().c_str(), O_CREAT | O_RDWR, S_IWUSR | S_IRUSR);
-  if (fd != -1) {
-    if (wait_for_lock(fd) == 0) {
-      ret = utils::file::read_json_file(get_lock_data_file(), mount_state);
-      flock(fd, LOCK_UN);
-    }
+  auto handle = open(get_lock_data_file().c_str(), O_RDWR, S_IWUSR | S_IRUSR);
+  if (handle == -1) {
+    mount_state = {
+        {"Active", false},
+        {"Location", ""},
+        {"PID", -1},
+    };
 
-    close(fd);
+    return true;
   }
+
+  auto ret{false};
+  if (wait_for_lock(handle) == 0) {
+    ret = utils::file::read_json_file(get_lock_data_file(), mount_state);
+    if (ret && mount_state.empty()) {
+      mount_state = {
+          {"Active", false},
+          {"Location", ""},
+          {"PID", -1},
+      };
+    }
+    flock(handle, LOCK_UN);
+  }
+
+  close(handle);
   return ret;
 }
 
@@ -98,25 +101,20 @@ auto lock_data::get_state_directory() -> std::string {
 #if defined(__APPLE__)
   return utils::path::absolute("~/Library/Application Support/" +
                                std::string{REPERTORY_DATA_NAME} + "/state");
-#else
+#else  // !defined(__APPLE__)
   return utils::path::absolute("~/.local/" + std::string{REPERTORY_DATA_NAME} +
                                "/state");
-#endif
+#endif // defined(__APPLE__)
 }
 
 auto lock_data::grab_lock(std::uint8_t retry_count) -> lock_result {
-  REPERTORY_USES_FUNCTION_NAME();
-
-  if (lock_fd_ == -1) {
+  if (handle_ == -1) {
     return lock_result::failure;
   }
 
-  lock_status_ = wait_for_lock(lock_fd_, retry_count);
+  lock_status_ = wait_for_lock(handle_, retry_count);
   switch (lock_status_) {
   case 0:
-    if (not set_mount_state(false, "", -1)) {
-      utils::error::raise_error(function_name, "failed to set mount state");
-    }
     return lock_result::success;
   case EWOULDBLOCK:
     return lock_result::locked;
@@ -125,61 +123,72 @@ auto lock_data::grab_lock(std::uint8_t retry_count) -> lock_result {
   }
 }
 
-auto lock_data::set_mount_state(bool active, const std::string &mount_location,
+void lock_data::release() {
+  if (handle_ == -1) {
+    return;
+  }
+
+  if (lock_status_ == 0) {
+    [[maybe_unused]] auto success{utils::file::file{get_lock_file()}.remove()};
+    flock(handle_, LOCK_UN);
+  }
+
+  close(handle_);
+  handle_ = -1;
+}
+
+auto lock_data::set_mount_state(bool active, std::string_view mount_location,
                                 int pid) -> bool {
   REPERTORY_USES_FUNCTION_NAME();
 
-  auto ret = false;
   auto handle =
       open(get_lock_data_file().c_str(), O_CREAT | O_RDWR, S_IWUSR | S_IRUSR);
-  if (handle != -1) {
-    if (wait_for_lock(handle) == 0) {
-      const auto mount_id =
-          app_config::get_provider_display_name(pt_) + unique_id_;
-      json mount_state;
-      if (not utils::file::read_json_file(get_lock_data_file(), mount_state)) {
-        utils::error::raise_error(function_name,
-                                  "failed to read mount state file|sp|" +
-                                      get_lock_file());
-      }
-      if ((mount_state.find(mount_id) == mount_state.end()) ||
-          (mount_state[mount_id].find("Active") ==
-           mount_state[mount_id].end()) ||
-          (mount_state[mount_id]["Active"].get<bool>() != active) ||
-          (active && ((mount_state[mount_id].find("Location") ==
-                       mount_state[mount_id].end()) ||
-                      (mount_state[mount_id]["Location"].get<std::string>() !=
-                       mount_location)))) {
-        const auto lines = utils::file::read_file_lines(get_lock_data_file());
-        const auto txt = std::accumulate(
-            lines.begin(), lines.end(), std::string(),
-            [](auto &&val, auto &&line) -> auto { return val + line; });
-        auto json_data = json::parse(txt.empty() ? "{}" : txt);
-        json_data[mount_id] = {
-            {"Active", active},
-            {"Location", active ? mount_location : ""},
-            {"PID", active ? pid : -1},
-        };
-        ret = utils::file::write_json_file(get_lock_data_file(), json_data);
-      } else {
-        ret = true;
-      }
+  if (handle == -1) {
+    return false;
+  }
 
-      flock(handle, LOCK_UN);
+  auto ret{false};
+  if (wait_for_lock(handle) == 0) {
+    json mount_state;
+    if (not utils::file::read_json_file(get_lock_data_file(), mount_state)) {
+      utils::error::raise_error(function_name,
+                                "failed to read mount state file|sp|" +
+                                    get_lock_file());
+    }
+    if ((mount_state.find("Active") == mount_state.end()) ||
+        (mount_state["Active"].get<bool>() != active) ||
+        (active &&
+         ((mount_state.find("Location") == mount_state.end()) ||
+          (mount_state["Location"].get<std::string>() != mount_location)))) {
+      if (mount_location.empty() && not active) {
+        ret = utils::file::file{get_lock_data_file()}.remove();
+      } else {
+        ret = utils::file::write_json_file(
+            get_lock_data_file(),
+            {
+                {"Active", active},
+                {"Location", active ? mount_location : ""},
+                {"PID", active ? pid : -1},
+            });
+      }
+    } else {
+      ret = true;
     }
 
-    close(handle);
+    flock(handle, LOCK_UN);
   }
+
+  close(handle);
   return ret;
 }
 
-auto lock_data::wait_for_lock(int fd, std::uint8_t retry_count) -> int {
-  static constexpr const std::uint32_t max_sleep = 100U;
+auto lock_data::wait_for_lock(int handle, std::uint8_t retry_count) -> int {
+  static constexpr const std::uint32_t max_sleep{100U};
 
-  auto lock_status = EWOULDBLOCK;
-  auto remain = static_cast<std::uint32_t>(retry_count * max_sleep);
+  auto lock_status{EWOULDBLOCK};
+  auto remain{static_cast<std::uint32_t>(retry_count * max_sleep)};
   while ((remain > 0) && (lock_status == EWOULDBLOCK)) {
-    lock_status = flock(fd, LOCK_EX | LOCK_NB);
+    lock_status = flock(handle, LOCK_EX | LOCK_NB);
     if (lock_status == -1) {
       lock_status = errno;
       if (lock_status == EWOULDBLOCK) {
@@ -228,13 +237,13 @@ auto provider_meta_handler(i_provider &provider, bool directory,
                            const api_file &file) -> api_error {
   REPERTORY_USES_FUNCTION_NAME();
 
-  const auto meta = create_meta_attributes(
+  auto meta = create_meta_attributes(
       file.accessed_date,
       directory ? FILE_ATTRIBUTE_DIRECTORY : FILE_ATTRIBUTE_ARCHIVE,
       file.changed_date, file.creation_date, directory, getgid(), file.key,
       directory ? S_IFDIR | S_IRUSR | S_IWUSR | S_IXUSR
                 : S_IFREG | S_IRUSR | S_IWUSR,
-      file.modified_date, 0u, 0u, file.file_size, file.source_path, getuid(),
+      file.modified_date, 0U, 0U, file.file_size, file.source_path, getuid(),
       file.modified_date);
   auto res = provider.set_item_meta(file.api_path, meta);
   if (res == api_error::success) {

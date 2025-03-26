@@ -45,7 +45,7 @@ void get_api_authentication_data(std::string &user, std::string &password,
 
   if (success) {
     if (user.empty() && password.empty()) {
-      password = data[JSON_API_AUTH].get<std::string>();
+      password = data[JSON_API_PASSWORD].get<std::string>();
       user = data[JSON_API_USER].get<std::string>();
     }
     port = data[JSON_API_PORT].get<std::uint16_t>();
