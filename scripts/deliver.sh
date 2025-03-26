@@ -38,13 +38,16 @@ BRANCH=$(git branch --show-current)
 RELEASE=$(grep PROJECT_RELEASE_ITER= ./config.sh | sed s/PROJECT_RELEASE_ITER=//g)
 popd
 
-if [ "${BRANCH}" == "master" ] || [ "${BRANCH}" == "alpha" ] || [ "${BRANCH}" == "beta" ] || [ "${BRANCH}" == "rc" ]; then
+if [ "${BRANCH}" == "master" ] || [ "${BRANCH}" == "alpha" ] ||
+  [ "${BRANCH}" == "main" ] || [ "${BRANCH}" == "release" ] ||
+  [ "${BRANCH}" == "beta" ] || [ "${BRANCH}" == "rc" ]; then
   DEST_DIR=${DEST_DIR}/${RELEASE}
-else
+elif [[ ${BRANCH} = *'-alpha-'* ]] || [[ ${BRANCH} = *'-beta-'* ]] ||
+  [[ ${BRANCH} = *'-rc-'* ]] || [[ ${BRANCH} = *'-release-'* ]]; then
   DEST_DIR=${DEST_DIR}/nightly
+else
+  error_exit "skipping ${PROJECT_FILE_PART}" 0
 fi
-
-echo ${DEST_DIR}
 
 pushd "${DIST_DIR}"
 if [ ! -f "./${PROJECT_OUT_FILE}" ]; then

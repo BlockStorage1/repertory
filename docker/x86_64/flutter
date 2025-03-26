@@ -1,0 +1,48 @@
+FROM debian:latest
+
+ARG UID=0
+ARG GID=0
+
+RUN apt-get update 
+RUN apt-get install -y \
+  bash \
+  curl \
+  fonts-droid-fallback \
+  gdb \
+  git \
+  lib32stdc++6 \
+  libgconf-2-4 \
+  libglu1-mesa \
+  libstdc++6 \
+  python3 \
+  unzip \
+  wget
+RUN apt-get clean
+
+RUN git clone https://github.com/flutter/flutter.git /flutter
+RUN git config --system --add safe.directory /flutter
+
+ENV PATH="/flutter/bin:/flutter/bin/cache/dart-sdk/bin:${PATH}"
+
+RUN flutter doctor -v
+RUN flutter channel master
+RUN flutter upgrade
+RUN flutter --disable-analytics
+
+RUN flutter config --no-analytics
+RUN flutter config --enable-web
+RUN flutter config --no-cli-animations
+
+RUN mkdir /nonexistent
+RUN chown -R $UID:$GID /nonexistent
+
+RUN mkdir /.config
+RUN chown -R $UID:$GID /.config
+
+RUN mkdir /.dart-tool
+RUN chown -R $UID:$GID /.dart-tool
+
+RUN mkdir /.pub-cache
+RUN chown -R $UID:$GID /.pub-cache
+
+RUN chown -R $UID:$GID /flutter

@@ -21,10 +21,56 @@
 */
 #include "types/repertory.hpp"
 
+#include "app_config.hpp"
 #include "types/startup_exception.hpp"
 #include "utils/string.hpp"
 
 namespace repertory {
+void clean_json_config(provider_type prov, nlohmann::json &data) {
+  data[JSON_API_PASSWORD] = "";
+
+  switch (prov) {
+  case provider_type::encrypt:
+    data[JSON_ENCRYPT_CONFIG][JSON_ENCRYPTION_TOKEN] = "";
+    data[JSON_REMOTE_MOUNT][JSON_ENCRYPTION_TOKEN] = "";
+    break;
+
+  case provider_type::remote:
+    data[JSON_REMOTE_CONFIG][JSON_ENCRYPTION_TOKEN] = "";
+    break;
+
+  case provider_type::s3:
+    data[JSON_REMOTE_MOUNT][JSON_ENCRYPTION_TOKEN] = "";
+    data[JSON_S3_CONFIG][JSON_ENCRYPTION_TOKEN] = "";
+    data[JSON_S3_CONFIG][JSON_SECRET_KEY] = "";
+    break;
+
+  case provider_type::sia:
+    data[JSON_REMOTE_MOUNT][JSON_ENCRYPTION_TOKEN] = "";
+    data[JSON_HOST_CONFIG][JSON_API_PASSWORD] = "";
+
+    break;
+  default:
+    return;
+  }
+}
+
+auto clean_json_value(std::string_view name, std::string_view data)
+    -> std::string {
+  if (name ==
+          fmt::format("{}.{}", JSON_ENCRYPT_CONFIG, JSON_ENCRYPTION_TOKEN) ||
+      name == fmt::format("{}.{}", JSON_HOST_CONFIG, JSON_API_PASSWORD) ||
+      name == fmt::format("{}.{}", JSON_REMOTE_CONFIG, JSON_ENCRYPTION_TOKEN) ||
+      name == fmt::format("{}.{}", JSON_REMOTE_MOUNT, JSON_ENCRYPTION_TOKEN) ||
+      name == fmt::format("{}.{}", JSON_S3_CONFIG, JSON_ENCRYPTION_TOKEN) ||
+      name == fmt::format("{}.{}", JSON_S3_CONFIG, JSON_SECRET_KEY) ||
+      name == JSON_API_PASSWORD) {
+    return "";
+  }
+
+  return std::string{data};
+}
+
 auto database_type_from_string(std::string type, database_type default_type)
     -> database_type {
   type = utils::string::to_lower(utils::string::trim(type));
@@ -190,5 +236,35 @@ auto api_error_to_string(const api_error &error) -> const std::string & {
   }
 
   return LOOKUP.at(error);
+}
+
+auto provider_type_from_string(std::string_view type,
+                               provider_type default_type) -> provider_type {
+  auto type_lower = utils::string::to_lower(std::string{type});
+  if (type_lower == "encrypt") {
+    return provider_type::encrypt;
+  }
+
+  if (type_lower == "remote") {
+    return provider_type::remote;
+  }
+
+  if (type_lower == "s3") {
+    return provider_type::s3;
+  }
+
+  if (type_lower == "sia") {
+    return provider_type::sia;
+  }
+
+  if (type_lower == "unknown") {
+    return provider_type::unknown;
+  }
+
+  return default_type;
+}
+
+auto provider_type_to_string(provider_type type) -> std::string {
+  return app_config::get_provider_name(type);
 }
 } // namespace repertory

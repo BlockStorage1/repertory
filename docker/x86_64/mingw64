@@ -18,6 +18,7 @@ RUN apk add \
   gcc \
   gettext \
   git \
+  git-lfs \
   gmp \
   gmp-dev \
   gperf \
@@ -679,6 +680,7 @@ RUN if [ -f "/3rd_party/curl-${MY_CURL_VERSION}.tar.gz" ]; then \
         -DCMAKE_CXX_STANDARD=${MY_CXX_STANDARD} \
         -DCMAKE_INSTALL_PREFIX=${MY_MINGW_DIR} \
         -DCMAKE_TOOLCHAIN_FILE=${MY_TOOLCHAIN_FILE_CMAKE} \
+        -DCURL_BROTLI=OFF \
         -DCURL_CA_BUNDLE=./cacert.pem \
         -DCURL_CA_FALLBACK=ON \
         -DCURL_DISABLE_LDAP=ON \
@@ -714,6 +716,9 @@ RUN if [ -f "/3rd_party/cpp-httplib-${MY_CPP_HTTPLIB_VERSION}.tar.gz" ]; then \
         -DHTTPLIB_REQUIRE_OPENSSL=ON \
         -DHTTPLIB_REQUIRE_ZLIB=ON \
         -DHTTPLIB_TEST=OFF \
+        -DHTTPLIB_USE_BROTLI_IF_AVAILABLE=OFF \
+        -DHTTPLIB_USE_OPENSSL_IF_AVAILABLE=YES \
+        -DHTTPLIB_USE_ZLIB_IF_AVAILABLE=ON \
       && make -j${MY_NUM_JOBS} \
       && make install \
       && cd ${MY_WORKDIR} \

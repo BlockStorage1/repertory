@@ -49,6 +49,8 @@ static const option password_option = {"-pw", "--password"};
 static const option remote_mount_option = {"-rm", "--remote_mount"};
 static const option set_option = {"-set", "--set"};
 static const option status_option = {"-status", "--status"};
+static const option ui_option = {"-ui", "--ui"};
+static const option ui_port_option = {"-up", "--ui_port"};
 static const option unmount_option = {"-unmount", "--unmount"};
 static const option unpin_file_option = {"-uf", "--unpin_file"};
 static const option user_option = {"-us", "--user"};
@@ -75,6 +77,8 @@ static const std::vector<option> option_list = {
     remote_mount_option,
     set_option,
     status_option,
+    ui_option,
+    ui_port_option,
     unmount_option,
     unpin_file_option,
     user_option,
@@ -87,26 +91,27 @@ void get_api_authentication_data(std::string &user, std::string &password,
                                  std::uint16_t &port, const provider_type &prov,
                                  const std::string &data_directory);
 
-[[nodiscard]] auto
-get_provider_type_from_args(std::vector<const char *> args) -> provider_type;
+[[nodiscard]] auto get_provider_type_from_args(std::vector<const char *> args)
+    -> provider_type;
 
 [[nodiscard]] auto has_option(std::vector<const char *> args,
                               const std::string &option_name) -> bool;
 
-[[nodiscard]] auto has_option(std::vector<const char *> args,
-                              const option &opt) -> bool;
+[[nodiscard]] auto has_option(std::vector<const char *> args, const option &opt)
+    -> bool;
 
 [[nodiscard]] auto parse_option(std::vector<const char *> args,
                                 const std::string &option_name,
                                 std::uint8_t count) -> std::vector<std::string>;
 
 [[nodiscard]] auto parse_string_option(std::vector<const char *> args,
-                                       const option &opt,
-                                       std::string &value) -> exit_code;
+                                       const option &opt, std::string &value)
+    -> exit_code;
 
-[[nodiscard]] auto
-parse_drive_options(std::vector<const char *> args, provider_type &prov,
-                    std::string &data_directory) -> std::vector<std::string>;
+[[nodiscard]] auto parse_drive_options(std::vector<const char *> args,
+                                       provider_type &prov,
+                                       std::string &data_directory)
+    -> std::vector<std::string>;
 } // namespace repertory::utils::cli
 
 #endif // REPERTORY_INCLUDE_UTILS_CLI_UTILS_HPP_

@@ -12,5 +12,7 @@ pushd "%~dp0%"
     call cleanup.cmd "%ARG1%" "%ARG2%" "%ARG3%" 1 0
     del cleanup.*
   )
+
+  call mingw64 -no-start ./make_flutter.sh "%ARG1%" "%ARG2%" "%ARG3%" 1 0 || exit 1
   call mingw64 -no-start ./make_common.sh "%ARG1%" "%ARG2%" "%ARG3%" 1 0 || exit 1
 popd

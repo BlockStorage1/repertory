@@ -23,7 +23,6 @@
 #define REPERTORY_INCLUDE_PLATFORM_WINPLATFORM_HPP_
 #if defined(_WIN32)
 
-#include "app_config.hpp"
 #include "types/repertory.hpp"
 
 namespace repertory {
@@ -31,43 +30,32 @@ class i_provider;
 
 class lock_data final {
 public:
-  explicit lock_data(const provider_type &pt, std::string unique_id /*= ""*/)
-      : pt_(pt),
-        unique_id_(std::move(unique_id)),
-        mutex_id_("repertory_" + app_config::get_provider_name(pt) + "_" +
-                  unique_id_),
-        mutex_handle_(::CreateMutex(nullptr, FALSE, &mutex_id_[0u])) {}
+  explicit lock_data(provider_type prov, std::string unique_id);
+  lock_data(const lock_data &) = delete;
+  lock_data(lock_data &&) = delete;
 
-  lock_data()
-      : pt_(provider_type::sia),
-        unique_id_(""),
-        mutex_id_(""),
-        mutex_handle_(INVALID_HANDLE_VALUE) {}
+  ~lock_data();
 
-  ~lock_data() { release(); }
+  auto operator=(const lock_data &) -> lock_data & = delete;
+  auto operator=(lock_data &&) -> lock_data & = delete;
 
 private:
-  const provider_type pt_;
-  const std::string unique_id_;
-  const std::string mutex_id_;
-  HANDLE mutex_handle_;
-  DWORD mutex_state_ = WAIT_FAILED;
+  std::string mutex_id_;
+  HANDLE mutex_handle_{INVALID_HANDLE_VALUE};
+  DWORD mutex_state_{WAIT_FAILED};
+
+  [[nodiscard]] auto get_current_mount_state(json &mount_state) -> bool;
 
 public:
-  [[nodiscard]] auto get_mount_state(const provider_type &pt,
-                                     json &mount_state) -> bool;
-
   [[nodiscard]] auto get_mount_state(json &mount_state) -> bool;
 
-  [[nodiscard]] auto get_unique_id() const -> std::string { return unique_id_; }
-
-  [[nodiscard]] auto grab_lock(std::uint8_t retry_count = 30) -> lock_result;
+  [[nodiscard]] auto grab_lock(std::uint8_t retry_count = 30U) -> lock_result;
 
   void release();
 
   [[nodiscard]] auto set_mount_state(bool active,
-                                     const std::string &mount_location,
-                                     const std::int64_t &pid) -> bool;
+                                     std::string_view mount_location,
+                                     std::int64_t pid) -> bool;
 };
 
 [[nodiscard]] auto create_meta_attributes(

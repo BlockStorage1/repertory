@@ -25,8 +25,8 @@
 #include "utils/string.hpp"
 
 namespace repertory::utils {
-auto compare_version_strings(std::string version1,
-                             std::string version2) -> std::int32_t {
+auto compare_version_strings(std::string version1, std::string version2)
+    -> std::int32_t {
 
   if (utils::string::contains(version1, "-")) {
     version1 = utils::string::split(version1, '-', true)[0U];
@@ -131,23 +131,46 @@ auto get_next_available_port(std::uint16_t first_port,
   using ip::tcp;
 
   boost::system::error_code error_code{};
-  while (first_port != 0U) {
-    io_context ctx{};
-    tcp::acceptor acceptor(ctx);
-    acceptor.open(tcp::v4(), error_code) ||
-        acceptor.bind({tcp::v4(), first_port}, error_code);
-    if (not error_code) {
-      break;
+
+  std::uint32_t check_port{first_port};
+  while (check_port <= 65535U) {
+    {
+      io_context ctx{};
+      tcp::socket socket(ctx);
+      socket.connect(
+          {
+              tcp::endpoint(ip::address_v4::loopback(),
+                            static_cast<std::uint16_t>(check_port)),
+          },
+          error_code);
+      if (not error_code) {
+        ++check_port;
+        continue;
+      }
     }
 
-    ++first_port;
+    {
+      io_context ctx{};
+      tcp::acceptor acceptor(ctx);
+      acceptor.open(tcp::v4(), error_code);
+      if (error_code) {
+        ++check_port;
+        continue;
+      }
+      acceptor.set_option(boost::asio::ip::tcp::acceptor::linger(true, 0));
+      acceptor.bind({tcp::v4(), static_cast<std::uint16_t>(check_port)},
+                    error_code);
+      if (error_code) {
+        ++check_port;
+        continue;
+      }
+    }
+
+    available_port = static_cast<std::uint16_t>(check_port);
+    return true;
   }
 
-  if (not error_code) {
-    available_port = first_port;
-  }
-
-  return not error_code;
+  return false;
 }
 #endif // defined(PROJECT_ENABLE_BOOST)
 

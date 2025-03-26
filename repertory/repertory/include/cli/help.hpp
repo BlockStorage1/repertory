@@ -36,10 +36,9 @@ template <typename drive> inline void help(std::vector<const char *> args) {
   std::cout << "    -di,--drive_information           Display mounted drive "
                "information"
             << std::endl;
-  std::cout
-      << "    -na,--name                        Unique name for S3 or Sia "
-         "instance [Required]"
-      << std::endl;
+  std::cout << "    -na,--name                        Unique configuration "
+               "name [Required for Encrypt, S3 and Sia]"
+            << std::endl;
   std::cout << "    -s3,--s3                          Enables S3 mode"
             << std::endl;
   std::cout
@@ -78,6 +77,12 @@ template <typename drive> inline void help(std::vector<const char *> args) {
   std::cout << "    -set,--set [name] [value]         Set configuration value"
             << std::endl;
   std::cout << "    -status                           Display mount status"
+            << std::endl;
+  std::cout
+      << "    -ui,--ui                          Run embedded management UI"
+      << std::endl;
+  std::cout << "    -up,--ui_port                     Custom port for embedded "
+               "management UI"
             << std::endl;
   std::cout << "    -unmount,--unmount                Unmount and shutdown"
             << std::endl;

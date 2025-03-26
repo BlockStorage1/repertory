@@ -23,7 +23,7 @@
 #define REPERTORY_INCLUDE_TYPES_REPERTORY_HPP_
 
 namespace repertory {
-constexpr const auto default_api_auth_size{48U};
+constexpr const auto default_api_password_size{48U};
 constexpr const auto default_download_timeout_secs{30U};
 constexpr const auto default_eviction_delay_mins{1U};
 constexpr const auto default_high_freq_interval_secs{std::uint16_t{30U}};
@@ -38,6 +38,7 @@ constexpr const auto default_retry_read_count{6U};
 constexpr const auto default_ring_buffer_file_size{512U};
 constexpr const auto default_task_wait_ms{100U};
 constexpr const auto default_timeout_ms{60000U};
+constexpr const auto default_ui_mgmt_port{std::uint16_t{30000U}};
 constexpr const auto max_ring_buffer_file_size{std::uint16_t(1024U)};
 constexpr const auto max_s3_object_name_length{1024U};
 constexpr const auto min_cache_size_bytes{
@@ -280,6 +281,8 @@ enum class exit_code : std::int32_t {
   pin_failed = -16,
   unpin_failed = -17,
   init_failed = -18,
+  ui_mount_failed = -19,
+  exception = -20,
 };
 
 enum http_error_codes : std::int32_t {
@@ -303,6 +306,18 @@ enum class provider_type : std::size_t {
   encrypt,
   unknown,
 };
+
+[[nodiscard]] auto
+provider_type_from_string(std::string_view type,
+                          provider_type default_type = provider_type::unknown)
+    -> provider_type;
+
+[[nodiscard]] auto provider_type_to_string(provider_type type) -> std::string;
+
+void clean_json_config(provider_type prov, nlohmann::json &data);
+
+[[nodiscard]] auto clean_json_value(std::string_view name,
+                                    std::string_view data) -> std::string;
 
 #if defined(_WIN32)
 struct open_file_data final {
@@ -452,7 +467,6 @@ using meta_provider_callback = std::function<void(directory_item &)>;
 
 inline constexpr const auto JSON_ACCESS_KEY{"AccessKey"};
 inline constexpr const auto JSON_AGENT_STRING{"AgentString"};
-inline constexpr const auto JSON_API_AUTH{"ApiAuth"};
 inline constexpr const auto JSON_API_PARENT{"ApiParent"};
 inline constexpr const auto JSON_API_PASSWORD{"ApiPassword"};
 inline constexpr const auto JSON_API_PATH{"ApiPath"};
@@ -487,6 +501,7 @@ inline constexpr const auto JSON_MAX_UPLOAD_COUNT{"MaxUploadCount"};
 inline constexpr const auto JSON_MED_FREQ_INTERVAL_SECS{
     "MedFreqIntervalSeconds"};
 inline constexpr const auto JSON_META{"Meta"};
+inline constexpr const auto JSON_MOUNT_LOCATIONS{"MountLocations"};
 inline constexpr const auto JSON_ONLINE_CHECK_RETRY_SECS{
     "OnlineCheckRetrySeconds"};
 inline constexpr const auto JSON_PATH{"Path"};
