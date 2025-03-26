@@ -23,6 +23,8 @@
 #include "backward.hpp"
 #endif // defined(PROJECT_ENABLE_BACKWARD_CPP)
 
+#include <algorithm>
+
 #include "cli/actions.hpp"
 #include "initialize.hpp"
 #include "types/repertory.hpp"
@@ -44,7 +46,7 @@ auto main(int argc, char **argv) -> int {
   std::vector<const char *> args;
   {
     auto args_span = std::span(argv, static_cast<std::size_t>(argc));
-    std::copy(args_span.begin(), args_span.end(), std::back_inserter(args));
+    std::ranges::copy(args_span, std::back_inserter(args));
   }
 
   if (argc == 1) {
