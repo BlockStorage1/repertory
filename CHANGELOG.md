@@ -11,9 +11,9 @@
 
 ### Changes from v2.0.5-rc
 
-## v2.0.5-rc
-
 * Drive letters in UI should always be lowercase
+
+## v2.0.5-rc
 
 <!-- markdownlint-disable-next-line -->
 ### Issues
