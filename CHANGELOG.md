@@ -8,6 +8,7 @@
 * ~~\#21 [Unit Test] Complete WinFSP unit tests~~
 * ~~\#22 [Unit Test] Complete FUSE unit tests~~
 * ~~\#33 Complete initial v2.0 documentation~~
+* \#42 [bug] Remote mount directory listing on Windows connected to Linux is failing
 
 ### Changes from v2.0.5-rc
 
