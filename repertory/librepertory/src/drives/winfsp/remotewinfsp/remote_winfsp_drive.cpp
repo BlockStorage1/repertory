@@ -361,11 +361,10 @@ auto remote_winfsp_drive::ReadDirectory(PVOID /*file_node*/, PVOID file_desc,
               &ret)) {
         auto item_found = false;
         for (const auto &item : item_list) {
-          auto item_path = item["path"].get<std::string>();
+          auto item_path = item[JSON_API_PATH].get<std::string>();
           auto display_name = utils::string::from_utf8(
               utils::path::strip_to_file_name(item_path));
           if (not marker || (marker && item_found)) {
-            // if (not utils::path::is_ads_file_path(item_path)) {
             union {
               UINT8 B[FIELD_OFFSET(FSP_FSCTL_DIR_INFO, FileNameBuf) +
                       ((repertory::max_path_length + 1U) * sizeof(WCHAR))];
@@ -380,10 +379,8 @@ auto remote_winfsp_drive::ReadDirectory(PVOID /*file_node*/, PVOID file_desc,
                           display_name.size()) *
                  sizeof(WCHAR)));
 
-            if (not item["meta"].empty() ||
-                ((item_path != ".") && (item_path != ".."))) {
-              populate_file_info(item, directory_info->FileInfo);
-            }
+            populate_file_info(item, directory_info->FileInfo);
+
             if (ret == STATUS_SUCCESS) {
               ::wcscpy_s(&directory_info->FileNameBuf[0],
                          repertory::max_path_length, &display_name[0]);
@@ -394,7 +391,6 @@ auto remote_winfsp_drive::ReadDirectory(PVOID /*file_node*/, PVOID file_desc,
                 break;
               }
             }
-            // }
           } else {
             item_found = display_name == std::wstring(marker);
           }

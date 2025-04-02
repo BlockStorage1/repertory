@@ -1394,7 +1394,7 @@ auto remote_server::winfsp_read_directory(PVOID file_desc, PWSTR /*pattern*/,
   auto ret = static_cast<packet::error_type>(
       has_open_info(static_cast<native_handle>(handle), STATUS_INVALID_HANDLE));
   if (ret == STATUS_SUCCESS) {
-    const auto api_path = construct_api_path(
+    auto api_path = construct_api_path(
         get_open_file_path(static_cast<native_handle>(handle)));
     directory_iterator iterator(drive_.get_directory_items(api_path));
     auto offset = marker == nullptr
@@ -1405,7 +1405,7 @@ auto remote_server::winfsp_read_directory(PVOID file_desc, PWSTR /*pattern*/,
     json item;
     while (iterator.get_json(offset++, item) == 0) {
       try {
-        item_list.emplace_back(update_to_windows_format(item));
+        item_list.emplace_back(update_to_windows_format(api_path, item));
       } catch (const std::exception &e) {
         utils::error::raise_error(function_name, e, "exception occurred");
       }
@@ -1679,10 +1679,34 @@ auto remote_server::json_release_directory_snapshot(
   return 0;
 }
 
-auto remote_server::update_to_windows_format(json &item) -> json & {
+auto remote_server::update_to_windows_format(const std::string &root_api_path,
+                                             json &item) -> json & {
   auto api_path = item[JSON_API_PATH].get<std::string>();
-  if (api_path == "." || api_path == "..") {
-    return item;
+  if (api_path == ".") {
+    api_path = root_api_path;
+
+    api_meta_map meta;
+    auto res = drive_.get_item_meta(api_path, meta);
+    if (res != api_error::success) {
+      utils::error::raise_api_path_error(function_name, api_path, error,
+                                         "failed to get . meta");
+      return item;
+    }
+
+    item[JSON_META] = meta;
+  } else if (api_path == "..") {
+    // TODO handle '/' parent
+    api_path = utils::path::get_parent_api_path(root_api_path);
+
+    api_meta_map meta;
+    auto res = drive_.get_item_meta(api_path, meta);
+    if (res != api_error::success) {
+      utils::error::raise_api_path_error(function_name, api_path, error,
+                                         "failed to get .. meta");
+      return item;
+    }
+
+    item[JSON_META] = meta;
   }
 
   item[JSON_META][META_ACCESSED] = std::to_string(
