@@ -374,13 +374,13 @@ auto fuse_base::init_impl(struct fuse_conn_info *conn) -> void * {
   if (not utils::file::change_to_process_directory()) {
     utils::error::raise_error(function_name,
                               "failed to change to process directory");
-    event_system::instance().raise<unmount_requested>();
+    event_system::instance().raise<unmount_requested>(function_name);
     return this;
   }
 
   if (not console_enabled_ && not repertory::project_initialize()) {
     utils::error::raise_error(function_name, "failed to initialize repertory");
-    event_system::instance().raise<unmount_requested>();
+    event_system::instance().raise<unmount_requested>(function_name);
   }
 
   return this;

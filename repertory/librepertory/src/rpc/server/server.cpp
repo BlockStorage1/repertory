@@ -68,7 +68,9 @@ void server::handle_set_config_value_by_name(const httplib::Request &req,
 
 void server::handle_unmount(const httplib::Request & /*req*/,
                             httplib::Response &res) {
-  event_system::instance().raise<unmount_requested>();
+  REPERTORY_USES_FUNCTION_NAME();
+
+  event_system::instance().raise<unmount_requested>(function_name);
   res.status = http_error_codes::ok;
 }
 

@@ -259,7 +259,7 @@ auto remote_fuse_drive::init_impl(struct fuse_conn_info *conn) -> void * {
   if (remote_instance_->fuse_init() != 0) {
     utils::error::raise_error(function_name,
                               "failed to connect to remote server");
-    event_system::instance().raise<unmount_requested>();
+    event_system::instance().raise<unmount_requested>(function_name);
   } else {
     server_ = std::make_shared<server>(config_);
     server_->start();
