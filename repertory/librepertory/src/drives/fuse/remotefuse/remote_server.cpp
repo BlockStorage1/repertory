@@ -1390,7 +1390,7 @@ auto remote_server::winfsp_read_directory(PVOID file_desc, PWSTR /*pattern*/,
 
   item_list.clear();
 
-  const auto handle = reinterpret_cast<remote::file_handle>(file_desc);
+  auto handle = reinterpret_cast<remote::file_handle>(file_desc);
   auto ret = static_cast<packet::error_type>(
       has_open_info(static_cast<native_handle>(handle), STATUS_INVALID_HANDLE));
   if (ret == STATUS_SUCCESS) {
@@ -1680,29 +1680,30 @@ auto remote_server::json_release_directory_snapshot(
 }
 
 auto remote_server::update_to_windows_format(json &item) -> json & {
-  const auto api_path = item["path"].get<std::string>();
-  item["meta"][META_ACCESSED] = std::to_string(
-      utils::string::to_uint64(empty_as_zero(item["meta"][META_ACCESSED])));
-  item["meta"][META_CREATION] = std::to_string(
-      utils::string::to_uint64(empty_as_zero(item["meta"][META_CREATION])));
-  item["meta"][META_MODIFIED] = std::to_string(
-      utils::string::to_uint64(empty_as_zero(item["meta"][META_MODIFIED])));
+  auto api_path = item[JSON_API_PATH].get<std::string>();
+  item[JSON_META][META_ACCESSED] = std::to_string(
+      utils::string::to_uint64(empty_as_zero(item[JSON_META][META_ACCESSED])));
+  item[JSON_META][META_CREATION] = std::to_string(
+      utils::string::to_uint64(empty_as_zero(item[JSON_META][META_CREATION])));
+  item[JSON_META][META_MODIFIED] = std::to_string(
+      utils::string::to_uint64(empty_as_zero(item[JSON_META][META_MODIFIED])));
 
-  if (item["meta"][META_WRITTEN].empty() ||
-      (item["meta"][META_WRITTEN].get<std::string>() == "0") ||
-      (item["meta"][META_WRITTEN].get<std::string>() ==
+  if (item[JSON_META][META_WRITTEN].empty() ||
+      (item[JSON_META][META_WRITTEN].get<std::string>() == "0") ||
+      (item[JSON_META][META_WRITTEN].get<std::string>() ==
        std::to_string(utils::time::WIN32_TIME_CONVERSION))) {
     drive_.set_item_meta(api_path, META_WRITTEN,
-                         item["meta"][META_MODIFIED].get<std::string>());
-    item["meta"][META_WRITTEN] = item["meta"][META_MODIFIED];
+                         item[JSON_META][META_MODIFIED].get<std::string>());
+    item[JSON_META][META_WRITTEN] = item[JSON_META][META_MODIFIED];
   }
 
-  if (item["meta"][META_ATTRIBUTES].empty()) {
-    item["meta"][META_ATTRIBUTES] =
-        item["directory"].get<bool>() ? std::to_string(FILE_ATTRIBUTE_DIRECTORY)
-                                      : std::to_string(FILE_ATTRIBUTE_ARCHIVE);
+  if (item[JSON_META][META_ATTRIBUTES].empty()) {
+    item[JSON_META][META_ATTRIBUTES] =
+        item[JSON_DIRECTORY].get<bool>()
+            ? std::to_string(FILE_ATTRIBUTE_DIRECTORY)
+            : std::to_string(FILE_ATTRIBUTE_ARCHIVE);
     drive_.set_item_meta(api_path, META_ATTRIBUTES,
-                         item["meta"][META_ATTRIBUTES].get<std::string>());
+                         item[JSON_META][META_ATTRIBUTES].get<std::string>());
   }
 
   return item;
