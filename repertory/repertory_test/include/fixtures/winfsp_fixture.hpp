@@ -45,21 +45,31 @@ namespace repertory {
 struct local_s3 final {
   static constexpr const provider_type type{provider_type::s3};
   static constexpr const provider_type type2{provider_type::s3};
+  static constexpr const std::uint16_t port{0U};
 };
 
 struct local_sia final {
   static constexpr const provider_type type{provider_type::sia};
   static constexpr const provider_type type2{provider_type::sia};
+  static constexpr const std::uint16_t port{0U};
 };
 
 struct remote_s3 final {
   static constexpr const provider_type type{provider_type::remote};
   static constexpr const provider_type type2{provider_type::s3};
+  static constexpr const std::uint16_t port{0U};
 };
 
 struct remote_sia final {
   static constexpr const provider_type type{provider_type::remote};
   static constexpr const provider_type type2{provider_type::sia};
+  static constexpr const std::uint16_t port{0U};
+};
+
+struct remote_winfsp_to_linux final {
+  static constexpr const provider_type type{provider_type::remote};
+  static constexpr const provider_type type2{provider_type::unknown};
+  static constexpr const std::uint16_t port{30001U};
 };
 
 template <typename provider_t> class winfsp_test : public ::testing::Test {
@@ -160,13 +170,15 @@ protected:
       execute_mount(drive_args, mount_location);
     };
 
-    const auto mount_remote = [&]() {
+    const auto mount_remote = [&](std::uint16_t port = 30000U) {
       {
         auto test_directory = utils::path::combine(
             test::get_test_output_dir(),
             {
                 "winfsp_test",
-                app_config::get_provider_name(provider_type::remote),
+                app_config::get_provider_name(provider_t::type) + '_' +
+                    app_config::get_provider_name(provider_t::type2) + '_' +
+                    std::to_string(port),
             });
 
         mount_location2 = mount_location;
@@ -184,7 +196,7 @@ protected:
             "-dd",
             config->get_data_directory(),
             "-rm",
-            "localhost:30000",
+            fmt::format("localhost:{}", port),
             mount_location,
         });
       }
@@ -210,6 +222,10 @@ protected:
       case provider_type::sia: {
         mount_sia();
       } break;
+
+      case provider_type::unknown:
+        mount_remote(provider_t::port);
+        return;
 
       default:
         throw std::runtime_error("remote provider type is not implemented");

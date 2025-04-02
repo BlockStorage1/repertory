@@ -75,12 +75,6 @@ struct remote_sia final {
   static constexpr const std::uint16_t port{0U};
 };
 
-struct remote_winfsp_to_linux final {
-  static constexpr const provider_type type{provider_type::remote};
-  static constexpr const provider_type type2{provider_type::unknown};
-  static constexpr const std::uint16_t port{30001U};
-};
-
 struct remote_linux_to_winfsp final {
   static constexpr const provider_type type{provider_type::remote};
   static constexpr const provider_type type2{provider_type::unknown};
@@ -431,12 +425,7 @@ std::string fuse_test<provider_t>::mount_location;
 template <typename provider_t>
 std::string fuse_test<provider_t>::mount_location2;
 
-// using fuse_provider_types = ::testing::Types<local_s3, remote_s3>;
-#if defined(_WIN32)
-using fuse_provider_types =
-    ::testing::Types<local_s3, remote_s3, local_sia, remote_sia,
-                     remote_winfsp_to_linux>;
-#elif defined(__linux__)
+#if defined(__linux__)
 using fuse_provider_types =
     ::testing::Types<local_s3, remote_s3, local_sia, remote_sia>;
 // using fuse_provider_types =
