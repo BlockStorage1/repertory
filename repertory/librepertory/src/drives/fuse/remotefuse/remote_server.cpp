@@ -1681,6 +1681,10 @@ auto remote_server::json_release_directory_snapshot(
 
 auto remote_server::update_to_windows_format(json &item) -> json & {
   auto api_path = item[JSON_API_PATH].get<std::string>();
+  if (api_path == "." || api_path == "..") {
+    return item;
+  }
+
   item[JSON_META][META_ACCESSED] = std::to_string(
       utils::string::to_uint64(empty_as_zero(item[JSON_META][META_ACCESSED])));
   item[JSON_META][META_CREATION] = std::to_string(
