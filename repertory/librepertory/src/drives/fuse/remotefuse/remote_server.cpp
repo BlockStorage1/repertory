@@ -1688,7 +1688,7 @@ auto remote_server::update_to_windows_format(const std::string &root_api_path,
     api_meta_map meta;
     auto res = drive_.get_item_meta(api_path, meta);
     if (res != api_error::success) {
-      utils::error::raise_api_path_error(function_name, api_path, error,
+      utils::error::raise_api_path_error(function_name, api_path, res,
                                          "failed to get . meta");
       return item;
     }
@@ -1701,7 +1701,7 @@ auto remote_server::update_to_windows_format(const std::string &root_api_path,
     api_meta_map meta;
     auto res = drive_.get_item_meta(api_path, meta);
     if (res != api_error::success) {
-      utils::error::raise_api_path_error(function_name, api_path, error,
+      utils::error::raise_api_path_error(function_name, api_path, res,
                                          "failed to get .. meta");
       return item;
     }
