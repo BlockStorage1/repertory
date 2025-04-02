@@ -1681,28 +1681,22 @@ auto remote_server::json_release_directory_snapshot(
 
 auto remote_server::update_to_windows_format(const std::string &root_api_path,
                                              json &item) -> json & {
+  REPERTORY_USES_FUNCTION_NAME();
+
   auto api_path = item[JSON_API_PATH].get<std::string>();
-  if (api_path == ".") {
-    api_path = root_api_path;
+  if (api_path == "." || api_path == "..") {
+    auto orig_api_path{api_path};
+
+    api_path = api_path == "."
+                   ? root_api_path
+                   : utils::path::get_parent_api_path(root_api_path);
 
     api_meta_map meta;
     auto res = drive_.get_item_meta(api_path, meta);
     if (res != api_error::success) {
-      utils::error::raise_api_path_error(function_name, api_path, res,
-                                         "failed to get . meta");
-      return item;
-    }
-
-    item[JSON_META] = meta;
-  } else if (api_path == "..") {
-    // TODO handle '/' parent
-    api_path = utils::path::get_parent_api_path(root_api_path);
-
-    api_meta_map meta;
-    auto res = drive_.get_item_meta(api_path, meta);
-    if (res != api_error::success) {
-      utils::error::raise_api_path_error(function_name, api_path, res,
-                                         "failed to get .. meta");
+      utils::error::raise_api_path_error(
+          function_name, api_path, res,
+          fmt::format("failed to get '{}' meta", orig_api_path));
       return item;
     }
 
