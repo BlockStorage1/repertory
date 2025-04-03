@@ -584,8 +584,6 @@ void base_provider::process_removed_items(stop_type &stop_requested) {
                     }
 
                     if (utils::string::to_bool(meta[META_DIRECTORY])) {
-                      fmt::println("checking|{}|{}", api_path,
-                                   json(meta).dump());
                       bool exists{};
                       if (is_directory(api_path, exists) !=
                           api_error::success) {
@@ -596,8 +594,6 @@ void base_provider::process_removed_items(stop_type &stop_requested) {
                         return;
                       }
 
-                      fmt::println("not found|{}|{}", api_path,
-                                   json(meta).dump());
                       process_removed_directories(
                           {
                               removed_item{api_path, true, ""},

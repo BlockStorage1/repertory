@@ -69,7 +69,7 @@ struct remote_sia final {
 struct remote_winfsp_to_linux final {
   static constexpr const provider_type type{provider_type::remote};
   static constexpr const provider_type type2{provider_type::unknown};
-  static constexpr const std::uint16_t port{30001U};
+  static constexpr const std::uint16_t port{40001U};
 };
 
 template <typename provider_t> class winfsp_test : public ::testing::Test {
@@ -112,7 +112,7 @@ protected:
 
           auto r_cfg = config->get_remote_mount();
           r_cfg.enable = true;
-          r_cfg.api_port = 30000U;
+          r_cfg.api_port = 40000U;
           config->set_remote_mount(r_cfg);
         }
 
@@ -154,7 +154,7 @@ protected:
 
           auto r_cfg = config->get_remote_mount();
           r_cfg.enable = true;
-          r_cfg.api_port = 30000U;
+          r_cfg.api_port = 40000U;
           config->set_remote_mount(r_cfg);
         }
 
@@ -170,7 +170,7 @@ protected:
       execute_mount(drive_args, mount_location);
     };
 
-    const auto mount_remote = [&](std::uint16_t port = 30000U) {
+    const auto mount_remote = [&](std::uint16_t port = 40000U) {
       {
         auto test_directory = utils::path::combine(
             test::get_test_output_dir(),
@@ -244,7 +244,9 @@ protected:
   static void TearDownTestCase() {
     if (provider_t::type == provider_type::remote) {
       execute_unmount(drive_args2, mount_location);
-      execute_unmount(drive_args, mount_location2);
+      if (provider_t::type2 != provider_type::unknown) {
+        execute_unmount(drive_args, mount_location2);
+      }
     } else {
       execute_unmount(drive_args, mount_location);
     }
@@ -298,7 +300,8 @@ std::string winfsp_test<provider_t>::mount_location2;
 
 // using winfsp_provider_types = ::testing::Types<local_s3, remote_s3,
 // local_sia, remote_sia>;
-using winfsp_provider_types = ::testing::Types<local_s3, remote_s3>;
+// using winfsp_provider_types = ::testing::Types<local_s3, remote_s3>;
+using winfsp_provider_types = ::testing::Types<remote_winfsp_to_linux>;
 } // namespace repertory
 
 #endif // defined(_WIN32)

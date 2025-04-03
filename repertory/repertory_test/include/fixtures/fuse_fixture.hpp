@@ -78,7 +78,7 @@ struct remote_sia final {
 struct remote_linux_to_winfsp final {
   static constexpr const provider_type type{provider_type::remote};
   static constexpr const provider_type type2{provider_type::unknown};
-  static constexpr const std::uint16_t port{30001U};
+  static constexpr const std::uint16_t port{40001U};
 };
 
 template <typename provider_t> class fuse_test : public ::testing::Test {
@@ -123,7 +123,7 @@ protected:
 
           auto r_cfg = config->get_remote_mount();
           r_cfg.enable = true;
-          r_cfg.api_port = 30000U;
+          r_cfg.api_port = 40000U;
           config->set_remote_mount(r_cfg);
         }
 
@@ -170,7 +170,7 @@ protected:
 
           auto r_cfg = config->get_remote_mount();
           r_cfg.enable = true;
-          r_cfg.api_port = 30000U;
+          r_cfg.api_port = 40000U;
           config->set_remote_mount(r_cfg);
         }
 
@@ -188,7 +188,7 @@ protected:
       execute_mount(drive_args, mount_location);
     };
 
-    const auto mount_remote = [&](std::uint16_t port = 30000U) {
+    const auto mount_remote = [&](std::uint16_t port = 40000U) {
       {
         mount_location2 = mount_location;
 
