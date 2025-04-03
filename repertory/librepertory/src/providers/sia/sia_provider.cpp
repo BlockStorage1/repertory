@@ -369,6 +369,7 @@ auto sia_provider::get_object_info(const std::string &api_path,
     get.path = "/api/bus/object" + api_path;
     get.query["bucket"] = get_bucket(get_sia_config());
     get.query["onlymetadata"] = "true";
+    fmt::println("bucket|{}|{}", get.query["bucket"], get.path);
 
     std::string error_data;
     get.response_handler = [&error_data, &object_info](auto &&data,
@@ -511,6 +512,7 @@ auto sia_provider::is_directory(const std::string &api_path, bool &exists) const
     exists = false;
 
     json file_data{};
+    fmt::println("{}", api_path + '/');
     auto res{get_object_info(api_path + '/', file_data)};
     if (res == api_error::item_not_found) {
       return api_error::success;
