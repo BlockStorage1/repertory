@@ -213,6 +213,7 @@ public:
     }
 
     auto url = construct_url(curl, request.get_path(), cfg) + parameters;
+    fmt::println("url|{}", url);
     curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
 
     multi_request curl_request(curl, stop_requested);
@@ -225,8 +226,7 @@ public:
     }
 
     if (curl_code != CURLE_OK) {
-      event_system::instance().raise<curl_error>(curl_code, function_name,
-                                                  url);
+      event_system::instance().raise<curl_error>(curl_code, function_name, url);
       return false;
     }
 
