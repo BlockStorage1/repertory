@@ -63,6 +63,31 @@ namespace repertory {
 sia_provider::sia_provider(app_config &config, i_http_comm &comm)
     : base_provider(config, comm) {}
 
+auto sia_provider::create_directory_key(const std::string &api_path) const
+    -> api_error {
+  auto parent_api_path = utils::path::get_parent_api_path(api_path);
+
+  json object_list{};
+  if (not get_object_list(parent_api_path, object_list)) {
+    return api_error::error;
+  }
+
+  if (not object_list.contains("objects")) {
+    return api_error::error;
+  }
+
+  const auto &list = object_list.at("objects");
+  if (std::ranges::find_if(list, [&api_path](auto &&entry) -> bool {
+        return entry.at("key").template get<std::string>() == api_path + '/';
+      }) == list.end()) {
+    return api_error::item_not_found;
+  }
+
+  api_meta_map meta;
+  return const_cast<sia_provider *>(this)->create_directory_impl(api_path,
+                                                                 meta);
+}
+
 auto sia_provider::check_version(std::string &required_version,
                                  std::string &returned_version) const -> bool {
   REPERTORY_USES_FUNCTION_NAME();
@@ -320,6 +345,17 @@ auto sia_provider::get_file_list(api_file_list &list,
                   create_api_file(entry_api_path, "", 0U,
                                   get_last_modified(entry)),
               };
+
+              bool exists{};
+              auto res{is_directory(entry_api_path, exists)};
+              if (res != api_error::success) {
+                return res;
+              }
+
+              if (not exists) {
+                return api_error::directory_not_found;
+              }
+
               get_api_item_added()(true, dir);
             }
 
@@ -512,6 +548,13 @@ auto sia_provider::is_directory(const std::string &api_path, bool &exists) const
 
     json file_data{};
     auto res{get_object_info(api_path + '/', file_data)};
+    if (res == api_error::item_not_found) {
+      if (create_directory_key(api_path) == api_error::success) {
+        exists = true;
+        return api_error::success;
+      }
+    }
+
     if (res == api_error::item_not_found) {
       return api_error::success;
     }
