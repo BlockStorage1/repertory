@@ -598,7 +598,6 @@ void base_provider::process_removed_items(stop_type &stop_requested) {
 
                       fmt::println("not found|{}|{}", api_path,
                                    json(meta).dump());
-                      bool exists{};
                       process_removed_directories(
                           {
                               removed_item{api_path, true, ""},
