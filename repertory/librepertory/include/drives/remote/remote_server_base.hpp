@@ -142,6 +142,7 @@ public:
                                      granted_access, attributes,
                                      allocation_size, &file_desc, &file_info,
                                      normalized_name, exists);
+           fmt::println("{}|{}", file_name, exists);
            if (ret == STATUS_SUCCESS) {
 #if defined(_WIN32)
              this->set_client_id(file_desc, client_id);

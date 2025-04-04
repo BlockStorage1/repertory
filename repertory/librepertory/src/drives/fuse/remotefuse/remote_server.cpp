@@ -1122,11 +1122,12 @@ auto remote_server::winfsp_create(PWSTR file_name, UINT32 create_options,
 
   auto relative_path = utils::string::to_utf8(file_name);
   auto file_path = construct_path(relative_path);
-  exists = utils::file::file{file_path}.exists() ||
-           utils::file::directory{file_path}.exists();
+  exists = static_cast<BOOLEAN>(utils::file::file{file_path}.exists() ||
+                                utils::file::directory{file_path}.exists());
+  fmt::println("{}|{}", file_path, exists);
 
   auto ret{static_cast<packet::error_type>(STATUS_SUCCESS)};
-  if (not exists) {
+  if (exists == 0U) {
     if ((create_options & FILE_DIRECTORY_FILE) != 0U) {
       attributes |= FILE_ATTRIBUTE_DIRECTORY;
     } else {
