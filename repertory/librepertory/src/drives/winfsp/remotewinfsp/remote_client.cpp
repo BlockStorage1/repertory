@@ -201,11 +201,11 @@ auto remote_client::winfsp_create(PWSTR file_name, UINT32 create_options,
 #if defined(_WIN32)
     else {
       ret = STATUS_OBJECT_NAME_COLLISION;
-      ::SetLastError(ERROR_FILE_EXISTS);
     }
 #endif // defined(_WIN32)
   }
 
+  fmt::println("{}|{}|{}", file_name, exists, ret);
   return ret;
 }
 

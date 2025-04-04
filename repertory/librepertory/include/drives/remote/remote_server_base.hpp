@@ -142,7 +142,7 @@ public:
                                      granted_access, attributes,
                                      allocation_size, &file_desc, &file_info,
                                      normalized_name, exists);
-           fmt::println("{}|{}", file_name, exists);
+           fmt::println("{}|{}", utils::string::to_utf8(file_name), exists);
            if (ret == STATUS_SUCCESS) {
 #if defined(_WIN32)
              this->set_client_id(file_desc, client_id);
@@ -590,8 +590,9 @@ public:
            DECODE_OR_RETURN(request, flags);
 
            remote::file_handle handle{};
-           if ((ret = this->fuse_create(path.data(), mode, flags, handle)) >=
-               0) {
+
+           ret = this->fuse_create(path.data(), mode, flags, handle);
+           if (ret >= 0) {
 #if defined(_WIN32)
              this->set_compat_client_id(handle, client_id);
 #else  // !defined(_WIN32)
@@ -847,7 +848,8 @@ public:
            DECODE_OR_RETURN(request, flags);
 
            remote::file_handle handle;
-           if ((ret = this->fuse_open(path.c_str(), flags, handle)) >= 0) {
+           ret = this->fuse_open(path.c_str(), flags, handle);
+           if (ret >= 0) {
 #if defined(_WIN32)
              this->set_compat_client_id(handle, client_id);
 #else  // !defined(_WIN32)
@@ -868,7 +870,8 @@ public:
            DECODE_OR_RETURN(request, path);
 
            remote::file_handle handle{0};
-           if ((ret = this->fuse_opendir(path.c_str(), handle)) >= 0) {
+           ret = this->fuse_opendir(path.c_str(), handle);
+           if (ret >= 0) {
              this->add_directory(client_id, handle);
              response.encode(handle);
            }
