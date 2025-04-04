@@ -168,24 +168,32 @@ auto remote_winfsp_drive::GetSecurityByName(PWSTR file_name, PUINT32 attributes,
                                             PSECURITY_DESCRIPTOR descriptor,
                                             SIZE_T *descriptor_size)
     -> NTSTATUS {
+  std::uint64_t sds{
+      (descriptor_size == nullptr) ? 0U : *descriptor_size,
+  };
+
   std::wstring string_descriptor;
-  std::uint64_t sds = (descriptor_size == nullptr) ? 0 : *descriptor_size;
-  auto ret = remote_instance_->winfsp_get_security_by_name(
-      file_name, attributes, descriptor_size ? &sds : nullptr,
-      string_descriptor);
-  *descriptor_size = static_cast<SIZE_T>(sds);
-  if ((ret == STATUS_SUCCESS) && *descriptor_size) {
-    PSECURITY_DESCRIPTOR sd{nullptr};
-    ULONG sz2{0U};
+  auto ret{
+      remote_instance_->winfsp_get_security_by_name(
+          file_name, attributes, descriptor_size ? &sds : nullptr,
+          string_descriptor),
+  };
+
+  if ((ret == STATUS_SUCCESS) && (descriptor_size != nullptr)) {
+    *descriptor_size = static_cast<SIZE_T>(sds);
+
+    PSECURITY_DESCRIPTOR desc{nullptr};
+    ULONG size{0U};
     if (::ConvertStringSecurityDescriptorToSecurityDescriptorW(
-            string_descriptor.data(), SDDL_REVISION_1, &sd, &sz2)) {
-      if (sz2 > *descriptor_size) {
+            string_descriptor.data(), SDDL_REVISION_1, &desc, &size)) {
+      if (size > *descriptor_size) {
         ret = STATUS_BUFFER_TOO_SMALL;
       } else {
-        ::CopyMemory(descriptor, sd, sz2);
+        ::CopyMemory(descriptor, desc, size);
       }
-      *descriptor_size = sz2;
-      ::LocalFree(sd);
+
+      *descriptor_size = size;
+      ::LocalFree(desc);
     } else {
       ret = FspNtStatusFromWin32(::GetLastError());
     }

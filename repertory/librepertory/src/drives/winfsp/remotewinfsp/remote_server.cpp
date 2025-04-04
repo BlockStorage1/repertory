@@ -1061,7 +1061,7 @@ auto remote_server::winfsp_get_security_by_name(PWSTR file_name,
   auto file_path = utils::string::from_utf8(utils::path::combine(
       mount_location_, {utils::string::to_utf8(file_name)}));
 
-  auto ret = STATUS_BUFFER_OVERFLOW;
+  auto ret{STATUS_BUFFER_OVERFLOW};
   if ((descriptor_size == nullptr) ||
       (*descriptor_size <= std::numeric_limits<SIZE_T>::max())) {
     auto *descriptor = descriptor_size == nullptr
