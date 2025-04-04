@@ -52,6 +52,9 @@ private:
   [[nodiscard]] auto create_directory_key(const std::string &api_path) const
       -> repertory::api_error;
 
+  [[nodiscard]] auto ensure_directory_exists(const std::string &api_path) const
+      -> api_error;
+
   [[nodiscard]] auto get_object_info(const std::string &api_path,
                                      json &object_info) const -> api_error;
 

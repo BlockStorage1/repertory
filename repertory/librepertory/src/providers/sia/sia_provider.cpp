@@ -159,19 +159,40 @@ auto sia_provider::create_directory_key(const std::string &api_path) const
   }
 
   if (not object_list.contains("objects")) {
-    return api_error::item_not_found;
+    return api_error::directory_not_found;
   }
 
   const auto &list = object_list.at("objects");
   if (std::ranges::find_if(list, [&api_path](auto &&entry) -> bool {
         return entry.at("key").template get<std::string>() == api_path + '/';
       }) == list.end()) {
-    return api_error::item_not_found;
+    return api_error::directory_not_found;
   }
 
   api_meta_map meta;
   return const_cast<sia_provider *>(this)->create_directory_impl(api_path,
                                                                  meta);
+}
+
+auto sia_provider::ensure_directory_exists(const std::string &api_path) const
+    -> api_error {
+  REPERTORY_USES_FUNCTION_NAME();
+
+  bool exists{};
+  auto res{is_directory(api_path, exists)};
+  if (res != api_error::success) {
+    utils::error::raise_api_path_error(function_name, api_path, res,
+                                       "failed detect existing directory");
+    return res;
+  }
+
+  if (not exists) {
+    utils::error::raise_api_path_error(function_name, api_path, res,
+                                       "directory not found");
+    return api_error::directory_not_found;
+  }
+
+  return api_error::success;
 }
 
 auto sia_provider::get_directory_item_count(const std::string &api_path) const
@@ -241,18 +262,11 @@ auto sia_provider::get_directory_items_impl(const std::string &api_path,
                                            : entry["size"].get<std::uint64_t>(),
                                  get_last_modified(entry));
           if (directory) {
-            bool exists{};
-            auto res{is_directory(entry_api_path, exists)};
+            auto res{ensure_directory_exists(entry_api_path)};
             if (res != api_error::success) {
               utils::error::raise_api_path_error(
                   function_name, entry_api_path, res,
                   "failed detect existing directory");
-              continue;
-            }
-
-            if (not exists) {
-              utils::error::raise_api_path_error(function_name, entry_api_path,
-                                                 res, "directory not found");
               continue;
             }
           }
@@ -364,19 +378,12 @@ auto sia_provider::get_file_list(api_file_list &list,
                                   get_last_modified(entry)),
               };
 
-              bool exists{};
-              auto res{is_directory(entry_api_path, exists)};
+              auto res{ensure_directory_exists(entry_api_path)};
               if (res != api_error::success) {
                 utils::error::raise_api_path_error(
                     function_name, entry_api_path, res,
                     "failed detect existing directory");
                 return res;
-              }
-
-              if (not exists) {
-                utils::error::raise_api_path_error(
-                    function_name, entry_api_path, res, "directory not found");
-                return api_error::directory_not_found;
               }
 
               get_api_item_added()(true, dir);
@@ -578,7 +585,8 @@ auto sia_provider::is_directory(const std::string &api_path, bool &exists) const
       }
     }
 
-    if (res == api_error::item_not_found) {
+    if (res == api_error::directory_not_found ||
+        res == api_error::item_not_found) {
       return api_error::success;
     }
 
