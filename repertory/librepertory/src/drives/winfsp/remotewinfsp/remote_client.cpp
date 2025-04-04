@@ -205,7 +205,7 @@ auto remote_client::winfsp_create(PWSTR file_name, UINT32 create_options,
 #endif // defined(_WIN32)
   }
 
-  fmt::println("{}|{}|{}", file_name, exists, ret);
+  fmt::println("{}|{}|{}", utils::string::to_utf8(file_name), exists, ret);
   return ret;
 }
 
