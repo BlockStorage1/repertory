@@ -1169,7 +1169,6 @@ auto remote_server::winfsp_create(PWSTR file_name, UINT32 create_options,
         utils::unix_error_to_windows((res < 0) ? errno : 0));
   }
 
-  fmt::println("{}|{}|{}", file_path, exists, ret);
   RAISE_REMOTE_FUSE_SERVER_EVENT(function_name, file_path, ret);
   return ret;
 }
