@@ -142,16 +142,18 @@ public:
                                      granted_access, attributes,
                                      allocation_size, &file_desc, &file_info,
                                      normalized_name, exists);
-           fmt::println("{}|{}", utils::string::to_utf8(file_name), exists);
            if (ret == STATUS_SUCCESS) {
+             if (exists == 0U) {
 #if defined(_WIN32)
-             this->set_client_id(file_desc, client_id);
+               this->set_client_id(file_desc, client_id);
 #else  // !defined(_WIN32)
-             this->set_client_id(
-                 static_cast<native_handle>(
-                     reinterpret_cast<std::uintptr_t>(file_desc)),
-                 client_id);
+               this->set_client_id(
+                   static_cast<native_handle>(
+                       reinterpret_cast<std::uintptr_t>(file_desc)),
+                   client_id);
 #endif // defined(_WIN32)
+             }
+
              response.encode(file_desc);
              response.encode(file_info);
              response.encode(normalized_name);
