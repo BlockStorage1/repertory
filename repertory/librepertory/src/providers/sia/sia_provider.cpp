@@ -324,7 +324,6 @@ auto sia_provider::get_file_list(api_file_list &list, std::string &marker) const
       return api_error::comm_error;
     }
 
-    marker = object_list.at("nextMarker").get<std::string>();
     iterate_objects("/", object_list,
                     [&](auto &&entry_api_path, auto &&directory, auto &&entry) {
                       if (directory) {
@@ -345,6 +344,7 @@ auto sia_provider::get_file_list(api_file_list &list, std::string &marker) const
                           entry["size"].template get<std::uint64_t>(), meta));
                     });
 
+    marker = object_list.at("nextMarker").get<std::string>();
     return object_list.at("hasMore").get<bool>() ? api_error::more_data
                                                  : api_error::success;
   } catch (const std::exception &e) {
