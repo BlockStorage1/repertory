@@ -153,7 +153,7 @@ auto sia_provider::create_directory_key(const std::string &api_path) const
     -> api_error {
   auto parent_api_path = utils::path::get_parent_api_path(api_path);
 
-  json object_list{};
+  json object_list;
   if (not get_object_list(parent_api_path, object_list)) {
     return api_error::comm_error;
   }
@@ -200,7 +200,7 @@ auto sia_provider::get_directory_item_count(const std::string &api_path) const
   REPERTORY_USES_FUNCTION_NAME();
 
   try {
-    json object_list{};
+    json object_list;
     if (not get_object_list(api_path, object_list)) {
       return 0U;
     }
@@ -238,7 +238,7 @@ auto sia_provider::get_directory_items_impl(const std::string &api_path,
     -> api_error {
   REPERTORY_USES_FUNCTION_NAME();
 
-  json object_list{};
+  json object_list;
   if (not get_object_list(api_path, object_list)) {
     return api_error::comm_error;
   }
@@ -319,7 +319,7 @@ auto sia_provider::get_file_list(api_file_list &list, std::string &marker) const
   REPERTORY_USES_FUNCTION_NAME();
 
   try {
-    nlohmann::json object_list{};
+    json object_list;
     if (not get_object_list("", object_list, marker)) {
       return api_error::comm_error;
     }
