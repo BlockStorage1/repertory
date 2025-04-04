@@ -188,6 +188,8 @@ auto remote_client::winfsp_create(PWSTR file_name, UINT32 create_options,
     DECODE_OR_IGNORE(&response, normalized_name);
     DECODE_OR_IGNORE(&response, exists);
 
+    fmt::println("{}|{}", exists, ret);
+
     if (exists == 0U) {
       *file_desc = reinterpret_cast<PVOID>(handle);
       set_open_info(to_handle(*file_desc),
@@ -205,7 +207,6 @@ auto remote_client::winfsp_create(PWSTR file_name, UINT32 create_options,
 #endif // defined(_WIN32)
   }
 
-  fmt::println("{}|{}|{}", utils::string::to_utf8(file_name), exists, ret);
   return ret;
 }
 
