@@ -1140,7 +1140,7 @@ auto remote_server::winfsp_create(PWSTR file_name, UINT32 create_options,
     std::uint32_t flags{0U};
     utils::windows_create_to_unix(create_options, granted_access, flags, mode);
 
-    int res = 0;
+    auto res{0};
     if ((create_options & FILE_DIRECTORY_FILE) != 0U) {
       res = mkdir(file_path.c_str(), mode);
       if (res >= 0) {
