@@ -58,12 +58,18 @@ private:
   [[nodiscard]] auto get_object_info(const std::string &api_path,
                                      json &object_info) const -> api_error;
 
-  [[nodiscard]] auto get_object_list(const std::string &api_path,
-                                     nlohmann::json &object_list) const -> bool;
+  [[nodiscard]] auto
+  get_object_list(const std::string &api_path, nlohmann::json &object_list,
+                  std::optional<std::string> marker = std::nullopt) const
+      -> bool;
 
   [[nodiscard]] auto get_sia_config() const -> const auto & {
     return sia_config_;
   }
+
+  void iterate_objects(
+      const std::string &api_path, const json &object_list,
+      std::function<void(const std::string &, bool, json)> handle_entry) const;
 
 protected:
   [[nodiscard]] auto create_directory_impl(const std::string &api_path,

@@ -243,47 +243,20 @@ auto sia_provider::get_directory_items_impl(const std::string &api_path,
     return api_error::comm_error;
   }
 
-  if (object_list.contains("objects")) {
-    for (const auto &entry : object_list.at("objects")) {
-      try {
-        auto name{entry.at("key").get<std::string>()};
-        auto entry_api_path{utils::path::create_api_path(name)};
-
-        auto directory{utils::string::ends_with(name, "/")};
-        if (directory && (entry_api_path == api_path)) {
-          continue;
+  iterate_objects(
+      api_path, object_list,
+      [&](auto &&entry_api_path, auto &&directory, auto &&entry) {
+        api_meta_map meta;
+        auto res{get_item_meta(entry_api_path, meta)};
+        if (res != api_error::success) {
+          utils::error::raise_api_path_error(function_name, entry_api_path, res,
+                                             "failed to get item meta");
+          return;
         }
 
-        api_file file{};
-        api_meta_map meta{};
-        if (get_item_meta(entry_api_path, meta) == api_error::item_not_found) {
-          file = create_api_file(entry_api_path, "",
-                                 directory ? 0U
-                                           : entry["size"].get<std::uint64_t>(),
-                                 get_last_modified(entry));
-          if (directory) {
-            auto res{ensure_directory_exists(entry_api_path)};
-            if (res != api_error::success) {
-              utils::error::raise_api_path_error(
-                  function_name, entry_api_path, res,
-                  "failed detect existing directory");
-              continue;
-            }
-          }
-
-          get_api_item_added()(directory, file);
-
-          auto res{get_item_meta(entry_api_path, meta)};
-          if (res != api_error::success) {
-            utils::error::raise_api_path_error(function_name, entry_api_path,
-                                               res, "failed to get item meta");
-            continue;
-          }
-        } else {
-          file = create_api_file(
-              entry_api_path,
-              directory ? 0U : entry["size"].get<std::uint64_t>(), meta);
-        }
+        auto file = create_api_file(
+            entry_api_path,
+            directory ? 0U : entry["size"].template get<std::uint64_t>(), meta);
 
         directory_item dir_item{};
         dir_item.api_parent = file.api_parent;
@@ -292,13 +265,7 @@ auto sia_provider::get_directory_items_impl(const std::string &api_path,
         dir_item.meta = meta;
         dir_item.size = file.file_size;
         list.emplace_back(std::move(dir_item));
-      } catch (const std::exception &e) {
-        utils::error::raise_api_path_error(function_name, api_path, e,
-                                           "failed to process entry|" +
-                                               entry.dump());
-      }
-    }
-  }
+      });
 
   return api_error::success;
 }
@@ -347,82 +314,44 @@ auto sia_provider::get_file(const std::string &api_path, api_file &file) const
   return api_error::error;
 }
 
-auto sia_provider::get_file_list(api_file_list &list,
-                                 std::string & /* marker */) const
+auto sia_provider::get_file_list(api_file_list &list, std::string &marker) const
     -> api_error {
   REPERTORY_USES_FUNCTION_NAME();
 
-  using dir_func = std::function<api_error(std::string api_path)>;
-  const dir_func get_files_in_dir = [&](std::string api_path) -> api_error {
-    try {
-      nlohmann::json object_list{};
-      if (not get_object_list(api_path, object_list)) {
-        return api_error::comm_error;
-      }
-
-      if (object_list.contains("objects")) {
-        for (const auto &entry : object_list.at("objects")) {
-          auto name{entry.at("key").get<std::string>()};
-          auto entry_api_path{utils::path::create_api_path(name)};
-
-          if (utils::string::ends_with(name, "/")) {
-            if (entry_api_path == utils::path::create_api_path(api_path)) {
-              continue;
-            }
-
-            api_meta_map meta{};
-            if (get_item_meta(entry_api_path, meta) ==
-                api_error::item_not_found) {
-              auto dir{
-                  create_api_file(entry_api_path, "", 0U,
-                                  get_last_modified(entry)),
-              };
-
-              auto res{ensure_directory_exists(entry_api_path)};
-              if (res != api_error::success) {
-                utils::error::raise_api_path_error(
-                    function_name, entry_api_path, res,
-                    "failed detect existing directory");
-                return res;
-              }
-
-              get_api_item_added()(true, dir);
-            }
-
-            auto res{get_files_in_dir(entry_api_path)};
-            if (res != api_error::success) {
-              return res;
-            }
-            continue;
-          }
-
-          api_file file{};
-          api_meta_map meta{};
-          if (get_item_meta(entry_api_path, meta) ==
-              api_error::item_not_found) {
-            file = create_api_file(entry_api_path, "",
-                                   entry["size"].get<std::uint64_t>(),
-                                   get_last_modified(entry));
-            get_api_item_added()(false, file);
-          } else {
-            file = create_api_file(entry_api_path,
-                                   entry["size"].get<std::uint64_t>(), meta);
-          }
-
-          list.emplace_back(std::move(file));
-        }
-      }
-
-      return api_error::success;
-    } catch (const std::exception &e) {
-      utils::error::raise_api_path_error(function_name, api_path, e,
-                                         "failed to process directory");
+  try {
+    nlohmann::json object_list{};
+    if (not get_object_list("", object_list, marker)) {
+      return api_error::comm_error;
     }
 
-    return api_error::error;
-  };
+    marker = object_list.at("nextMarker").get<std::string>();
+    iterate_objects("/", object_list,
+                    [&](auto &&entry_api_path, auto &&directory, auto &&entry) {
+                      if (directory) {
+                        return;
+                      }
 
-  return get_files_in_dir("");
+                      api_meta_map meta;
+                      auto res{get_item_meta(entry_api_path, meta)};
+                      if (res != api_error::success) {
+                        utils::error::raise_api_path_error(
+                            function_name, entry_api_path, res,
+                            "failed to get item meta");
+                        return;
+                      }
+
+                      list.emplace_back(create_api_file(
+                          entry_api_path,
+                          entry["size"].template get<std::uint64_t>(), meta));
+                    });
+
+    return api_error::success;
+  } catch (const std::exception &e) {
+    utils::error::raise_api_path_error(function_name, "/", e,
+                                       "failed to process directory");
+  }
+
+  return api_error::error;
 }
 
 auto sia_provider::get_object_info(const std::string &api_path,
@@ -474,7 +403,9 @@ auto sia_provider::get_object_info(const std::string &api_path,
 }
 
 auto sia_provider::get_object_list(const std::string &api_path,
-                                   nlohmann::json &object_list) const -> bool {
+                                   nlohmann::json &object_list,
+                                   std::optional<std::string> marker) const
+    -> bool {
   REPERTORY_USES_FUNCTION_NAME();
 
   try {
@@ -482,7 +413,12 @@ auto sia_provider::get_object_list(const std::string &api_path,
     get.allow_timeout = true;
     get.path = "/api/bus/objects" + api_path + "/";
     get.query["bucket"] = get_bucket(get_sia_config());
-    get.query["delimiter"] = "/";
+    if (marker.has_value()) {
+      get.query["limit"] = "1000";
+      get.query["marker"] = marker.value();
+    } else {
+      get.query["delimiter"] = "/";
+    }
 
     std::string error_data;
     get.response_handler = [&error_data, &object_list](auto &&data,
@@ -681,6 +617,52 @@ auto sia_provider::is_online() const -> bool {
   }
 
   return false;
+}
+
+void sia_provider::iterate_objects(
+    const std::string &api_path, const json &object_list,
+    std::function<void(const std::string &, bool, json)> handle_entry) const {
+  REPERTORY_USES_FUNCTION_NAME();
+
+  if (not object_list.contains("objects")) {
+    return;
+  }
+
+  for (const auto &entry : object_list.at("objects")) {
+    try {
+      auto name{entry.at("key").get<std::string>()};
+
+      auto directory{utils::string::ends_with(name, "/")};
+      auto entry_api_path{utils::path::create_api_path(name)};
+
+      {
+        api_meta_map meta{};
+        if (get_item_meta(entry_api_path, meta) == api_error::item_not_found) {
+          auto file = create_api_file(
+              entry_api_path, "",
+              directory ? 0U : entry["size"].get<std::uint64_t>(),
+              get_last_modified(entry));
+          if (directory) {
+            auto res{ensure_directory_exists(entry_api_path)};
+            if (res != api_error::success) {
+              utils::error::raise_api_path_error(
+                  function_name, entry_api_path, res,
+                  "failed detect existing directory");
+              continue;
+            }
+          }
+
+          get_api_item_added()(directory, file);
+        }
+      }
+
+      handle_entry(entry_api_path, directory, entry);
+    } catch (const std::exception &e) {
+      utils::error::raise_api_path_error(
+          function_name, api_path, e,
+          fmt::format("failed to process entry|{}", entry.dump()));
+    }
+  }
 }
 
 auto sia_provider::read_file_bytes(const std::string &api_path,
