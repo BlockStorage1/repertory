@@ -367,10 +367,15 @@ auto sia_provider::get_file_list(api_file_list &list,
               bool exists{};
               auto res{is_directory(entry_api_path, exists)};
               if (res != api_error::success) {
+                utils::error::raise_api_path_error(
+                    function_name, entry_api_path, res,
+                    "failed detect existing directory");
                 return res;
               }
 
               if (not exists) {
+                utils::error::raise_api_path_error(
+                    function_name, entry_api_path, res, "directory not found");
                 return api_error::directory_not_found;
               }
 
