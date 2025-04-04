@@ -469,7 +469,6 @@ VOID remote_winfsp_drive::Unmounted(PVOID host) {
   }
   remote_instance_->winfsp_unmounted(file_system_host->MountPoint());
   remote_instance_.reset();
-  mount_location_ = "";
 }
 
 auto remote_winfsp_drive::Write(PVOID /*file_node*/, PVOID file_desc,
