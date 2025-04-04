@@ -222,7 +222,6 @@ using WCHAR = wchar_t;
 
 #define MAX_PATH 260
 
-#define STATUS_SUCCESS std::uint32_t{0U}
 #define STATUS_ACCESS_DENIED std::uint32_t{0xC0000022L}
 #define STATUS_DEVICE_BUSY std::uint32_t{0x80000011L}
 #define STATUS_DEVICE_INSUFFICIENT_RESOURCES std::uint32_t{0xC0000468L}
@@ -235,11 +234,13 @@ using WCHAR = wchar_t;
 #define STATUS_INVALID_HANDLE std::uint32_t{0xC0000006L}
 #define STATUS_INVALID_IMAGE_FORMAT std::uint32_t{0xC000007BL}
 #define STATUS_INVALID_PARAMETER std::uint32_t{0xC000000DL}
-#define STATUS_NO_MEMORY std::uint32_t{0xC0000017L}
 #define STATUS_NOT_IMPLEMENTED std::uint32_t{0xC0000002L}
+#define STATUS_NO_MEMORY std::uint32_t{0xC0000017L}
+#define STATUS_OBJECT_NAME_COLLISION std::uint32_t{0xC0000035L}
 #define STATUS_OBJECT_NAME_EXISTS std::uint32_t{0x40000000L}
 #define STATUS_OBJECT_NAME_NOT_FOUND std::uint32_t{0xC0000034L}
 #define STATUS_OBJECT_PATH_INVALID std::uint32_t{0xC0000039L}
+#define STATUS_SUCCESS std::uint32_t{0U}
 #define STATUS_UNEXPECTED_IO_ERROR std::uint32_t{0xC00000E9L}
 
 #define CONVERT_STATUS_NOT_IMPLEMENTED(e)                                      \

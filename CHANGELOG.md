@@ -10,6 +10,7 @@
 * ~~\#33 Complete initial v2.0 documentation~~
 * \#42 [bug] Remote mount directory listing on Windows connected to Linux is failing
 * \#43 [bug] Directories are not importing properly for Sia
+* \#44 [bug] Windows-to-Linux remote mount ignores `CREATE_NEW`
 
 ### Changes from v2.0.5-rc
 

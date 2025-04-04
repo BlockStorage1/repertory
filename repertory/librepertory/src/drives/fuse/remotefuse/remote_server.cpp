@@ -1120,49 +1120,56 @@ auto remote_server::winfsp_create(PWSTR file_name, UINT32 create_options,
     -> packet::error_type {
   REPERTORY_USES_FUNCTION_NAME();
 
-  const auto relative_path = utils::string::to_utf8(file_name);
-  const auto file_path = construct_path(relative_path);
-  exists = utils::file::file(file_path).exists();
+  auto relative_path = utils::string::to_utf8(file_name);
+  auto file_path = construct_path(relative_path);
+  exists = utils::file::file{file_path}.exists() ||
+           utils::file::directory{file_path}.exists();
 
-  if ((create_options & FILE_DIRECTORY_FILE) != 0U) {
-    attributes |= FILE_ATTRIBUTE_DIRECTORY;
+  auto ret{static_cast<packet::error_type>(STATUS_SUCCESS)};
+  if (exists) {
+    ret = static_cast<packet::error_type>(STATUS_OBJECT_NAME_COLLISION);
   } else {
-    attributes &= static_cast<UINT32>(~FILE_ATTRIBUTE_DIRECTORY);
-    attributes |= FILE_ATTRIBUTE_ARCHIVE;
-  }
-
-  remote::file_mode mode{0U};
-  std::uint32_t flags{0U};
-  utils::windows_create_to_unix(create_options, granted_access, flags, mode);
-
-  int res = 0;
-  if ((create_options & FILE_DIRECTORY_FILE) != 0U) {
-    res = mkdir(file_path.c_str(), mode);
-    if (res >= 0) {
-      res = open(file_path.c_str(), static_cast<int>(flags));
+    if ((create_options & FILE_DIRECTORY_FILE) != 0U) {
+      attributes |= FILE_ATTRIBUTE_DIRECTORY;
+    } else {
+      attributes &= static_cast<UINT32>(~FILE_ATTRIBUTE_DIRECTORY);
+      attributes |= FILE_ATTRIBUTE_ARCHIVE;
     }
-  } else {
-    res = open(file_path.c_str(), static_cast<int>(flags), mode);
+
+    remote::file_mode mode{0U};
+    std::uint32_t flags{0U};
+    utils::windows_create_to_unix(create_options, granted_access, flags, mode);
+
+    int res = 0;
+    if ((create_options & FILE_DIRECTORY_FILE) != 0U) {
+      res = mkdir(file_path.c_str(), mode);
+      if (res >= 0) {
+        res = open(file_path.c_str(), static_cast<int>(flags));
+      }
+    } else {
+      res = open(file_path.c_str(), static_cast<int>(flags), mode);
+    }
+
+    if (res >= 0) {
+      *file_desc = reinterpret_cast<PVOID>(res);
+      drive_.set_item_meta(construct_api_path(file_path), META_ATTRIBUTES,
+                           std::to_string(attributes));
+      set_open_info(res, open_info{
+                             "",
+                             nullptr,
+                             {},
+                             file_path,
+                         });
+
+      const auto api_path = utils::path::create_api_path(relative_path);
+      normalized_name = utils::string::replace_copy(api_path, '/', '\\');
+      populate_file_info(api_path, 0, attributes, *file_info);
+    }
+
+    ret = static_cast<packet::error_type>(
+        utils::unix_error_to_windows((res < 0) ? errno : 0));
   }
 
-  if (res >= 0) {
-    *file_desc = reinterpret_cast<PVOID>(res);
-    drive_.set_item_meta(construct_api_path(file_path), META_ATTRIBUTES,
-                         std::to_string(attributes));
-    set_open_info(res, open_info{
-                           "",
-                           nullptr,
-                           {},
-                           file_path,
-                       });
-
-    const auto api_path = utils::path::create_api_path(relative_path);
-    normalized_name = utils::string::replace_copy(api_path, '/', '\\');
-    populate_file_info(api_path, 0, attributes, *file_info);
-  }
-
-  auto ret = static_cast<packet::error_type>(
-      utils::unix_error_to_windows((res < 0) ? errno : 0));
   RAISE_REMOTE_FUSE_SERVER_EVENT(function_name, file_path, ret);
   return ret;
 }
