@@ -345,7 +345,8 @@ auto sia_provider::get_file_list(api_file_list &list, std::string &marker) const
                           entry["size"].template get<std::uint64_t>(), meta));
                     });
 
-    return api_error::success;
+    return object_list.at("hasMore").get<bool>() ? api_error::more_data
+                                                 : api_error::success;
   } catch (const std::exception &e) {
     utils::error::raise_api_path_error(function_name, "/", e,
                                        "failed to process directory");
