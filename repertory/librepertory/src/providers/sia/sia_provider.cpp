@@ -67,7 +67,7 @@ auto sia_provider::check_version(std::string &required_version,
                                  std::string &returned_version) const -> bool {
   REPERTORY_USES_FUNCTION_NAME();
 
-  required_version = "2.0.0";
+  required_version = RENTERD_MIN_VERSION;
 
   try {
     curl::requests::http_get get{};
@@ -240,7 +240,25 @@ auto sia_provider::get_directory_items_impl(const std::string &api_path,
                                  directory ? 0U
                                            : entry["size"].get<std::uint64_t>(),
                                  get_last_modified(entry));
+          if (directory) {
+            bool exists{};
+            auto res{is_directory(entry_api_path, exists)};
+            if (res != api_error::success) {
+              utils::error::raise_api_path_error(
+                  function_name, entry_api_path, res,
+                  "failed detect existing directory");
+              continue;
+            }
+
+            if (not exists) {
+              utils::error::raise_api_path_error(function_name, entry_api_path,
+                                                 res, "directory not found");
+              continue;
+            }
+          }
+
           get_api_item_added()(directory, file);
+
           auto res{get_item_meta(entry_api_path, meta)};
           if (res != api_error::success) {
             utils::error::raise_api_path_error(function_name, entry_api_path,
