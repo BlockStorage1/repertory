@@ -131,14 +131,14 @@ auto remote_winfsp_drive::Create(PWSTR file_name, UINT32 create_options,
                                  UINT64 allocation_size, PVOID * /*file_node*/,
                                  PVOID *file_desc, OpenFileInfo *ofi)
     -> NTSTATUS {
-  remote::file_info fi{};
+  remote::file_info f_info{};
   std::string normalized_name;
-  BOOLEAN exists = 0;
+  BOOLEAN exists{0};
   auto ret = remote_instance_->winfsp_create(
       file_name, create_options, granted_access, attributes, allocation_size,
-      file_desc, &fi, normalized_name, exists);
+      file_desc, &f_info, normalized_name, exists);
   if (ret == STATUS_SUCCESS) {
-    set_file_info(ofi->FileInfo, fi);
+    set_file_info(ofi->FileInfo, f_info);
     auto file_path = utils::string::from_utf8(normalized_name);
     wcsncpy(ofi->NormalizedName, file_path.data(), wcslen(file_path.c_str()));
     ofi->NormalizedNameSize =

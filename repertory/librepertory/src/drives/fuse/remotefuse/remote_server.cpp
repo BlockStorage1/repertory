@@ -1126,9 +1126,7 @@ auto remote_server::winfsp_create(PWSTR file_name, UINT32 create_options,
            utils::file::directory{file_path}.exists();
 
   auto ret{static_cast<packet::error_type>(STATUS_SUCCESS)};
-  if (exists) {
-    ret = static_cast<packet::error_type>(STATUS_OBJECT_NAME_COLLISION);
-  } else {
+  if (not exists) {
     if ((create_options & FILE_DIRECTORY_FILE) != 0U) {
       attributes |= FILE_ATTRIBUTE_DIRECTORY;
     } else {

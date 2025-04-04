@@ -263,6 +263,7 @@ protected:
   }
 
   static void execute_unmount(auto args, auto location) {
+    std::this_thread::sleep_for(10s);
     auto unmounted{false};
 
     auto unmount_cmd =
