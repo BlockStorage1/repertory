@@ -422,8 +422,13 @@ auto remote_winfsp_drive::ReadDirectory(PVOID /*file_node*/, PVOID file_desc,
 auto remote_winfsp_drive::Rename(PVOID /*file_node*/, PVOID file_desc,
                                  PWSTR file_name, PWSTR new_file_name,
                                  BOOLEAN replace_if_exists) -> NTSTATUS {
-  return remote_instance_->winfsp_rename(file_desc, file_name, new_file_name,
-                                         replace_if_exists);
+  auto res = remote_instance_->winfsp_rename(file_desc, file_name,
+                                             new_file_name, replace_if_exists);
+  if (res == STATUS_OBJECT_NAME_EXISTS) {
+    return FspNtStatusFromWin32(ERROR_ALREADY_EXISTS);
+  }
+
+  return res;
 }
 
 auto remote_winfsp_drive::SetBasicInfo(PVOID /*file_node*/, PVOID file_desc,
@@ -432,11 +437,11 @@ auto remote_winfsp_drive::SetBasicInfo(PVOID /*file_node*/, PVOID file_desc,
                                        UINT64 last_write_time,
                                        UINT64 change_time, FileInfo *file_info)
     -> NTSTATUS {
-  remote::file_info fi{};
+  remote::file_info f_info{};
   auto ret = remote_instance_->winfsp_set_basic_info(
       file_desc, attributes, creation_time, last_access_time, last_write_time,
-      change_time, &fi);
-  set_file_info(*file_info, fi);
+      change_time, &f_info);
+  set_file_info(*file_info, f_info);
   return ret;
 }
 
