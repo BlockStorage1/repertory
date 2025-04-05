@@ -1433,12 +1433,12 @@ auto remote_server::winfsp_rename(PVOID /*file_desc*/, PWSTR file_name,
     -> packet::error_type {
   REPERTORY_USES_FUNCTION_NAME();
 
-  const auto relative_path = utils::string::to_utf8(file_name);
-  const auto file_path = construct_path(relative_path);
-  const auto new_relative_path = utils::string::to_utf8(new_file_name);
-  const auto new_file_path = construct_path(new_relative_path);
+  auto relative_path = utils::string::to_utf8(file_name);
+  auto file_path = construct_path(relative_path);
+  auto new_relative_path = utils::string::to_utf8(new_file_name);
+  auto new_file_path = construct_path(new_relative_path);
 
-  auto res = -1;
+  auto res{-1};
   errno = ENOENT;
   if (utils::file::file(file_path).exists()) {
     res = drive_.rename_file(construct_api_path(file_path),
