@@ -93,7 +93,7 @@ TYPED_TEST(winfsp_test, rename_fails_if_dest_exists_and_replace_is_false) {
   ASSERT_NE(INVALID_HANDLE_VALUE, handle);
   ::CloseHandle(handle);
 
-  EXPECT_FALSE(::MoveFileExA(file_path.c_str(), file_path2.c_str(), 0));
+  EXPECT_FALSE(::MoveFileExA(file_path3.c_str(), file_path2.c_str(), 0));
   EXPECT_EQ(ERROR_ALREADY_EXISTS, ::GetLastError());
 
   EXPECT_TRUE(::DeleteFileA(file_path3.c_str()));
