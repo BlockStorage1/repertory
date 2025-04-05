@@ -87,6 +87,7 @@
 
 ## v2.0.2-rc
 
+<!-- markdownlint-disable-next-line -->
 ### BREAKING CHANGES
 
 * Refactored `config.json` - will need to verify configuration settings prior to mounting
