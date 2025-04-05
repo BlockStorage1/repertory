@@ -83,17 +83,17 @@ auto remote_server::populate_file_info(const std::string &api_path,
                                        remote::file_info &file_info)
     -> packet::error_type {
   std::string meta_attributes;
+  auto directory = utils::file::directory(construct_path(api_path)).exists();
+
   auto error = drive_.get_item_meta(api_path, META_ATTRIBUTES, meta_attributes);
   if (error == api_error::success) {
     if (meta_attributes.empty()) {
-      meta_attributes =
-          utils::file::directory(construct_path(api_path)).exists()
-              ? std::to_string(FILE_ATTRIBUTE_DIRECTORY)
-              : std::to_string(FILE_ATTRIBUTE_ARCHIVE);
+      meta_attributes = directory ? std::to_string(FILE_ATTRIBUTE_DIRECTORY)
+                                  : std::to_string(FILE_ATTRIBUTE_ARCHIVE);
       drive_.set_item_meta(api_path, META_ATTRIBUTES, meta_attributes);
     }
-    const auto attributes = utils::string::to_uint32(meta_attributes);
-    const auto file_size = drive_.get_file_size(api_path);
+    auto attributes = utils::string::to_uint32(meta_attributes);
+    auto file_size = directory ? 0U : drive_.get_file_size(api_path);
     populate_file_info(api_path, file_size, attributes, file_info);
     return STATUS_SUCCESS;
   }
@@ -1016,8 +1016,8 @@ auto remote_server::winfsp_can_delete(PVOID file_desc, PWSTR file_name)
     -> packet::error_type {
   REPERTORY_USES_FUNCTION_NAME();
 
-  const auto relative_path = utils::string::to_utf8(file_name);
-  const auto file_path = construct_path(relative_path);
+  auto relative_path = utils::string::to_utf8(file_name);
+  auto file_path = construct_path(relative_path);
   auto ret = static_cast<packet::error_type>(
       has_open_info(static_cast<native_handle>(
                         reinterpret_cast<remote::file_handle>(file_desc)),
@@ -1026,13 +1026,12 @@ auto remote_server::winfsp_can_delete(PVOID file_desc, PWSTR file_name)
     ret = static_cast<packet::error_type>(
         utils::file::directory(file_path).exists()
             ? drive_.get_directory_item_count(
-                  utils::path::create_api_path(relative_path))
-                  ? STATUS_DIRECTORY_NOT_EMPTY
-                  : STATUS_SUCCESS
+                  utils::path::create_api_path(relative_path)) == 0U
+                  ? STATUS_SUCCESS
+                  : STATUS_DIRECTORY_NOT_EMPTY
 
             : STATUS_SUCCESS);
   }
-
   RAISE_REMOTE_FUSE_SERVER_EVENT(function_name, file_path, ret);
   return ret;
 }
@@ -1042,17 +1041,20 @@ auto remote_server::winfsp_cleanup(PVOID /*file_desc*/, PWSTR file_name,
     -> packet::error_type {
   REPERTORY_USES_FUNCTION_NAME();
 
-  const auto relative_path = utils::string::to_utf8(file_name);
-  const auto file_path = construct_path(relative_path);
+  auto relative_path = utils::string::to_utf8(file_name);
+  auto file_path = construct_path(relative_path);
   was_deleted = 0U;
 
-  const auto directory = utils::file::directory(file_path).exists();
+  auto directory = utils::file::directory(file_path).exists();
   if (flags & FileSystemBase::FspCleanupDelete) {
     remove_all(file_path);
     was_deleted = 1U;
 
     if (directory) {
-      rmdir(file_path.c_str());
+      if (drive_.get_directory_item_count(
+              utils::path::create_api_path(relative_path)) == 0U) {
+        rmdir(file_path.c_str());
+      }
     } else {
       unlink(file_path.c_str());
     }
@@ -1267,9 +1269,9 @@ auto remote_server::winfsp_open(PWSTR file_name, UINT32 create_options,
     -> packet::error_type {
   REPERTORY_USES_FUNCTION_NAME();
 
-  const auto relative_path = utils::string::to_utf8(file_name);
-  const auto file_path = construct_path(relative_path);
-  const auto directory = utils::file::directory(file_path).exists();
+  auto relative_path = utils::string::to_utf8(file_name);
+  auto file_path = construct_path(relative_path);
+  auto directory = utils::file::directory(file_path).exists();
   if (directory) {
     create_options |= FILE_DIRECTORY_FILE;
   }
@@ -1289,7 +1291,7 @@ auto remote_server::winfsp_open(PWSTR file_name, UINT32 create_options,
                            file_path,
                        });
 
-    const auto api_path = utils::path::create_api_path(relative_path);
+    auto api_path = utils::path::create_api_path(relative_path);
     normalized_name = utils::string::replace_copy(api_path, '/', '\\');
     res = populate_file_info(api_path, *file_info);
     if (res != STATUS_SUCCESS) {
