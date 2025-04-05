@@ -11,6 +11,7 @@
 * \#42 [bug] Remote mount directory listing on Windows connected to Linux is failing
 * \#43 [bug] Directories are not importing properly for Sia
 * \#44 [bug] Windows-to-Linux remote mount ignores `CREATE_NEW`
+* \#45 [bug] Windows-to-Linux remote mount is not handling attempts to remove a non-empty directory properly
 
 ### Changes from v2.0.5-rc
 
