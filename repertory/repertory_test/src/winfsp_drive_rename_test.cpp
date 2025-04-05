@@ -115,6 +115,9 @@ TYPED_TEST(winfsp_test, rename_succeeds_if_dest_exists_and_replace_is_true) {
   auto file_path2{
       utils::path::combine(dir_path, {"test_file2_4"}),
   };
+  auto file_path3{
+      utils::path::combine(dir_path, {"test_file_5"}),
+  };
 
   ASSERT_TRUE(::CreateDirectoryA(dir_path.c_str(), nullptr));
 
@@ -126,13 +129,13 @@ TYPED_TEST(winfsp_test, rename_succeeds_if_dest_exists_and_replace_is_true) {
 
   EXPECT_TRUE(::MoveFileExA(file_path.c_str(), file_path2.c_str(), 0));
 
-  handle = ::CreateFileA(file_path.c_str(), GENERIC_READ | GENERIC_WRITE,
+  handle = ::CreateFileA(file_path3.c_str(), GENERIC_READ | GENERIC_WRITE,
                          FILE_SHARE_READ | FILE_SHARE_WRITE, nullptr,
                          CREATE_NEW, FILE_ATTRIBUTE_NORMAL, nullptr);
   ASSERT_NE(INVALID_HANDLE_VALUE, handle);
   ::CloseHandle(handle);
 
-  EXPECT_TRUE(::MoveFileExA(file_path.c_str(), file_path2.c_str(),
+  EXPECT_TRUE(::MoveFileExA(file_path3.c_str(), file_path2.c_str(),
                             MOVEFILE_REPLACE_EXISTING));
 
   EXPECT_TRUE(::DeleteFileA(file_path2.c_str()));
