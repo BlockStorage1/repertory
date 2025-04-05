@@ -1438,20 +1438,27 @@ auto remote_server::winfsp_rename(PVOID /*file_desc*/, PWSTR file_name,
   auto new_relative_path = utils::string::to_utf8(new_file_name);
   auto new_file_path = construct_path(new_relative_path);
 
+  packet::error_type ret{};
   auto res{-1};
   errno = ENOENT;
   if (utils::file::file(file_path).exists()) {
     res = drive_.rename_file(construct_api_path(file_path),
                              construct_api_path(new_file_path),
                              replace_if_exists != 0U);
+    ret = ((res < 0) ? static_cast<packet::error_type>(
+                           utils::unix_error_to_windows(errno))
+                     : 0);
   } else if (utils::file::directory(file_path).exists()) {
     res = drive_.rename_directory(construct_api_path(file_path),
                                   construct_api_path(new_file_path));
+    ret =
+        ((res < 0) ? errno == EISDIR
+                         ? static_cast<packet::error_type>(STATUS_ACCESS_DENIED)
+                         : static_cast<packet::error_type>(
+                               utils::unix_error_to_windows(errno))
+                   : 0);
   }
 
-  auto ret = ((res < 0) ? static_cast<packet::error_type>(
-                              utils::unix_error_to_windows(errno))
-                        : 0);
   RAISE_REMOTE_FUSE_SERVER_EVENT(function_name, file_path + "|" + new_file_path,
                                  ret);
   return ret;
