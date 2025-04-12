@@ -185,7 +185,7 @@ handlers::handlers(mgmt_app_config *config, httplib::Server *server)
     handle_get_mount_location(req, res);
   });
 
-  server->Get("/api/v1/mount_list", [this](auto && /* req */, auto &&res) {
+  server->Get("/api/v1/mount_list", [](auto && /* req */, auto &&res) {
     handle_get_mount_list(res);
   });
 
@@ -384,7 +384,7 @@ void handlers::handle_get_mount(const httplib::Request &req,
   res.status = http_error_codes::ok;
 }
 
-void handlers::handle_get_mount_list(httplib::Response &res) const {
+void handlers::handle_get_mount_list(httplib::Response &res) {
   auto data_dir = utils::file::directory{app_config::get_root_data_directory()};
 
   nlohmann::json result;

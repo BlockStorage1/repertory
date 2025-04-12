@@ -79,7 +79,7 @@ private:
   void handle_get_mount(const httplib::Request &req,
                         httplib::Response &res) const;
 
-  void handle_get_mount_list(httplib::Response &res) const;
+  static void handle_get_mount_list(httplib::Response &res);
 
   void handle_get_mount_location(const httplib::Request &req,
                                  httplib::Response &res) const;
