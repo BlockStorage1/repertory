@@ -34,7 +34,9 @@
 #include "utils/path.hpp"
 #include "utils/string.hpp"
 
-#include <boost/process.hpp>
+#include <boost/process/v1/args.hpp>
+#include <boost/process/v1/child.hpp>
+#include <boost/process/v1/io.hpp>
 
 namespace {
 [[nodiscard]] auto decrypt(std::string_view data, std::string_view password)
@@ -693,9 +695,10 @@ auto handlers::launch_process(provider_type prov, std::string_view name,
     return {};
   }
 
-  boost::process::ipstream out;
-  boost::process::child proc(repertory_binary_, boost::process::args(args),
-                             boost::process::std_out > out);
+  boost::process::v1::ipstream out;
+  boost::process::v1::child proc(repertory_binary_,
+                                 boost::process::v1::args(args),
+                                 boost::process::v1::std_out > out);
 
   std::string data;
   std::string line;
