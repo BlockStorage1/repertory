@@ -40,7 +40,6 @@
 #include "utils/file_utils.hpp"
 #include "utils/path.hpp"
 #include "utils/polling.hpp"
-#include <spdlog/fmt/bundled/base.h>
 
 namespace repertory {
 encrypt_provider::encrypt_provider(app_config &config)
@@ -225,8 +224,7 @@ auto encrypt_provider::get_directory_items(const std::string &api_path,
                 }
 
                 if (result == api_error::directory_not_found) {
-                  process_directory_entry(*dir_entry.get(), cfg,
-                                          current_api_path);
+                  process_directory_entry(*dir_entry, cfg, current_api_path);
 
                   result = db_->get_directory_api_path(dir_entry->get_path(),
                                                        current_api_path);
@@ -247,7 +245,7 @@ auto encrypt_provider::get_directory_items(const std::string &api_path,
                   continue;
                 }
                 if (result == api_error::item_not_found &&
-                    not process_directory_entry(*dir_entry.get(), cfg,
+                    not process_directory_entry(*dir_entry, cfg,
                                                 current_api_path)) {
                   continue;
                 }
@@ -347,12 +345,12 @@ auto encrypt_provider::get_file_list(api_file_list &list,
       for (const auto &dir_entry : utils::file::directory{path}.get_items()) {
         std::string api_path{};
         if (dir_entry->is_directory_item()) {
-          process_directory_entry(*dir_entry.get(), cfg, api_path);
+          process_directory_entry(*dir_entry, cfg, api_path);
           process_directory(dir_entry->get_path());
           continue;
         }
 
-        if (process_directory_entry(*dir_entry.get(), cfg, api_path)) {
+        if (process_directory_entry(*dir_entry, cfg, api_path)) {
           list.emplace_back(create_api_file(
               api_path, dir_entry->is_directory_item(), dir_entry->get_path()));
         }
