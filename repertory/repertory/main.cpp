@@ -23,8 +23,6 @@
 #include "backward.hpp"
 #endif // defined(PROJECT_ENABLE_BACKWARD_CPP)
 
-#include <algorithm>
-
 #include "cli/actions.hpp"
 #include "initialize.hpp"
 #include "types/repertory.hpp"
