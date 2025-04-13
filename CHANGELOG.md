@@ -12,6 +12,7 @@
 * \#43 [bug] Directories are not importing properly for Sia
 * \#44 [bug] Windows-to-Linux remote mount ignores `CREATE_NEW`
 * \#45 [bug] Windows-to-Linux remote mount is not handling attempts to remove a non-empty directory properly
+* ~~\#46 [bug] Changes to maximum cache size should be updated live~~
 
 ### Changes from v2.0.5-rc
 
