@@ -1460,8 +1460,7 @@ auto remote_server::winfsp_rename(PVOID /*file_desc*/, PWSTR file_name,
         res = drive_.rename_directory(construct_api_path(file_path),
                                       construct_api_path(new_file_path));
         event_system::instance().raise<debug_log>(
-            function_name,
-            fmt::format("path|{}|res|{}", api_error_to_string(res)));
+            function_name, fmt::format("path|{}|res|{}|errno|", res, errno));
         ret = ((res < 0)
                    ? errno == EISDIR
                          ? static_cast<packet::error_type>(STATUS_ACCESS_DENIED)
