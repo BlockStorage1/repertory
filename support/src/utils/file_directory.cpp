@@ -86,8 +86,8 @@ auto traverse_directory(
   struct dirent *de{nullptr};
   while (res && (de = readdir(root)) && !is_stop_requested()) {
     if (de->d_type == DT_DIR) {
-      utils::error::handle_debug(function_name,
-                                 fmt::format("item|{}", de->d_name));
+      repertory::utils::error::handle_debug(function_name,
+                                            fmt::format("item|{}", de->d_name));
       if ((std::string(de->d_name) == ".") ||
           (std::string(de->d_name) == "..")) {
         continue;
