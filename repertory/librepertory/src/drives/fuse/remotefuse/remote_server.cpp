@@ -28,6 +28,7 @@
 #include "drives/directory_iterator.hpp"
 #include "drives/remote/remote_open_file_table.hpp"
 #include "events/event_system.hpp"
+#include "events/types/debug_log.hpp"
 #include "events/types/remote_server_event.hpp"
 #include "platform/platform.hpp"
 #include "types/remote.hpp"
@@ -1448,10 +1449,19 @@ auto remote_server::winfsp_rename(PVOID /*file_desc*/, PWSTR file_name,
                      : 0);
   } else {
     auto dir{utils::file::directory(file_path)};
+    event_system::instance().raise<debug_log>(
+        function_name,
+        fmt::format("path|{}|exists|{}", file_path, dir.exists()));
     if (dir.exists()) {
-      if (dir.count(false) == 0U) {
+      auto count{dir.count(false)};
+      event_system::instance().raise<debug_log>(
+          function_name, fmt::format("path|{}|count|{}", file_path, count));
+      if (count == 0U) {
         res = drive_.rename_directory(construct_api_path(file_path),
                                       construct_api_path(new_file_path));
+        event_system::instance().raise<debug_log>(
+            function_name,
+            fmt::format("path|{}|res|{}", api_error_to_string(res)));
         ret = ((res < 0)
                    ? errno == EISDIR
                          ? static_cast<packet::error_type>(STATUS_ACCESS_DENIED)

@@ -74,7 +74,7 @@ TYPED_TEST(winfsp_test, rename_fails_if_dest_exists_and_replace_is_false) {
       utils::path::combine(dir_path, {"test_file2_5"}),
   };
   auto file_path3{
-      utils::path::combine(dir_path, {"test_file_5"}),
+      utils::path::combine(dir_path, {"test_file3_5"}),
   };
 
   ASSERT_TRUE(::CreateDirectoryA(dir_path.c_str(), nullptr));
@@ -157,6 +157,7 @@ TYPED_TEST(winfsp_test, rename_dir_succeeds_if_dest_does_not_exist) {
   ASSERT_TRUE(::CreateDirectoryA(dir_path.c_str(), nullptr));
 
   EXPECT_TRUE(::MoveFileExA(dir_path.c_str(), dir_path2.c_str(), 0));
+  fmt::println("error|{}", ::GetLastError());
 
   EXPECT_TRUE(::RemoveDirectoryA(dir_path2.c_str()));
 }
