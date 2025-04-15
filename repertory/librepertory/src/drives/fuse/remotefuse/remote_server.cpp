@@ -1461,7 +1461,7 @@ auto remote_server::winfsp_rename(PVOID /*file_desc*/, PWSTR file_name,
                                utils::unix_error_to_windows(errno))
                    : 0);
       } else {
-        ret = static_cast<packet::error_type>(STATUS_DIRECTORY_NOT_EMPTY);
+        ret = static_cast<packet::error_type>(STATUS_ACCESS_DENIED);
       }
     }
   }
