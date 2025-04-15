@@ -18,6 +18,7 @@
 ### Changes from v2.0.5-rc
 
 * Drive letters in UI should always be lowercase
+* Migrated to v2 error handling
 
 ## v2.0.5-rc
 
