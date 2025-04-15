@@ -65,13 +65,13 @@ TYPED_TEST(winfsp_test, rename_fails_if_dest_exists_and_replace_is_false) {
   }
 
   auto dir_path{
-      utils::path::combine(this->mount_location, {"test_dir_4"}),
+      utils::path::combine(this->mount_location, {"test_dir_5"}),
   };
   auto file_path{
-      utils::path::combine(dir_path, {"test_file_4"}),
+      utils::path::combine(dir_path, {"test_file_5"}),
   };
   auto file_path2{
-      utils::path::combine(dir_path, {"test_file2_4"}),
+      utils::path::combine(dir_path, {"test_file2_5"}),
   };
   auto file_path3{
       utils::path::combine(dir_path, {"test_file_5"}),
@@ -107,16 +107,16 @@ TYPED_TEST(winfsp_test, rename_succeeds_if_dest_exists_and_replace_is_true) {
   }
 
   auto dir_path{
-      utils::path::combine(this->mount_location, {"test_dir_4"}),
+      utils::path::combine(this->mount_location, {"test_dir_6"}),
   };
   auto file_path{
-      utils::path::combine(dir_path, {"test_file_4"}),
+      utils::path::combine(dir_path, {"test_file_6"}),
   };
   auto file_path2{
-      utils::path::combine(dir_path, {"test_file2_4"}),
+      utils::path::combine(dir_path, {"test_file2_6"}),
   };
   auto file_path3{
-      utils::path::combine(dir_path, {"test_file_5"}),
+      utils::path::combine(dir_path, {"test_file_6"}),
   };
 
   ASSERT_TRUE(::CreateDirectoryA(dir_path.c_str(), nullptr));
@@ -142,16 +142,16 @@ TYPED_TEST(winfsp_test, rename_succeeds_if_dest_exists_and_replace_is_true) {
   EXPECT_TRUE(::RemoveDirectoryA(dir_path.c_str()));
 }
 
-TYPED_TEST(winfsp_test, rename_can_rename_dir_if_dest_does_not_exist) {
+TYPED_TEST(winfsp_test, rename_dir_succeeds_if_dest_does_not_exist) {
   if (this->current_provider == provider_type::s3) {
     return;
   }
 
   auto dir_path{
-      utils::path::combine(this->mount_location, {"test_dir_4"}),
+      utils::path::combine(this->mount_location, {"test_dir_7"}),
   };
   auto dir_path2{
-      utils::path::combine(this->mount_location, {"test_dir2_4"}),
+      utils::path::combine(this->mount_location, {"test_dir2_7"}),
   };
 
   ASSERT_TRUE(::CreateDirectoryA(dir_path.c_str(), nullptr));
@@ -167,10 +167,10 @@ TYPED_TEST(winfsp_test, rename_dir_fails_if_dest_exists_and_replace_is_false) {
   }
 
   auto dir_path{
-      utils::path::combine(this->mount_location, {"test_dir_4"}),
+      utils::path::combine(this->mount_location, {"test_dir_8"}),
   };
   auto dir_path2{
-      utils::path::combine(this->mount_location, {"test_dir2_4"}),
+      utils::path::combine(this->mount_location, {"test_dir2_8"}),
   };
 
   ASSERT_TRUE(::CreateDirectoryA(dir_path.c_str(), nullptr));
@@ -189,10 +189,10 @@ TYPED_TEST(winfsp_test, rename_dir_fails_if_dest_exists_and_replace_is_true) {
   }
 
   auto dir_path{
-      utils::path::combine(this->mount_location, {"test_dir_4"}),
+      utils::path::combine(this->mount_location, {"test_dir_9"}),
   };
   auto dir_path2{
-      utils::path::combine(this->mount_location, {"test_dir2_4"}),
+      utils::path::combine(this->mount_location, {"test_dir2_9"}),
   };
 
   ASSERT_TRUE(::CreateDirectoryA(dir_path.c_str(), nullptr));
@@ -213,13 +213,13 @@ TYPED_TEST(winfsp_test,
   }
 
   auto dir_path{
-      utils::path::combine(this->mount_location, {"test_dir_4"}),
+      utils::path::combine(this->mount_location, {"test_dir_10"}),
   };
   auto dir_path2{
-      utils::path::combine(this->mount_location, {"test_dir2_4"}),
+      utils::path::combine(this->mount_location, {"test_dir2_10"}),
   };
   auto file_path{
-      utils::path::combine(dir_path, {"test_file_4"}),
+      utils::path::combine(dir_path, {"test_file_10"}),
   };
 
   ASSERT_TRUE(::CreateDirectoryA(dir_path.c_str(), nullptr));
@@ -244,13 +244,13 @@ TYPED_TEST(winfsp_test,
   }
 
   auto dir_path{
-      utils::path::combine(this->mount_location, {"test_dir_4"}),
+      utils::path::combine(this->mount_location, {"test_dir_11"}),
   };
   auto dir_path2{
-      utils::path::combine(this->mount_location, {"test_dir2_4"}),
+      utils::path::combine(this->mount_location, {"test_dir2_11"}),
   };
   auto file_path{
-      utils::path::combine(dir_path, {"test_file_4"}),
+      utils::path::combine(dir_path, {"test_file_11"}),
   };
 
   ASSERT_TRUE(::CreateDirectoryA(dir_path.c_str(), nullptr));
