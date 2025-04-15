@@ -116,7 +116,7 @@ TYPED_TEST(winfsp_test, rename_succeeds_if_dest_exists_and_replace_is_true) {
       utils::path::combine(dir_path, {"test_file2_6"}),
   };
   auto file_path3{
-      utils::path::combine(dir_path, {"test_file_6"}),
+      utils::path::combine(dir_path, {"test_file3_6"}),
   };
 
   ASSERT_TRUE(::CreateDirectoryA(dir_path.c_str(), nullptr));
