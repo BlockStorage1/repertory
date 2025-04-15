@@ -23,7 +23,10 @@
 
 #include "events/event_system.hpp"
 #include "events/types/debug_log.hpp"
+#include "events/types/info_log.hpp"
 #include "events/types/repertory_exception.hpp"
+#include "events/types/trace_log.hpp"
+#include "events/types/warn_log.hpp"
 #include "types/repertory.hpp"
 #include "utils/error.hpp"
 
@@ -52,19 +55,19 @@ struct repertory_exception_handler final
 
   void handle_info(std::string_view function_name,
                    std::string_view msg) const override {
-    repertory::event_system::instance().raise<repertory::debug_log>(
+    repertory::event_system::instance().raise<repertory::info_log>(
         function_name, std::string{msg});
   }
 
   void handle_trace(std::string_view function_name,
                     std::string_view msg) const override {
-    repertory::event_system::instance().raise<repertory::debug_log>(
+    repertory::event_system::instance().raise<repertory::trace_log>(
         function_name, std::string{msg});
   }
 
   void handle_warn(std::string_view function_name,
                    std::string_view msg) const override {
-    repertory::event_system::instance().raise<repertory::debug_log>(
+    repertory::event_system::instance().raise<repertory::warn_log>(
         function_name, std::string{msg});
   }
 };
