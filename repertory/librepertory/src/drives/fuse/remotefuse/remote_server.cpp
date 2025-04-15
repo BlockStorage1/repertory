@@ -108,7 +108,7 @@ void remote_server::populate_file_info(const std::string &api_path,
   REPERTORY_USES_FUNCTION_NAME();
 
   api_meta_map meta{};
-  const auto res = drive_.get_item_meta(api_path, meta);
+  auto res = drive_.get_item_meta(api_path, meta);
   if (res != api_error::success) {
     utils::error::raise_api_path_error(function_name, api_path, res,
                                        "get item meta failed");
@@ -192,10 +192,10 @@ auto remote_server::fuse_access(const char *path, const std::int32_t &mask)
     -> packet::error_type {
   REPERTORY_USES_FUNCTION_NAME();
 
-  const auto api_path = utils::path::create_api_path(path);
-  const auto file_path = construct_path(path);
+  auto api_path = utils::path::create_api_path(path);
+  auto file_path = construct_path(path);
 
-  const auto res = access(file_path.c_str(), mask);
+  auto res = access(file_path.c_str(), mask);
   auto ret = ((res < 0) ? -errno : 0);
   RAISE_REMOTE_FUSE_SERVER_EVENT(function_name, file_path, ret);
   return ret;
@@ -205,8 +205,8 @@ auto remote_server::fuse_chflags(const char *path, std::uint32_t flags)
     -> packet::error_type {
   REPERTORY_USES_FUNCTION_NAME();
 
-  const auto api_path = utils::path::create_api_path(path);
-  const auto file_path = construct_path(path);
+  auto api_path = utils::path::create_api_path(path);
+  auto file_path = construct_path(path);
 
   auto ret = -EACCES;
   if (drive_.check_parent_access(api_path, X_OK) == api_error::success) {
@@ -225,8 +225,8 @@ auto remote_server::fuse_chmod(const char *path, const remote::file_mode &mode)
     -> packet::error_type {
   REPERTORY_USES_FUNCTION_NAME();
 
-  const auto file_path = construct_path(path);
-  const auto res = chmod(file_path.c_str(), mode);
+  auto file_path = construct_path(path);
+  auto res = chmod(file_path.c_str(), mode);
   auto ret = ((res < 0) ? -errno : 0);
   RAISE_REMOTE_FUSE_SERVER_EVENT(function_name, file_path, ret);
   return ret;
@@ -237,8 +237,8 @@ auto remote_server::fuse_chown(const char *path, const remote::user_id &uid,
     -> packet::error_type {
   REPERTORY_USES_FUNCTION_NAME();
 
-  const auto file_path = construct_path(path);
-  const auto res = chown(file_path.c_str(), uid, gid);
+  auto file_path = construct_path(path);
+  auto res = chown(file_path.c_str(), uid, gid);
   auto ret = ((res < 0) ? -errno : 0);
   RAISE_REMOTE_FUSE_SERVER_EVENT(function_name, file_path, ret);
   return ret;
@@ -250,10 +250,9 @@ auto remote_server::fuse_create(const char *path, const remote::file_mode &mode,
     -> packet::error_type {
   REPERTORY_USES_FUNCTION_NAME();
 
-  const auto file_path = construct_path(path);
-  const auto res =
-      open(file_path.c_str(),
-           static_cast<int>(remote::create_os_open_flags(flags)), mode);
+  auto file_path = construct_path(path);
+  auto res = open(file_path.c_str(),
+                  static_cast<int>(remote::create_os_open_flags(flags)), mode);
   if (res >= 0) {
     handle = static_cast<remote::file_handle>(res);
     set_open_info(res, open_info{
@@ -322,7 +321,7 @@ auto remote_server::fuse_fgetattr(const char *path, remote::stat &r_stat,
 
   r_stat = {};
 
-  const auto file_path = construct_path(path);
+  auto file_path = construct_path(path);
 
   auto res = has_open_info(static_cast<native_handle>(handle), EBADF);
   if (res == 0) {
@@ -345,8 +344,8 @@ auto remote_server::fuse_fsetattr_x(const char *path,
     -> packet::error_type {
   REPERTORY_USES_FUNCTION_NAME();
 
-  const auto api_path = utils::path::create_api_path(path);
-  const auto file_path = construct_path(path);
+  auto api_path = utils::path::create_api_path(path);
+  auto file_path = construct_path(path);
 
   auto res = 0;
   if (SETATTR_WANTS_MODE(&attr)) {
@@ -440,7 +439,7 @@ auto remote_server::fuse_fsync(const char *path, const std::int32_t &datasync,
     -> packet::error_type {
   REPERTORY_USES_FUNCTION_NAME();
 
-  const auto file_path = construct_path(path);
+  auto file_path = construct_path(path);
 
   auto res = has_open_info(static_cast<native_handle>(handle), EBADF);
   if (res == 0) {
@@ -464,7 +463,7 @@ auto remote_server::fuse_ftruncate(const char *path,
     -> packet::error_type {
   REPERTORY_USES_FUNCTION_NAME();
 
-  const auto file_path = construct_path(path);
+  auto file_path = construct_path(path);
 
   auto res = has_open_info(static_cast<native_handle>(handle), EBADF);
   if (res == 0) {
@@ -481,9 +480,9 @@ auto remote_server::fuse_getattr(const char *path, remote::stat &r_stat,
                                  bool &directory) -> packet::error_type {
   REPERTORY_USES_FUNCTION_NAME();
 
-  const auto api_path = utils::path::create_api_path(path);
-  const auto file_path = construct_path(api_path);
-  const auto parent_api_path = utils::path::get_parent_api_path(api_path);
+  auto api_path = utils::path::create_api_path(path);
+  auto file_path = construct_path(api_path);
+  auto parent_api_path = utils::path::get_parent_api_path(api_path);
 
   r_stat = {};
 
@@ -560,8 +559,8 @@ auto remote_server::fuse_getxtimes(const char *path,
     -> packet::error_type {
   REPERTORY_USES_FUNCTION_NAME();
 
-  const auto api_path = utils::path::create_api_path(path);
-  const auto file_path = construct_path(path);
+  auto api_path = utils::path::create_api_path(path);
+  auto file_path = construct_path(path);
 
   auto ret = -EACCES;
   if (drive_.check_parent_access(api_path, X_OK) == api_error::success) {
@@ -608,8 +607,8 @@ auto remote_server::fuse_mkdir(const char *path, const remote::file_mode &mode)
     -> packet::error_type {
   REPERTORY_USES_FUNCTION_NAME();
 
-  const auto file_path = construct_path(path);
-  const auto res = mkdir(file_path.c_str(), mode);
+  auto file_path = construct_path(path);
+  auto res = mkdir(file_path.c_str(), mode);
   auto ret = ((res < 0) ? -errno : 0);
   RAISE_REMOTE_FUSE_SERVER_EVENT(function_name, file_path, ret);
   return ret;
@@ -620,9 +619,9 @@ auto remote_server::fuse_open(const char *path, const remote::open_flags &flags,
     -> packet::error_type {
   REPERTORY_USES_FUNCTION_NAME();
 
-  const auto file_path = construct_path(path);
-  const auto res = open(file_path.c_str(),
-                        static_cast<int>(remote::create_os_open_flags(flags)));
+  auto file_path = construct_path(path);
+  auto res = open(file_path.c_str(),
+                  static_cast<int>(remote::create_os_open_flags(flags)));
   if (res >= 0) {
     handle = static_cast<remote::file_handle>(res);
     set_open_info(res, open_info{
@@ -641,7 +640,7 @@ auto remote_server::fuse_opendir(const char *path, remote::file_handle &handle)
     -> packet::error_type {
   REPERTORY_USES_FUNCTION_NAME();
 
-  const auto file_path = construct_path(path);
+  auto file_path = construct_path(path);
 
   auto res = -1;
   errno = ENOENT;
@@ -669,7 +668,7 @@ auto remote_server::fuse_read(const char *path, char *buffer,
     -> packet::error_type {
   REPERTORY_USES_FUNCTION_NAME();
 
-  const auto file_path = construct_path(path);
+  auto file_path = construct_path(path);
   auto &data = *reinterpret_cast<data_buffer *>(buffer);
 
   ssize_t bytes_read{has_open_info(static_cast<native_handle>(handle), EBADF)};
@@ -691,9 +690,9 @@ auto remote_server::fuse_rename(const char *from, const char *to)
     -> packet::error_type {
   REPERTORY_USES_FUNCTION_NAME();
 
-  const auto from_path = utils::path::combine(mount_location_, {from});
-  const auto to_path = utils::path::combine(mount_location_, {to});
-  const auto res = rename(from_path.c_str(), to_path.c_str());
+  auto from_path = utils::path::combine(mount_location_, {from});
+  auto to_path = utils::path::combine(mount_location_, {to});
+  auto res = rename(from_path.c_str(), to_path.c_str());
   auto ret = ((res < 0) ? -errno : 0);
   RAISE_REMOTE_FUSE_SERVER_EVENT(function_name, from + std::string("|") + to,
                                  ret);
@@ -706,7 +705,7 @@ auto remote_server::fuse_readdir(const char *path,
                                  std::string &item_path) -> packet::error_type {
   REPERTORY_USES_FUNCTION_NAME();
 
-  const auto file_path = construct_path(path);
+  auto file_path = construct_path(path);
   auto res = 0;
   if (offset > std::numeric_limits<std::size_t>::max()) {
     errno = ERANGE;
@@ -733,7 +732,7 @@ auto remote_server::fuse_release(const char *path,
 
   packet::error_type ret = 0;
 
-  const auto file_path = construct_path(path);
+  auto file_path = construct_path(path);
   auto res = has_open_info(static_cast<native_handle>(handle), EBADF);
   if (res == 0) {
     res = close(static_cast<native_handle>(handle));
@@ -750,7 +749,7 @@ auto remote_server::fuse_releasedir(const char *path,
     -> packet::error_type {
   REPERTORY_USES_FUNCTION_NAME();
 
-  const auto file_path = construct_path(path);
+  auto file_path = construct_path(path);
 
   directory_cache_.remove_directory(handle);
 
@@ -771,8 +770,8 @@ removexattr(file_path.c_str(), name); #endif auto ret = ((res < 0) ? -errno :
 auto remote_server::fuse_rmdir(const char *path) -> packet::error_type {
   REPERTORY_USES_FUNCTION_NAME();
 
-  const auto file_path = construct_path(path);
-  const auto res = rmdir(file_path.c_str());
+  auto file_path = construct_path(path);
+  auto res = rmdir(file_path.c_str());
   if (res == 0) {
     directory_cache_.remove_directory(utils::path::create_api_path(path));
   }
@@ -785,7 +784,7 @@ auto remote_server::fuse_setattr_x(const char *path, remote::setattr_x &attr)
     -> packet::error_type {
   REPERTORY_USES_FUNCTION_NAME();
 
-  const auto file_path = construct_path(path);
+  auto file_path = construct_path(path);
   auto ret = fuse_fsetattr_x(
       path, attr, static_cast<remote::file_handle>(REPERTORY_INVALID_HANDLE));
   RAISE_REMOTE_FUSE_SERVER_EVENT(function_name, file_path, ret);
@@ -797,8 +796,8 @@ auto remote_server::fuse_setbkuptime(const char *path,
     -> packet::error_type {
   REPERTORY_USES_FUNCTION_NAME();
 
-  const auto api_path = utils::path::create_api_path(path);
-  const auto file_path = construct_path(path);
+  auto api_path = utils::path::create_api_path(path);
+  auto file_path = construct_path(path);
 
   auto ret = -EACCES;
   if (drive_.check_parent_access(api_path, X_OK) == api_error::success) {
@@ -818,8 +817,8 @@ auto remote_server::fuse_setchgtime(const char *path,
     -> packet::error_type {
   REPERTORY_USES_FUNCTION_NAME();
 
-  const auto api_path = utils::path::create_api_path(path);
-  const auto file_path = construct_path(path);
+  auto api_path = utils::path::create_api_path(path);
+  auto file_path = construct_path(path);
 
   auto ret = -EACCES;
   if (drive_.check_parent_access(api_path, X_OK) == api_error::success) {
@@ -839,8 +838,8 @@ auto remote_server::fuse_setcrtime(const char *path,
     -> packet::error_type {
   REPERTORY_USES_FUNCTION_NAME();
 
-  const auto api_path = utils::path::create_api_path(path);
-  const auto file_path = construct_path(path);
+  auto api_path = utils::path::create_api_path(path);
+  auto file_path = construct_path(path);
 
   auto ret = -EACCES;
   if (drive_.check_parent_access(api_path, X_OK) == api_error::success) {
@@ -886,11 +885,11 @@ auto remote_server::fuse_statfs(const char *path, std::uint64_t frsize,
                                 remote::statfs &r_stat) -> packet::error_type {
   REPERTORY_USES_FUNCTION_NAME();
 
-  const auto file_path = construct_path(path);
+  auto file_path = construct_path(path);
 
-  const auto total_bytes = drive_.get_total_drive_space();
-  const auto total_used = drive_.get_used_drive_space();
-  const auto used_blocks = utils::divide_with_ceiling(total_used, frsize);
+  auto total_bytes = drive_.get_total_drive_space();
+  auto total_used = drive_.get_used_drive_space();
+  auto used_blocks = utils::divide_with_ceiling(total_used, frsize);
   r_stat.f_files = 4294967295;
   r_stat.f_blocks = utils::divide_with_ceiling(total_bytes, frsize);
   r_stat.f_bavail = r_stat.f_bfree =
@@ -907,11 +906,11 @@ auto remote_server::fuse_statfs_x(const char *path, std::uint64_t bsize,
     -> packet::error_type {
   REPERTORY_USES_FUNCTION_NAME();
 
-  const auto file_path = construct_path(path);
+  auto file_path = construct_path(path);
 
-  const auto total_bytes = drive_.get_total_drive_space();
-  const auto total_used = drive_.get_used_drive_space();
-  const auto used_blocks = utils::divide_with_ceiling(total_used, bsize);
+  auto total_bytes = drive_.get_total_drive_space();
+  auto total_used = drive_.get_used_drive_space();
+  auto used_blocks = utils::divide_with_ceiling(total_used, bsize);
   r_stat.f_files = 4294967295;
   r_stat.f_blocks = utils::divide_with_ceiling(total_bytes, bsize);
   r_stat.f_bavail = r_stat.f_bfree =
@@ -932,8 +931,8 @@ auto remote_server::fuse_truncate(const char *path,
     -> packet::error_type {
   REPERTORY_USES_FUNCTION_NAME();
 
-  const auto file_path = construct_path(path);
-  const auto res = truncate(file_path.c_str(), static_cast<off_t>(size));
+  auto file_path = construct_path(path);
+  auto res = truncate(file_path.c_str(), static_cast<off_t>(size));
   auto ret = ((res < 0) ? -errno : 0);
   RAISE_REMOTE_FUSE_SERVER_EVENT(function_name, file_path, ret);
   return ret;
@@ -942,8 +941,8 @@ auto remote_server::fuse_truncate(const char *path,
 auto remote_server::fuse_unlink(const char *path) -> packet::error_type {
   REPERTORY_USES_FUNCTION_NAME();
 
-  const auto file_path = construct_path(path);
-  const auto res = unlink(file_path.c_str());
+  auto file_path = construct_path(path);
+  auto res = unlink(file_path.c_str());
   auto ret = ((res < 0) ? -errno : 0);
   RAISE_REMOTE_FUSE_SERVER_EVENT(function_name, file_path, ret);
   return ret;
@@ -954,7 +953,7 @@ auto remote_server::fuse_utimens(const char *path, const remote::file_time *tv,
     -> packet::error_type {
   REPERTORY_USES_FUNCTION_NAME();
 
-  const auto file_path = construct_path(path);
+  auto file_path = construct_path(path);
 
   struct timespec tv2[2] = {{0, 0}};
   const auto process_timespec = [](auto op, const auto &src, auto &dst) {
@@ -971,8 +970,7 @@ auto remote_server::fuse_utimens(const char *path, const remote::file_time *tv,
   process_timespec(op0, tv[0U], tv2[0U]);
   process_timespec(op1, tv[1U], tv2[1U]);
 
-  const auto res =
-      utimensat(0, file_path.c_str(), &tv2[0U], AT_SYMLINK_NOFOLLOW);
+  auto res = utimensat(0, file_path.c_str(), &tv2[0U], AT_SYMLINK_NOFOLLOW);
   auto ret = ((res < 0) ? -errno : 0);
   RAISE_REMOTE_FUSE_SERVER_EVENT(function_name, file_path, ret);
   return ret;
@@ -985,7 +983,7 @@ auto remote_server::fuse_write(const char *path, const char *buffer,
     -> packet::error_type {
   REPERTORY_USES_FUNCTION_NAME();
 
-  const auto file_path = construct_path(path);
+  auto file_path = construct_path(path);
 
   ssize_t bytes_written{
       has_open_info(static_cast<native_handle>(handle), EBADF)};
@@ -1059,7 +1057,7 @@ auto remote_server::winfsp_cleanup(PVOID /*file_desc*/, PWSTR file_name,
       unlink(file_path.c_str());
     }
   } else {
-    const auto api_path = utils::path::create_api_path(relative_path);
+    auto api_path = utils::path::create_api_path(relative_path);
     if ((flags & FileSystemBase::FspCleanupSetArchiveBit) && not directory) {
       api_meta_map meta;
       if (drive_.get_item_meta(api_path, meta) == api_error::success) {
@@ -1073,7 +1071,7 @@ auto remote_server::winfsp_cleanup(PVOID /*file_desc*/, PWSTR file_name,
     if (flags & (FileSystemBase::FspCleanupSetLastAccessTime |
                  FileSystemBase::FspCleanupSetLastWriteTime |
                  FileSystemBase::FspCleanupSetChangeTime)) {
-      const auto file_time_now = utils::time::get_time_now();
+      auto file_time_now = utils::time::get_time_now();
       if (flags & FileSystemBase::FspCleanupSetLastAccessTime) {
         drive_.set_item_meta(api_path, META_ACCESSED,
                              std::to_string(file_time_now));
@@ -1102,7 +1100,7 @@ auto remote_server::winfsp_close(PVOID file_desc) -> packet::error_type {
   REPERTORY_USES_FUNCTION_NAME();
 
   std::string file_path;
-  const auto handle = reinterpret_cast<remote::file_handle>(file_desc);
+  auto handle = reinterpret_cast<remote::file_handle>(file_desc);
   if (has_open_info(static_cast<native_handle>(handle),
                     STATUS_INVALID_HANDLE) == STATUS_SUCCESS) {
     file_path = get_open_file_path(static_cast<native_handle>(handle));
@@ -1162,7 +1160,7 @@ auto remote_server::winfsp_create(PWSTR file_name, UINT32 create_options,
                              file_path,
                          });
 
-      const auto api_path = utils::path::create_api_path(relative_path);
+      auto api_path = utils::path::create_api_path(relative_path);
       normalized_name = utils::string::replace_copy(api_path, '/', '\\');
       populate_file_info(api_path, 0, attributes, *file_info);
     }
@@ -1179,7 +1177,7 @@ auto remote_server::winfsp_flush(PVOID file_desc, remote::file_info *file_info)
     -> packet::error_type {
   REPERTORY_USES_FUNCTION_NAME();
 
-  const auto handle = reinterpret_cast<remote::file_handle>(file_desc);
+  auto handle = reinterpret_cast<remote::file_handle>(file_desc);
   auto ret = static_cast<packet::error_type>(
       has_open_info(static_cast<native_handle>(handle), STATUS_INVALID_HANDLE));
   if (ret == STATUS_SUCCESS) {
@@ -1202,7 +1200,7 @@ auto remote_server::winfsp_get_file_info(PVOID file_desc,
     -> packet::error_type {
   REPERTORY_USES_FUNCTION_NAME();
 
-  const auto handle = reinterpret_cast<remote::file_handle>(file_desc);
+  auto handle = reinterpret_cast<remote::file_handle>(file_desc);
   auto ret = static_cast<packet::error_type>(
       has_open_info(static_cast<native_handle>(handle), STATUS_INVALID_HANDLE));
   if (ret == STATUS_SUCCESS) {
@@ -1224,7 +1222,7 @@ auto remote_server::winfsp_get_security_by_name(
   REPERTORY_USES_FUNCTION_NAME();
 
   auto ret = static_cast<packet::error_type>(STATUS_SUCCESS);
-  const auto file_path = construct_path(file_name);
+  auto file_path = construct_path(file_name);
   if (utils::file::file(file_path).exists() ||
       (utils::file::directory(file_path).exists())) {
     if (attributes) {
@@ -1314,20 +1312,20 @@ auto remote_server::winfsp_overwrite(PVOID file_desc, UINT32 attributes,
     -> packet::error_type {
   REPERTORY_USES_FUNCTION_NAME();
 
-  const auto handle = reinterpret_cast<remote::file_handle>(file_desc);
+  auto handle = reinterpret_cast<remote::file_handle>(file_desc);
   auto ret = static_cast<packet::error_type>(
       has_open_info(static_cast<native_handle>(handle), STATUS_INVALID_HANDLE));
   if (ret == STATUS_SUCCESS) {
-    const auto api_path = construct_api_path(
+    auto api_path = construct_api_path(
         get_open_file_path(static_cast<native_handle>(handle)));
-    const auto res = ftruncate(static_cast<native_handle>(handle), 0);
+    auto res = ftruncate(static_cast<native_handle>(handle), 0);
     if (res >= 0) {
       auto set_attributes = false;
       if (replace_attributes) {
         set_attributes = true;
       } else if (attributes) {
         std::string current_attributes;
-        const auto err =
+        auto err =
             drive_.get_item_meta(api_path, META_ATTRIBUTES, current_attributes);
         if (err != api_error::success) {
           utils::error::raise_api_path_error(function_name, api_path, err,
@@ -1371,12 +1369,12 @@ auto remote_server::winfsp_read(PVOID file_desc, PVOID buffer, UINT64 offset,
 
   *bytes_transferred = 0;
 
-  const auto handle = reinterpret_cast<remote::file_handle>(file_desc);
+  auto handle = reinterpret_cast<remote::file_handle>(file_desc);
   auto ret = static_cast<packet::error_type>(
       has_open_info(static_cast<native_handle>(handle), STATUS_INVALID_HANDLE));
   if (ret == STATUS_SUCCESS) {
-    const auto res = pread64(static_cast<native_handle>(handle), buffer, length,
-                             static_cast<off_t>(offset));
+    auto res = pread64(static_cast<native_handle>(handle), buffer, length,
+                       static_cast<off_t>(offset));
     if (res >= 0) {
       *bytes_transferred = static_cast<UINT32>(res);
     } else {
@@ -1477,12 +1475,11 @@ auto remote_server::winfsp_set_basic_info(
     remote::file_info *file_info) -> packet::error_type {
   REPERTORY_USES_FUNCTION_NAME();
 
-  const auto handle = reinterpret_cast<remote::file_handle>(file_desc);
+  auto handle = reinterpret_cast<remote::file_handle>(file_desc);
   auto ret = static_cast<packet::error_type>(
       has_open_info(static_cast<native_handle>(handle), STATUS_INVALID_HANDLE));
   if (ret == STATUS_SUCCESS) {
-    const auto file_path =
-        get_open_file_path(static_cast<native_handle>(handle));
+    auto file_path = get_open_file_path(static_cast<native_handle>(handle));
     if (attributes == INVALID_FILE_ATTRIBUTES) {
       attributes = 0;
     } else if (attributes == 0) {
@@ -1491,7 +1488,7 @@ auto remote_server::winfsp_set_basic_info(
                        : FILE_ATTRIBUTE_ARCHIVE;
     }
 
-    const auto api_path = construct_api_path(file_path);
+    auto api_path = construct_api_path(file_path);
     api_meta_map meta;
     if (attributes != 0U) {
       attributes &= static_cast<UINT32>(~FILE_ATTRIBUTE_NORMAL);
@@ -1544,14 +1541,14 @@ auto remote_server::winfsp_set_file_size(PVOID file_desc, UINT64 new_size,
     -> packet::error_type {
   REPERTORY_USES_FUNCTION_NAME();
 
-  const auto handle = reinterpret_cast<remote::file_handle>(file_desc);
+  auto handle = reinterpret_cast<remote::file_handle>(file_desc);
   auto ret = static_cast<packet::error_type>(
       has_open_info(static_cast<native_handle>(handle), STATUS_INVALID_HANDLE));
   if (ret == STATUS_SUCCESS) {
-    const auto res = set_allocation_size == 0U
-                         ? ftruncate(static_cast<native_handle>(handle),
-                                     static_cast<off_t>(new_size))
-                         : 0;
+    auto res = set_allocation_size == 0U
+                   ? ftruncate(static_cast<native_handle>(handle),
+                               static_cast<off_t>(new_size))
+                   : 0;
     ret = ((res < 0) ? static_cast<packet::error_type>(
                            utils::unix_error_to_windows(errno))
                      : 0);
@@ -1586,13 +1583,13 @@ auto remote_server::winfsp_write(PVOID file_desc, PVOID buffer, UINT64 offset,
   REPERTORY_USES_FUNCTION_NAME();
 
   *bytes_transferred = 0;
-  const auto handle = reinterpret_cast<remote::file_handle>(file_desc);
+  auto handle = reinterpret_cast<remote::file_handle>(file_desc);
   auto ret = static_cast<packet::error_type>(
       has_open_info(static_cast<native_handle>(handle), STATUS_INVALID_HANDLE));
   if (ret == STATUS_SUCCESS) {
-    const auto api_path = construct_api_path(
+    auto api_path = construct_api_path(
         get_open_file_path(static_cast<native_handle>(handle)));
-    const auto file_size = drive_.get_file_size(api_path);
+    auto file_size = drive_.get_file_size(api_path);
     if (write_to_end != 0U) {
       offset = file_size;
     }
@@ -1609,8 +1606,8 @@ auto remote_server::winfsp_write(PVOID file_desc, PVOID buffer, UINT64 offset,
 
     if (should_write) {
       if (length > 0) {
-        const auto res = pwrite64(static_cast<native_handle>(handle), buffer,
-                                  length, static_cast<off_t>(offset));
+        auto res = pwrite64(static_cast<native_handle>(handle), buffer, length,
+                            static_cast<off_t>(offset));
         if (res >= 0) {
           *bytes_transferred = static_cast<UINT32>(res);
           ret = populate_file_info(construct_api_path(get_open_file_path(
@@ -1635,8 +1632,8 @@ auto remote_server::json_create_directory_snapshot(const std::string &path,
     -> packet::error_type {
   REPERTORY_USES_FUNCTION_NAME();
 
-  const auto api_path = utils::path::create_api_path(path);
-  const auto file_path = construct_path(api_path);
+  auto api_path = utils::path::create_api_path(path);
+  auto file_path = construct_path(api_path);
 
   auto res = -1;
   errno = ENOENT;
@@ -1667,7 +1664,7 @@ auto remote_server::json_read_directory_snapshot(
 
   int res{-EBADF};
 
-  const auto file_path = construct_path(path);
+  auto file_path = construct_path(path);
   auto iter = directory_cache_.get_directory(handle);
   if (iter != nullptr) {
     std::size_t offset{};
@@ -1695,7 +1692,7 @@ auto remote_server::json_release_directory_snapshot(
     -> packet::error_type {
   REPERTORY_USES_FUNCTION_NAME();
 
-  const auto file_path = construct_path(path);
+  auto file_path = construct_path(path);
   directory_cache_.remove_directory(handle);
   RAISE_REMOTE_FUSE_SERVER_EVENT(function_name, file_path, 0);
   return 0;
