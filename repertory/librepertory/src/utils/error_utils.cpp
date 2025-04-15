@@ -22,6 +22,7 @@
 #include "utils/error_utils.hpp"
 
 #include "events/event_system.hpp"
+#include "events/types/debug_log.hpp"
 #include "events/types/repertory_exception.hpp"
 #include "types/repertory.hpp"
 #include "utils/error.hpp"
@@ -29,6 +30,12 @@
 namespace {
 struct repertory_exception_handler final
     : repertory::utils::error::i_exception_handler {
+  void handle_debug(std::string_view function_name,
+                    std::string_view msg) const override {
+    repertory::event_system::instance().raise<repertory::debug_log>(
+        function_name, msg);
+  }
+
   void handle_error(std::string_view function_name,
                     std::string_view msg) const override {
     repertory::utils::error::raise_error(function_name, msg);
@@ -41,6 +48,24 @@ struct repertory_exception_handler final
   void handle_exception(std::string_view function_name,
                         const std::exception &ex) const override {
     repertory::utils::error::raise_error(function_name, ex);
+  }
+
+  void handle_info(std::string_view function_name,
+                   std::string_view msg) const override {
+    repertory::event_system::instance().raise<repertory::debug_log>(
+        function_name, msg);
+  }
+
+  void handle_trace(std::string_view function_name,
+                    std::string_view msg) const override {
+    repertory::event_system::instance().raise<repertory::debug_log>(
+        function_name, msg);
+  }
+
+  void handle_warn(std::string_view function_name,
+                   std::string_view msg) const override {
+    repertory::event_system::instance().raise<repertory::debug_log>(
+        function_name, msg);
   }
 };
 
