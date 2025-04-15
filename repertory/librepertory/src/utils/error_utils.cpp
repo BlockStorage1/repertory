@@ -33,7 +33,7 @@ struct repertory_exception_handler final
   void handle_debug(std::string_view function_name,
                     std::string_view msg) const override {
     repertory::event_system::instance().raise<repertory::debug_log>(
-        function_name, msg);
+        function_name, std::string{msg});
   }
 
   void handle_error(std::string_view function_name,
@@ -53,19 +53,19 @@ struct repertory_exception_handler final
   void handle_info(std::string_view function_name,
                    std::string_view msg) const override {
     repertory::event_system::instance().raise<repertory::debug_log>(
-        function_name, msg);
+        function_name, std::string{msg});
   }
 
   void handle_trace(std::string_view function_name,
                     std::string_view msg) const override {
     repertory::event_system::instance().raise<repertory::debug_log>(
-        function_name, msg);
+        function_name, std::string{msg});
   }
 
   void handle_warn(std::string_view function_name,
                    std::string_view msg) const override {
     repertory::event_system::instance().raise<repertory::debug_log>(
-        function_name, msg);
+        function_name, std::string{msg});
   }
 };
 
