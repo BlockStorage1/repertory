@@ -1769,12 +1769,11 @@ auto remote_server::update_to_windows_format(const std::string &root_api_path,
     attributes |= FILE_ATTRIBUTE_ARCHIVE;
     attributes &= (~FILE_ATTRIBUTE_DIRECTORY);
     item[JSON_META][META_ATTRIBUTES] = std::to_string(attributes);
-    drive_.set_item_meta(api_path, item[JSON_META]);
     update_meta = true;
   }
 
   if (update_meta) {
-    drive_.set_item_meta(api_path, item[JSON_META]);
+    drive_.set_item_meta(api_path, item[JSON_META].get<api_meta_map>());
   }
 
   return item;
