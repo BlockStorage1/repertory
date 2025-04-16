@@ -1757,10 +1757,10 @@ auto remote_server::update_to_windows_format(const std::string &root_api_path,
 
   auto attributes = utils::string::to_uint32(
       item[JSON_META][META_ATTRIBUTES].get<std::string>());
-  if (item[JSON_DIRECTORY].get<bool>()) {
+  if (utils::string::to_bool(item[JSON_DIRECTORY].get<std::string>())) {
     if ((attributes & FILE_ATTRIBUTE_DIRECTORY) != FILE_ATTRIBUTE_DIRECTORY) {
       attributes |= FILE_ATTRIBUTE_DIRECTORY;
-      attributes &= (~FILE_ATTRIBUTE_ARCHIVE);
+      attributes &= static_cast<std::uint32_t>(~FILE_ATTRIBUTE_ARCHIVE);
       item[JSON_META][META_ATTRIBUTES] = std::to_string(attributes);
       update_meta = true;
     }
@@ -1768,7 +1768,7 @@ auto remote_server::update_to_windows_format(const std::string &root_api_path,
                  FILE_ATTRIBUTE_DIRECTORY ||
              attributes == 0U) {
     attributes |= FILE_ATTRIBUTE_ARCHIVE;
-    attributes &= (~FILE_ATTRIBUTE_DIRECTORY);
+    attributes &= static_cast<std::uint32_t>(~FILE_ATTRIBUTE_DIRECTORY);
     item[JSON_META][META_ATTRIBUTES] = std::to_string(attributes);
     update_meta = true;
   }
