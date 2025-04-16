@@ -83,11 +83,16 @@ auto remote_server::get_next_handle() -> std::uint64_t {
 auto remote_server::populate_file_info(const std::string &api_path,
                                        remote::file_info &file_info)
     -> packet::error_type {
+  REPERTORY_USES_FUNCTION_NAME();
+
   std::string meta_attributes;
   auto directory = utils::file::directory(construct_path(api_path)).exists();
 
-  auto error = drive_.get_item_meta(api_path, META_ATTRIBUTES, meta_attributes);
-  if (error == api_error::success) {
+  auto res = drive_.get_item_meta(api_path, META_ATTRIBUTES, meta_attributes);
+  event_system::instance().raise<debug_log>(
+      function_name, fmt::format("{}|attributes|{}|res|", api_path,
+                                 meta_attributes, api_error_to_string(res)));
+  if (res == api_error::success) {
     if (meta_attributes.empty()) {
       meta_attributes = directory ? std::to_string(FILE_ATTRIBUTE_DIRECTORY)
                                   : std::to_string(FILE_ATTRIBUTE_ARCHIVE);
@@ -111,6 +116,10 @@ void remote_server::populate_file_info(const std::string &api_path,
 
   api_meta_map meta{};
   auto res = drive_.get_item_meta(api_path, meta);
+  event_system::instance().raise<debug_log>(
+      function_name,
+      fmt::format("{}|attributes|{}|res|", api_path, meta[META_ATTRIBUTES],
+                  api_error_to_string(res)));
   if (res != api_error::success) {
     utils::error::raise_api_path_error(function_name, api_path, res,
                                        "get item meta failed");
