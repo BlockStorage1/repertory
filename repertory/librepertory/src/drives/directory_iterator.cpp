@@ -53,7 +53,10 @@ auto directory_iterator::fill_buffer(const remote::file_offset &offset,
     } break;
 
     default: {
-      item_name = utils::path::strip_to_file_name(items_.at(offset).api_path);
+      const auto &item = items_.at(offset);
+      item_name = utils::path::strip_to_file_name(item.api_path);
+      populate_stat(item.api_path, item.size, item.meta, item.directory,
+                    &u_stat);
     } break;
     }
 
