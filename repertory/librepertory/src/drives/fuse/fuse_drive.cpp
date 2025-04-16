@@ -1088,8 +1088,20 @@ void fuse_drive::set_item_meta(const std::string &api_path,
 
   auto res = provider_.set_item_meta(api_path, key, value);
   if (res != api_error::success) {
+    utils::error::raise_api_path_error(
+        function_name, api_path, res,
+        fmt::format("failed to set item meta|key|{}", key));
+  }
+}
+
+void fuse_drive::set_item_meta(const std::string &api_path,
+                               const api_meta_map &meta) {
+  REPERTORY_USES_FUNCTION_NAME();
+
+  auto res = provider_.set_item_meta(api_path, meta);
+  if (res != api_error::success) {
     utils::error::raise_api_path_error(function_name, api_path, res,
-                                       "key|" + key + "|value|" + value);
+                                       "failed to set item meta");
   }
 }
 
