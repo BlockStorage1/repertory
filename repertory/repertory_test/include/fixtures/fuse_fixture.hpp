@@ -322,6 +322,8 @@ public:
     mkdir(dir_path.c_str(), perms);
 
     EXPECT_TRUE(utils::file::directory(dir_path).exists());
+    EXPECT_EQ(0U, utils::file::directory(dir_path).count(false));
+    EXPECT_EQ(0U, utils::file::directory(dir_path).count(true));
     EXPECT_FALSE(utils::file::file(dir_path).exists());
 
     struct stat64 unix_st{};

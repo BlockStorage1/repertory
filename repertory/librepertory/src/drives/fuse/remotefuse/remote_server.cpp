@@ -28,7 +28,6 @@
 #include "drives/directory_iterator.hpp"
 #include "drives/remote/remote_open_file_table.hpp"
 #include "events/event_system.hpp"
-#include "events/types/debug_log.hpp"
 #include "events/types/remote_server_event.hpp"
 #include "platform/platform.hpp"
 #include "types/remote.hpp"
@@ -89,9 +88,6 @@ auto remote_server::populate_file_info(const std::string &api_path,
   auto directory = utils::file::directory(construct_path(api_path)).exists();
 
   auto res = drive_.get_item_meta(api_path, META_ATTRIBUTES, meta_attributes);
-  event_system::instance().raise<debug_log>(
-      function_name, fmt::format("{}|attributes|{}|res|", api_path,
-                                 meta_attributes, api_error_to_string(res)));
   if (res == api_error::success) {
     if (meta_attributes.empty()) {
       meta_attributes = directory ? std::to_string(FILE_ATTRIBUTE_DIRECTORY)
@@ -116,10 +112,6 @@ void remote_server::populate_file_info(const std::string &api_path,
 
   api_meta_map meta{};
   auto res = drive_.get_item_meta(api_path, meta);
-  event_system::instance().raise<debug_log>(
-      function_name,
-      fmt::format("{}|attributes|{}|res|", api_path, meta[META_ATTRIBUTES],
-                  api_error_to_string(res)));
   if (res != api_error::success) {
     utils::error::raise_api_path_error(function_name, api_path, res,
                                        "get item meta failed");
@@ -1459,19 +1451,11 @@ auto remote_server::winfsp_rename(PVOID /*file_desc*/, PWSTR file_name,
                      : 0);
   } else {
     auto dir{utils::file::directory(file_path)};
-    event_system::instance().raise<debug_log>(
-        function_name,
-        fmt::format("path|{}|exists|{}", file_path, dir.exists()));
     if (dir.exists()) {
       auto count{dir.count(false)};
-      event_system::instance().raise<debug_log>(
-          function_name, fmt::format("path|{}|count|{}", file_path, count));
       if (count == 0U) {
         res = drive_.rename_directory(construct_api_path(file_path),
                                       construct_api_path(new_file_path));
-        event_system::instance().raise<debug_log>(
-            function_name,
-            fmt::format("path|{}|res|{}|errno|{}", file_path, res, errno));
         ret = ((res < 0)
                    ? errno == EISDIR
                          ? static_cast<packet::error_type>(STATUS_ACCESS_DENIED)
