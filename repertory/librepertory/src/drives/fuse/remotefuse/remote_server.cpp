@@ -93,6 +93,7 @@ auto remote_server::populate_file_info(const std::string &api_path,
                                   : std::to_string(FILE_ATTRIBUTE_ARCHIVE);
       drive_.set_item_meta(api_path, META_ATTRIBUTES, meta_attributes);
     }
+
     auto attributes = utils::string::to_uint32(meta_attributes);
     auto file_size = directory ? 0U : drive_.get_file_size(api_path);
     populate_file_info(api_path, file_size, attributes, file_info);
@@ -1739,22 +1740,41 @@ auto remote_server::update_to_windows_format(const std::string &root_api_path,
   item[JSON_META][META_MODIFIED] = std::to_string(
       utils::string::to_uint64(empty_as_zero(item[JSON_META][META_MODIFIED])));
 
+  auto update_meta{false};
   if (item[JSON_META][META_WRITTEN].empty() ||
       (item[JSON_META][META_WRITTEN].get<std::string>() == "0") ||
       (item[JSON_META][META_WRITTEN].get<std::string>() ==
        std::to_string(utils::time::WIN32_TIME_CONVERSION))) {
-    drive_.set_item_meta(api_path, META_WRITTEN,
-                         item[JSON_META][META_MODIFIED].get<std::string>());
-    item[JSON_META][META_WRITTEN] = item[JSON_META][META_MODIFIED];
+    item[JSON_META][META_WRITTEN] =
+        item[JSON_META][META_MODIFIED].get<std::string>();
+    update_meta = true;
   }
 
   if (item[JSON_META][META_ATTRIBUTES].empty()) {
-    item[JSON_META][META_ATTRIBUTES] =
-        item[JSON_DIRECTORY].get<bool>()
-            ? std::to_string(FILE_ATTRIBUTE_DIRECTORY)
-            : std::to_string(FILE_ATTRIBUTE_ARCHIVE);
-    drive_.set_item_meta(api_path, META_ATTRIBUTES,
-                         item[JSON_META][META_ATTRIBUTES].get<std::string>());
+    item[JSON_META][META_ATTRIBUTES] = "0";
+  }
+
+  auto attributes = utils::string::to_uint32(
+      item[JSON_META][META_ATTRIBUTES].get<std::string>);
+  if (item[JSON_DIRECTORY].get<bool>()) {
+    if ((attributes & FILE_ATTRIBUTE_DIRECTORY) != FILE_ATTRIBUTE_DIRECTORY) {
+      attributes |= FILE_ATTRIBUTE_DIRECTORY;
+      attributes &= (~FILE_ATTRIBUTE_ARCHIVE);
+      item[JSON_META][META_ATTRIBUTES] = std::to_string(attributes);
+      update_meta = true;
+    }
+  } else if ((attributes & FILE_ATTRIBUTE_DIRECTORY) ==
+                 FILE_ATTRIBUTE_DIRECTORY ||
+             attributes == 0U) {
+    attributes |= FILE_ATTRIBUTE_ARCHIVE;
+    attributes &= (~FILE_ATTRIBUTE_DIRECTORY);
+    item[JSON_META][META_ATTRIBUTES] = std::to_string(attributes);
+    drive_.set_item_meta(api_path, item[JSON_META]);
+    update_meta = true;
+  }
+
+  if (update_meta) {
+    drive_.set_item_meta(api_path, item[JSON_META]);
   }
 
   return item;
