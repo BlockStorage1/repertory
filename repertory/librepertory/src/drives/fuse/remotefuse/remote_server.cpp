@@ -1740,7 +1740,7 @@ auto remote_server::update_to_windows_format(const std::string &root_api_path,
     }
 
     item[JSON_DIRECTORY] = true;
-    meta[META_DIRECTORY] = utils::string::to_bool(true);
+    meta[META_DIRECTORY] = utils::string::from_bool(true);
     item[JSON_META] = meta;
   }
 
