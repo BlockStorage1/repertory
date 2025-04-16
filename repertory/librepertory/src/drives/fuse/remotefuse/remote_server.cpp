@@ -1730,6 +1730,7 @@ auto remote_server::update_to_windows_format(const std::string &root_api_path,
       return item;
     }
 
+    item[JSON_DIRECTORY] = utils::string::from_bool(true);
     item[JSON_META] = meta;
   }
 
@@ -1755,7 +1756,7 @@ auto remote_server::update_to_windows_format(const std::string &root_api_path,
   }
 
   auto attributes = utils::string::to_uint32(
-      item[JSON_META][META_ATTRIBUTES].get<std::string>);
+      item[JSON_META][META_ATTRIBUTES].get<std::string>());
   if (item[JSON_DIRECTORY].get<bool>()) {
     if ((attributes & FILE_ATTRIBUTE_DIRECTORY) != FILE_ATTRIBUTE_DIRECTORY) {
       attributes |= FILE_ATTRIBUTE_DIRECTORY;
