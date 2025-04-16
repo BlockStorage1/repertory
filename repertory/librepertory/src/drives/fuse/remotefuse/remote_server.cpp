@@ -1790,4 +1790,5 @@ auto remote_server::update_to_windows_format(const std::string &root_api_path,
   return item;
 }
 } // namespace repertory::remote_fuse
+
 #endif // _WIN32

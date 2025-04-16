@@ -39,16 +39,21 @@ auto directory_iterator::fill_buffer(const remote::file_offset &offset,
   }
 
   try {
+    auto next_offset{offset + 1U};
+
     std::string item_name;
     struct stat st{};
-    struct stat *pst = nullptr;
+    struct stat *pst{nullptr};
+
     switch (offset) {
     case 0: {
       item_name = ".";
+      next_offset = 0U;
     } break;
 
     case 1: {
       item_name = "..";
+      next_offset = 0U;
     } break;
 
     default: {
@@ -61,11 +66,11 @@ auto directory_iterator::fill_buffer(const remote::file_offset &offset,
 
 #if FUSE_USE_VERSION >= 30
     if (filler_function(buffer, item_name.data(), pst,
-                        static_cast<off_t>(offset + 1),
+                        static_cast<off_t>(next_offset),
                         FUSE_FILL_DIR_PLUS) != 0)
 #else  // FUSE_USE_VERSION < 30
     if (filler_function(buffer, item_name.data(), pst,
-                        static_cast<off_t>(offset + 1)) != 0)
+                        static_cast<off_t>(next_offset)) != 0)
 #endif // FUSE_USE_VERSION >= 30
     {
       errno = ENOMEM;
