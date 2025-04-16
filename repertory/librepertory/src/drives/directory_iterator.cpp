@@ -42,34 +42,27 @@ auto directory_iterator::fill_buffer(const remote::file_offset &offset,
     auto next_offset{offset + 1U};
 
     std::string item_name;
-    struct stat st{};
-    struct stat *pst{nullptr};
+    struct stat u_stat{};
 
     switch (offset) {
-    case 0: {
-      item_name = ".";
-      next_offset = 0U;
-    } break;
-
+    case 0:
     case 1: {
-      item_name = "..";
-      next_offset = 0U;
+      item_name = offset == 0U ? "." : "..";
+      u_stat.st_mode = S_IFDIR | 0755;
+      u_stat.st_nlink = 2;
     } break;
 
     default: {
-      const auto &item = items_[offset];
-      item_name = utils::path::strip_to_file_name(item.api_path);
-      populate_stat(item.api_path, item.size, item.meta, item.directory, &st);
-      pst = &st;
+      item_name = utils::path::strip_to_file_name(items_.at(offset).api_path);
     } break;
     }
 
 #if FUSE_USE_VERSION >= 30
-    if (filler_function(buffer, item_name.data(), pst,
+    if (filler_function(buffer, item_name.data(), &u_stat,
                         static_cast<off_t>(next_offset),
                         FUSE_FILL_DIR_PLUS) != 0)
 #else  // FUSE_USE_VERSION < 30
-    if (filler_function(buffer, item_name.data(), pst,
+    if (filler_function(buffer, item_name.data(), &u_stat,
                         static_cast<off_t>(next_offset)) != 0)
 #endif // FUSE_USE_VERSION >= 30
     {
