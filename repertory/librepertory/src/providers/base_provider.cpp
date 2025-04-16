@@ -314,20 +314,26 @@ auto base_provider::get_directory_items(const std::string &api_path,
                       (item1.api_path.compare(item2.api_path) < 0));
             });
 
-  list.insert(list.begin(), directory_item{
-                                "..",
-                                "",
-                                true,
-                                0U,
-                                {},
-                            });
-  list.insert(list.begin(), directory_item{
-                                ".",
-                                "",
-                                true,
-                                0U,
-                                {},
-                            });
+  list.insert(list.begin(),
+              directory_item{
+                  "..",
+                  "",
+                  true,
+                  0U,
+                  {
+                      {META_DIRECTORY, utils::string::from_bool(true)},
+                  },
+              });
+  list.insert(list.begin(),
+              directory_item{
+                  ".",
+                  "",
+                  true,
+                  0U,
+                  {
+                      {META_DIRECTORY, utils::string::from_bool(true)},
+                  },
+              });
   return api_error::success;
 }
 
