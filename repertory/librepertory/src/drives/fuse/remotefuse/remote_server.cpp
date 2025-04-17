@@ -1381,7 +1381,7 @@ auto remote_server::winfsp_read(PVOID file_desc, PVOID buffer, UINT64 offset,
                        static_cast<off_t>(offset));
     event_system::instance().raise<debug_log>(
         function_name,
-        fmt::format("read|offset|{}|len|{}|res|", offset, length, res));
+        fmt::format("read|offset|{}|len|{}|res|{}", offset, length, res));
     if (res >= 0) {
       *bytes_transferred = static_cast<UINT32>(res);
     } else {
