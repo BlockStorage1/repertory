@@ -141,7 +141,7 @@ protected:
         ASSERT_TRUE(utils::file::directory(cfg_directory).create_directory());
 
         auto config =
-            std::make_unique<app_config>(provider_type::s3, cfg_directory);
+            std::make_unique<app_config>(provider_type::sia, cfg_directory);
         {
           app_config src_cfg{
               provider_type::sia,
