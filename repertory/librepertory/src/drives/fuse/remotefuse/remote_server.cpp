@@ -28,7 +28,6 @@
 #include "drives/directory_iterator.hpp"
 #include "drives/remote/remote_open_file_table.hpp"
 #include "events/event_system.hpp"
-#include "events/types/debug_log.hpp"
 #include "events/types/remote_server_event.hpp"
 #include "platform/platform.hpp"
 #include "types/remote.hpp"
@@ -1379,18 +1378,15 @@ auto remote_server::winfsp_read(PVOID file_desc, PVOID buffer, UINT64 offset,
   if (ret == STATUS_SUCCESS) {
     auto res = pread64(static_cast<native_handle>(handle), buffer, length,
                        static_cast<off_t>(offset));
-    event_system::instance().raise<debug_log>(
-        function_name,
-        fmt::format("read|offset|{}|len|{}|res|{}", offset, length, res));
     if (res >= 0) {
       *bytes_transferred = static_cast<UINT32>(res);
+      if (*bytes_transferred == 0U) {
+        ret = STATUS_END_OF_FILE;
+      }
     } else {
       ret =
           static_cast<packet::error_type>(utils::unix_error_to_windows(errno));
     }
-    event_system::instance().raise<debug_log>(
-        function_name, fmt::format("read|offset|{}|len|{}|res|{}|tx|{}", offset,
-                                   length, res, *bytes_transferred));
   }
 
   RAISE_REMOTE_FUSE_SERVER_EVENT(
