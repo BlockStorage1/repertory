@@ -299,10 +299,9 @@ std::string winfsp_test<provider_t>::mount_location;
 template <typename provider_t>
 std::string winfsp_test<provider_t>::mount_location2;
 
-// using winfsp_provider_types = ::testing::Types<local_s3, remote_s3,
-// local_sia, remote_sia>;
-// using winfsp_provider_types = ::testing::Types<local_s3, remote_s3>;
-using winfsp_provider_types = ::testing::Types<remote_winfsp_to_linux>;
+using winfsp_provider_types =
+    ::testing::Types<local_s3, remote_s3, local_sia, remote_sia,
+                     remote_winfsp_to_linux>;
 } // namespace repertory
 
 #endif // defined(_WIN32)
