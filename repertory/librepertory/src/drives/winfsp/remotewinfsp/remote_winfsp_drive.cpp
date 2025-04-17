@@ -143,6 +143,9 @@ auto remote_winfsp_drive::Create(PWSTR file_name, UINT32 create_options,
     wcsncpy(ofi->NormalizedName, file_path.data(), wcslen(file_path.c_str()));
     ofi->NormalizedNameSize =
         static_cast<UINT16>(wcslen(file_path.c_str()) * sizeof(WCHAR));
+    if (exists != 0U) {
+      ret = STATUS_OBJECT_NAME_COLLISION;
+    }
   }
 
   return ret;
@@ -346,9 +349,15 @@ void remote_winfsp_drive::populate_file_info(const json &item,
 auto remote_winfsp_drive::Read(PVOID /*file_node*/, PVOID file_desc,
                                PVOID buffer, UINT64 offset, ULONG length,
                                PULONG bytes_transferred) -> NTSTATUS {
-  return remote_instance_->winfsp_read(
+  auto ret = remote_instance_->winfsp_read(
       file_desc, buffer, offset, length,
       reinterpret_cast<PUINT32>(bytes_transferred));
+  fmt::println("read|len|{}|ret|{}|bytes|{}", length, ret, *bytes_transferred);
+  if ((ret == STATUS_SUCCESS) && (*bytes_transferred != length)) {
+    ::SetLastError(ERROR_HANDLE_EOF);
+  }
+
+  return ret;
 }
 
 auto remote_winfsp_drive::ReadDirectory(PVOID /*file_node*/, PVOID file_desc,

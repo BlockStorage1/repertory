@@ -122,8 +122,8 @@ open_file::open_file(std::uint64_t chunk_size, std::uint8_t chunk_timeout,
 
 open_file::~open_file() { close(); }
 
-auto open_file::adjust_cache_size(std::uint64_t file_size,
-                                  bool shrink) -> api_error {
+auto open_file::adjust_cache_size(std::uint64_t file_size, bool shrink)
+    -> api_error {
   REPERTORY_USES_FUNCTION_NAME();
 
   if (file_size == get_file_size()) {
@@ -554,6 +554,7 @@ auto open_file::read(std::size_t read_size, std::uint64_t read_offset,
   read_size =
       utils::calculate_read_size(get_file_size(), read_size, read_offset);
   if (read_size == 0U) {
+    data.resize(0U);
     return api_error::success;
   }
 

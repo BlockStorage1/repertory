@@ -14,6 +14,7 @@
 * \#45 [bug] Windows-to-Linux remote mount is not handling attempts to remove a non-empty directory properly
 * \#46 [bug] Changes to maximum cache size should be updated live
 * \#47 [bug] Windows-to-Linux remote mount is allowing directory rename when directory is not empty
+* \#48 [bug] Windows-to-Linux remote mount overlapped I/O is not detecting EOF for read operations
 
 ### Changes from v2.0.5-rc
 

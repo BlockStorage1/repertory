@@ -1221,6 +1221,7 @@ auto remote_server::winfsp_read(PVOID file_desc, PVOID buffer, UINT64 offset,
               ? STATUS_SUCCESS
               : FspNtStatusFromWin32(::GetLastError());
   }
+
   if (ret != STATUS_SUCCESS) {
     RAISE_REMOTE_WINFSP_SERVER_EVENT(function_name,
                                      get_open_file_path(file_desc), ret);

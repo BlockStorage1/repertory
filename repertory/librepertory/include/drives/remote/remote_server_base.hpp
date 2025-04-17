@@ -346,15 +346,16 @@ public:
            DECODE_OR_RETURN(request, length);
 
            data_buffer buffer(length);
-           UINT32 bytes_transferred{0};
+           UINT32 bytes_transferred{0U};
            ret = this->winfsp_read(file_desc, buffer.data(), offset, length,
                                    &bytes_transferred);
-           if (ret == STATUS_SUCCESS) {
-             response.encode(bytes_transferred);
-             if (bytes_transferred != 0U) {
-               response.encode(buffer.data(), bytes_transferred);
-             }
+           response.encode(bytes_transferred);
+           buffer.resize(bytes_transferred);
+
+           if ((ret == STATUS_SUCCESS) && (bytes_transferred != 0U)) {
+             response.encode(buffer.data(), bytes_transferred);
            }
+
            return ret;
          }});
     handler_lookup_.insert(

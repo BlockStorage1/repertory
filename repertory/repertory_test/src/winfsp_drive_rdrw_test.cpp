@@ -334,9 +334,14 @@ static void test_overlapped_file(auto &&mount_location, auto &&file_path,
   EXPECT_EQ(0,
             std::memcmp(write_buffer.data(), read_buffer.data(), bytes_read));
 
+  LARGE_INTEGER size{};
+  ::GetFileSizeEx(handle, &size);
+
   read_buffer.clear();
   read_buffer.resize(buffer_size);
   overlapped.Offset = 3U * bytes_per_sector;
+  fmt::println("size|{}|offset|{}|buf_size|{}", size.QuadPart,
+               overlapped.Offset, buffer_size);
   ret = ::ReadFile(handle, read_buffer.data(), bytes_per_sector, &bytes_read,
                    &overlapped);
   EXPECT_TRUE(ret || ERROR_IO_PENDING == ::GetLastError() ||

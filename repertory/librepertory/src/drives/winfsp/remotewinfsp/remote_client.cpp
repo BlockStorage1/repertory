@@ -198,11 +198,6 @@ auto remote_client::winfsp_create(PWSTR file_name, UINT32 create_options,
                         utils::string::to_utf8(file_name),
                     });
     }
-#if defined(_WIN32)
-    else {
-      ret = STATUS_OBJECT_NAME_COLLISION;
-    }
-#endif // defined(_WIN32)
   }
 
   return ret;
@@ -232,7 +227,8 @@ auto remote_client::winfsp_get_dir_buffer([[maybe_unused]] PVOID file_desc,
   if (get_directory_buffer(reinterpret_cast<native_handle>(file_desc), ptr)) {
     return static_cast<packet::error_type>(STATUS_SUCCESS);
   }
-#endif
+#endif // defined(_WIN32)
+
   return static_cast<packet::error_type>(STATUS_INVALID_HANDLE);
 }
 
@@ -392,6 +388,8 @@ auto remote_client::winfsp_read(PVOID file_desc, PVOID buffer, UINT64 offset,
     -> packet::error_type {
   REPERTORY_USES_FUNCTION_NAME();
 
+  *bytes_transferred = 0U;
+
   packet request;
   request.encode(file_desc);
   request.encode(offset);
@@ -403,14 +401,8 @@ auto remote_client::winfsp_read(PVOID file_desc, PVOID buffer, UINT64 offset,
       packet_client_.send(function_name, request, response, service_flags),
   };
   DECODE_OR_IGNORE(&response, *bytes_transferred);
-  if (ret == STATUS_SUCCESS) {
+  if ((ret == STATUS_SUCCESS) && (*bytes_transferred != 0U)) {
     ret = response.decode(buffer, *bytes_transferred);
-#if defined(_WIN32)
-    if ((ret == STATUS_SUCCESS) &&
-        ((*bytes_transferred == 0U) || (*bytes_transferred != length))) {
-      ::SetLastError(ERROR_HANDLE_EOF);
-    }
-#endif
   }
 
   return ret;
@@ -528,6 +520,8 @@ auto remote_client::winfsp_write(PVOID file_desc, PVOID buffer, UINT64 offset,
                                  remote::file_info *file_info)
     -> packet::error_type {
   REPERTORY_USES_FUNCTION_NAME();
+
+  *bytes_transferred = 0U;
 
   packet request;
   request.encode(file_desc);
