@@ -30,6 +30,7 @@
 #include "drives/remote/remote_open_file_table.hpp"
 #include "drives/winfsp/remotewinfsp/i_remote_instance.hpp"
 #include "events/event_system.hpp"
+#include "events/types/debug_log.hpp"
 #include "events/types/service_start_begin.hpp"
 #include "events/types/service_start_end.hpp"
 #include "events/types/service_stop_begin.hpp"
@@ -351,6 +352,11 @@ public:
                                    &bytes_transferred);
            response.encode(bytes_transferred);
            buffer.resize(bytes_transferred);
+
+           event_system::instance().raise<debug_log>(
+               function_name,
+               fmt::format("read|offset|{}|len|{}|ret|{}|tx|{}", offset, length,
+                           ret, bytes_transferred));
 
            if ((ret == STATUS_SUCCESS) && (bytes_transferred != 0U)) {
              response.encode(buffer.data(), bytes_transferred);
