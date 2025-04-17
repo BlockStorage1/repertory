@@ -19,6 +19,7 @@
 ### Changes from v2.0.5-rc
 
 * Drive letters in UI should always be lowercase
+* Fixed WinFSP directory rename for non-empty directories
 * Migrated to v2 error handling
 
 ## v2.0.5-rc
