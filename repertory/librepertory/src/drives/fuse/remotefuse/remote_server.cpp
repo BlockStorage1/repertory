@@ -1381,7 +1381,7 @@ auto remote_server::winfsp_read(PVOID file_desc, PVOID buffer, UINT64 offset,
     if (res >= 0) {
       *bytes_transferred = static_cast<UINT32>(res);
       if (*bytes_transferred == 0U) {
-        ret = STATUS_END_OF_FILE;
+        ret = static_cast<packet::error_type>(STATUS_END_OF_FILE);
       }
     } else {
       ret =
