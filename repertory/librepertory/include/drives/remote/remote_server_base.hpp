@@ -353,11 +353,6 @@ public:
            response.encode(bytes_transferred);
            buffer.resize(bytes_transferred);
 
-           event_system::instance().raise<debug_log>(
-               function_name,
-               fmt::format("read|offset|{}|len|{}|ret|{}|tx|{}", offset, length,
-                           ret, bytes_transferred));
-
            if ((ret == STATUS_SUCCESS) && (bytes_transferred != 0U)) {
              response.encode(buffer.data(), bytes_transferred);
            }
