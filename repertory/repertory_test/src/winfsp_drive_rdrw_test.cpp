@@ -340,8 +340,6 @@ static void test_overlapped_file(auto &&mount_location, auto &&file_path,
   read_buffer.clear();
   read_buffer.resize(buffer_size);
   overlapped.Offset = 3U * bytes_per_sector;
-  fmt::println("size|{}|offset|{}|buf_size|{}", size.QuadPart,
-               overlapped.Offset, buffer_size);
   ret = ::ReadFile(handle, read_buffer.data(), bytes_per_sector, &bytes_read,
                    &overlapped);
   EXPECT_TRUE(ret || ERROR_IO_PENDING == ::GetLastError() ||

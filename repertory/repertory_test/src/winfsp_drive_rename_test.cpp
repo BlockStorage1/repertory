@@ -157,7 +157,6 @@ TYPED_TEST(winfsp_test, rename_dir_succeeds_if_dest_does_not_exist) {
   ASSERT_TRUE(::CreateDirectoryA(dir_path.c_str(), nullptr));
 
   EXPECT_TRUE(::MoveFileExA(dir_path.c_str(), dir_path2.c_str(), 0));
-  fmt::println("error|{}", ::GetLastError());
 
   EXPECT_TRUE(::RemoveDirectoryA(dir_path2.c_str()));
 }

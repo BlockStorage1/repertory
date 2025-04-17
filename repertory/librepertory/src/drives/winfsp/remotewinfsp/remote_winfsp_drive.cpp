@@ -352,7 +352,6 @@ auto remote_winfsp_drive::Read(PVOID /*file_node*/, PVOID file_desc,
   auto ret = remote_instance_->winfsp_read(
       file_desc, buffer, offset, length,
       reinterpret_cast<PUINT32>(bytes_transferred));
-  fmt::println("read|len|{}|ret|{}|bytes|{}", length, ret, *bytes_transferred);
   if ((ret == STATUS_SUCCESS) && (*bytes_transferred != length)) {
     ::SetLastError(ERROR_HANDLE_EOF);
   }
