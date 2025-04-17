@@ -1388,6 +1388,9 @@ auto remote_server::winfsp_read(PVOID file_desc, PVOID buffer, UINT64 offset,
       ret =
           static_cast<packet::error_type>(utils::unix_error_to_windows(errno));
     }
+    event_system::instance().raise<debug_log>(
+        function_name,
+        fmt::format("read|offset|{}|len|{}|res|{}", offset, length, res));
   }
 
   RAISE_REMOTE_FUSE_SERVER_EVENT(
