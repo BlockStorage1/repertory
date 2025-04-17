@@ -30,7 +30,6 @@
 #include "drives/remote/remote_open_file_table.hpp"
 #include "drives/winfsp/remotewinfsp/i_remote_instance.hpp"
 #include "events/event_system.hpp"
-#include "events/types/debug_log.hpp"
 #include "events/types/service_start_begin.hpp"
 #include "events/types/service_start_end.hpp"
 #include "events/types/service_stop_begin.hpp"
