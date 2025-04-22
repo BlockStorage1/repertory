@@ -101,7 +101,7 @@ protected:
                                             std::string &attribute_name,
                                             const std::string &api_path)
       -> api_error;
-#else !defined(__APPLE__)
+#else  // !defined(__APPLE__)
   [[nodiscard]] auto parse_xattr_parameters(const char *name,
                                             std::string &attribute_name,
                                             const std::string &api_path)
