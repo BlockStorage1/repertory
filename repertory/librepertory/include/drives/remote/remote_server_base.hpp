@@ -395,7 +395,7 @@ private:
           [this](auto && /* service_flags */, auto && /* client_id */,
                  auto && /* thread_id */, auto && /* method */, auto &&request,
                  auto && /* response */) -> auto {
-            this->handle_fuse_setchgtime(request);
+            return this->handle_fuse_setchgtime(request);
           },
       },
       {
@@ -903,7 +903,8 @@ private:
 
     remote::file_time bkuptime{};
     remote::file_time crtime{};
-    if ((ret = this->fuse_getxtimes(path.c_str(), bkuptime, crtime)) == 0) {
+    ret = this->fuse_getxtimes(path.c_str(), bkuptime, crtime);
+    if (ret == 0) {
       response.encode(bkuptime);
       response.encode(crtime);
     }
@@ -986,8 +987,9 @@ private:
     DECODE_OR_RETURN(request, handle);
 
     data_buffer buffer;
-    if ((ret = this->fuse_read(path.c_str(), reinterpret_cast<char *>(&buffer),
-                               read_size, read_offset, handle)) > 0) {
+    ret = this->fuse_read(path.c_str(), reinterpret_cast<char *>(&buffer),
+                          read_size, read_offset, handle);
+    if (ret > 0) {
       response.encode(buffer.data(), buffer.size());
     }
     return ret;
@@ -1201,7 +1203,8 @@ private:
     DECODE_OR_RETURN(request, path);
 
     remote::file_time tv[2] = {0};
-    if ((ret = request->decode(&tv[0], sizeof(remote::file_time) * 2)) == 0) {
+    ret = request->decode(&tv[0], sizeof(remote::file_time) * 2);
+    if (ret == 0) {
       std::uint64_t op0{};
       DECODE_OR_RETURN(request, op0);
 
@@ -1227,7 +1230,8 @@ private:
     }
 
     data_buffer buffer(write_size);
-    if ((ret = request->decode(buffer.data(), buffer.size())) == 0) {
+    ret = request->decode(buffer.data(), buffer.size());
+    if (ret == 0) {
       remote::file_offset write_offset{};
       DECODE_OR_RETURN(request, write_offset);
 
@@ -1256,7 +1260,8 @@ private:
     }
 
     data_buffer buffer(write_size);
-    if ((ret = request->decode(buffer.data(), buffer.size())) == 0) {
+    ret = request->decode(buffer.data(), buffer.size());
+    if (ret == 0) {
       buffer =
           macaron::Base64::Decode(std::string(buffer.begin(), buffer.end()));
       write_size = buffer.size();
@@ -1340,6 +1345,7 @@ private:
     }
     return -EBADF;
   }
+
   [[nodiscard]] auto handle_winfsp_can_delete(packet *request)
       -> packet::error_type {
     auto ret = static_cast<packet::error_type>(STATUS_SUCCESS);
