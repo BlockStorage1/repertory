@@ -103,6 +103,613 @@ private:
   client_pool client_pool_;
   std::unique_ptr<packet_server> packet_server_;
 
+private:
+  const std::unordered_map<std::string, handler_callback> handler_lookup_ = {
+      {
+          "::fuse_access",
+          [this](auto && /* service_flags */, auto && /* client_id */,
+                 auto && /* thread_id */, auto && /* method */, auto &&request,
+                 auto && /* response */) -> auto {
+            return this->handle_fuse_access(request);
+          },
+      },
+      {
+          "::fuse_chflags",
+          [this](auto && /* service_flags */, auto && /* client_id */,
+                 auto && /* thread_id */, auto && /* method */, auto &&request,
+                 auto && /* response */) -> auto {
+            return this->handle_fuse_chflags(request);
+          },
+      },
+      {
+          "::fuse_chmod",
+          [this](auto && /* service_flags */, auto && /* client_id */,
+                 auto && /* thread_id */, auto && /* method */, auto &&request,
+                 auto && /* response */) -> auto {
+            return this->handle_fuse_chmod(request);
+          },
+      },
+      {
+          "::fuse_chown",
+          [this](auto && /* service_flags */, auto && /* client_id */,
+                 auto && /* thread_id */, auto && /* method */, auto &&request,
+                 auto && /* response */) -> auto {
+            return this->handle_fuse_chown(request);
+          },
+      },
+      {
+          "::fuse_create",
+          [this](auto && /* service_flags */, auto &&client_id,
+                 auto && /* thread_id */, auto && /* method */, auto &&request,
+                 auto &&response) -> auto {
+            return this->handle_fuse_create(client_id, request, response);
+          },
+      },
+      {
+          "::fuse_destroy",
+          [this](auto && /* service_flags */, auto && /* client_id */,
+                 auto && /* thread_id */, auto && /* method */,
+                 auto && /* request */, auto && /* response */) -> auto {
+            return this->handle_fuse_destroy();
+          },
+      },
+      /*handlerLookup_.insert({"::fuse_fallocate",
+                             [this](std::uint32_t serviceFlags, const
+         std::string &client_id, std::uint64_t threadId, const std::string
+         &method, packet *request, packet &response) -> packet::error_type {
+         auto ret{0};
+
+                               std::string path;
+                               DECODE_OR_RETURN(request, path);
+
+                               std::int32_t mode;
+                               DECODE_OR_RETURN(request, mode);
+
+                               remote::file_offset offset;
+                               DECODE_OR_RETURN(request, offset);
+
+                               remote::file_offset length;
+                               DECODE_OR_RETURN(request, length);
+
+                               remote::file_handle handle;
+                               DECODE_OR_RETURN(request, handle);
+
+                               return this->fuse_fallocate(path.c_str(), mode,
+         offset, length, handle);
+                             }});*/
+      {
+          "::fuse_fgetattr",
+          [this](auto && /* service_flags */, auto && /* client_id */,
+                 auto && /* thread_id */, auto && /* method */, auto &&request,
+                 auto &&response) -> auto {
+            return this->handle_fuse_fgetattr(request, response);
+          },
+      },
+      {
+          "::fuse_fsetattr_x",
+          [this](auto && /* service_flags */, auto && /* client_id */,
+                 auto && /* thread_id */, auto && /* method */, auto &&request,
+                 auto && /* response */) -> auto {
+            return this->handle_fuse_fsetattr_x(request);
+          },
+      },
+      {
+          "::fuse_fsync",
+          [this](auto && /* service_flags */, auto && /* client_id */,
+                 auto && /* thread_id */, auto && /* method */, auto &&request,
+                 auto && /* response */) -> auto {
+            return this->handle_fuse_fsync(request);
+          },
+      },
+      {
+          "::fuse_ftruncate",
+          [this](auto && /* service_flags */, auto && /* client_id */,
+                 auto && /* thread_id */, auto && /* method */, auto &&request,
+                 auto && /* response */) -> auto {
+            return this->handle_fuse_ftruncate(request);
+          },
+      },
+      {
+          "::fuse_getattr",
+          [this](auto && /* service_flags */, auto && /* client_id */,
+                 auto && /* thread_id */, auto && /* method */, auto &&request,
+                 auto &&response) -> auto {
+            return this->handle_fuse_getattr(request, response);
+          },
+      },
+      /*handlerLookup_.insert({"::fuse_getxattr",
+                             [this](std::uint32_t serviceFlags, const
+      std::string &client_id, std::uint64_t threadId, const std::string
+      &method, packet *request, packet &response) -> packet::error_type { auto
+      ret{0};
+
+                               std::string path;
+                               DECODE_OR_RETURN(request, path);
+
+                               std::string name;
+                               DECODE_OR_RETURN(request, name);
+
+                               remote::file_size size;
+                               DECODE_OR_RETURN(request, size);
+
+                               return this->fuse_getxattr(path.c_str(),
+      &name[0], nullptr, size);
+                             }});
+      handlerLookup_.insert({"::fuse_getxattr_osx",
+                             [this](std::uint32_t serviceFlags, const
+      std::string &client_id, std::uint64_t threadId, const std::string
+      &method, packet *request, packet &response) -> packet::error_type { auto
+      ret{0};
+
+                               std::string path;
+                               DECODE_OR_RETURN(request, path);
+
+                               std::string name;
+                               DECODE_OR_RETURN(request, name);
+
+                               remote::file_size size;
+                               DECODE_OR_RETURN(request, size);
+
+                               std::uint32_t position;
+                               DECODE_OR_RETURN(request, position);
+
+                               return this->fuse_getxattr_osx(path.c_str(),
+      &name[0], nullptr, size, position);
+                             }});*/
+      {
+          "::fuse_getxtimes",
+          [this](auto && /* service_flags */, auto && /* client_id */,
+                 auto && /* thread_id */, auto && /* method */, auto &&request,
+                 auto &&response) -> auto {
+            return this->handle_fuse_getxtimes(request, response);
+          },
+      },
+      {
+          "::fuse_init",
+          [this](auto && /* service_flags */, auto && /* client_id */,
+                 auto && /* thread_id */, auto && /* method */,
+                 auto && /* request */, auto && /* response */) -> auto {
+            return this->handle_fuse_init();
+          },
+      },
+      /*handlerLookup_.insert({"::remote_fuseListxattr",
+                             [this](std::uint32_t serviceFlags, const
+         std::string &client_id, std::uint64_t threadId, const std::string
+         &method, packet *request, packet &response) -> packet::error_type {
+         auto ret{0};
+
+                               std::string path;
+                               DECODE_OR_RETURN(request, path);
+
+                               remote::file_size size;
+                               DECODE_OR_RETURN(request, size);
+
+                               return this->fuse_listxattr(path.c_str(),
+         nullptr, size);
+                             }});*/
+      {
+          "::fuse_mkdir",
+          [this](auto && /* service_flags */, auto && /* client_id */,
+                 auto && /* thread_id */, auto && /* method */, auto &&request,
+                 auto && /* response */) -> auto {
+            return this->handle_fuse_mkdir(request);
+          },
+      },
+      {
+          "::fuse_open",
+          [this](auto && /* service_flags */, auto &&client_id,
+                 auto && /* thread_id */, auto && /* method */, auto &&request,
+                 auto &&response) -> auto {
+            return this->handle_fuse_open(client_id, request, response);
+          },
+      },
+      {
+          "::fuse_opendir",
+          [this](auto && /* service_flags */, auto &&client_id,
+                 auto && /* thread_id */, auto && /* method */, auto &&request,
+                 auto &&response) -> auto {
+            return this->handle_fuse_opendir(client_id, request, response);
+          },
+      },
+      {
+          "::fuse_read",
+          [this](auto && /* service_flags */, auto && /* client_id */,
+                 auto && /* thread_id */, auto && /* method */, auto &&request,
+                 auto &&response) -> auto {
+            return this->handle_fuse_read(request, response);
+          },
+      },
+      {
+          "::fuse_readdir",
+          [this](auto && /* service_flags */, auto &&client_id,
+                 auto && /* thread_id */, auto && /* method */, auto &&request,
+                 auto &&response) -> auto {
+            return this->handle_fuse_readdir(client_id, request, response);
+          },
+      },
+      {
+          "::fuse_release",
+          [this](auto && /* service_flags */, auto && /* client_id */,
+                 auto && /* thread_id */, auto && /* method */, auto &&request,
+                 auto && /* response */) -> auto {
+            return this->handle_fuse_release(request);
+          },
+      },
+      {
+          "::fuse_releasedir",
+          [this](auto && /* service_flags */, auto &&client_id,
+                 auto && /* thread_id */, auto && /* method */, auto &&request,
+                 auto && /* response */) -> auto {
+            return this->handle_fuse_releasedir(client_id, request);
+          },
+      },
+      /*handlerLookup_.insert({"::fuse_removexattr",
+                             [this](std::uint32_t serviceFlags, const
+         std::string &client_id, std::uint64_t threadId, const std::string
+         &method, packet *request, packet &response) -> packet::error_type {
+         auto ret{0};
+
+                               std::string path;
+                               DECODE_OR_RETURN(request, path);
+
+                               std::string name;
+                               DECODE_OR_RETURN(request, name);
+
+                               return this->fuse_removexattr(path.c_str(),
+         &name[0]);
+                             }});*/
+      {
+          "::fuse_rename",
+          [this](auto && /* service_flags */, auto && /* client_id */,
+                 auto && /* thread_id */, auto && /* method */, auto &&request,
+                 auto && /* response */) -> auto {
+            return this->handle_fuse_rename(request);
+          },
+      },
+      {
+          "::fuse_rmdir",
+          [this](auto && /* service_flags */, auto && /* client_id */,
+                 auto && /* thread_id */, auto && /* method */, auto &&request,
+                 auto && /* response */) -> auto {
+            return this->handle_fuse_rmdir(request);
+          },
+      },
+      {
+          "::fuse_setattr_x",
+          [this](auto && /* service_flags */, auto && /* client_id */,
+                 auto && /* thread_id */, auto && /* method */, auto &&request,
+                 auto && /* response */) -> auto {
+            return this->handle_fuse_setattr_x(request);
+          },
+      },
+      {
+          "::fuse_setbkuptime",
+          [this](auto && /* service_flags */, auto && /* client_id */,
+                 auto && /* thread_id */, auto && /* method */, auto &&request,
+                 auto && /* response */) -> auto {
+            return this->handle_fuse_setbkuptime(request);
+          },
+      },
+      {
+          "::fuse_setchgtime",
+          [this](auto && /* service_flags */, auto && /* client_id */,
+                 auto && /* thread_id */, auto && /* method */, auto &&request,
+                 auto && /* response */) -> auto {
+            this->handle_fuse_setchgtime(request);
+          },
+      },
+      {
+          "::fuse_setcrtime",
+          [this](auto && /* service_flags */, auto && /* client_id */,
+                 auto && /* thread_id */, auto && /* method */, auto &&request,
+                 auto && /* response */) -> auto {
+            return this->handle_fuse_setcrtime(request);
+          },
+      },
+      {
+          "::fuse_setvolname",
+          [this](auto && /* service_flags */, auto && /* client_id */,
+                 auto && /* thread_id */, auto && /* method */, auto &&request,
+                 auto && /* response */) -> auto {
+            return this->handle_fuse_setvolname(request);
+          },
+      },
+      /*handlerLookup_.insert({"::fuse_setxattr",
+                             [this](std::uint32_t serviceFlags, const
+      std::string &client_id, std::uint64_t threadId, const std::string
+      &method, packet *request, packet &response) -> packet::error_type { auto
+      ret{0};
+
+                               std::string path;
+                               DECODE_OR_RETURN(request, path);
+
+                               std::string name;
+                               DECODE_OR_RETURN(request, name);
+
+                               remote::file_size size;
+                               DECODE_OR_RETURN(request, size);
+
+                               if (size >
+      std::numeric_limits<std::size_t>::max()) { return -ERANGE;
+                               }
+
+                               data_buffer
+      value(static_cast<std::size_t>(size)); ret = request->Decode(&value[0],
+      value.size()); if (ret == 0) { std::int32_t flags;
+                                 DECODE_OR_RETURN(request, flags);
+
+                                 ret = this->fuse_setxattr(path.c_str(),
+      &name[0], &value[0], size, flags);
+                               }
+                               return ret;
+                             }});
+      handlerLookup_.insert({"::fuse_setxattr_osx",
+                             [this](std::uint32_t serviceFlags, const
+      std::string &client_id, std::uint64_t threadId, const std::string
+      &method, packet *request, packet &response) -> packet::error_type { auto
+      ret{0};
+
+                               std::string path;
+                               DECODE_OR_RETURN(request, path);
+
+                               std::string name;
+                               DECODE_OR_RETURN(request, name);
+
+                               remote::file_size size;
+                               DECODE_OR_RETURN(request, size);
+
+                               if (size >
+      std::numeric_limits<std::size_t>::max()) { return -ERANGE;
+                               }
+
+                               data_buffer
+      value(static_cast<std::size_t>(size)); ret = request->Decode(&value[0],
+      value.size()); if (ret == 0) { std::int32_t flags;
+                                 DECODE_OR_RETURN(request, flags);
+
+                                 std::uint32_t position;
+                                 DECODE_OR_RETURN(request, position);
+
+                                 ret = this->fuse_setxattr_osx(path.c_str(),
+      &name[0], &value[0], size, flags, position);
+                               }
+                               return ret;
+                             }});*/
+      {
+          "::fuse_statfs",
+          [this](auto && /* service_flags */, auto && /* client_id */,
+                 auto && /* thread_id */, auto && /* method */, auto &&request,
+                 auto &&response) -> auto {
+            return this->handle_fuse_statfs(request, response);
+          },
+      },
+      {
+          "::fuse_statfs_x",
+          [this](auto && /* service_flags */, auto && /* client_id */,
+                 auto && /* thread_id */, auto && /* method */, auto &&request,
+                 auto &&response) -> auto {
+            return this->handle_fuse_statfs_x(request, response);
+          },
+      },
+      {
+          "::fuse_truncate",
+          [this](auto && /* service_flags */, auto && /* client_id */,
+                 auto && /* thread_id */, auto && /* method */, auto &&request,
+                 auto && /* response */) -> auto {
+            return this->handle_fuse_truncate(request);
+          },
+      },
+      {
+          "::fuse_unlink",
+          [this](auto && /* service_flags */, auto && /* client_id */,
+                 auto && /* thread_id */, auto && /* method */, auto &&request,
+                 auto && /* response */) -> auto {
+            return this->handle_fuse_unlink(request);
+          },
+      },
+      {
+          "::fuse_utimens",
+          [this](auto && /* service_flags */, auto && /* client_id */,
+                 auto && /* thread_id */, auto && /* method */, auto &&request,
+                 auto && /* response */) -> auto {
+            return this->handle_fuse_utimens(request);
+          },
+      },
+      {
+          "::fuse_write",
+          [this](auto && /* service_flags */, auto && /* client_id */,
+                 auto && /* thread_id */, auto && /* method */, auto &&request,
+                 auto && /* response */) -> auto {
+            return this->handle_fuse_write(request);
+          },
+      },
+      {
+          "::fuse_write_base64",
+          [this](auto && /* service_flags */, auto && /* client_id */,
+                 auto && /* thread_id */, auto && /* method */, auto &&request,
+                 auto && /* response */) -> auto {
+            return this->handle_fuse_write_base64(request);
+          },
+      },
+      {
+          "::json_create_directory_snapshot",
+          [this](auto && /* service_flags */, auto &&client_id,
+                 auto && /* thread_id */, auto && /* method */, auto &&request,
+                 auto &&response) -> auto {
+            return this->handle_json_create_directory_snapshot(
+                client_id, request, response);
+          },
+      },
+      {
+          "::json_read_directory_snapshot",
+          [this](auto && /* service_flags */, auto &&client_id,
+                 auto && /* thread_id */, auto && /* method */, auto &&request,
+                 auto &&response) -> auto {
+            return this->handle_json_read_directory_snapshot(client_id, request,
+                                                             response);
+          },
+      },
+      {
+          "::json_release_directory_snapshot",
+          [this](auto && /* service_flags */, auto &&client_id,
+                 auto && /* thread_id */, auto && /* method */, auto &&request,
+                 auto && /* response */) -> auto {
+            return this->handle_json_release_directory_snapshot(client_id,
+                                                                request);
+          },
+      },
+      {
+          "::winfsp_can_delete",
+          [this](auto && /* service_flags */, auto && /* client_id */,
+                 auto && /* thread_id */, auto && /* method */, auto &&request,
+                 auto && /* response */) -> auto {
+            return this->handle_winfsp_can_delete(request);
+          },
+      },
+      {
+          "::winfsp_cleanup",
+          [this](auto && /* service_flags */, auto && /* client_id */,
+                 auto && /* thread_id */, auto && /* method */, auto &&request,
+                 auto &&response) -> auto {
+            return this->handle_winfsp_cleanup(request, response);
+          },
+      },
+      {
+          "::winfsp_close",
+          [this](auto && /* service_flags */, auto && /* client_id */,
+                 auto && /* thread_id */, auto && /* method */, auto &&request,
+                 auto && /* response */) -> auto {
+            return this->handle_winfsp_close(request);
+          },
+      },
+      {
+          "::winfsp_create",
+          [this](auto && /* service_flags */, auto &&client_id,
+                 auto && /* thread_id */, auto && /* method */, auto &&request,
+                 auto &&response) -> auto {
+            return this->handle_winfsp_create(client_id, request, response);
+          },
+      },
+      {
+          "::winfsp_flush",
+          [this](auto && /* service_flags */, auto && /* client_id */,
+                 auto && /* thread_id */, auto && /* method */, auto &&request,
+                 auto &&response) -> auto {
+            return this->handle_winfsp_flush(request, response);
+          },
+      },
+      {
+          "::winfsp_get_file_info",
+          [this](auto && /* service_flags */, auto && /* client_id */,
+                 auto && /* thread_id */, auto && /* method */, auto &&request,
+                 auto &&response) -> auto {
+            return this->handle_winfsp_get_file_info(request, response);
+          },
+      },
+      {
+          "::winfsp_get_security_by_name",
+          [this](auto && /* service_flags */, auto && /* client_id */,
+                 auto && /* thread_id */, auto && /* method */, auto &&request,
+                 auto &&response) -> auto {
+            return this->handle_winfsp_get_security_by_name(request, response);
+          },
+      },
+      {
+          "::winfsp_get_volume_info",
+          [this](auto && /* service_flags */, auto && /* client_id */,
+                 auto && /* thread_id */, auto && /* method */,
+                 auto && /* request */, auto &&response) -> auto {
+            return this->handle_winfsp_get_volume_info(response);
+          },
+      },
+      {
+          "::winfsp_mounted",
+          [this](auto && /* service_flags */, auto && /* client_id */,
+                 auto && /* thread_id */, auto && /* method */, auto &&request,
+                 auto && /* response */) -> auto {
+            return this->handle_winfsp_mounted(request);
+          },
+      },
+      {
+          "::winfsp_open",
+          [this](auto && /* service_flags */, auto &&client_id,
+                 auto && /* thread_id */, auto && /* method */, auto &&request,
+                 auto &&response) -> auto {
+            return this->handle_winfsp_open(client_id, request, response);
+          },
+      },
+      {
+          "::winfsp_overwrite",
+          [this](auto && /* service_flags */, auto && /* client_id */,
+                 auto && /* thread_id */, auto && /* method */, auto &&request,
+                 auto &&response) -> auto {
+            return this->handle_winfsp_overwrite(request, response);
+          },
+      },
+      {
+          "::winfsp_read",
+          [this](auto && /* service_flags */, auto && /* client_id */,
+                 auto && /* thread_id */, auto && /* method */, auto &&request,
+                 auto &&response) -> auto {
+            return this->handle_winfsp_read(request, response);
+          },
+      },
+      {
+          "::winfsp_read_directory",
+          [this](auto && /* service_flags */, auto && /* client_id */,
+                 auto && /* thread_id */, auto && /* method */, auto &&request,
+                 auto &&response) -> auto {
+            return this->handle_winfsp_read_directory(request, response);
+          },
+      },
+      {
+          "::winfsp_rename",
+          [this](auto && /* service_flags */, auto && /* client_id */,
+                 auto && /* thread_id */, auto && /* method */, auto &&request,
+                 auto && /* response */) -> auto {
+            return this->handle_winfsp_rename(request);
+          },
+      },
+      {
+          "::winfsp_set_basic_info",
+          [this](auto && /* service_flags */, auto && /* client_id */,
+                 auto && /* thread_id */, auto && /* method */, auto &&request,
+                 auto &&response) -> auto {
+            return this->handle_winfsp_set_basic_info(request, response);
+          },
+      },
+      {
+          "::winfsp_set_file_size",
+          [this](auto && /* service_flags */, auto && /* client_id */,
+                 auto && /* thread_id */, auto && /* method */, auto &&request,
+                 auto &&response) -> auto {
+            return this->handle_winfsp_set_file_size(request, response);
+          },
+      },
+      {
+          "::winfsp_unmounted",
+          [this](auto && /* service_flags */, auto && /* client_id */,
+                 auto && /* thread_id */, auto && /* method */, auto &&request,
+                 auto && /* response */) -> auto {
+            return this->handle_winfsp_unmounted(request);
+          },
+      },
+      {
+          "::winfsp_write",
+          [this](auto && /* service_flags */, auto && /* client_id */,
+                 auto && /* thread_id */, auto && /* method */, auto &&request,
+                 auto &&response) -> auto {
+            return this->handle_winfsp_write(request, response);
+          },
+      },
+  };
+
+private:
+  void closed_handler(const std::string &client_id) {
+    client_pool_.remove_client(client_id);
+    close_all(client_id);
+  }
+
   [[nodiscard]] auto handle_fuse_access(packet *request) -> packet::error_type {
     auto ret{0};
 
@@ -287,869 +894,452 @@ private:
     return ret;
   }
 
-private:
-  const std::unordered_map<std::string, handler_callback> handler_lookup_ = {
-      {
-          "::fuse_access",
-          [this](auto && /* service_flags */, auto && /* client_id */,
-                 auto && /* thread_id */, auto && /* method */, auto &&request,
-                 auto && /* response */) -> auto {
-            return this->handle_fuse_access(request);
-          },
-      },
-      {
-          "::fuse_chflags",
-          [this](auto && /* service_flags */, auto && /* client_id */,
-                 auto && /* thread_id */, auto && /* method */, auto &&request,
-                 auto && /* response */) -> auto {
-            return this->handle_fuse_chflags(request);
-          },
-      },
-      {
-          "::fuse_chmod",
-          [this](auto && /* service_flags */, auto && /* client_id */,
-                 auto && /* thread_id */, auto && /* method */, auto &&request,
-                 auto && /* response */) -> auto {
-            return this->handle_fuse_chmod(request);
-          },
-      },
-      {
-          "::fuse_chown",
-          [this](auto && /* service_flags */, auto && /* client_id */,
-                 auto && /* thread_id */, auto && /* method */, auto &&request,
-                 auto && /* response */) -> auto {
-            return this->handle_fuse_chown(request);
-          },
-      },
-      {
-          "::fuse_create",
-          [this](auto && /* service_flags */, auto &&client_id,
-                 auto && /* thread_id */, auto && /* method */, auto &&request,
-                 auto &&response) -> auto {
-            return this->handle_fuse_create(client_id, request, response);
-          },
-      },
-      {
-          "::fuse_destroy",
-          [this](auto && /* service_flags */, auto && /* client_id */,
-                 auto && /* thread_id */, auto && /* method */,
-                 auto && /* request */, auto && /* response */) -> auto {
-            return this->handle_fuse_destroy();
-          },
-      },
-      /*handlerLookup_.insert({"::fuse_fallocate",
-                             [this](std::uint32_t serviceFlags, const
-         std::string &client_id, std::uint64_t threadId, const std::string
-         &method, packet *request, packet &response) -> packet::error_type {
-         auto ret{0};
+  [[nodiscard]] auto handle_fuse_getxtimes(packet *request, packet &response)
+      -> packet::error_type {
+    auto ret{0};
 
-                               std::string path;
-                               DECODE_OR_RETURN(request, path);
+    std::string path;
+    DECODE_OR_RETURN(request, path);
 
-                               std::int32_t mode;
-                               DECODE_OR_RETURN(request, mode);
+    remote::file_time bkuptime{};
+    remote::file_time crtime{};
+    if ((ret = this->fuse_getxtimes(path.c_str(), bkuptime, crtime)) == 0) {
+      response.encode(bkuptime);
+      response.encode(crtime);
+    }
 
-                               remote::file_offset offset;
-                               DECODE_OR_RETURN(request, offset);
+    return ret;
+  }
 
-                               remote::file_offset length;
-                               DECODE_OR_RETURN(request, length);
+  [[nodiscard]] auto handle_fuse_init() -> packet::error_type {
+    return this->fuse_init();
+  }
 
-                               remote::file_handle handle;
-                               DECODE_OR_RETURN(request, handle);
+  [[nodiscard]] auto handle_fuse_mkdir(packet *request) -> packet::error_type {
+    auto ret{0};
 
-                               return this->fuse_fallocate(path.c_str(), mode,
-         offset, length, handle);
-                             }});*/
-      {
-          "::fuse_fgetattr",
-          [this](auto && /* service_flags */, auto && /* client_id */,
-                 auto && /* thread_id */, auto && /* method */, auto &&request,
-                 auto &&response) -> auto {
-            return this->handle_fuse_fgetattr(request, response);
-          },
-      },
-      {
-          "::fuse_fsetattr_x",
-          [this](auto && /* service_flags */, auto && /* client_id */,
-                 auto && /* thread_id */, auto && /* method */, auto &&request,
-                 auto && /* response */) -> auto {
-            return this->handle_fuse_fsetattr_x(request);
-          },
-      },
-      {
-          "::fuse_fsync",
-          [this](auto && /* service_flags */, auto && /* client_id */,
-                 auto && /* thread_id */, auto && /* method */, auto &&request,
-                 auto && /* response */) -> auto {
-            return this->handle_fuse_fsync(request);
-          },
-      },
-      {
-          "::fuse_ftruncate",
-          [this](auto && /* service_flags */, auto && /* client_id */,
-                 auto && /* thread_id */, auto && /* method */, auto &&request,
-                 auto && /* response */) -> auto {
-            return this->handle_fuse_ftruncate(request);
-          },
-      },
-      {
-          "::fuse_getattr",
-          [this](auto && /* service_flags */, auto && /* client_id */,
-                 auto && /* thread_id */, auto && /* method */, auto &&request,
-                 auto &&response) -> auto {
-            return this->handle_fuse_getattr(request, response);
-          },
-      },
-      /*handlerLookup_.insert({"::fuse_getxattr",
-                             [this](std::uint32_t serviceFlags, const
-      std::string &client_id, std::uint64_t threadId, const std::string
-      &method, packet *request, packet &response) -> packet::error_type { auto
-      ret{0};
+    std::string path;
+    DECODE_OR_RETURN(request, path);
 
-                               std::string path;
-                               DECODE_OR_RETURN(request, path);
+    remote::file_mode mode;
+    DECODE_OR_RETURN(request, mode);
 
-                               std::string name;
-                               DECODE_OR_RETURN(request, name);
+    return this->fuse_mkdir(path.c_str(), mode);
+  }
 
-                               remote::file_size size;
-                               DECODE_OR_RETURN(request, size);
+  [[nodiscard]] auto handle_fuse_open(const std::string &client_id,
+                                      packet *request, packet &response)
+      -> packet::error_type {
+    auto ret{0};
 
-                               return this->fuse_getxattr(path.c_str(),
-      &name[0], nullptr, size);
-                             }});
-      handlerLookup_.insert({"::fuse_getxattr_osx",
-                             [this](std::uint32_t serviceFlags, const
-      std::string &client_id, std::uint64_t threadId, const std::string
-      &method, packet *request, packet &response) -> packet::error_type { auto
-      ret{0};
+    std::string path;
+    DECODE_OR_RETURN(request, path);
 
-                               std::string path;
-                               DECODE_OR_RETURN(request, path);
+    remote::open_flags flags;
+    DECODE_OR_RETURN(request, flags);
 
-                               std::string name;
-                               DECODE_OR_RETURN(request, name);
-
-                               remote::file_size size;
-                               DECODE_OR_RETURN(request, size);
-
-                               std::uint32_t position;
-                               DECODE_OR_RETURN(request, position);
-
-                               return this->fuse_getxattr_osx(path.c_str(),
-      &name[0], nullptr, size, position);
-                             }});*/
-      {"::fuse_getxtimes",
-       [this](std::uint32_t, const std::string &, std::uint64_t,
-              const std::string &, packet *request,
-              packet &response) -> packet::error_type {
-         auto ret{0};
-
-         std::string path;
-         DECODE_OR_RETURN(request, path);
-
-         remote::file_time bkuptime{};
-         remote::file_time crtime{};
-         if ((ret = this->fuse_getxtimes(path.c_str(), bkuptime, crtime)) ==
-             0) {
-           response.encode(bkuptime);
-           response.encode(crtime);
-         }
-
-         return ret;
-       }},
-      {"::fuse_init",
-       [this](std::uint32_t, const std::string &, std::uint64_t,
-              const std::string &, packet *,
-              packet &) -> packet::error_type { return this->fuse_init(); }},
-      /*handlerLookup_.insert({"::remote_fuseListxattr",
-                             [this](std::uint32_t serviceFlags, const
-         std::string &client_id, std::uint64_t threadId, const std::string
-         &method, packet *request, packet &response) -> packet::error_type {
-         auto ret{0};
-
-                               std::string path;
-                               DECODE_OR_RETURN(request, path);
-
-                               remote::file_size size;
-                               DECODE_OR_RETURN(request, size);
-
-                               return this->fuse_listxattr(path.c_str(),
-         nullptr, size);
-                             }});*/
-      {"::fuse_mkdir",
-       [this](std::uint32_t, const std::string &, std::uint64_t,
-              const std::string &, packet *request,
-              packet &) -> packet::error_type {
-         auto ret{0};
-
-         std::string path;
-         DECODE_OR_RETURN(request, path);
-
-         remote::file_mode mode;
-         DECODE_OR_RETURN(request, mode);
-
-         return this->fuse_mkdir(path.c_str(), mode);
-       }},
-      {"::fuse_open",
-       [this](std::uint32_t, const std::string &client_id, std::uint64_t,
-              const std::string &, packet *request,
-              packet &response) -> packet::error_type {
-         auto ret{0};
-
-         std::string path;
-         DECODE_OR_RETURN(request, path);
-
-         remote::open_flags flags;
-         DECODE_OR_RETURN(request, flags);
-
-         remote::file_handle handle;
-         ret = this->fuse_open(path.c_str(), flags, handle);
-         if (ret >= 0) {
+    remote::file_handle handle;
+    ret = this->fuse_open(path.c_str(), flags, handle);
+    if (ret >= 0) {
 #if defined(_WIN32)
-           this->set_compat_client_id(handle, client_id);
+      this->set_compat_client_id(handle, client_id);
 #else  // !defined(_WIN32)
-           this->set_client_id(static_cast<native_handle>(handle), client_id);
+      this->set_client_id(static_cast<native_handle>(handle), client_id);
 #endif // defined(_WIN32)
-           response.encode(handle);
-         }
-         return ret;
-       }},
-      {"::fuse_opendir",
-       [this](std::uint32_t, const std::string &client_id, std::uint64_t,
-              const std::string &, packet *request,
-              packet &response) -> packet::error_type {
-         auto ret{0};
-
-         std::string path;
-         DECODE_OR_RETURN(request, path);
-
-         remote::file_handle handle{0};
-         ret = this->fuse_opendir(path.c_str(), handle);
-         if (ret >= 0) {
-           this->add_directory(client_id, handle);
-           response.encode(handle);
-         }
-         return ret;
-       }},
-      {"::fuse_read",
-       [this](std::uint32_t, const std::string &, std::uint64_t,
-              const std::string &, packet *request,
-              packet &response) -> packet::error_type {
-         auto ret{0};
-
-         std::string path;
-         DECODE_OR_RETURN(request, path);
-
-         remote::file_size read_size;
-         DECODE_OR_RETURN(request, read_size);
-
-         remote::file_offset read_offset;
-         DECODE_OR_RETURN(request, read_offset);
-
-         remote::file_handle handle;
-         DECODE_OR_RETURN(request, handle);
-
-         data_buffer buffer;
-         if ((ret = this->fuse_read(path.c_str(),
-                                    reinterpret_cast<char *>(&buffer),
-                                    read_size, read_offset, handle)) > 0) {
-           response.encode(buffer.data(), buffer.size());
-         }
-         return ret;
-       }},
-      {"::fuse_readdir",
-       [this](std::uint32_t, const std::string &client_id, std::uint64_t,
-              const std::string &, packet *request,
-              packet &response) -> packet::error_type {
-         auto ret{0};
-
-         std::string path;
-         DECODE_OR_RETURN(request, path);
-
-         remote::file_offset offset;
-         DECODE_OR_RETURN(request, offset);
-
-         remote::file_handle handle;
-         DECODE_OR_RETURN(request, handle);
-
-         if (this->has_open_directory(client_id, handle)) {
-           std::string file_path;
-           ret = this->fuse_readdir(path.c_str(), offset, handle, file_path);
-           if (ret == 0) {
-             response.encode(file_path);
-           }
-         } else {
-           ret = -EBADF;
-         }
-
-         return ret;
-       }},
-      {"::fuse_release",
-       [this](std::uint32_t, const std::string &, std::uint64_t,
-              const std::string &, packet *request,
-              packet &) -> packet::error_type {
-         auto ret{0};
-
-         std::string path;
-         DECODE_OR_RETURN(request, path);
-
-         remote::file_handle handle;
-         DECODE_OR_RETURN(request, handle);
-
-         return this->fuse_release(path.c_str(), handle);
-       }},
-      {"::fuse_releasedir",
-       [this](std::uint32_t, const std::string &client_id, std::uint64_t,
-              const std::string &, packet *request,
-              packet &) -> packet::error_type {
-         auto ret{0};
-
-         std::string path;
-         DECODE_OR_RETURN(request, path);
-
-         remote::file_handle handle;
-         DECODE_OR_RETURN(request, handle);
-
-         ret = this->fuse_releasedir(path.c_str(), handle);
-         if (this->remove_directory(client_id, handle)) {
-           return ret;
-         }
-         return -EBADF;
-       }},
-      /*handlerLookup_.insert({"::fuse_removexattr",
-                             [this](std::uint32_t serviceFlags, const
-         std::string &client_id, std::uint64_t threadId, const std::string
-         &method, packet *request, packet &response) -> packet::error_type {
-         auto ret{0};
-
-                               std::string path;
-                               DECODE_OR_RETURN(request, path);
-
-                               std::string name;
-                               DECODE_OR_RETURN(request, name);
-
-                               return this->fuse_removexattr(path.c_str(),
-         &name[0]);
-                             }});*/
-      {"::fuse_rename",
-       [this](std::uint32_t, const std::string &, std::uint64_t,
-              const std::string &, packet *request,
-              packet &) -> packet::error_type {
-         std::int32_t ret{0};
-
-         std::string from;
-         DECODE_OR_RETURN(request, from);
-
-         std::string to;
-         DECODE_OR_RETURN(request, to);
-
-         return this->fuse_rename(from.data(), to.data());
-       }},
-      {"::fuse_rmdir",
-       [this](std::uint32_t, const std::string &, std::uint64_t,
-              const std::string &, packet *request,
-              packet &) -> packet::error_type {
-         std::int32_t ret{0};
-
-         std::string path;
-         DECODE_OR_RETURN(request, path);
-
-         return this->fuse_rmdir(path.data());
-       }},
-      {"::fuse_setattr_x",
-       [this](std::uint32_t, const std::string &, std::uint64_t,
-              const std::string &, packet *request,
-              packet &) -> packet::error_type {
-         std::int32_t ret{0};
-
-         std::string path;
-         DECODE_OR_RETURN(request, path);
-
-         remote::setattr_x attr{};
-         DECODE_OR_RETURN(request, attr);
-
-         return this->fuse_setattr_x(path.data(), attr);
-       }},
-      {"::fuse_setbkuptime",
-       [this](std::uint32_t, const std::string &, std::uint64_t,
-              const std::string &, packet *request,
-              packet &) -> packet::error_type {
-         std::int32_t ret{0};
-
-         std::string path;
-         DECODE_OR_RETURN(request, path);
-
-         remote::file_time bkuptime{};
-         DECODE_OR_RETURN(request, bkuptime);
-
-         return this->fuse_setbkuptime(path.data(), bkuptime);
-       }},
-      {"::fuse_setchgtime",
-       [this](std::uint32_t, const std::string &, std::uint64_t,
-              const std::string &, packet *request,
-              packet &) -> packet::error_type {
-         std::int32_t ret{0};
-
-         std::string path;
-         DECODE_OR_RETURN(request, path);
-
-         remote::file_time chgtime{};
-         DECODE_OR_RETURN(request, chgtime);
-
-         return this->fuse_setchgtime(path.data(), chgtime);
-       }},
-      {"::fuse_setcrtime",
-       [this](std::uint32_t, const std::string &, std::uint64_t,
-              const std::string &, packet *request,
-              packet &) -> packet::error_type {
-         std::int32_t ret{0};
-
-         std::string path;
-         DECODE_OR_RETURN(request, path);
-
-         remote::file_time crtime{};
-         DECODE_OR_RETURN(request, crtime);
-
-         return this->fuse_setcrtime(path.data(), crtime);
-       }},
-      {"::fuse_setvolname",
-       [this](std::uint32_t, const std::string &, std::uint64_t,
-              const std::string &, packet *request,
-              packet &) -> packet::error_type {
-         std::int32_t ret{0};
-
-         std::string name;
-         DECODE_OR_RETURN(request, name);
-
-         return this->fuse_setvolname(name.data());
-       }},
-      /*handlerLookup_.insert({"::fuse_setxattr",
-                             [this](std::uint32_t serviceFlags, const
-      std::string &client_id, std::uint64_t threadId, const std::string
-      &method, packet *request, packet &response) -> packet::error_type { auto
-      ret{0};
-
-                               std::string path;
-                               DECODE_OR_RETURN(request, path);
-
-                               std::string name;
-                               DECODE_OR_RETURN(request, name);
-
-                               remote::file_size size;
-                               DECODE_OR_RETURN(request, size);
-
-                               if (size >
-      std::numeric_limits<std::size_t>::max()) { return -ERANGE;
-                               }
-
-                               data_buffer
-      value(static_cast<std::size_t>(size)); ret = request->Decode(&value[0],
-      value.size()); if (ret == 0) { std::int32_t flags;
-                                 DECODE_OR_RETURN(request, flags);
-
-                                 ret = this->fuse_setxattr(path.c_str(),
-      &name[0], &value[0], size, flags);
-                               }
-                               return ret;
-                             }});
-      handlerLookup_.insert({"::fuse_setxattr_osx",
-                             [this](std::uint32_t serviceFlags, const
-      std::string &client_id, std::uint64_t threadId, const std::string
-      &method, packet *request, packet &response) -> packet::error_type { auto
-      ret{0};
-
-                               std::string path;
-                               DECODE_OR_RETURN(request, path);
-
-                               std::string name;
-                               DECODE_OR_RETURN(request, name);
-
-                               remote::file_size size;
-                               DECODE_OR_RETURN(request, size);
-
-                               if (size >
-      std::numeric_limits<std::size_t>::max()) { return -ERANGE;
-                               }
-
-                               data_buffer
-      value(static_cast<std::size_t>(size)); ret = request->Decode(&value[0],
-      value.size()); if (ret == 0) { std::int32_t flags;
-                                 DECODE_OR_RETURN(request, flags);
-
-                                 std::uint32_t position;
-                                 DECODE_OR_RETURN(request, position);
-
-                                 ret = this->fuse_setxattr_osx(path.c_str(),
-      &name[0], &value[0], size, flags, position);
-                               }
-                               return ret;
-                             }});*/
-      {"::fuse_statfs",
-       [this](std::uint32_t, const std::string &, std::uint64_t,
-              const std::string &, packet *request,
-              packet &response) -> packet::error_type {
-         std::int32_t ret{-1};
-
-         std::string path;
-         DECODE_OR_RETURN(request, path);
-
-         std::uint64_t frsize{};
-         DECODE_OR_RETURN(request, frsize);
-
-         remote::statfs st{};
-         ret = this->fuse_statfs(path.data(), frsize, st);
-         if (ret == 0) {
-           response.encode(st);
-         }
-         return ret;
-       }},
-      {"::fuse_statfs_x",
-       [this](std::uint32_t, const std::string &, std::uint64_t,
-              const std::string &, packet *request,
-              packet &response) -> packet::error_type {
-         std::int32_t ret{-1};
-
-         std::string path;
-         DECODE_OR_RETURN(request, path);
-
-         std::uint64_t bsize{};
-         DECODE_OR_RETURN(request, bsize);
-
-         remote::statfs_x st{};
-         ret = this->fuse_statfs_x(path.data(), bsize, st);
-         if (ret == 0) {
-           response.encode(st);
-         }
-         return ret;
-       }},
-      {"::fuse_truncate",
-       [this](std::uint32_t, const std::string &, std::uint64_t,
-              const std::string &, packet *request,
-              packet &) -> packet::error_type {
-         std::int32_t ret{};
-
-         std::string path;
-         DECODE_OR_RETURN(request, path);
-
-         remote::file_offset size{};
-         DECODE_OR_IGNORE(request, size);
-
-         return this->fuse_truncate(path.data(), size);
-       }},
-      {"::fuse_unlink",
-       [this](std::uint32_t, const std::string &, std::uint64_t,
-              const std::string &, packet *request,
-              packet &) -> packet::error_type {
-         std::int32_t ret{};
-
-         std::string path;
-         DECODE_OR_RETURN(request, path);
-
-         return this->fuse_unlink(path.data());
-       }},
-      {"::fuse_utimens",
-       [this](std::uint32_t, const std::string &, std::uint64_t,
-              const std::string &, packet *request,
-              packet &) -> packet::error_type {
-         std::int32_t ret{};
-
-         std::string path;
-         DECODE_OR_RETURN(request, path);
-
-         remote::file_time tv[2] = {0};
-         if ((ret = request->decode(&tv[0], sizeof(remote::file_time) * 2)) ==
-             0) {
-           std::uint64_t op0{};
-           DECODE_OR_RETURN(request, op0);
-
-           std::uint64_t op1{};
-           DECODE_OR_RETURN(request, op1);
-
-           ret = this->fuse_utimens(path.data(), tv, op0, op1);
-         }
-         return ret;
-       }},
-      {"::fuse_write",
-       [this](std::uint32_t, const std::string &, std::uint64_t,
-              const std::string &, packet *request,
-              packet &) -> packet::error_type {
-         std::int32_t ret{};
-
-         std::string path;
-         DECODE_OR_RETURN(request, path);
-
-         remote::file_size write_size{};
-         DECODE_OR_RETURN(request, write_size);
-
-         if (write_size > std::numeric_limits<std::size_t>::max()) {
-           return -ERANGE;
-         }
-
-         data_buffer buffer(write_size);
-         if ((ret = request->decode(buffer.data(), buffer.size())) == 0) {
-           remote::file_offset write_offset{};
-           DECODE_OR_RETURN(request, write_offset);
-
-           remote::file_handle handle{};
-           DECODE_OR_RETURN(request, handle);
-
-           ret = this->fuse_write(path.data(),
-                                  reinterpret_cast<const char *>(buffer.data()),
-                                  write_size, write_offset, handle);
-         }
-         return ret;
-       }},
-      {"::fuse_write_base64",
-       [this](std::uint32_t, const std::string &, std::uint64_t,
-              const std::string &, packet *request,
-              packet &) -> packet::error_type {
-         std::int32_t ret{};
-
-         std::string path;
-         DECODE_OR_RETURN(request, path);
-
-         remote::file_size write_size{};
-         DECODE_OR_RETURN(request, write_size);
-
-         if (write_size > std::numeric_limits<std::size_t>::max()) {
-           return -ERANGE;
-         }
-
-         data_buffer buffer(write_size);
-         if ((ret = request->decode(buffer.data(), buffer.size())) == 0) {
-           buffer = macaron::Base64::Decode(
-               std::string(buffer.begin(), buffer.end()));
-           write_size = buffer.size();
-
-           remote::file_offset write_offset{};
-           DECODE_OR_RETURN(request, write_offset);
-
-           remote::file_handle handle{};
-           DECODE_OR_RETURN(request, handle);
-
-           ret = this->fuse_write(path.data(),
-                                  reinterpret_cast<char *>(buffer.data()),
-                                  write_size, write_offset, handle);
-         }
-         return ret;
-       }},
-      {"::json_create_directory_snapshot",
-       [this](std::uint32_t, const std::string &client_id, std::uint64_t,
-              const std::string &, packet *request,
-              packet &response) -> packet::error_type {
-         std::int32_t ret{};
-
-         std::string path;
-         DECODE_OR_RETURN(request, path);
-
-         json json_data;
-         json_data["handle"] = -1;
-         json_data["page_count"] = 0;
-         json_data["path"] = path;
-         if ((ret = this->json_create_directory_snapshot(path.data(),
-                                                         json_data)) == 0) {
-           this->add_directory(client_id,
-                               json_data["handle"].get<std::uint64_t>());
-           response.encode(json_data.dump(0));
-         }
-         return ret;
-       }},
-      {"::json_read_directory_snapshot",
-       [this](std::uint32_t, const std::string &client_id, std::uint64_t,
-              const std::string &, packet *request,
-              packet &response) -> packet::error_type {
-         std::int32_t ret{0};
-
-         std::string path;
-         DECODE_OR_RETURN(request, path);
-
-         remote::file_handle handle{};
-         DECODE_OR_RETURN(request, handle);
-
-         std::uint32_t page{};
-         DECODE_OR_RETURN(request, page);
-
-         ret = -EBADF;
-         if (this->has_open_directory(client_id, handle)) {
-           json json_data;
-           json_data["directory_list"] = std::vector<json>();
-           json_data["page"] = page;
-           ret = this->json_read_directory_snapshot(path, handle, page,
-                                                    json_data);
-           if ((ret == 0) || (ret == -120)) {
-             response.encode(json_data.dump(0));
-           }
-         }
-
-         return ret;
-       }},
-      {"::json_release_directory_snapshot",
-       [this](std::uint32_t, const std::string &client_id, std::uint64_t,
-              const std::string &, packet *request,
-              packet &) -> packet::error_type {
-         std::int32_t ret{0};
-
-         std::string path;
-         DECODE_OR_RETURN(request, path);
-
-         remote::file_handle handle{};
-         DECODE_OR_RETURN(request, handle);
-
-         ret = this->json_release_directory_snapshot(path.data(), handle);
-         if (this->remove_directory(client_id, handle)) {
-           return ret;
-         }
-         return -EBADF;
-       }},
-      {
-          "::winfsp_can_delete",
-          [this](auto && /* service_flags */, auto && /* client_id */,
-                 auto && /* thread_id */, auto && /* method */, auto &&request,
-                 auto && /* response */) -> auto {
-            return this->handle_winfsp_can_delete(request);
-          },
-      },
-      {
-          "::winfsp_cleanup",
-          [this](auto && /* service_flags */, auto && /* client_id */,
-                 auto && /* thread_id */, auto && /* method */, auto &&request,
-                 auto &&response) -> auto {
-            return this->handle_winfsp_cleanup(request, response);
-          },
-      },
-      {
-          "::winfsp_close",
-          [this](auto && /* service_flags */, auto && /* client_id */,
-                 auto && /* thread_id */, auto && /* method */, auto &&request,
-                 auto && /* response */) -> auto {
-            return this->handle_winfsp_close(request);
-          },
-      },
-      {
-          "::winfsp_create",
-          [this](auto && /* service_flags */, auto &&client_id,
-                 auto && /* thread_id */, auto && /* method */, auto &&request,
-                 auto &&response) -> auto {
-            return this->handle_winfsp_create(client_id, request, response);
-          },
-      },
-      {
-          "::winfsp_flush",
-          [this](auto && /* service_flags */, auto && /* client_id */,
-                 auto && /* thread_id */, auto && /* method */, auto &&request,
-                 auto &&response) -> auto {
-            return this->handle_winfsp_flush(request, response);
-          },
-      },
-      {
-          "::winfsp_get_file_info",
-          [this](auto && /* service_flags */, auto && /* client_id */,
-                 auto && /* thread_id */, auto && /* method */, auto &&request,
-                 auto &&response) -> auto {
-            return this->handle_winfsp_get_file_info(request, response);
-          },
-      },
-      {
-          "::winfsp_get_security_by_name",
-          [this](auto && /* service_flags */, auto && /* client_id */,
-                 auto && /* thread_id */, auto && /* method */, auto &&request,
-                 auto &&response) -> auto {
-            return this->handle_winfsp_get_security_by_name(request, response);
-          },
-      },
-      {
-          "::winfsp_get_volume_info",
-          [this](auto && /* service_flags */, auto && /* client_id */,
-                 auto && /* thread_id */, auto && /* method */,
-                 auto && /* request */, auto &&response) -> auto {
-            return this->handle_winfsp_get_volume_info(response);
-          },
-      },
-      {
-          "::winfsp_mounted",
-          [this](auto && /* service_flags */, auto && /* client_id */,
-                 auto && /* thread_id */, auto && /* method */, auto &&request,
-                 auto && /* response */) -> auto {
-            return this->handle_winfsp_mounted(request);
-          },
-      },
-      {
-          "::winfsp_open",
-          [this](auto && /* service_flags */, auto &&client_id,
-                 auto && /* thread_id */, auto && /* method */, auto &&request,
-                 auto &&response) -> auto {
-            return this->handle_winfsp_open(client_id, request, response);
-          },
-      },
-      {
-          "::winfsp_overwrite",
-          [this](auto && /* service_flags */, auto && /* client_id */,
-                 auto && /* thread_id */, auto && /* method */, auto &&request,
-                 auto &&response) -> auto {
-            return this->handle_winfsp_overwrite(request, response);
-          },
-      },
-      {
-          "::winfsp_read",
-          [this](auto && /* service_flags */, auto && /* client_id */,
-                 auto && /* thread_id */, auto && /* method */, auto &&request,
-                 auto &&response) -> auto {
-            return this->handle_winfsp_read(request, response);
-          },
-      },
-      {
-          "::winfsp_read_directory",
-          [this](auto && /* service_flags */, auto && /* client_id */,
-                 auto && /* thread_id */, auto && /* method */, auto &&request,
-                 auto &&response) -> auto {
-            return this->handle_winfsp_read_directory(request, response);
-          },
-      },
-      {
-          "::winfsp_rename",
-          [this](auto && /* service_flags */, auto && /* client_id */,
-                 auto && /* thread_id */, auto && /* method */, auto &&request,
-                 auto && /* response */) -> auto {
-            return this->handle_winfsp_rename(request);
-          },
-      },
-      {
-          "::winfsp_set_basic_info",
-          [this](auto && /* service_flags */, auto && /* client_id */,
-                 auto && /* thread_id */, auto && /* method */, auto &&request,
-                 auto &&response) -> auto {
-            return this->handle_winfsp_set_basic_info(request, response);
-          },
-      },
-      {
-          "::winfsp_set_file_size",
-          [this](auto && /* service_flags */, auto && /* client_id */,
-                 auto && /* thread_id */, auto && /* method */, auto &&request,
-                 auto &&response) -> auto {
-            return this->handle_winfsp_set_file_size(request, response);
-          },
-      },
-      {
-          "::winfsp_unmounted",
-          [this](auto && /* service_flags */, auto && /* client_id */,
-                 auto && /* thread_id */, auto && /* method */, auto &&request,
-                 auto && /* response */) -> auto {
-            return this->handle_winfsp_unmounted(request);
-          },
-      },
-      {
-          "::winfsp_write",
-          [this](auto && /* service_flags */, auto && /* client_id */,
-                 auto && /* thread_id */, auto && /* method */, auto &&request,
-                 auto &&response) -> auto {
-            return this->handle_winfsp_write(request, response);
-          },
-      },
-  };
-
-private:
+      response.encode(handle);
+    }
+    return ret;
+  }
+
+  [[nodiscard]] auto handle_fuse_opendir(const std::string &client_id,
+                                         packet *request, packet &response)
+      -> packet::error_type {
+    auto ret{0};
+
+    std::string path;
+    DECODE_OR_RETURN(request, path);
+
+    remote::file_handle handle{0};
+    ret = this->fuse_opendir(path.c_str(), handle);
+    if (ret >= 0) {
+      this->add_directory(client_id, handle);
+      response.encode(handle);
+    }
+
+    return ret;
+  }
+
+  [[nodiscard]] auto handle_fuse_read(packet *request, packet &response)
+      -> packet::error_type {
+    auto ret{0};
+
+    std::string path;
+    DECODE_OR_RETURN(request, path);
+
+    remote::file_size read_size;
+    DECODE_OR_RETURN(request, read_size);
+
+    remote::file_offset read_offset;
+    DECODE_OR_RETURN(request, read_offset);
+
+    remote::file_handle handle;
+    DECODE_OR_RETURN(request, handle);
+
+    data_buffer buffer;
+    if ((ret = this->fuse_read(path.c_str(), reinterpret_cast<char *>(&buffer),
+                               read_size, read_offset, handle)) > 0) {
+      response.encode(buffer.data(), buffer.size());
+    }
+    return ret;
+  }
+
+  [[nodiscard]] auto handle_fuse_readdir(const std::string &&client_id,
+                                         packet *request, packet &response)
+      -> packet::error_type {
+    auto ret{0};
+
+    std::string path;
+    DECODE_OR_RETURN(request, path);
+
+    remote::file_offset offset;
+    DECODE_OR_RETURN(request, offset);
+
+    remote::file_handle handle;
+    DECODE_OR_RETURN(request, handle);
+
+    if (this->has_open_directory(client_id, handle)) {
+      std::string file_path;
+      ret = this->fuse_readdir(path.c_str(), offset, handle, file_path);
+      if (ret == 0) {
+        response.encode(file_path);
+      }
+    } else {
+      ret = -EBADF;
+    }
+
+    return ret;
+  }
+
+  [[nodiscard]] auto handle_fuse_release(packet *request)
+      -> packet::error_type {
+    auto ret{0};
+
+    std::string path;
+    DECODE_OR_RETURN(request, path);
+
+    remote::file_handle handle;
+    DECODE_OR_RETURN(request, handle);
+
+    return this->fuse_release(path.c_str(), handle);
+  }
+
+  [[nodiscard]] auto handle_fuse_releasedir(const std::string &client_id,
+                                            packet *request)
+      -> packet::error_type {
+    auto ret{0};
+
+    std::string path;
+    DECODE_OR_RETURN(request, path);
+
+    remote::file_handle handle;
+    DECODE_OR_RETURN(request, handle);
+
+    ret = this->fuse_releasedir(path.c_str(), handle);
+    if (this->remove_directory(client_id, handle)) {
+      return ret;
+    }
+    return -EBADF;
+  }
+
+  [[nodiscard]] auto handle_fuse_rename(packet *request) -> packet::error_type {
+    std::int32_t ret{0};
+
+    std::string from;
+    DECODE_OR_RETURN(request, from);
+
+    std::string to;
+    DECODE_OR_RETURN(request, to);
+
+    return this->fuse_rename(from.data(), to.data());
+  }
+
+  [[nodiscard]] auto handle_fuse_rmdir(packet *request) -> packet::error_type {
+    std::int32_t ret{0};
+
+    std::string path;
+    DECODE_OR_RETURN(request, path);
+
+    return this->fuse_rmdir(path.data());
+  }
+
+  [[nodiscard]] auto handle_fuse_setattr_x(packet *request)
+      -> packet::error_type {
+    std::int32_t ret{0};
+
+    std::string path;
+    DECODE_OR_RETURN(request, path);
+
+    remote::setattr_x attr{};
+    DECODE_OR_RETURN(request, attr);
+
+    return this->fuse_setattr_x(path.data(), attr);
+  }
+
+  [[nodiscard]] auto handle_fuse_setbkuptime(packet *request)
+      -> packet::error_type {
+    std::int32_t ret{0};
+
+    std::string path;
+    DECODE_OR_RETURN(request, path);
+
+    remote::file_time bkuptime{};
+    DECODE_OR_RETURN(request, bkuptime);
+
+    return this->fuse_setbkuptime(path.data(), bkuptime);
+  }
+
+  [[nodiscard]] auto handle_fuse_setchgtime(packet *request)
+      -> packet::error_type {
+    std::int32_t ret{0};
+
+    std::string path;
+    DECODE_OR_RETURN(request, path);
+
+    remote::file_time chgtime{};
+    DECODE_OR_RETURN(request, chgtime);
+
+    return this->fuse_setchgtime(path.data(), chgtime);
+  }
+
+  [[nodiscard]] auto handle_fuse_setcrtime(packet *request)
+      -> packet::error_type {
+    std::int32_t ret{0};
+
+    std::string path;
+    DECODE_OR_RETURN(request, path);
+
+    remote::file_time crtime{};
+    DECODE_OR_RETURN(request, crtime);
+
+    return this->fuse_setcrtime(path.data(), crtime);
+  }
+
+  [[nodiscard]] auto handle_fuse_setvolname(packet *request)
+      -> packet::error_type {
+    std::int32_t ret{0};
+
+    std::string name;
+    DECODE_OR_RETURN(request, name);
+
+    return this->fuse_setvolname(name.data());
+  }
+
+  [[nodiscard]] auto handle_fuse_statfs(packet *request, packet &response)
+      -> packet::error_type {
+    std::int32_t ret{-1};
+
+    std::string path;
+    DECODE_OR_RETURN(request, path);
+
+    std::uint64_t frsize{};
+    DECODE_OR_RETURN(request, frsize);
+
+    remote::statfs st{};
+    ret = this->fuse_statfs(path.data(), frsize, st);
+    if (ret == 0) {
+      response.encode(st);
+    }
+
+    return ret;
+  }
+
+  [[nodiscard]] auto handle_fuse_statfs_x(packet *request, packet &response)
+      -> packet::error_type {
+    std::int32_t ret{-1};
+
+    std::string path;
+    DECODE_OR_RETURN(request, path);
+
+    std::uint64_t bsize{};
+    DECODE_OR_RETURN(request, bsize);
+
+    remote::statfs_x st{};
+    ret = this->fuse_statfs_x(path.data(), bsize, st);
+    if (ret == 0) {
+      response.encode(st);
+    }
+    return ret;
+  }
+
+  [[nodiscard]] auto handle_fuse_truncate(packet *request)
+      -> packet::error_type {
+    std::int32_t ret{};
+
+    std::string path;
+    DECODE_OR_RETURN(request, path);
+
+    remote::file_offset size{};
+    DECODE_OR_IGNORE(request, size);
+
+    return this->fuse_truncate(path.data(), size);
+  }
+
+  [[nodiscard]] auto handle_fuse_unlink(packet *request) -> packet::error_type {
+    std::int32_t ret{};
+
+    std::string path;
+    DECODE_OR_RETURN(request, path);
+
+    return this->fuse_unlink(path.data());
+  }
+
+  [[nodiscard]] auto handle_fuse_utimens(packet *request)
+      -> packet::error_type {
+    std::int32_t ret{};
+
+    std::string path;
+    DECODE_OR_RETURN(request, path);
+
+    remote::file_time tv[2] = {0};
+    if ((ret = request->decode(&tv[0], sizeof(remote::file_time) * 2)) == 0) {
+      std::uint64_t op0{};
+      DECODE_OR_RETURN(request, op0);
+
+      std::uint64_t op1{};
+      DECODE_OR_RETURN(request, op1);
+
+      ret = this->fuse_utimens(path.data(), tv, op0, op1);
+    }
+    return ret;
+  }
+
+  [[nodiscard]] auto handle_fuse_write(packet *request) -> packet::error_type {
+    std::int32_t ret{};
+
+    std::string path;
+    DECODE_OR_RETURN(request, path);
+
+    remote::file_size write_size{};
+    DECODE_OR_RETURN(request, write_size);
+
+    if (write_size > std::numeric_limits<std::size_t>::max()) {
+      return -ERANGE;
+    }
+
+    data_buffer buffer(write_size);
+    if ((ret = request->decode(buffer.data(), buffer.size())) == 0) {
+      remote::file_offset write_offset{};
+      DECODE_OR_RETURN(request, write_offset);
+
+      remote::file_handle handle{};
+      DECODE_OR_RETURN(request, handle);
+
+      ret = this->fuse_write(path.data(),
+                             reinterpret_cast<const char *>(buffer.data()),
+                             write_size, write_offset, handle);
+    }
+    return ret;
+  }
+
+  [[nodiscard]] auto handle_fuse_write_base64(packet *request)
+      -> packet::error_type {
+    std::int32_t ret{};
+
+    std::string path;
+    DECODE_OR_RETURN(request, path);
+
+    remote::file_size write_size{};
+    DECODE_OR_RETURN(request, write_size);
+
+    if (write_size > std::numeric_limits<std::size_t>::max()) {
+      return -ERANGE;
+    }
+
+    data_buffer buffer(write_size);
+    if ((ret = request->decode(buffer.data(), buffer.size())) == 0) {
+      buffer =
+          macaron::Base64::Decode(std::string(buffer.begin(), buffer.end()));
+      write_size = buffer.size();
+
+      remote::file_offset write_offset{};
+      DECODE_OR_RETURN(request, write_offset);
+
+      remote::file_handle handle{};
+      DECODE_OR_RETURN(request, handle);
+
+      ret =
+          this->fuse_write(path.data(), reinterpret_cast<char *>(buffer.data()),
+                           write_size, write_offset, handle);
+    }
+    return ret;
+  }
+
+  [[nodiscard]] auto
+  handle_json_create_directory_snapshot(const std::string &client_id,
+                                        packet *request, packet &response)
+      -> packet::error_type {
+    std::int32_t ret{};
+
+    std::string path;
+    DECODE_OR_RETURN(request, path);
+
+    json json_data;
+    json_data["handle"] = -1;
+    json_data["page_count"] = 0;
+    json_data["path"] = path;
+    ret = this->json_create_directory_snapshot(path.data(), json_data);
+    if (ret == 0) {
+      this->add_directory(client_id, json_data["handle"].get<std::uint64_t>());
+      response.encode(json_data.dump(0));
+    }
+    return ret;
+  }
+
+  [[nodiscard]] auto
+  handle_json_read_directory_snapshot(const std::string &client_id,
+                                      packet *request, packet &response)
+      -> packet::error_type {
+    std::int32_t ret{0};
+
+    std::string path;
+    DECODE_OR_RETURN(request, path);
+
+    remote::file_handle handle{};
+    DECODE_OR_RETURN(request, handle);
+
+    std::uint32_t page{};
+    DECODE_OR_RETURN(request, page);
+
+    ret = -EBADF;
+    if (this->has_open_directory(client_id, handle)) {
+      json json_data;
+      json_data["directory_list"] = std::vector<json>();
+      json_data["page"] = page;
+      ret = this->json_read_directory_snapshot(path, handle, page, json_data);
+      if ((ret == 0) || (ret == -120)) {
+        response.encode(json_data.dump(0));
+      }
+    }
+
+    return ret;
+  }
+
+  [[nodiscard]] auto handle_json_release_directory_snapshot(
+      const std::string &client_id, packet *request) -> packet::error_type {
+    std::int32_t ret{0};
+
+    std::string path;
+    DECODE_OR_RETURN(request, path);
+
+    remote::file_handle handle{};
+    DECODE_OR_RETURN(request, handle);
+
+    ret = this->json_release_directory_snapshot(path.data(), handle);
+    if (this->remove_directory(client_id, handle)) {
+      return ret;
+    }
+    return -EBADF;
+  }
   [[nodiscard]] auto handle_winfsp_can_delete(packet *request)
       -> packet::error_type {
     auto ret = static_cast<packet::error_type>(STATUS_SUCCESS);
@@ -1562,12 +1752,6 @@ private:
       response.encode(file_info);
     }
     return ret;
-  }
-
-private:
-  void closed_handler(const std::string &client_id) {
-    client_pool_.remove_client(client_id);
-    close_all(client_id);
   }
 
   void
