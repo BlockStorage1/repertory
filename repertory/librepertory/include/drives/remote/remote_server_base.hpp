@@ -262,6 +262,31 @@ private:
     return this->fuse_ftruncate(path.c_str(), size, handle);
   }
 
+  [[nodiscard]] auto handle_fuse_getattr(packet *request, packet &response)
+      -> packet::error_type {
+    auto ret{0};
+
+    std::string path;
+    DECODE_OR_RETURN(request, path);
+
+    remote::user_id uid;
+    DECODE_OR_RETURN(request, uid);
+
+    remote::group_id gid;
+    DECODE_OR_RETURN(request, gid);
+
+    remote::stat st{};
+    bool directory = false;
+    ret = this->fuse_getattr(path.c_str(), st, directory);
+    if (ret == 0) {
+      st.st_uid = uid;
+      st.st_gid = gid;
+      response.encode(st);
+      response.encode(static_cast<std::uint8_t>(directory));
+    }
+    return ret;
+  }
+
 private:
   const std::unordered_map<std::string, handler_callback> handler_lookup_ = {
       {
@@ -368,32 +393,14 @@ private:
             return this->handle_fuse_ftruncate(request);
           },
       },
-      {"::fuse_getattr",
-       [this](std::uint32_t, const std::string &, std::uint64_t,
-              const std::string &, packet *request,
-              packet &response) -> packet::error_type {
-         auto ret{0};
-
-         std::string path;
-         DECODE_OR_RETURN(request, path);
-
-         remote::user_id uid;
-         DECODE_OR_RETURN(request, uid);
-
-         remote::group_id gid;
-         DECODE_OR_RETURN(request, gid);
-
-         remote::stat st{};
-         bool directory = false;
-         ret = this->fuse_getattr(path.c_str(), st, directory);
-         if (ret == 0) {
-           st.st_uid = uid;
-           st.st_gid = gid;
-           response.encode(st);
-           response.encode(static_cast<std::uint8_t>(directory));
-         }
-         return ret;
-       }},
+      {
+          "::fuse_getattr",
+          [this](auto && /* service_flags */, auto && /* client_id */,
+                 auto && /* thread_id */, auto && /* method */, auto &&request,
+                 auto &&response) -> auto {
+            return this->handle_fuse_getattr(request, response);
+          },
+      },
       /*handlerLookup_.insert({"::fuse_getxattr",
                              [this](std::uint32_t serviceFlags, const
       std::string &client_id, std::uint64_t threadId, const std::string
