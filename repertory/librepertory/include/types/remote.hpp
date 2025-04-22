@@ -33,6 +33,7 @@ inline constexpr const auto PACKET_SERVICE_FLAGS{PACKET_SERVICE_WINFSP};
 inline constexpr const auto PACKET_SERVICE_FLAGS{PACKET_SERVICE_FUSE};
 #endif // defined(_WIN32)
 
+constexpr const auto default_remote_directory_page_size{std::size_t(100U)};
 constexpr const auto default_remote_client_pool_size{20U};
 constexpr const auto default_remote_max_connections{20U};
 constexpr const auto default_remote_receive_timeout_ms{120U * 1000U};
@@ -217,8 +218,8 @@ struct statfs_x final : public statfs {
 #if !defined(_WIN32)
 [[nodiscard]] auto create_open_flags(std::uint32_t flags) -> open_flags;
 
-[[nodiscard]] auto
-create_os_open_flags(const open_flags &flags) -> std::uint32_t;
+[[nodiscard]] auto create_os_open_flags(const open_flags &flags)
+    -> std::uint32_t;
 #endif // !defined(_WIN32)
 } // namespace repertory::remote
 

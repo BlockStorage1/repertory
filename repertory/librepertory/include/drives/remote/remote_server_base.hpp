@@ -39,8 +39,6 @@
 #include "utils/base64.hpp"
 #include "utils/path.hpp"
 
-#define REPERTORY_DIRECTORY_PAGE_SIZE std::size_t(100U)
-
 namespace repertory {
 template <typename drive>
 class remote_server_base : public remote_open_file_table,
@@ -153,30 +151,6 @@ private:
             return this->handle_fuse_destroy();
           },
       },
-      /*handlerLookup_.insert({"::fuse_fallocate",
-                             [this](std::uint32_t serviceFlags, const
-         std::string &client_id, std::uint64_t threadId, const std::string
-         &method, packet *request, packet &response) -> packet::error_type {
-         auto ret{0};
-
-                               std::string path;
-                               DECODE_OR_RETURN(request, path);
-
-                               std::int32_t mode;
-                               DECODE_OR_RETURN(request, mode);
-
-                               remote::file_offset offset;
-                               DECODE_OR_RETURN(request, offset);
-
-                               remote::file_offset length;
-                               DECODE_OR_RETURN(request, length);
-
-                               remote::file_handle handle;
-                               DECODE_OR_RETURN(request, handle);
-
-                               return this->fuse_fallocate(path.c_str(), mode,
-         offset, length, handle);
-                             }});*/
       {
           "::fuse_fgetattr",
           [this](auto && /* service_flags */, auto && /* client_id */,
@@ -217,45 +191,6 @@ private:
             return this->handle_fuse_getattr(request, response);
           },
       },
-      /*handlerLookup_.insert({"::fuse_getxattr",
-                             [this](std::uint32_t serviceFlags, const
-      std::string &client_id, std::uint64_t threadId, const std::string
-      &method, packet *request, packet &response) -> packet::error_type { auto
-      ret{0};
-
-                               std::string path;
-                               DECODE_OR_RETURN(request, path);
-
-                               std::string name;
-                               DECODE_OR_RETURN(request, name);
-
-                               remote::file_size size;
-                               DECODE_OR_RETURN(request, size);
-
-                               return this->fuse_getxattr(path.c_str(),
-      &name[0], nullptr, size);
-                             }});
-      handlerLookup_.insert({"::fuse_getxattr_osx",
-                             [this](std::uint32_t serviceFlags, const
-      std::string &client_id, std::uint64_t threadId, const std::string
-      &method, packet *request, packet &response) -> packet::error_type { auto
-      ret{0};
-
-                               std::string path;
-                               DECODE_OR_RETURN(request, path);
-
-                               std::string name;
-                               DECODE_OR_RETURN(request, name);
-
-                               remote::file_size size;
-                               DECODE_OR_RETURN(request, size);
-
-                               std::uint32_t position;
-                               DECODE_OR_RETURN(request, position);
-
-                               return this->fuse_getxattr_osx(path.c_str(),
-      &name[0], nullptr, size, position);
-                             }});*/
       {
           "::fuse_getxtimes",
           [this](auto && /* service_flags */, auto && /* client_id */,
@@ -272,21 +207,6 @@ private:
             return this->handle_fuse_init();
           },
       },
-      /*handlerLookup_.insert({"::remote_fuseListxattr",
-                             [this](std::uint32_t serviceFlags, const
-         std::string &client_id, std::uint64_t threadId, const std::string
-         &method, packet *request, packet &response) -> packet::error_type {
-         auto ret{0};
-
-                               std::string path;
-                               DECODE_OR_RETURN(request, path);
-
-                               remote::file_size size;
-                               DECODE_OR_RETURN(request, size);
-
-                               return this->fuse_listxattr(path.c_str(),
-         nullptr, size);
-                             }});*/
       {
           "::fuse_mkdir",
           [this](auto && /* service_flags */, auto && /* client_id */,
@@ -343,21 +263,6 @@ private:
             return this->handle_fuse_releasedir(client_id, request);
           },
       },
-      /*handlerLookup_.insert({"::fuse_removexattr",
-                             [this](std::uint32_t serviceFlags, const
-         std::string &client_id, std::uint64_t threadId, const std::string
-         &method, packet *request, packet &response) -> packet::error_type {
-         auto ret{0};
-
-                               std::string path;
-                               DECODE_OR_RETURN(request, path);
-
-                               std::string name;
-                               DECODE_OR_RETURN(request, name);
-
-                               return this->fuse_removexattr(path.c_str(),
-         &name[0]);
-                             }});*/
       {
           "::fuse_rename",
           [this](auto && /* service_flags */, auto && /* client_id */,
@@ -414,67 +319,6 @@ private:
             return this->handle_fuse_setvolname(request);
           },
       },
-      /*handlerLookup_.insert({"::fuse_setxattr",
-                             [this](std::uint32_t serviceFlags, const
-      std::string &client_id, std::uint64_t threadId, const std::string
-      &method, packet *request, packet &response) -> packet::error_type { auto
-      ret{0};
-
-                               std::string path;
-                               DECODE_OR_RETURN(request, path);
-
-                               std::string name;
-                               DECODE_OR_RETURN(request, name);
-
-                               remote::file_size size;
-                               DECODE_OR_RETURN(request, size);
-
-                               if (size >
-      std::numeric_limits<std::size_t>::max()) { return -ERANGE;
-                               }
-
-                               data_buffer
-      value(static_cast<std::size_t>(size)); ret = request->Decode(&value[0],
-      value.size()); if (ret == 0) { std::int32_t flags;
-                                 DECODE_OR_RETURN(request, flags);
-
-                                 ret = this->fuse_setxattr(path.c_str(),
-      &name[0], &value[0], size, flags);
-                               }
-                               return ret;
-                             }});
-      handlerLookup_.insert({"::fuse_setxattr_osx",
-                             [this](std::uint32_t serviceFlags, const
-      std::string &client_id, std::uint64_t threadId, const std::string
-      &method, packet *request, packet &response) -> packet::error_type { auto
-      ret{0};
-
-                               std::string path;
-                               DECODE_OR_RETURN(request, path);
-
-                               std::string name;
-                               DECODE_OR_RETURN(request, name);
-
-                               remote::file_size size;
-                               DECODE_OR_RETURN(request, size);
-
-                               if (size >
-      std::numeric_limits<std::size_t>::max()) { return -ERANGE;
-                               }
-
-                               data_buffer
-      value(static_cast<std::size_t>(size)); ret = request->Decode(&value[0],
-      value.size()); if (ret == 0) { std::int32_t flags;
-                                 DECODE_OR_RETURN(request, flags);
-
-                                 std::uint32_t position;
-                                 DECODE_OR_RETURN(request, position);
-
-                                 ret = this->fuse_setxattr_osx(path.c_str(),
-      &name[0], &value[0], size, flags, position);
-                               }
-                               return ret;
-                             }});*/
       {
           "::fuse_statfs",
           [this](auto && /* service_flags */, auto && /* client_id */,
@@ -1792,3 +1636,158 @@ protected:
 } // namespace repertory
 
 #endif // REPERTORY_INCLUDE_DRIVES_REMOTE_REMOTE_SERVER_BASE_HPP_
+
+/*handlerLookup_.insert({"::fuse_fallocate",
+                       [this](std::uint32_t serviceFlags, const
+   std::string &client_id, std::uint64_t threadId, const std::string
+   &method, packet *request, packet &response) -> packet::error_type {
+   auto ret{0};
+
+                         std::string path;
+                         DECODE_OR_RETURN(request, path);
+
+                         std::int32_t mode;
+                         DECODE_OR_RETURN(request, mode);
+
+                         remote::file_offset offset;
+                         DECODE_OR_RETURN(request, offset);
+
+                         remote::file_offset length;
+                         DECODE_OR_RETURN(request, length);
+
+                         remote::file_handle handle;
+                         DECODE_OR_RETURN(request, handle);
+
+                         return this->fuse_fallocate(path.c_str(), mode,
+   offset, length, handle);
+                       }});*/
+/*handlerLookup_.insert({"::fuse_getxattr",
+                       [this](std::uint32_t serviceFlags, const
+std::string &client_id, std::uint64_t threadId, const std::string
+&method, packet *request, packet &response) -> packet::error_type { auto
+ret{0};
+
+                         std::string path;
+                         DECODE_OR_RETURN(request, path);
+
+                         std::string name;
+                         DECODE_OR_RETURN(request, name);
+
+                         remote::file_size size;
+                         DECODE_OR_RETURN(request, size);
+
+                         return this->fuse_getxattr(path.c_str(),
+&name[0], nullptr, size);
+                       }});
+handlerLookup_.insert({"::fuse_getxattr_osx",
+                       [this](std::uint32_t serviceFlags, const
+std::string &client_id, std::uint64_t threadId, const std::string
+&method, packet *request, packet &response) -> packet::error_type { auto
+ret{0};
+
+                         std::string path;
+                         DECODE_OR_RETURN(request, path);
+
+                         std::string name;
+                         DECODE_OR_RETURN(request, name);
+
+                         remote::file_size size;
+                         DECODE_OR_RETURN(request, size);
+
+                         std::uint32_t position;
+                         DECODE_OR_RETURN(request, position);
+
+                         return this->fuse_getxattr_osx(path.c_str(),
+&name[0], nullptr, size, position);
+                       }});*/
+/*handlerLookup_.insert({"::remote_fuseListxattr",
+                       [this](std::uint32_t serviceFlags, const
+   std::string &client_id, std::uint64_t threadId, const std::string
+   &method, packet *request, packet &response) -> packet::error_type {
+   auto ret{0};
+
+                         std::string path;
+                         DECODE_OR_RETURN(request, path);
+
+                         remote::file_size size;
+                         DECODE_OR_RETURN(request, size);
+
+                         return this->fuse_listxattr(path.c_str(),
+   nullptr, size);
+                       }});*/
+/*handlerLookup_.insert({"::fuse_removexattr",
+                       [this](std::uint32_t serviceFlags, const
+   std::string &client_id, std::uint64_t threadId, const std::string
+   &method, packet *request, packet &response) -> packet::error_type {
+   auto ret{0};
+
+                         std::string path;
+                         DECODE_OR_RETURN(request, path);
+
+                         std::string name;
+                         DECODE_OR_RETURN(request, name);
+
+                         return this->fuse_removexattr(path.c_str(),
+   &name[0]);
+                       }});*/
+/*handlerLookup_.insert({"::fuse_setxattr",
+                       [this](std::uint32_t serviceFlags, const
+std::string &client_id, std::uint64_t threadId, const std::string
+&method, packet *request, packet &response) -> packet::error_type { auto
+ret{0};
+
+                         std::string path;
+                         DECODE_OR_RETURN(request, path);
+
+                         std::string name;
+                         DECODE_OR_RETURN(request, name);
+
+                         remote::file_size size;
+                         DECODE_OR_RETURN(request, size);
+
+                         if (size >
+std::numeric_limits<std::size_t>::max()) { return -ERANGE;
+                         }
+
+                         data_buffer
+value(static_cast<std::size_t>(size)); ret = request->Decode(&value[0],
+value.size()); if (ret == 0) { std::int32_t flags;
+                           DECODE_OR_RETURN(request, flags);
+
+                           ret = this->fuse_setxattr(path.c_str(),
+&name[0], &value[0], size, flags);
+                         }
+                         return ret;
+                       }});
+handlerLookup_.insert({"::fuse_setxattr_osx",
+                       [this](std::uint32_t serviceFlags, const
+std::string &client_id, std::uint64_t threadId, const std::string
+&method, packet *request, packet &response) -> packet::error_type { auto
+ret{0};
+
+                         std::string path;
+                         DECODE_OR_RETURN(request, path);
+
+                         std::string name;
+                         DECODE_OR_RETURN(request, name);
+
+                         remote::file_size size;
+                         DECODE_OR_RETURN(request, size);
+
+                         if (size >
+std::numeric_limits<std::size_t>::max()) { return -ERANGE;
+                         }
+
+                         data_buffer
+value(static_cast<std::size_t>(size)); ret = request->Decode(&value[0],
+value.size()); if (ret == 0) { std::int32_t flags;
+                           DECODE_OR_RETURN(request, flags);
+
+                           std::uint32_t position;
+                           DECODE_OR_RETURN(request, position);
+
+                           ret = this->fuse_setxattr_osx(path.c_str(),
+&name[0], &value[0], size, flags, position);
+                         }
+                         return ret;
+                       }});*/
