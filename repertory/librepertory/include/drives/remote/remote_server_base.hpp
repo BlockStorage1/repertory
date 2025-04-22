@@ -1743,7 +1743,7 @@ private:
 
     auto *buffer = request->current_pointer();
 
-    UINT32 bytes_transferred{0};
+    UINT32 bytes_transferred{0U};
     remote::file_info file_info{};
     ret = this->winfsp_write(file_desc, buffer, offset, length, write_to_end,
                              constrained_io, &bytes_transferred, &file_info);
