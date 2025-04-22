@@ -22,11 +22,7 @@
 #ifndef REPERTORY_INCLUDE_CLI_PINNED_STATUS_HPP_
 #define REPERTORY_INCLUDE_CLI_PINNED_STATUS_HPP_
 
-#include "app_config.hpp"
-#include "rpc/client/client.hpp"
-#include "types/repertory.hpp"
-#include "types/rpc.hpp"
-#include "utils/cli_utils.hpp"
+#include "cli/common.hpp"
 
 namespace repertory::cli::actions {
 [[nodiscard]] inline auto

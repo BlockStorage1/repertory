@@ -22,6 +22,8 @@
 #ifndef REPERTORY_INCLUDE_CLI_HELP_HPP_
 #define REPERTORY_INCLUDE_CLI_HELP_HPP_
 
+#include "cli/common.hpp"
+
 namespace repertory::cli::actions {
 template <typename drive> inline void help(std::vector<const char *> args) {
   drive::display_options(args);

@@ -22,12 +22,9 @@
 #ifndef REPERTORY_INCLUDE_CLI_UI_HPP_
 #define REPERTORY_INCLUDE_CLI_UI_HPP_
 
-#include "types/repertory.hpp"
+#include "cli/common.hpp"
 #include "ui/handlers.hpp"
 #include "ui/mgmt_app_config.hpp"
-#include "utils/cli_utils.hpp"
-#include "utils/file.hpp"
-#include "utils/string.hpp"
 
 namespace repertory::cli::actions {
 [[nodiscard]] inline auto

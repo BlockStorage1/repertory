@@ -22,10 +22,7 @@
 #ifndef REPERTORY_INCLUDE_CLI_CHECK_VERSION_HPP_
 #define REPERTORY_INCLUDE_CLI_CHECK_VERSION_HPP_
 
-#include "app_config.hpp"
-#include "comm/curl/curl_comm.hpp"
-#include "providers/sia/sia_provider.hpp"
-#include "types/repertory.hpp"
+#include "cli/common.hpp"
 
 namespace repertory::cli::actions {
 [[nodiscard]] inline auto check_version(std::vector<const char *> /* args */,
