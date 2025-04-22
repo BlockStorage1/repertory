@@ -993,7 +993,7 @@ private:
     return ret;
   }
 
-  [[nodiscard]] auto handle_fuse_readdir(const std::string &&client_id,
+  [[nodiscard]] auto handle_fuse_readdir(const std::string &client_id,
                                          packet *request, packet &response)
       -> packet::error_type {
     auto ret{0};
