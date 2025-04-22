@@ -86,5 +86,5 @@ public:
 };
 } // namespace repertory
 
-#endif
+#endif // !defined(_WIN32)
 #endif // REPERTORY_INCLUDE_DRIVES_FUSE_I_FUSE_DRIVE_HPP_

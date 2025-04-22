@@ -139,5 +139,5 @@ public:
 };
 } // namespace repertory
 
-#endif // _WIN32
+#endif // !defined(_WIN32)
 #endif // REPERTORY_INCLUDE_DRIVES_FUSE_FUSE_DRIVE_BASE_HPP_
