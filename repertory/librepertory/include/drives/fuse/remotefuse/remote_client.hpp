@@ -38,8 +38,8 @@ public:
 private:
   const app_config &config_;
   packet_client packet_client_;
-  remote::user_id uid_ = 0;
-  remote::group_id gid_ = 0;
+  remote::user_id uid_{0};
+  remote::group_id gid_{0};
 
 public:
   [[nodiscard]] auto check() -> packet::error_type;
