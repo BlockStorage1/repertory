@@ -30,12 +30,13 @@ test(std::vector<const char *> /* args */, const std::string &data_directory,
      const provider_type &prov, const std::string & /*unique_id*/,
      std::string /*user*/, std::string /*password*/) -> exit_code {
   app_config config(prov, data_directory);
-  if (prov == provider_type::remote) {
-    return exit_code::provider_offline;
-  }
 
-  auto provider{create_provider(prov, config)};
-  auto is_online{provider->is_online()};
+  auto is_online{
+      (prov == provider_type::remote)
+          ? remote_client(config).check() == 0
+          : create_provider(prov, config)->is_online(),
+  };
+
   fmt::println("{}\nProvider is {}!", utils::string::from_bool(is_online),
                is_online ? "online" : "offline");
   return is_online ? exit_code::success : exit_code::provider_offline;

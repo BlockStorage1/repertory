@@ -104,6 +104,13 @@ private:
 private:
   const std::unordered_map<std::string, handler_callback> handler_lookup_ = {
       {
+          "::check",
+          [this](auto && /* service_flags */, auto && /* client_id */,
+                 auto && /* thread_id */, auto && /* method */,
+                 auto && /* request */,
+                 auto && /* response */) -> auto { return 0; },
+      },
+      {
           "::fuse_access",
           [this](auto && /* service_flags */, auto && /* client_id */,
                  auto && /* thread_id */, auto && /* method */, auto &&request,

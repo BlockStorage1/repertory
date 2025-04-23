@@ -48,6 +48,8 @@ private:
 #endif // defined(_WIN32)
 
 public:
+  [[nodiscard]] auto check() -> packet::error_type;
+
   auto json_create_directory_snapshot(const std::string &path, json &json_data)
       -> packet::error_type override;
 
