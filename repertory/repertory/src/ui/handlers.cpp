@@ -342,6 +342,7 @@ void handlers::generate_config(provider_type prov, std::string_view name,
   }
 
   if (data_dir.has_value()) {
+    utils::file::directory{data_dir.value()}.create_directory();
     launch_process(prov, name, {"-dd", data_dir.value(), "-gc"});
   } else {
     launch_process(prov, name, {"-gc"});
