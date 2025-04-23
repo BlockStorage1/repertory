@@ -796,14 +796,10 @@ auto s3_provider::is_online() const -> bool {
   REPERTORY_USES_FUNCTION_NAME();
 
   try {
-    bool is_encrypted{};
-    std::string object_name;
-    head_object_result result{};
-    auto res{
-        get_object_info(true, "/", is_encrypted, object_name, result),
-    };
-
-    return res == api_error::success;
+    std::string token;
+    std::string response_data;
+    long response_code{};
+    return get_object_list(response_data, response_code, "/", "/", token);
   } catch (const std::exception &e) {
     utils::error::raise_error(function_name, e, "exception occurred");
   }
