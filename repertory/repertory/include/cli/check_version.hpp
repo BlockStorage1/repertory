@@ -44,12 +44,12 @@ namespace repertory::cli::actions {
   std::string required_version;
   std::string returned_version;
   if (provider.check_version(required_version, returned_version)) {
-    fmt::println("Success:\n\tRequired: {}\n\tActual: {}", required_version,
+    fmt::println("0\nSuccess:\n\tRequired: {}\n\tActual: {}", required_version,
                  returned_version);
     return exit_code::success;
   }
 
-  fmt::println("Failed:\n\tRequired: {}\n\tActual: {}", required_version,
+  fmt::println("1\nFailed:\n\tRequired: {}\n\tActual: {}", required_version,
                returned_version);
   return exit_code::incompatible_version;
 }

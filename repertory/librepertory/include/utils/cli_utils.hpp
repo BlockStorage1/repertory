@@ -49,6 +49,7 @@ static const option password_option = {"-pw", "--password"};
 static const option remote_mount_option = {"-rm", "--remote_mount"};
 static const option set_option = {"-set", "--set"};
 static const option status_option = {"-status", "--status"};
+static const option test_option = {"-test", "--test"};
 static const option ui_option = {"-ui", "--ui"};
 static const option ui_port_option = {"-up", "--ui_port"};
 static const option unmount_option = {"-unmount", "--unmount"};
@@ -77,6 +78,7 @@ static const std::vector<option> option_list = {
     remote_mount_option,
     set_option,
     status_option,
+    test_option,
     ui_option,
     ui_port_option,
     unmount_option,

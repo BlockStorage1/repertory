@@ -98,6 +98,7 @@ namespace {
 
   return std::string{value};
 }
+
 } // namespace
 
 namespace repertory::ui {
@@ -199,6 +200,9 @@ handlers::handlers(mgmt_app_config *config, httplib::Server *server)
   server->Get("/api/v1/settings", [this](auto && /* req */, auto &&res) {
     handle_get_settings(res);
   });
+
+  server->Get("/api/v1/test",
+              [this](auto &&req, auto &&res) { handle_get_test(req, res); });
 
   server->Post("/api/v1/add_mount", [this](auto &&req, auto &&res) {
     handle_post_add_mount(req, res);
@@ -308,6 +312,46 @@ auto handlers::data_directory_exists(provider_type prov,
   return ret;
 }
 
+void handlers::generate_config(provider_type prov, std::string_view name,
+                               const json &cfg,
+                               std::optional<std::string> data_dir) const {
+  std::map<std::string, std::string> values{};
+  for (const auto &[key, value] : cfg.items()) {
+    if (value.is_object()) {
+      for (const auto &[key2, value2] : value.items()) {
+        auto sub_key = fmt::format("{}.{}", key, key2);
+        auto skip{false};
+        auto decrypted = decrypt_value(
+            config_, sub_key, value2.template get<std::string>(), skip);
+        if (skip) {
+          continue;
+        }
+        values[sub_key] = decrypted;
+      }
+
+      continue;
+    }
+
+    auto skip{false};
+    auto decrypted =
+        decrypt_value(config_, key, value.template get<std::string>(), skip);
+    if (skip) {
+      continue;
+    }
+    values[key] = decrypted;
+  }
+
+  if (data_dir.has_value()) {
+    launch_process(prov, name, {"-dd", data_dir.value(), "-gc"});
+  } else {
+    launch_process(prov, name, {"-gc"});
+  }
+
+  for (const auto &[key, value] : values) {
+    set_key_value(prov, name, key, value, data_dir);
+  }
+}
+
 void handlers::handle_put_mount_location(const httplib::Request &req,
                                          httplib::Response &res) const {
   REPERTORY_USES_FUNCTION_NAME();
@@ -367,7 +411,6 @@ void handlers::handle_get_mount(const httplib::Request &req,
   }
 
   auto lines = launch_process(prov, name, {"-dc"});
-
   if (lines.at(0U) != "0") {
     throw utils::error::create_exception(function_name, {
                                                             "command failed",
@@ -475,6 +518,26 @@ void handlers::handle_get_settings(httplib::Response &res) const {
   res.status = http_error_codes::ok;
 }
 
+void handlers::handle_get_test(const httplib::Request &req,
+                               httplib::Response &res) const {
+  unique_mutex_lock lock(test_mtx_);
+
+  auto name = req.get_param_value("name");
+  auto prov = provider_type_from_string(req.get_param_value("type"));
+  auto cfg = nlohmann::json::parse(req.get_param_value("config"));
+
+  auto data_dir = utils::path::combine(
+      utils::directory::temp(), {utils::file::create_temp_name("repertory")});
+
+  generate_config(prov, name, cfg, data_dir);
+
+  auto lines = launch_process(prov, name, {"-dd", data_dir, "-test"});
+  res.status = lines.at(0U) == "0" ? http_error_codes::ok
+                                   : http_error_codes::internal_error;
+
+  utils::file::directory{data_dir}.remove_recursively();
+}
+
 void handlers::handle_post_add_mount(const httplib::Request &req,
                                      httplib::Response &res) const {
   auto name = req.get_param_value("name");
@@ -485,38 +548,9 @@ void handlers::handle_post_add_mount(const httplib::Request &req,
   }
 
   auto cfg = nlohmann::json::parse(req.get_param_value("config"));
+  generate_config(prov, name, cfg);
 
-  std::map<std::string, std::string> values{};
-  for (const auto &[key, value] : cfg.items()) {
-    if (value.is_object()) {
-      for (const auto &[key2, value2] : value.items()) {
-        auto sub_key = fmt::format("{}.{}", key, key2);
-        auto skip{false};
-        auto decrypted = decrypt_value(
-            config_, sub_key, value2.template get<std::string>(), skip);
-        if (skip) {
-          continue;
-        }
-        values[sub_key] = decrypted;
-      }
-
-      continue;
-    }
-
-    auto skip{false};
-    auto decrypted =
-        decrypt_value(config_, key, value.template get<std::string>(), skip);
-    if (skip) {
-      continue;
-    }
-    values[key] = decrypted;
-  }
-
-  launch_process(prov, name, {"-gc"});
-  for (auto &[key, value] : values) {
-    set_key_value(prov, name, key, value);
-  }
-
+  launch_process(prov, name, {"-test"});
   res.status = http_error_codes::ok;
 }
 
@@ -743,9 +777,13 @@ void handlers::removed_expired_nonces() {
 }
 
 void handlers::set_key_value(provider_type prov, std::string_view name,
-                             std::string_view key,
-                             std::string_view value) const {
+                             std::string_view key, std::string_view value,
+                             std::optional<std::string> data_dir) const {
   std::vector<std::string> args;
+  if (data_dir.has_value()) {
+    args.emplace_back("-dd");
+    args.emplace_back(data_dir.value());
+  }
   args.emplace_back("-set");
   args.emplace_back(key);
   args.emplace_back(value);

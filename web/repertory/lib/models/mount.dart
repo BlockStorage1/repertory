@@ -289,7 +289,7 @@ class Mount with ChangeNotifier {
       final response = await http.put(
         Uri.parse(
           Uri.encodeFull(
-            '${getBaseUri()}/api/v1/test?auth=$auth&name=$name&type=$type&settings=${jsonEncode(mountConfig.settings)}',
+            '${getBaseUri()}/api/v1/test?auth=$auth&name=$name&type=$type&config=${jsonEncode(mountConfig.settings)}',
           ),
         ),
       );

@@ -1,0 +1,45 @@
+/*
+  Copyright <2018-2025> <scott.e.graves@protonmail.com>
+
+  Permission is hereby granted, free of charge, to any person obtaining a copy
+  of this software and associated documentation files (the "Software"), to deal
+  in the Software without restriction, including without limitation the rights
+  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+  copies of the Software, and to permit persons to whom the Software is
+  furnished to do so, subject to the following conditions:
+
+  The above copyright notice and this permission notice shall be included in all
+  copies or substantial portions of the Software.
+
+  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+  SOFTWARE.
+*/
+#ifndef REPERTORY_INCLUDE_CLI_TEST_HPP_
+#define REPERTORY_INCLUDE_CLI_TEST_HPP_
+
+#include "cli/common.hpp"
+
+namespace repertory::cli::actions {
+[[nodiscard]] inline auto
+test(std::vector<const char *> /* args */, const std::string &data_directory,
+     const provider_type &prov, const std::string & /*unique_id*/,
+     std::string /*user*/, std::string /*password*/) -> exit_code {
+  app_config config(prov, data_directory);
+  if (prov == provider_type::remote) {
+    return exit_code::exception;
+  }
+
+  auto provider{create_provider(prov, config)};
+  auto is_online{provider->is_online()};
+  fmt::println("{}\nProvider is {}!", utils::string::from_bool(is_online),
+               is_online ? "online" : "offline");
+  return is_online ? exit_code::success : exit_code::exception;
+}
+} // namespace repertory::cli::actions
+
+#endif // REPERTORY_INCLUDE_CLI_TEST_HPP_
