@@ -604,4 +604,4 @@ auto remote_fuse_drive::write_impl(std::string api_path, const char *buffer,
 }
 } // namespace repertory::remote_fuse
 
-#endif // _WIN32
+#endif // !defined(_WIN32)

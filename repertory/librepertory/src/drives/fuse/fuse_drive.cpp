@@ -1445,4 +1445,4 @@ void fuse_drive::update_accessed_time(const std::string &api_path) {
 }
 } // namespace repertory
 
-#endif // _WIN32
+#endif // !defined(_WIN32)
