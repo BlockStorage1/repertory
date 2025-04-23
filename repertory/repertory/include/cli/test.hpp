@@ -23,7 +23,6 @@
 #define REPERTORY_INCLUDE_CLI_TEST_HPP_
 
 #include "cli/common.hpp"
-#include "events/consumers/console_consumer.hpp"
 
 namespace repertory::cli::actions {
 [[nodiscard]] inline auto
@@ -35,12 +34,8 @@ test(std::vector<const char *> /* args */, const std::string &data_directory,
     return exit_code::exception;
   }
 
-  console_consumer consumer{};
-  event_system::instance().start();
   auto provider{create_provider(prov, config)};
   auto is_online{provider->is_online()};
-  event_system::instance().stop();
-
   fmt::println("{}\nProvider is {}!", utils::string::from_bool(is_online),
                is_online ? "online" : "offline");
   return is_online ? exit_code::success : exit_code::exception;
