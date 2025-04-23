@@ -53,9 +53,6 @@ private:
   std::optional<host_config> host_config_;
   std::optional<s3_config> s3_config_;
 
-private:
-  bool use_s3_path_style_{false};
-
 public:
   [[nodiscard]] static auto create_curl() -> CURL *;
 
@@ -67,8 +64,7 @@ public:
                                           const host_config &cfg)
       -> std::string;
 
-  [[nodiscard]] static auto create_host_config(const s3_config &cfg,
-                                               bool use_s3_path_style)
+  [[nodiscard]] static auto create_host_config(const s3_config &cfg)
       -> host_config;
 
   [[nodiscard]] static auto url_encode(CURL *curl, const std::string &data,
@@ -237,8 +233,6 @@ public:
   }
 
 public:
-  void enable_s3_path_style(bool enable) override;
-
   [[nodiscard]] auto make_request(const curl::requests::http_delete &del,
                                   long &response_code,
                                   stop_type &stop_requested) const

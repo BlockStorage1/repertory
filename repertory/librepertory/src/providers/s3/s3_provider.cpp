@@ -57,7 +57,7 @@ namespace {
 
 namespace repertory {
 s3_provider::s3_provider(app_config &config, i_http_comm &comm)
-    : base_provider(config, comm) {}
+    : base_provider(config, comm), s3_config_(config.get_s3_config()) {}
 
 auto s3_provider::add_if_not_found(api_file &file,
                                    const std::string &object_name) const
@@ -799,7 +799,7 @@ auto s3_provider::is_online() const -> bool {
     std::string token;
     std::string response_data;
     long response_code{};
-    return get_object_list(response_data, response_code, "/", "/", token);
+    return get_object_list(response_data, response_code, "/", "", token);
   } catch (const std::exception &e) {
     utils::error::raise_error(function_name, e, "exception occurred");
   }
@@ -1073,8 +1073,6 @@ auto s3_provider::start(api_item_added_callback api_item_added,
 
   event_system::instance().raise<service_start_begin>(function_name,
                                                       "s3_provider");
-  s3_config_ = get_config().get_s3_config();
-  get_comm().enable_s3_path_style(s3_config_.use_path_style);
   auto ret = base_provider::start(api_item_added, mgr);
   event_system::instance().raise<service_start_end>(function_name,
                                                     "s3_provider");
