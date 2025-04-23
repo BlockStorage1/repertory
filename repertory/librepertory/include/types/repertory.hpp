@@ -283,11 +283,13 @@ enum class exit_code : std::int32_t {
   init_failed = -18,
   ui_mount_failed = -19,
   exception = -20,
+  provider_offline = -21
 };
 
 enum http_error_codes : std::int32_t {
   ok = 200,
   multiple_choices = 300,
+  bad_request = 400,
   unauthorized = 401,
   not_found = 404,
   internal_error = 500,

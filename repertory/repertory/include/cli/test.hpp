@@ -31,14 +31,14 @@ test(std::vector<const char *> /* args */, const std::string &data_directory,
      std::string /*user*/, std::string /*password*/) -> exit_code {
   app_config config(prov, data_directory);
   if (prov == provider_type::remote) {
-    return exit_code::exception;
+    return exit_code::provider_offline;
   }
 
   auto provider{create_provider(prov, config)};
   auto is_online{provider->is_online()};
   fmt::println("{}\nProvider is {}!", utils::string::from_bool(is_online),
                is_online ? "online" : "offline");
-  return is_online ? exit_code::success : exit_code::exception;
+  return is_online ? exit_code::success : exit_code::provider_offline;
 }
 } // namespace repertory::cli::actions
 
