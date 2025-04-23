@@ -15,6 +15,7 @@
 * \#46 [bug] Changes to maximum cache size should be updated live
 * \#47 [bug] Windows-to-Linux remote mount is allowing directory rename when directory is not empty
 * \#48 [bug] Windows-to-Linux remote mount overlapped I/O is not detecting EOF for read operations
+* \#49 [ui] Implement provider test button
 
 ### Changes from v2.0.5-rc
 

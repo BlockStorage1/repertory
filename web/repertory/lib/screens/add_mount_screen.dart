@@ -113,8 +113,8 @@ class _AddMountScreenState extends State<AddMountScreen> {
                       ),
                     ),
                   ),
-                if (_mount != null) const SizedBox(height: constants.padding),
-                if (_mount != null)
+                if (_mount != null) ...[
+                  const SizedBox(height: constants.padding),
                   Expanded(
                     child: Card(
                       margin: EdgeInsets.all(0.0),
@@ -129,8 +129,7 @@ class _AddMountScreenState extends State<AddMountScreen> {
                       ),
                     ),
                   ),
-                if (_mount != null) const SizedBox(height: constants.padding),
-                if (_mount != null)
+                  const SizedBox(height: constants.padding),
                   Row(
                     children: [
                       ElevatedButton.icon(
@@ -189,16 +188,15 @@ class _AddMountScreenState extends State<AddMountScreen> {
                           Navigator.pop(context);
                         },
                       ),
-                      if (_mountType == 'Sia' || _mountType == 'S3') ...[
-                        const SizedBox(width: constants.padding),
-                        ElevatedButton.icon(
-                          label: const Text('Test'),
-                          icon: const Icon(Icons.check),
-                          onPressed: () async {},
-                        ),
-                      ],
+                      const SizedBox(width: constants.padding),
+                      ElevatedButton.icon(
+                        label: const Text('Test'),
+                        icon: const Icon(Icons.check),
+                        onPressed: _handleProviderTest,
+                      ),
                     ],
                   ),
+                ],
               ],
             );
           },
@@ -232,6 +230,22 @@ class _AddMountScreenState extends State<AddMountScreen> {
                 isAdd: true,
               );
     });
+  }
+
+  Future<void> _handleProviderTest() async {
+    if (_mount == null) {
+      return;
+    }
+
+    final success = await _mount!.test();
+    if (!mounted) {
+      return;
+    }
+
+    displayErrorMessage(
+      context,
+      success ? "Success!" : "Provider settings are invalid!",
+    );
   }
 
   @override
