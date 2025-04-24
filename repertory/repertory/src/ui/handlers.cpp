@@ -315,6 +315,8 @@ auto handlers::data_directory_exists(provider_type prov,
 void handlers::generate_config(provider_type prov, std::string_view name,
                                const json &cfg,
                                std::optional<std::string> data_dir) const {
+  REPERTORY_USES_FUNCTION_NAME();
+
   std::map<std::string, std::string> values{};
   for (const auto &[key, value] : cfg.items()) {
     if (value.is_object()) {
@@ -342,7 +344,13 @@ void handlers::generate_config(provider_type prov, std::string_view name,
   }
 
   if (data_dir.has_value()) {
-    utils::file::directory{data_dir.value()}.create_directory();
+    if (not utils::file::directory{data_dir.value()}.create_directory()) {
+      throw utils::error::create_exception(function_name,
+                                           {
+                                               "failed to create data diretory",
+                                               data_dir.value(),
+                                           });
+    }
     launch_process(prov, name, {"-dd", data_dir.value(), "-gc"});
   } else {
     launch_process(prov, name, {"-gc"});
@@ -530,11 +538,16 @@ void handlers::handle_get_test(const httplib::Request &req,
   auto data_dir = utils::path::combine(
       utils::directory::temp(), {utils::file::create_temp_name("repertory")});
 
-  generate_config(prov, name, cfg, data_dir);
+  try {
+    generate_config(prov, name, cfg, data_dir);
 
-  auto lines = launch_process(prov, name, {"-dd", data_dir, "-test"});
-  res.status = lines.at(0U) == "0" ? http_error_codes::ok
-                                   : http_error_codes::internal_error;
+    auto lines = launch_process(prov, name, {"-dd", data_dir, "-test"});
+    res.status = lines.at(0U) == "0" ? http_error_codes::ok
+                                     : http_error_codes::internal_error;
+  } catch (const std::exception &e) {
+    utils::error::raise_error(function_name, e, "test provider config failed");
+    res.status = http_error_codes::internal_error;
+  }
 
   utils::file::directory{data_dir}.remove_recursively();
 }
@@ -551,7 +564,6 @@ void handlers::handle_post_add_mount(const httplib::Request &req,
   auto cfg = nlohmann::json::parse(req.get_param_value("config"));
   generate_config(prov, name, cfg);
 
-  launch_process(prov, name, {"-test"});
   res.status = http_error_codes::ok;
 }
 
