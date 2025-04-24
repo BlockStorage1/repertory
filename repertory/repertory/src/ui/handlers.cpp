@@ -37,6 +37,7 @@
 #include <boost/process/v1/args.hpp>
 #include <boost/process/v1/child.hpp>
 #include <boost/process/v1/io.hpp>
+#include <utils/windows.hpp>
 
 namespace {
 [[nodiscard]] auto decrypt(std::string_view data, std::string_view password)
@@ -556,7 +557,7 @@ void handlers::handle_get_test(const httplib::Request &req,
   }
 
   utils::error::raise_error(
-      function_name, e,
+      function_name, utils::get_last_error_code();
       fmt::format("failed to remove data directory|{}", data_dir));
 }
 
