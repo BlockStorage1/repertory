@@ -37,7 +37,7 @@ test(std::vector<const char *> /* args */, const std::string &data_directory,
           : create_provider(prov, config)->is_online(),
   };
 
-  fmt::println("{}\nProvider is {}!", utils::string::from_bool(is_online),
+  fmt::println("{}\nProvider is {}!", utils::string::from_bool(not is_online),
                is_online ? "online" : "offline");
   return is_online ? exit_code::success : exit_code::provider_offline;
 }
