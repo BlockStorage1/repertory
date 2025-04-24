@@ -557,7 +557,7 @@ void handlers::handle_get_test(const httplib::Request &req,
   }
 
   utils::error::raise_error(
-      function_name, utils::get_last_error_code();
+      function_name, utils::get_last_error_code(),
       fmt::format("failed to remove data directory|{}", data_dir));
 }
 
