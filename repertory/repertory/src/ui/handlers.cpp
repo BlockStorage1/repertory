@@ -23,6 +23,7 @@
 
 #include "app_config.hpp"
 #include "events/event_system.hpp"
+#include "platform/platfrom.hpp"
 #include "types/repertory.hpp"
 #include "ui/mgmt_app_config.hpp"
 #include "utils/collection.hpp"
@@ -37,7 +38,6 @@
 #include <boost/process/v1/args.hpp>
 #include <boost/process/v1/child.hpp>
 #include <boost/process/v1/io.hpp>
-#include <utils/windows.hpp>
 
 namespace {
 [[nodiscard]] auto decrypt(std::string_view data, std::string_view password)
