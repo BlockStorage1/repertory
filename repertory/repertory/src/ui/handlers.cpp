@@ -529,6 +529,8 @@ void handlers::handle_get_settings(httplib::Response &res) const {
 
 void handlers::handle_get_test(const httplib::Request &req,
                                httplib::Response &res) const {
+  REPERTORY_USES_FUNCTION_NAME();
+
   unique_mutex_lock lock(test_mtx_);
 
   auto name = req.get_param_value("name");
