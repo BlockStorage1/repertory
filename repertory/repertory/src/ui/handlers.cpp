@@ -43,6 +43,7 @@ namespace {
 [[nodiscard]] auto decrypt(std::string_view data, std::string_view password)
     -> std::string {
   REPERTORY_USES_FUNCTION_NAME();
+
   if (data.empty()) {
     return std::string{data};
   }
