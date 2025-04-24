@@ -23,7 +23,7 @@
 
 #include "app_config.hpp"
 #include "events/event_system.hpp"
-#include "platform/platfrom.hpp"
+#include "platform/platform.hpp"
 #include "types/repertory.hpp"
 #include "ui/mgmt_app_config.hpp"
 #include "utils/collection.hpp"
