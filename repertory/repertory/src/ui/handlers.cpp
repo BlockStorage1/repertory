@@ -99,7 +99,6 @@ namespace {
 
   return std::string{value};
 }
-
 } // namespace
 
 namespace repertory::ui {
