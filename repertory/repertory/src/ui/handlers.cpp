@@ -551,7 +551,13 @@ void handlers::handle_get_test(const httplib::Request &req,
     res.status = http_error_codes::internal_error;
   }
 
-  utils::file::directory{data_dir}.remove_recursively();
+  if (utils::file::directory{data_dir}.remove_recursively()) {
+    return;
+  }
+
+  utils::error::raise_error(
+      function_name, e,
+      fmt::format("failed to remove data directory|{}", data_dir));
 }
 
 void handlers::handle_post_add_mount(const httplib::Request &req,
