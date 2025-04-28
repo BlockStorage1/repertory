@@ -17,6 +17,7 @@ bugprone
 cflags
 chrono
 cmake_current_source_dir
+coinit_apartmentthreaded
 comdlg32
 cppcoreguidelines
 cppdbg
