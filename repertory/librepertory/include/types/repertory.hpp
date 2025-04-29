@@ -23,32 +23,36 @@
 #define REPERTORY_INCLUDE_TYPES_REPERTORY_HPP_
 
 namespace repertory {
-constexpr const auto default_api_password_size{48U};
-constexpr const auto default_download_timeout_secs{30U};
-constexpr const auto default_eviction_delay_mins{1U};
-constexpr const auto default_high_freq_interval_secs{std::uint16_t{30U}};
-constexpr const auto default_low_freq_interval_secs{std::uint16_t(60U * 60U)};
-constexpr const auto default_max_cache_size_bytes{
+inline constexpr const auto default_api_password_size{48U};
+inline constexpr const auto default_download_timeout_secs{30U};
+inline constexpr const auto default_eviction_delay_mins{1U};
+inline constexpr const auto default_high_freq_interval_secs{std::uint16_t{30U}};
+inline constexpr const auto default_low_freq_interval_secs{
+    std::uint16_t(60U * 60U),
+};
+inline constexpr const auto default_max_cache_size_bytes{
     std::uint64_t(20ULL * 1024ULL * 1024ULL * 1024ULL),
 };
-constexpr const auto default_max_upload_count{5U};
-constexpr const auto default_med_freq_interval_secs{std::uint16_t{2U * 60U}};
-constexpr const auto default_online_check_retry_secs{60U};
-constexpr const auto default_retry_read_count{6U};
-constexpr const auto default_ring_buffer_file_size{512U};
-constexpr const auto default_task_wait_ms{100U};
-constexpr const auto default_timeout_ms{60000U};
-constexpr const auto default_ui_mgmt_port{std::uint16_t{30000U}};
-constexpr const auto max_ring_buffer_file_size{std::uint16_t(1024U)};
-constexpr const auto max_s3_object_name_length{1024U};
-constexpr const auto min_cache_size_bytes{
+inline constexpr const auto default_max_upload_count{5U};
+inline constexpr const auto default_med_freq_interval_secs{
+    std::uint16_t{2U * 60U},
+};
+inline constexpr const auto default_online_check_retry_secs{60U};
+inline constexpr const auto default_retry_read_count{6U};
+inline constexpr const auto default_ring_buffer_file_size{512U};
+inline constexpr const auto default_task_wait_ms{100U};
+inline constexpr const auto default_timeout_ms{60000U};
+inline constexpr const auto default_ui_mgmt_port{std::uint16_t{30000U}};
+inline constexpr const auto max_ring_buffer_file_size{std::uint16_t(1024U)};
+inline constexpr const auto max_s3_object_name_length{1024U};
+inline constexpr const auto min_cache_size_bytes{
     std::uint64_t(100ULL * 1024ULL * 1024ULL),
 };
-constexpr const auto min_download_timeout_secs{std::uint8_t(5U)};
-constexpr const auto min_online_check_retry_secs{std::uint16_t(15U)};
-constexpr const auto min_retry_read_count{std::uint16_t(2U)};
-constexpr const auto min_ring_buffer_file_size{std::uint16_t(64U)};
-constexpr const auto min_task_wait_ms{std::uint16_t(50U)};
+inline constexpr const auto min_download_timeout_secs{std::uint8_t(5U)};
+inline constexpr const auto min_online_check_retry_secs{std::uint16_t(15U)};
+inline constexpr const auto min_retry_read_count{std::uint16_t(2U)};
+inline constexpr const auto min_ring_buffer_file_size{std::uint16_t(64U)};
+inline constexpr const auto min_task_wait_ms{std::uint16_t(50U)};
 
 template <typename data_t> class atomic final {
 public:
