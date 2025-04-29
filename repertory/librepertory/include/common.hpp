@@ -54,13 +54,13 @@ REPERTORY_IGNORE_WARNINGS_DISABLE()
 using namespace std::chrono_literals;
 using json = nlohmann::json;
 
-inline constexpr const std::string_view REPERTORY{"repertory"};
-inline constexpr const std::string_view REPERTORY_DATA_NAME{"repertory2"};
-inline constexpr const std::wstring_view REPERTORY_W{L"repertory"};
+inline constexpr std::string_view REPERTORY{"repertory"};
+inline constexpr std::string_view REPERTORY_DATA_NAME{"repertory2"};
+inline constexpr std::wstring_view REPERTORY_W{L"repertory"};
 
-inline constexpr const std::uint64_t REPERTORY_CONFIG_VERSION{2ULL};
-inline constexpr const std::string_view REPERTORY_MIN_REMOTE_VERSION{"2.0.0"};
-inline constexpr const std::string_view RENTERD_MIN_VERSION{"2.0.0"};
+inline constexpr std::uint64_t REPERTORY_CONFIG_VERSION{2ULL};
+inline constexpr std::string_view REPERTORY_MIN_REMOTE_VERSION{"2.0.0"};
+inline constexpr std::string_view RENTERD_MIN_VERSION{"2.0.0"};
 
 #define REPERTORY_INVALID_HANDLE INVALID_HANDLE_VALUE
 

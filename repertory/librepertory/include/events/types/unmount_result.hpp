@@ -35,8 +35,8 @@ struct unmount_result final : public i_event {
         mount_location(std::move(mount_location_)),
         result(result_) {}
 
-  static constexpr const event_level level{event_level::info};
-  static constexpr const std::string_view name{"unmount_result"};
+  static constexpr event_level level{event_level::info};
+  static constexpr std::string_view name{"unmount_result"};
 
   std::string function_name;
   std::string mount_location;

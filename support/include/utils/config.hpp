@@ -429,14 +429,14 @@ using unique_recur_mutex_lock = std::unique_lock<std::recursive_mutex>;
 
 #if defined(_WIN32)
 #if defined(PROJECT_ENABLE_WIN32_LONG_PATH_NAMES)
-inline constexpr const auto max_path_length = std::size_t{32767U};
+inline constexpr auto max_path_length = std::size_t{32767U};
 #else  // !defined(PROJECT_ENABLE_WIN32_LONG_PATH_NAMES)
-inline constexpr const auto max_path_length = std::size_t{MAX_PATH};
+inline constexpr auto max_path_length = std::size_t{MAX_PATH};
 #endif // defined(PROJECT_ENABLE_WIN32_LONG_PATH_NAMES)
 
 using native_handle = HANDLE;
 #else // !defined(_WIN32)
-inline constexpr const auto max_path_length = std::size_t{PATH_MAX};
+inline constexpr auto max_path_length = std::size_t{PATH_MAX};
 using native_handle = int;
 #if !defined(INVALID_HANDLE_VALUE)
 #define INVALID_HANDLE_VALUE (-1)
@@ -482,7 +482,7 @@ using http_ranges = std::vector<http_range>;
 #endif // defined(__cplusplus)
 
 #define REPERTORY_USES_FUNCTION_NAME()                                         \
-  static constexpr const std::string_view function_name {                      \
+  static constexpr std::string_view function_name {                      \
     static_cast<const char *>(__FUNCTION__),                                   \
   }
 

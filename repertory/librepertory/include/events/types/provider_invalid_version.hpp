@@ -35,8 +35,8 @@ struct provider_invalid_version final : public i_event {
         required_version(std::move(required_version_)),
         returned_version(std::move(returned_version_)) {}
 
-  static constexpr const event_level level{event_level::error};
-  static constexpr const std::string_view name{"provider_invalid_version"};
+  static constexpr event_level level{event_level::error};
+  static constexpr std::string_view name{"provider_invalid_version"};
 
   std::string function_name;
   std::string required_version;

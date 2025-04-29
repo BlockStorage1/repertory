@@ -36,8 +36,8 @@ struct orphaned_file_processing_failed final : public i_event {
         function_name(std::string(function_name_)),
         source_path(std::move(source_path_)) {}
 
-  static constexpr const event_level level{event_level::error};
-  static constexpr const std::string_view name{
+  static constexpr event_level level{event_level::error};
+  static constexpr std::string_view name{
       "orphaned_file_processing_failed",
   };
 

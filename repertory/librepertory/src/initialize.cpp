@@ -52,8 +52,8 @@ namespace repertory {
 auto project_initialize() -> bool {
 #if defined(PROJECT_REQUIRE_ALPINE) && !defined(PROJECT_IS_MINGW)
   {
-    static constexpr const auto guard_size{4096U};
-    static constexpr const auto stack_size{8U * 1024U * 1024U};
+    static constexpr auto guard_size{4096U};
+    static constexpr auto stack_size{8U * 1024U * 1024U};
 
     pthread_attr_t attr{};
     pthread_attr_setstacksize(&attr, stack_size);

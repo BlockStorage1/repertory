@@ -31,8 +31,8 @@ struct info_log final : public i_event {
   info_log(std::string_view function_name_, std::string msg_)
       : function_name(std::string(function_name_)), msg(std::move(msg_)) {}
 
-  static constexpr const event_level level{event_level::info};
-  static constexpr const std::string_view name{"info_log"};
+  static constexpr event_level level{event_level::info};
+  static constexpr std::string_view name{"info_log"};
 
   std::string function_name;
   std::string msg;

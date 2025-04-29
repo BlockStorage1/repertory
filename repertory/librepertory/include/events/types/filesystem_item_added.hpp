@@ -35,8 +35,8 @@ struct filesystem_item_added final : public i_event {
         directory(directory_),
         function_name(std::string(function_name_)) {}
 
-  static constexpr const event_level level{event_level::debug};
-  static constexpr const std::string_view name{"filesystem_item_added"};
+  static constexpr event_level level{event_level::debug};
+  static constexpr std::string_view name{"filesystem_item_added"};
 
   std::string api_parent;
   std::string api_path;

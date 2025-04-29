@@ -30,8 +30,8 @@ class mgmt_app_config;
 
 class handlers final {
 private:
-  static constexpr const auto nonce_length{128U};
-  static constexpr const auto nonce_timeout{15U};
+  static constexpr auto nonce_length{128U};
+  static constexpr auto nonce_timeout{15U};
 
   struct nonce_data final {
     std::chrono::system_clock::time_point creation{

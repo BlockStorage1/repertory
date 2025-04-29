@@ -35,8 +35,8 @@ struct download_type_selected final : public i_event {
         function_name(std::string(function_name_)),
         type(type_) {}
 
-  static constexpr const event_level level{event_level::debug};
-  static constexpr const std::string_view name{"download_type_selected"};
+  static constexpr event_level level{event_level::debug};
+  static constexpr std::string_view name{"download_type_selected"};
 
   std::string api_path;
   std::string dest_path;

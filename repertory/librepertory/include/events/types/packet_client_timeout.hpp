@@ -34,8 +34,8 @@ struct packet_client_timeout final : public i_event {
         function_name(std::string(function_name_)),
         msg(std::move(msg_)) {}
 
-  static constexpr const event_level level{event_level::warn};
-  static constexpr const std::string_view name{"packet_client_timeout"};
+  static constexpr event_level level{event_level::warn};
+  static constexpr std::string_view name{"packet_client_timeout"};
 
   std::string event_name;
   std::string function_name;

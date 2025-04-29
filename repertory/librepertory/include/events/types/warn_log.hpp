@@ -31,8 +31,8 @@ struct warn_log final : public i_event {
   warn_log(std::string_view function_name_, std::string msg_)
       : function_name(std::string(function_name_)), msg(std::move(msg_)) {}
 
-  static constexpr const event_level level{event_level::warn};
-  static constexpr const std::string_view name{"warn_log"};
+  static constexpr event_level level{event_level::warn};
+  static constexpr std::string_view name{"warn_log"};
 
   std::string function_name;
   std::string msg;

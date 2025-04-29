@@ -31,8 +31,8 @@ struct event_level_changed final : public i_event {
   event_level_changed(std::string_view function_name_, event_level new_level_)
       : function_name(std::string(function_name_)), new_level(new_level_) {}
 
-  static constexpr const event_level level{event_level::info};
-  static constexpr const std::string_view name{"event_level_changed"};
+  static constexpr event_level level{event_level::info};
+  static constexpr std::string_view name{"event_level_changed"};
 
   std::string function_name;
   event_level new_level{};

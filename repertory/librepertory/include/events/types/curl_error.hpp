@@ -33,8 +33,8 @@ struct curl_error final : public i_event {
         function_name(std::string{function_name_}),
         url(std::move(url_)) {}
 
-  static constexpr const event_level level{event_level::error};
-  static constexpr const std::string_view name{"curl_error"};
+  static constexpr event_level level{event_level::error};
+  static constexpr std::string_view name{"curl_error"};
 
   CURLcode code{};
   std::string function_name;

@@ -34,8 +34,8 @@ struct provider_upload_begin final : public i_event {
         function_name(std::string(function_name_)),
         source_path(std::move(source_path_)) {}
 
-  static constexpr const event_level level{event_level::info};
-  static constexpr const std::string_view name{"provider_upload_begin"};
+  static constexpr event_level level{event_level::info};
+  static constexpr std::string_view name{"provider_upload_begin"};
 
   std::string api_path;
   std::string function_name;

@@ -32,8 +32,8 @@ struct item_timeout final : public i_event {
       : api_path(std::move(api_path_)),
         function_name(std::string(function_name_)) {}
 
-  static constexpr const event_level level{event_level::trace};
-  static constexpr const std::string_view name{"item_timeout"};
+  static constexpr event_level level{event_level::trace};
+  static constexpr std::string_view name{"item_timeout"};
 
   std::string api_path;
   std::string function_name;

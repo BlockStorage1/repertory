@@ -35,8 +35,8 @@ struct max_cache_size_reached final : public i_event {
         function_name(std::string{function_name_}),
         max_cache_size(max_cache_size_) {}
 
-  static constexpr const event_level level{event_level::warn};
-  static constexpr const std::string_view name{"max_cache_size_reached"};
+  static constexpr event_level level{event_level::warn};
+  static constexpr std::string_view name{"max_cache_size_reached"};
 
   std::uint64_t cache_size{};
   std::string function_name;

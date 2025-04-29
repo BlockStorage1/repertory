@@ -31,8 +31,8 @@ struct repertory_exception final : public i_event {
   repertory_exception(std::string_view function_name_, std::string msg_)
       : function_name(std::string(function_name_)), msg(std::move(msg_)) {}
 
-  static constexpr const event_level level{event_level::error};
-  static constexpr const std::string_view name{"repertory_exception"};
+  static constexpr event_level level{event_level::error};
+  static constexpr std::string_view name{"repertory_exception"};
 
   std::string function_name;
   std::string msg;

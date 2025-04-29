@@ -24,20 +24,20 @@
 
 #include "types/repertory.hpp"
 
-inline constexpr const auto PACKET_SERVICE_FUSE{1U};
-inline constexpr const auto PACKET_SERVICE_WINFSP{2U};
+inline constexpr auto PACKET_SERVICE_FUSE{1U};
+inline constexpr auto PACKET_SERVICE_WINFSP{2U};
 
 #if defined(_WIN32)
-inline constexpr const auto PACKET_SERVICE_FLAGS{PACKET_SERVICE_WINFSP};
+inline constexpr auto PACKET_SERVICE_FLAGS{PACKET_SERVICE_WINFSP};
 #else  // !defined(_WIN32)
-inline constexpr const auto PACKET_SERVICE_FLAGS{PACKET_SERVICE_FUSE};
+inline constexpr auto PACKET_SERVICE_FLAGS{PACKET_SERVICE_FUSE};
 #endif // defined(_WIN32)
 
-constexpr const auto default_remote_directory_page_size{std::size_t(100U)};
-constexpr const auto default_remote_client_pool_size{20U};
-constexpr const auto default_remote_max_connections{20U};
-constexpr const auto default_remote_receive_timeout_ms{120U * 1000U};
-constexpr const auto default_remote_send_timeout_ms{30U * 1000U};
+inline constexpr auto default_remote_directory_page_size{std::size_t(100U)};
+inline constexpr auto default_remote_client_pool_size{20U};
+inline constexpr auto default_remote_max_connections{20U};
+inline constexpr auto default_remote_receive_timeout_ms{120U * 1000U};
+inline constexpr auto default_remote_send_timeout_ms{30U * 1000U};
 
 namespace repertory::remote {
 struct remote_config final {

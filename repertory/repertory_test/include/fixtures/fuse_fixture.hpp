@@ -47,38 +47,38 @@
 namespace {
 std::atomic<std::size_t> provider_idx{0U};
 
-constexpr const auto SLEEP_SECONDS{1.5s};
+constexpr auto SLEEP_SECONDS{1.5s};
 } // namespace
 
 namespace repertory {
 struct local_s3 final {
-  static constexpr const provider_type type{provider_type::s3};
-  static constexpr const provider_type type2{provider_type::s3};
-  static constexpr const std::uint16_t port{0U};
+  static constexpr provider_type type{provider_type::s3};
+  static constexpr provider_type type2{provider_type::s3};
+  static constexpr std::uint16_t port{0U};
 };
 
 struct local_sia final {
-  static constexpr const provider_type type{provider_type::sia};
-  static constexpr const provider_type type2{provider_type::sia};
-  static constexpr const std::uint16_t port{0U};
+  static constexpr provider_type type{provider_type::sia};
+  static constexpr provider_type type2{provider_type::sia};
+  static constexpr std::uint16_t port{0U};
 };
 
 struct remote_s3 final {
-  static constexpr const provider_type type{provider_type::remote};
-  static constexpr const provider_type type2{provider_type::s3};
-  static constexpr const std::uint16_t port{0U};
+  static constexpr provider_type type{provider_type::remote};
+  static constexpr provider_type type2{provider_type::s3};
+  static constexpr std::uint16_t port{0U};
 };
 
 struct remote_sia final {
-  static constexpr const provider_type type{provider_type::remote};
-  static constexpr const provider_type type2{provider_type::sia};
-  static constexpr const std::uint16_t port{0U};
+  static constexpr provider_type type{provider_type::remote};
+  static constexpr provider_type type2{provider_type::sia};
+  static constexpr std::uint16_t port{0U};
 };
 
 struct remote_linux_to_winfsp final {
-  static constexpr const provider_type type{provider_type::remote};
-  static constexpr const provider_type type2{provider_type::unknown};
-  static constexpr const std::uint16_t port{40001U};
+  static constexpr provider_type type{provider_type::remote};
+  static constexpr provider_type type2{provider_type::unknown};
+  static constexpr std::uint16_t port{40001U};
 };
 
 template <typename provider_t> class fuse_test : public ::testing::Test {

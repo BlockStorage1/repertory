@@ -35,7 +35,7 @@
 #include "utils/path.hpp"
 
 namespace {
-constexpr const std::size_t test_chunk_size{1024U};
+constexpr std::size_t test_chunk_size{1024U};
 }
 
 namespace repertory {

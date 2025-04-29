@@ -35,9 +35,8 @@ public:
   ~logging_consumer();
 
 private:
-  static constexpr const std::uint8_t MAX_LOG_FILES{5U};
-  static constexpr const std::uint64_t MAX_LOG_FILE_SIZE{1024ULL * 1024ULL *
-                                                         5ULL};
+  static constexpr std::uint8_t MAX_LOG_FILES{5U};
+  static constexpr std::uint64_t MAX_LOG_FILE_SIZE{1024ULL * 1024ULL * 5ULL};
 
 private:
   static void process_event(const i_event &evt);

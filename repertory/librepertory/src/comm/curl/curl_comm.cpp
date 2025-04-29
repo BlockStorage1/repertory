@@ -62,8 +62,8 @@ curl_comm::curl_comm(s3_config cfg)
 
 auto curl_comm::construct_url(CURL *curl, const std::string &relative_path,
                               const host_config &cfg) -> std::string {
-  static constexpr const auto http = 80U;
-  static constexpr const auto https = 443U;
+  static constexpr auto http{80U};
+  static constexpr auto https{443U};
 
   auto custom_port = (((cfg.protocol == "http") &&
                        (cfg.api_port == http || cfg.api_port == 0U)) ||

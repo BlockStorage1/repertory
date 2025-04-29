@@ -24,9 +24,9 @@
 namespace {
 #if defined(PROJECT_ENABLE_LIBSODIUM) && defined(PROJECT_ENABLE_BOOST)
 #include "utils/file_enc_file.hpp"
-constexpr const auto file_type_count{3U};
+constexpr auto file_type_count{3U};
 #else
-constexpr const auto file_type_count{2U};
+constexpr auto file_type_count{2U};
 #endif
 
 [[nodiscard]] auto create_file(auto idx, auto path, bool read_only = false)

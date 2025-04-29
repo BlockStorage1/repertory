@@ -119,8 +119,8 @@ auto get_free_drive_space(std::string_view path)
   try {
 #if defined(_WIN32)
     ULARGE_INTEGER li{};
-    if (not::GetDiskFreeSpaceEx(std::string{path}.c_str(), &li, nullptr,
-                                nullptr)) {
+    if (not ::GetDiskFreeSpaceEx(std::string{path}.c_str(), &li, nullptr,
+                                 nullptr)) {
       throw utils::error::create_exception(
           function_name, {
                              "failed to get free disk space",
@@ -276,8 +276,8 @@ auto get_total_drive_space(std::string_view path)
   try {
 #if defined(_WIN32)
     ULARGE_INTEGER li{};
-    if (not::GetDiskFreeSpaceEx(std::string{path}.c_str(), nullptr, &li,
-                                nullptr)) {
+    if (not ::GetDiskFreeSpaceEx(std::string{path}.c_str(), nullptr, &li,
+                                 nullptr)) {
       throw utils::error::create_exception(
           function_name, {
                              "failed to get total disk space",
@@ -376,7 +376,7 @@ auto read_json_file(std::string_view path, nlohmann::json &data) -> bool {
   try {
     auto abs_path = utils::path::absolute(path);
     auto file = file::open_file(abs_path);
-    if (not*file) {
+    if (not *file) {
       return false;
     }
 
@@ -498,7 +498,7 @@ auto write_json_file(std::wstring_view path, const nlohmann::json &data)
 #endif // defined(PROJECT_ENABLE_JSON)
 
 #if defined(PROJECT_ENABLE_LIBDSM)
-static constexpr const auto validate_smb_path =
+static constexpr auto validate_smb_path =
     [](std::string_view path) -> bool {
   return (not utils::string::begins_with(path, "///") &&
           utils::string::begins_with(path, "//") &&

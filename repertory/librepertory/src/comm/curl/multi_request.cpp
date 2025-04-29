@@ -39,7 +39,7 @@ multi_request::~multi_request() {
 }
 
 void multi_request::get_result(CURLcode &curl_code, long &http_code) {
-  static constexpr const auto timeout_ms = 100;
+  static constexpr auto timeout_ms{100};
 
   curl_code = CURLcode::CURLE_ABORTED_BY_CALLBACK;
   http_code = -1;

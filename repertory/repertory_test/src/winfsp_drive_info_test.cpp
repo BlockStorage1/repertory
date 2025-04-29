@@ -291,7 +291,7 @@ TYPED_TEST(winfsp_test, info_can_set_creation_file_time) {
   BY_HANDLE_FILE_INFORMATION orig_file_info{};
   EXPECT_TRUE(::GetFileInformationByHandle(handle, &orig_file_info));
 
-  static constexpr const UINT64 file_time{
+  static constexpr UINT64 file_time{
       116444736000000000ULL + 0x4200000042ULL,
   };
 
@@ -325,7 +325,7 @@ TYPED_TEST(winfsp_test, info_can_set_accessed_file_time) {
   BY_HANDLE_FILE_INFORMATION orig_file_info{};
   EXPECT_TRUE(::GetFileInformationByHandle(handle, &orig_file_info));
 
-  static constexpr const UINT64 file_time{
+  static constexpr UINT64 file_time{
       116444736000000000ULL + 0x4200000042ULL,
   };
 
@@ -358,7 +358,7 @@ TYPED_TEST(winfsp_test, info_can_set_written_file_time) {
   BY_HANDLE_FILE_INFORMATION orig_file_info{};
   EXPECT_TRUE(::GetFileInformationByHandle(handle, &orig_file_info));
 
-  static constexpr const UINT64 file_time{
+  static constexpr UINT64 file_time{
       116444736000000000ULL + 0x4200000042ULL,
   };
 

@@ -35,8 +35,8 @@ struct download_progress final : public i_event {
         function_name(std::string(function_name_)),
         progress(progress_) {}
 
-  static constexpr const event_level level{event_level::info};
-  static constexpr const std::string_view name{"download_progress"};
+  static constexpr event_level level{event_level::info};
+  static constexpr std::string_view name{"download_progress"};
 
   std::string api_path;
   std::string dest_path;

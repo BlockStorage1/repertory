@@ -32,8 +32,8 @@ struct polling_item_end final : public i_event {
       : function_name(std::string(function_name_)),
         item_name(std::move(item_name_)) {}
 
-  static constexpr const event_level level{event_level::debug};
-  static constexpr const std::string_view name{"polling_item_end"};
+  static constexpr event_level level{event_level::debug};
+  static constexpr std::string_view name{"polling_item_end"};
 
   std::string function_name;
   std::string item_name;
