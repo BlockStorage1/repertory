@@ -84,6 +84,8 @@ private:
 
   void remove_deleted_files(stop_type &stop_requested);
 
+  void remove_expired_files();
+
 public:
   [[nodiscard]] auto check_version(std::string &required_version,
                                    std::string &returned_version) const

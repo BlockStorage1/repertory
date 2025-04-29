@@ -106,7 +106,6 @@
 #include <bit>
 #include <cerrno>
 #include <chrono>
-#include <ciso646>
 #include <climits>
 #include <codecvt>
 #include <condition_variable>
@@ -147,6 +146,7 @@
 #include <utility>
 #include <variant>
 #include <vector>
+#include <version>
 #endif // defined(__cplusplus)
 
 #if defined(PROJECT_ENABLE_CURL)

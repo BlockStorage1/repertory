@@ -40,6 +40,7 @@
 #include "utils/file_utils.hpp"
 #include "utils/path.hpp"
 #include "utils/polling.hpp"
+#include <chrono>
 
 namespace repertory {
 encrypt_provider::encrypt_provider(app_config &config)
@@ -881,6 +882,24 @@ void encrypt_provider::remove_deleted_files(stop_type &stop_requested) {
       get_stop_requested);
 }
 
+void encrypt_provider::remove_expired_files() {
+  recur_mutex_lock reader_lookup_lock(reader_lookup_mtx_);
+  auto remove_list = std::accumulate(
+      reader_lookup_.begin(), reader_lookup_.end(), std::vector<std::string>(),
+      [this](auto &&val, auto &&pair) -> auto {
+        const auto &[key, value] = pair;
+        auto diff = std::chrono::system_clock::now() - value->last_access_time;
+        if (std::chrono::duration_cast<std::chrono::seconds>(diff) >=
+            std::chrono::seconds(config_.get_download_timeout_secs())) {
+          val.emplace_back(key);
+        }
+        return val;
+      });
+  for (const auto &key : remove_list) {
+    reader_lookup_.erase(key);
+  }
+}
+
 auto encrypt_provider::start(api_item_added_callback /*api_item_added*/,
                              i_file_manager * /*mgr*/) -> bool {
   REPERTORY_USES_FUNCTION_NAME();
@@ -927,6 +946,12 @@ auto encrypt_provider::start(api_item_added_callback /*api_item_added*/,
       [this](auto &&stop_requested) { remove_deleted_files(stop_requested); },
   });
 
+  polling::instance().set_callback({
+      "remove_expired",
+      polling::frequency::high,
+      [this](auto && /* stop_requested */) { remove_expired_files(); },
+  });
+
   event_system::instance().raise<service_start_end>(function_name,
                                                     "encrypt_provider");
   return true;
@@ -938,6 +963,12 @@ void encrypt_provider::stop() {
   event_system::instance().raise<service_stop_begin>(function_name,
                                                      "encrypt_provider");
   polling::instance().remove_callback("check_deleted");
+  polling::instance().remove_callback("remove_expired");
+
+  unique_recur_mutex_lock reader_lookup_lock(reader_lookup_mtx_);
+  reader_lookup_.clear();
+  reader_lookup_lock.unlock();
+
   db_.reset();
   event_system::instance().raise<service_stop_end>(function_name,
                                                    "encrypt_provider");
