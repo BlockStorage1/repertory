@@ -7,8 +7,8 @@ constexpr std::string_view version =
     "-@PROJECT_RELEASE_ITER@";
 } // namespace
 
-namespace % PROJECT_NAME % {
-  auto project_get_git_rev() -> std::string_view { return git_rev; }
+namespace repertory {
+auto project_get_git_rev() -> std::string_view { return git_rev; }
 
-  auto project_get_version() -> std::string_view { return version; }
-} // namespace %PROJECT_NAME %
+auto project_get_version() -> std::string_view { return version; }
+} // namespace repertory
