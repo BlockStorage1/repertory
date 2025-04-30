@@ -53,7 +53,7 @@ struct option_hasher {
   }
 };
 
-static const std::unordered_map<utils::cli::option, action, option_hasher>
+inline const std::unordered_map<utils::cli::option, action, option_hasher>
     option_actions = {
         {utils::cli::options::check_version_option,
          cli::actions::check_version},
