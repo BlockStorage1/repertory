@@ -34,6 +34,8 @@
 namespace repertory {
 server::server(app_config &config) : config_(config) {}
 
+server::~server() { stop(); }
+
 void server::handle_get_config(const httplib::Request & /*req*/,
                                httplib::Response &res) {
   auto data = config_.get_json();
