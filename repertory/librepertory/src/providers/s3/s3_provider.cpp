@@ -43,15 +43,12 @@
 #include "utils/time.hpp"
 
 namespace {
-[[nodiscard]] auto set_request_path(auto &request,
-                                    const std::string &object_name)
+[[nodiscard]] auto set_request_path(auto &request, std::string_view object_name)
     -> repertory::api_error {
   request.path = object_name;
-  if (request.path.substr(1U).size() > repertory::max_s3_object_name_length) {
-    return repertory::api_error::name_too_long;
-  }
-
-  return repertory::api_error::success;
+  return (request.path.substr(1U).size() > repertory::max_s3_object_name_length)
+             ? repertory::api_error::name_too_long
+             : repertory::api_error::success;
 }
 } // namespace
 
@@ -833,11 +830,15 @@ auto s3_provider::read_file_bytes(const std::string &api_path, std::size_t size,
          &stop_requested](std::size_t read_size, std::size_t read_offset,
                           data_buffer &read_buffer) -> api_error {
       auto res{api_error::error};
-      for (std::uint32_t idx = 0U;
+      for (std::uint32_t idx{0U};
            not(stop_requested || app_config::get_stop_requested()) &&
            res != api_error::success &&
            idx < get_config().get_retry_read_count() + 1U;
            ++idx) {
+        if (idx > 0U) {
+          std::this_thread::sleep_for(1s);
+        }
+
         curl::requests::http_get get{};
         get.aws_service = "aws:amz:" + cfg.region + ":s3";
         get.headers["response-content-type"] = "binary/octet-stream";
@@ -849,37 +850,35 @@ auto s3_provider::read_file_bytes(const std::string &api_path, std::size_t size,
                                               long /*response_code*/) {
           read_buffer = response_data;
         };
+
         res = set_request_path(get, object_name);
         if (res != api_error::success) {
           return res;
         }
 
-        long response_code{};
-        const auto notify_retry = [&]() {
+        const auto notify_retry = [=](long response_code) {
+          auto msg =
+              fmt::format("read file bytes failed|offset|{}|size|{}|retry|{}",
+                          std::to_string(read_offset),
+                          std::to_string(read_size), std::to_string(idx + 1U));
           if (response_code == 0) {
-            utils::error::raise_api_path_error(
-                function_name, api_path, api_error::comm_error,
-                "read file bytes failed|offset|" + std::to_string(read_offset) +
-                    "|size|" + std::to_string(read_size) + "|retry|" +
-                    std::to_string(idx + 1U));
+            utils::error::raise_api_path_error(function_name, api_path,
+                                               api_error::comm_error, msg);
           } else {
-            utils::error::raise_api_path_error(
-                function_name, api_path, response_code,
-                "read file bytes failed|offset|" + std::to_string(read_offset) +
-                    "|size|" + std::to_string(read_size) + "|retry|" +
-                    std::to_string(idx + 1U));
+            utils::error::raise_api_path_error(function_name, api_path,
+                                               response_code, msg);
           }
-          std::this_thread::sleep_for(1s);
         };
 
+        long response_code{};
         if (not get_comm().make_request(get, response_code, stop_requested)) {
-          notify_retry();
+          notify_retry(response_code);
           continue;
         }
 
         if (response_code < http_error_codes::ok ||
             response_code >= http_error_codes::multiple_choices) {
-          notify_retry();
+          notify_retry(response_code);
           continue;
         }
 
