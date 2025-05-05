@@ -836,6 +836,7 @@ auto s3_provider::read_file_bytes(const std::string &api_path, std::size_t size,
            idx < get_config().get_retry_read_count() + 1U;
            ++idx) {
         if (idx > 0U) {
+          read_buffer.clear();
           std::this_thread::sleep_for(1s);
         }
 
