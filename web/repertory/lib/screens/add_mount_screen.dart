@@ -21,7 +21,6 @@ class _AddMountScreenState extends State<AddMountScreen> {
   Mount? _mount;
   final _mountNameController = TextEditingController();
   String _mountType = "";
-  bool _allowAdd = false;
 
   final Map<String, Map<String, dynamic>> _settings = {
     "": {},
@@ -71,18 +70,16 @@ class _AddMountScreenState extends State<AddMountScreen> {
                         DropdownButton<String>(
                           autofocus: true,
                           value: _mountType,
-                          onChanged:
-                              (mountType) =>
-                                  _handleChange(auth, mountType ?? ''),
-                          items:
-                              constants.providerTypeList
-                                  .map<DropdownMenuItem<String>>((item) {
-                                    return DropdownMenuItem<String>(
-                                      value: item,
-                                      child: Text(item),
-                                    );
-                                  })
-                                  .toList(),
+                          onChanged: (mountType) =>
+                              _handleChange(auth, mountType ?? ''),
+                          items: constants.providerTypeList
+                              .map<DropdownMenuItem<String>>((item) {
+                                return DropdownMenuItem<String>(
+                                  value: item,
+                                  child: Text(item),
+                                );
+                              })
+                              .toList(),
                         ),
                       ],
                     ),
@@ -125,7 +122,6 @@ class _AddMountScreenState extends State<AddMountScreen> {
                         child: MountSettingsWidget(
                           isAdd: true,
                           mount: _mount!,
-                          onChanged: () => setState(() => _allowAdd = false),
                           settings: _settings[_mountType]!,
                           showAdvanced: false,
                         ),
@@ -135,70 +131,68 @@ class _AddMountScreenState extends State<AddMountScreen> {
                   const SizedBox(height: constants.padding),
                   Row(
                     children: [
-                      if (_allowAdd) ...[
-                        ElevatedButton.icon(
-                          label: const Text('Add'),
-                          icon: const Icon(Icons.add),
-                          onPressed: () async {
-                            final mountList = Provider.of<MountList>(context);
+                      ElevatedButton.icon(
+                        label: const Text('Test'),
+                        icon: const Icon(Icons.check),
+                        onPressed: _handleProviderTest,
+                      ),
+                      const SizedBox(width: constants.padding),
+                      ElevatedButton.icon(
+                        label: const Text('Add'),
+                        icon: const Icon(Icons.add),
+                        onPressed: () async {
+                          final mountList = Provider.of<MountList>(context);
 
-                            List<String> failed = [];
-                            if (!validateSettings(
-                              _settings[_mountType]!,
-                              failed,
-                            )) {
-                              for (var key in failed) {
-                                displayErrorMessage(
-                                  context,
-                                  "Setting '$key' is not valid",
-                                );
-                              }
-                              return;
-                            }
-
-                            if (mountList.hasConfigName(
-                              _mountNameController.text,
-                            )) {
-                              return displayErrorMessage(
+                          List<String> failed = [];
+                          if (!validateSettings(
+                            _settings[_mountType]!,
+                            failed,
+                          )) {
+                            for (var key in failed) {
+                              displayErrorMessage(
                                 context,
-                                "Configuration name '${_mountNameController.text}' already exists",
+                                "Setting '$key' is not valid",
                               );
                             }
+                            return;
+                          }
 
-                            if (_mountType == "Sia" || _mountType == "S3") {
-                              final bucket =
-                                  _settings[_mountType]!["${_mountType}Config"]["Bucket"]
-                                      as String;
-                              if (mountList.hasBucketName(_mountType, bucket)) {
-                                return displayErrorMessage(
-                                  context,
-                                  "Bucket '$bucket' already exists",
-                                );
-                              }
-                            }
-
-                            final success = await mountList.add(
-                              _mountType,
-                              _mountType == 'Remote'
-                                  ? '${_settings[_mountType]!['RemoteConfig']['HostNameOrIp']}_${_settings[_mountType]!['RemoteConfig']['ApiPort']}'
-                                  : _mountNameController.text,
-                              _settings[_mountType]!,
+                          if (mountList.hasConfigName(
+                            _mountNameController.text,
+                          )) {
+                            return displayErrorMessage(
+                              context,
+                              "Configuration name '${_mountNameController.text}' already exists",
                             );
+                          }
 
-                            if (!success || !context.mounted) {
-                              return;
+                          if (_mountType == "Sia" || _mountType == "S3") {
+                            final bucket =
+                                _settings[_mountType]!["${_mountType}Config"]["Bucket"]
+                                    as String;
+                            if (mountList.hasBucketName(_mountType, bucket)) {
+                              return displayErrorMessage(
+                                context,
+                                "Bucket '$bucket' already exists",
+                              );
                             }
+                          }
 
-                            Navigator.pop(context);
-                          },
-                        ),
-                      ],
-                      if (!_allowAdd)
-                        ElevatedButton.icon(
-                          label: const Text('Test'),
-                          icon: const Icon(Icons.check),
-                          onPressed: _handleProviderTest,
-                        ),
+                          final success = await mountList.add(
+                            _mountType,
+                            _mountType == 'Remote'
+                                ? '${_settings[_mountType]!['RemoteConfig']['HostNameOrIp']}_${_settings[_mountType]!['RemoteConfig']['ApiPort']}'
+                                : _mountNameController.text,
+                            _settings[_mountType]!,
+                          );
+
+                          if (!success || !context.mounted) {
+                            return;
+                          }
+
+                          Navigator.pop(context);
+                        },
+                      ),
                     ],
                   ),
                 ],
@@ -221,19 +215,18 @@ class _AddMountScreenState extends State<AddMountScreen> {
         _mountNameController.text = mountType == 'Sia' ? 'default' : '';
       }
 
-      _mount =
-          (_mountNameController.text.isEmpty)
-              ? null
-              : Mount(
-                auth,
-                MountConfig(
-                  name: _mountNameController.text,
-                  settings: _settings[mountType],
-                  type: mountType,
-                ),
-                null,
-                isAdd: true,
-              );
+      _mount = (_mountNameController.text.isEmpty)
+          ? null
+          : Mount(
+              auth,
+              MountConfig(
+                name: _mountNameController.text,
+                settings: _settings[mountType],
+                type: mountType,
+              ),
+              null,
+              isAdd: true,
+            );
     });
   }
 
@@ -242,16 +235,10 @@ class _AddMountScreenState extends State<AddMountScreen> {
       return;
     }
 
-    if (_allowAdd) {
-      return;
-    }
-
     final success = await _mount!.test();
     if (!mounted) {
       return;
     }
-
-    setState(() => _allowAdd = success);
 
     displayErrorMessage(
       context,

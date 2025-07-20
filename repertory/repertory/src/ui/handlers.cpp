@@ -119,7 +119,10 @@ handlers::handlers(mgmt_app_config *config, httplib::Server *server)
     setsockopt(sock, SOL_SOCKET, SO_EXCLUSIVEADDRUSE,
                reinterpret_cast<const char *>(&enable), sizeof(enable));
 #else  //  !defined(_WIN32)
-    linger opt{1, 0};
+    linger opt{
+        .l_onoff = 1,
+        .l_linger = 0,
+    };
     setsockopt(sock, SOL_SOCKET, SO_LINGER,
                reinterpret_cast<const char *>(&opt), sizeof(opt));
 #endif // defined(_WIN32)
