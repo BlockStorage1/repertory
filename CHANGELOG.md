@@ -3,11 +3,6 @@
 ## v2.0.6-release
 
 ### Issues
-
-* ~~\#12 [Unit Test] Complete all providers unit tests~~
-* ~~\#21 [Unit Test] Complete WinFSP unit tests~~
-* ~~\#22 [Unit Test] Complete FUSE unit tests~~
-* ~~\#33 Complete initial v2.0 documentation~~
 * \#42 [bug] Remote mount directory listing on Windows connected to Linux is failing
 * \#43 [bug] Directories are not importing properly for Sia
 * \#44 [bug] Windows-to-Linux remote mount ignores `CREATE_NEW`
