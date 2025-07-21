@@ -415,6 +415,9 @@ using vlc_string_t = std::unique_ptr<char, vlc_string_deleter>;
 #endif // defined(PROJECT_ENABLE_TPL)
 
 #if defined(PROJECT_ENABLE_WINFSP)
+#if defined(_ReadWriteBarrier)
+#undef _ReadWriteBarrier
+#endif // defined(_ReadWriteBarrier)
 #include "winfsp/winfsp.hpp"
 #endif // defined(PROJECT_ENABLE_WINFSP)
 
@@ -482,7 +485,7 @@ using http_ranges = std::vector<http_range>;
 #endif // defined(__cplusplus)
 
 #define REPERTORY_USES_FUNCTION_NAME()                                         \
-  static constexpr std::string_view function_name {                      \
+  static constexpr std::string_view function_name {                            \
     static_cast<const char *>(__FUNCTION__),                                   \
   }
 
