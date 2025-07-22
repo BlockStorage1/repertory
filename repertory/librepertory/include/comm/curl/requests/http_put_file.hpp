@@ -27,17 +27,10 @@
 
 namespace repertory::curl::requests {
 struct http_put_file final : http_request_base {
-  http_put_file() = default;
-  http_put_file(const http_put_file &) = default;
-  http_put_file(http_put_file &&) = default;
-
-  auto operator=(const http_put_file &) -> http_put_file & = default;
-  auto operator=(http_put_file &&) -> http_put_file & = default;
-
-  ~http_put_file() override = default;
-
   std::shared_ptr<utils::encryption::encrypting_reader> reader;
   std::string source_path;
+
+  [[nodiscard]] auto get_type() const -> std::string override { return "put"; }
 
   [[nodiscard]] auto set_method(CURL *curl, stop_type &stop_requested) const
       -> bool override;

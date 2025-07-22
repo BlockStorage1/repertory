@@ -33,9 +33,11 @@ struct http_get final : http_request_base {
   auto operator=(http_get &&) -> http_get & = default;
   ~http_get() override = default;
 
-  [[nodiscard]] auto
-  set_method(CURL *curl,
-             stop_type & /*stop_requested*/) const -> bool override {
+  [[nodiscard]] auto get_type() const -> std::string override { return "get"; }
+
+  [[nodiscard]] auto set_method(CURL *curl,
+                                stop_type & /*stop_requested*/) const
+      -> bool override {
     curl_easy_setopt(curl, CURLOPT_HTTPGET, 1L);
     return true;
   }

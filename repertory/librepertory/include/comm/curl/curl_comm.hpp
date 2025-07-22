@@ -224,7 +224,7 @@ public:
 
       if (curl_code != CURLE_OK) {
         event_system::instance().raise<curl_error>(curl_code, function_name,
-                                                   url);
+                                                   request.get_type(), url);
         return false;
       }
 
