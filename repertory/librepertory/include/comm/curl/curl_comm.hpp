@@ -135,101 +135,122 @@ public:
                long &response_code, stop_type &stop_requested) -> bool {
     REPERTORY_USES_FUNCTION_NAME();
 
-    if (request.decryption_token.has_value() &&
-        not request.decryption_token.value().empty()) {
-      return make_encrypted_request(cfg, request, response_code,
-                                    stop_requested);
-    }
-
-    response_code = 0;
-
-    auto *curl = create_curl();
-    if (not request.set_method(curl, stop_requested)) {
-      return false;
-    }
-
-    if (not cfg.agent_string.empty()) {
-      curl_easy_setopt(curl, CURLOPT_USERAGENT, cfg.agent_string.c_str());
-    }
-
-    if (request.allow_timeout && cfg.timeout_ms) {
-      curl_easy_setopt(curl, CURLOPT_TIMEOUT_MS, cfg.timeout_ms);
-    }
-
-    std::string range_list{};
-    if (request.range.has_value()) {
-      range_list = std::to_string(request.range.value().begin) + '-' +
-                   std::to_string(request.range.value().end);
-      curl_easy_setopt(curl, CURLOPT_RANGE, range_list.c_str());
-    }
-
-    if (request.response_headers.has_value()) {
-      curl_easy_setopt(curl, CURLOPT_HEADERDATA,
-                       &request.response_headers.value());
-      curl_easy_setopt(curl, CURLOPT_HEADERFUNCTION, write_headers);
-    }
-
-    read_write_info write_info{
-        {},
-        [&stop_requested]() -> bool {
-          return stop_requested || app_config::get_stop_requested();
-        },
-    };
-    if (request.response_handler.has_value()) {
-      curl_easy_setopt(curl, CURLOPT_WRITEDATA, &write_info);
-      curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_data);
-    }
-
-    std::string parameters{};
-    for (const auto &param : request.query) {
-      parameters += (parameters.empty() ? '?' : '&') + param.first + '=' +
-                    url_encode(curl, param.second, false);
-    }
-
-    if (not cfg.api_password.empty()) {
-      curl_easy_setopt(curl, CURLOPT_USERNAME, cfg.api_user.c_str());
-      curl_easy_setopt(curl, CURLOPT_PASSWORD, cfg.api_password.c_str());
-    } else if (not cfg.api_user.empty()) {
-      curl_easy_setopt(curl, CURLOPT_USERNAME, cfg.api_user.c_str());
-    }
-
-    if (request.aws_service.has_value()) {
-      curl_easy_setopt(curl, CURLOPT_AWS_SIGV4,
-                       request.aws_service.value().c_str());
-    }
-
-    curl_slist *header_list{nullptr};
-    if (not request.headers.empty()) {
-      for (const auto &header : request.headers) {
-        header_list = curl_slist_append(
-            header_list,
-            fmt::format("{}: {}", header.first, header.second).c_str());
-      }
-      curl_easy_setopt(curl, CURLOPT_HTTPHEADER, header_list);
-    }
-
-    auto url = construct_url(curl, request.get_path(), cfg) + parameters;
-    curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
-
-    multi_request curl_request(curl, stop_requested);
-
     CURLcode curl_code{};
-    curl_request.get_result(curl_code, response_code);
+    const auto do_request = [&]() -> bool {
+      if (request.decryption_token.has_value() &&
+          not request.decryption_token.value().empty()) {
+        return make_encrypted_request(cfg, request, response_code,
+                                      stop_requested);
+      }
 
-    if (header_list != nullptr) {
-      curl_slist_free_all(header_list);
+      response_code = 0;
+
+      auto *curl = create_curl();
+      if (not request.set_method(curl, stop_requested)) {
+        return false;
+      }
+
+      if (not cfg.agent_string.empty()) {
+        curl_easy_setopt(curl, CURLOPT_USERAGENT, cfg.agent_string.c_str());
+      }
+
+      if (request.allow_timeout && cfg.timeout_ms) {
+        curl_easy_setopt(curl, CURLOPT_TIMEOUT_MS, cfg.timeout_ms);
+      }
+
+      std::string range_list{};
+      if (request.range.has_value()) {
+        range_list = std::to_string(request.range.value().begin) + '-' +
+                     std::to_string(request.range.value().end);
+        curl_easy_setopt(curl, CURLOPT_RANGE, range_list.c_str());
+      }
+
+      if (request.response_headers.has_value()) {
+        curl_easy_setopt(curl, CURLOPT_HEADERDATA,
+                         &request.response_headers.value());
+        curl_easy_setopt(curl, CURLOPT_HEADERFUNCTION, write_headers);
+      }
+
+      read_write_info write_info{
+          {},
+          [&stop_requested]() -> bool {
+            return stop_requested || app_config::get_stop_requested();
+          },
+      };
+      if (request.response_handler.has_value()) {
+        curl_easy_setopt(curl, CURLOPT_WRITEDATA, &write_info);
+        curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_data);
+      }
+
+      std::string parameters{};
+      for (const auto &param : request.query) {
+        parameters += (parameters.empty() ? '?' : '&') + param.first + '=' +
+                      url_encode(curl, param.second, false);
+      }
+
+      if (not cfg.api_password.empty()) {
+        curl_easy_setopt(curl, CURLOPT_USERNAME, cfg.api_user.c_str());
+        curl_easy_setopt(curl, CURLOPT_PASSWORD, cfg.api_password.c_str());
+      } else if (not cfg.api_user.empty()) {
+        curl_easy_setopt(curl, CURLOPT_USERNAME, cfg.api_user.c_str());
+      }
+
+      if (request.aws_service.has_value()) {
+        curl_easy_setopt(curl, CURLOPT_AWS_SIGV4,
+                         request.aws_service.value().c_str());
+      }
+
+      curl_slist *header_list{nullptr};
+      if (not request.headers.empty()) {
+        for (const auto &header : request.headers) {
+          header_list = curl_slist_append(
+              header_list,
+              fmt::format("{}: {}", header.first, header.second).c_str());
+        }
+        curl_easy_setopt(curl, CURLOPT_HTTPHEADER, header_list);
+      }
+
+      auto url = construct_url(curl, request.get_path(), cfg) + parameters;
+      curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
+
+      multi_request curl_request(curl, stop_requested);
+
+      curl_code = CURLE_OK;
+      curl_request.get_result(curl_code, response_code);
+
+      if (header_list != nullptr) {
+        curl_slist_free_all(header_list);
+      }
+
+      if (curl_code != CURLE_OK) {
+        event_system::instance().raise<curl_error>(curl_code, function_name,
+                                                   url);
+        return false;
+      }
+
+      if (request.response_handler.has_value()) {
+        request.response_handler.value()(write_info.data, response_code);
+      }
+
+      return true;
+    };
+
+    bool ret{false};
+    for (std::uint8_t retry = 0U; !ret && retry < 5U; ++retry) {
+      ret = do_request();
+      if (ret) {
+        continue;
+      }
+
+      if (curl_code == CURLE_COULDNT_RESOLVE_HOST) {
+        std::this_thread::sleep_for(1s);
+        continue;
+      }
+
+      return ret;
     }
 
-    if (curl_code != CURLE_OK) {
-      event_system::instance().raise<curl_error>(curl_code, function_name, url);
-      return false;
-    }
-
-    if (request.response_handler.has_value()) {
-      request.response_handler.value()(write_info.data, response_code);
-    }
-
-    return true;
+    return ret;
   }
 
 public:
