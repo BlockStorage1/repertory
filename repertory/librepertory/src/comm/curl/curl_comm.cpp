@@ -41,8 +41,8 @@ const curl_comm::write_callback curl_comm::write_headers =
                                               size_t nitems,
                                               void *outstream) -> size_t {
       auto &headers = *reinterpret_cast<http_headers *>(outstream);
-      const auto header = std::string(buffer, size * nitems);
-      const auto parts = utils::string::split(header, ':', false);
+      auto header = std::string(buffer, size * nitems);
+      auto parts = utils::string::split(header, ':', false);
       if (parts.size() > 1U) {
         auto data = header.substr(parts[0U].size() + 1U);
         utils::string::left_trim(data);
