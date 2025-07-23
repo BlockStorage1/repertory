@@ -209,10 +209,18 @@ auto s3_provider::create_directory_paths(const std::string &api_path,
         }
       }
 
+      std::uint64_t last_modified{};
+      if (exists) {
+        res = get_last_modified(true, cur_path, last_modified);
+        if (res != api_error::success) {
+          return res;
+        }
+      } else {
+        last_modified = utils::time::get_time_now();
+      }
+
       auto dir{
-          create_api_file(cur_path, cur_key, 0U,
-                          exists ? get_last_modified(true, cur_path)
-                                 : utils::time::get_time_now()),
+          create_api_file(cur_path, cur_key, 0U, last_modified),
       };
       get_api_item_added()(true, dir);
     }
@@ -624,16 +632,19 @@ auto s3_provider::get_file_list(api_file_list &list, std::string &marker) const
   return api_error::error;
 }
 
-auto s3_provider::get_last_modified(bool directory,
-                                    const std::string &api_path) const
-    -> std::uint64_t {
+auto s3_provider::get_last_modified(bool directory, const std::string &api_path,
+                                    std::uint64_t &last_modified) const
+    -> api_error {
   bool is_encrypted{};
   std::string object_name;
   head_object_result result{};
-  return (get_object_info(directory, api_path, is_encrypted, object_name,
-                          result) == api_error::success)
-             ? result.last_modified
-             : utils::time::get_time_now();
+  auto res =
+      get_object_info(directory, api_path, is_encrypted, object_name, result);
+  if (res == api_error::success) {
+    last_modified = result.last_modified;
+  }
+
+  return res;
 }
 
 auto s3_provider::get_object_info(bool directory, const std::string &api_path,

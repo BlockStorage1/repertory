@@ -239,7 +239,7 @@ public:
     for (std::uint8_t retry = 0U; !ret && retry < 5U; ++retry) {
       ret = do_request();
       if (ret) {
-        continue;
+        break;
       }
 
       if (curl_code == CURLE_COULDNT_RESOLVE_HOST) {
@@ -247,7 +247,7 @@ public:
         continue;
       }
 
-      return ret;
+      break;
     }
 
     return ret;
