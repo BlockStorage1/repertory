@@ -43,8 +43,12 @@ void dns_cache::init() {
   cache_.reset(cache);
 }
 
-void dns_cache::lock_callback(CURL * /* curl */, curl_lock_data /* data */,
+void dns_cache::lock_callback(CURL * /* curl */, curl_lock_data data,
                               curl_lock_access /* access */, void * /* ptr */) {
+  if (data != CURL_LOCK_DATA_DNS) {
+    return;
+  }
+
   lock_->lock();
 }
 
@@ -52,9 +56,13 @@ void dns_cache::set_cache(CURL *curl) {
   curl_easy_setopt(curl, CURLOPT_SHARE, cache_.get());
 }
 
-void dns_cache::unlock_callback(CURL * /* curl */, curl_lock_data /* data */,
+void dns_cache::unlock_callback(CURL * /* curl */, curl_lock_data data,
                                 curl_lock_access /* access */,
                                 void * /* ptr */) {
+  if (data != CURL_LOCK_DATA_DNS) {
+    return;
+  }
+
   lock_->unlock();
 }
 } // namespace repertory
