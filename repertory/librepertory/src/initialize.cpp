@@ -48,6 +48,10 @@
 #include "utils/path.hpp"
 #endif // defined(PROJECT_REQUIRE_ALPINE) && !defined (PROJECT_IS_MINGW)
 
+#if defined(PROJECT_ENABLE_CURL)
+#include "comm/curl/dns_cache.hpp"
+#endif // defined(PROJECT_ENABLE_CURL)
+
 namespace repertory {
 auto project_initialize() -> bool {
 #if defined(PROJECT_REQUIRE_ALPINE) && !defined(PROJECT_IS_MINGW)
@@ -88,6 +92,8 @@ auto project_initialize() -> bool {
     if (res != 0) {
       return false;
     }
+
+    dns_cache::init();
   }
 #endif // defined(PROJECT_ENABLE_CURL)
 
@@ -96,6 +102,7 @@ auto project_initialize() -> bool {
     auto res = sqlite3_initialize();
     if (res != SQLITE_OK) {
 #if defined(PROJECT_ENABLE_CURL)
+      dns_cache::cleanup();
       curl_global_cleanup();
 #endif // defined(PROJECT_ENABLE_CURL)
       return false;

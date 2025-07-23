@@ -22,25 +22,25 @@
 #include "comm/curl/dns_cache.hpp"
 
 namespace repertory {
-dns_cache::curl_sh_t dns_cache::cache_{dns_cache::create_cache()};
+dns_cache::curl_sh_t dns_cache::cache_;
 
 std::unique_ptr<unique_recur_mutex_lock> dns_cache::lock_;
 
 std::recursive_mutex dns_cache::mtx_;
 
-auto dns_cache::create_cache() -> CURLSH * {
-  auto *ret = curl_share_init();
-  if (ret == nullptr) {
-    return ret;
+void dns_cache::cleanup() { cache_.reset(nullptr); }
+
+void dns_cache::init() {
+  lock_ = std::make_unique<unique_recur_mutex_lock>(mtx_);
+  auto *cache = curl_share_init();
+  if (cache == nullptr) {
+    return;
   }
 
-  lock_ = std::make_unique<unique_recur_mutex_lock>(mtx_);
-
-  curl_share_setopt(ret, CURLSHOPT_SHARE, CURL_LOCK_DATA_DNS);
-  curl_share_setopt(ret, CURLSHOPT_LOCKFUNC, lock_callback);
-  curl_share_setopt(ret, CURLSHOPT_UNLOCKFUNC, unlock_callback);
-
-  return ret;
+  curl_share_setopt(cache, CURLSHOPT_SHARE, CURL_LOCK_DATA_DNS);
+  curl_share_setopt(cache, CURLSHOPT_LOCKFUNC, lock_callback);
+  curl_share_setopt(cache, CURLSHOPT_UNLOCKFUNC, unlock_callback);
+  cache_.reset(cache);
 }
 
 void dns_cache::lock_callback(CURL * /* curl */, curl_lock_data /* data */,

@@ -50,8 +50,6 @@ private:
   static std::recursive_mutex mtx_;
 
 private:
-  static auto create_cache() -> CURLSH *;
-
   static void lock_callback(CURL * /* curl */, curl_lock_data /* data */,
                             curl_lock_access /* access */, void * /* ptr */);
 
@@ -59,6 +57,10 @@ private:
                               curl_lock_access /* access */, void * /* ptr */);
 
 public:
+  static void cleanup();
+
+  static void init();
+
   static void set_cache(CURL *curl);
 };
 } // namespace repertory
