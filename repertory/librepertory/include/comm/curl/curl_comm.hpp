@@ -23,6 +23,7 @@
 #define REPERTORY_INCLUDE_COMM_CURL_CURL_COMM_HPP_
 
 #include "app_config.hpp"
+#include "comm/curl/dns_cache.hpp"
 #include "comm/curl/multi_request.hpp"
 #include "comm/i_http_comm.hpp"
 #include "events/event_system.hpp"
@@ -209,6 +210,8 @@ public:
         }
         curl_easy_setopt(curl, CURLOPT_HTTPHEADER, header_list);
       }
+
+      dns_cache::set_cache(curl);
 
       auto url = construct_url(curl, request.get_path(), cfg) + parameters;
       curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
