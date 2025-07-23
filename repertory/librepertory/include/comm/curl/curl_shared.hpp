@@ -19,11 +19,11 @@
   OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
   SOFTWARE.
 */
-#ifndef REPERTORY_INCLUDE_COMM_CURL_DNS_CACHE_HPP_
-#define REPERTORY_INCLUDE_COMM_CURL_DNS_CACHE_HPP_
+#ifndef REPERTORY_INCLUDE_COMM_CURL_CURL_SHARED_HPP_
+#define REPERTORY_INCLUDE_COMM_CURL_CURL_SHARED_HPP_
 
 namespace repertory {
-class dns_cache final {
+class curl_shared final {
 private:
   struct curl_sh_deleter final {
     void operator()(CURLSH *ptr) {
@@ -36,13 +36,13 @@ private:
   using curl_sh_t = std::unique_ptr<CURLSH, curl_sh_deleter>;
 
 public:
-  dns_cache() = delete;
-  dns_cache(const dns_cache &) = delete;
-  dns_cache(dns_cache &&) = delete;
-  ~dns_cache() = delete;
+  curl_shared() = delete;
+  curl_shared(const curl_shared &) = delete;
+  curl_shared(curl_shared &&) = delete;
+  ~curl_shared() = delete;
 
-  auto operator=(const dns_cache &) -> dns_cache & = delete;
-  auto operator=(dns_cache &&) -> dns_cache & = delete;
+  auto operator=(const curl_shared &) -> curl_shared & = delete;
+  auto operator=(curl_shared &&) -> curl_shared & = delete;
 
 private:
   static curl_sh_t cache_;
@@ -58,7 +58,7 @@ private:
 public:
   static void cleanup();
 
-  static void init();
+  [[nodiscard]] static auto init() -> bool;
 
   static void set_cache(CURL *curl);
 };

@@ -19,10 +19,6 @@
   OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
   SOFTWARE.
 */
-#if defined(PROJECT_ENABLE_CURL)
-#include <curl/curl.h>
-#endif // defined(PROJECT_ENABLE_CURL)
-
 #if defined(PROJECT_ENABLE_OPENSSL)
 #include <openssl/ssl.h>
 #endif // defined(PROJECT_ENABLE_OPENSSL)
@@ -49,7 +45,7 @@
 #endif // defined(PROJECT_REQUIRE_ALPINE) && !defined (PROJECT_IS_MINGW)
 
 #if defined(PROJECT_ENABLE_CURL)
-#include "comm/curl/dns_cache.hpp"
+#include "comm/curl/curl_shared.hpp"
 #endif // defined(PROJECT_ENABLE_CURL)
 
 namespace repertory {
@@ -87,13 +83,8 @@ auto project_initialize() -> bool {
 #endif // defined(PROJECT_ENABLE_OPENSSL)
 
 #if defined(PROJECT_ENABLE_CURL)
-  {
-    auto res = curl_global_init(CURL_GLOBAL_ALL);
-    if (res != 0) {
-      return false;
-    }
-
-    dns_cache::init();
+  if (not curl_shared::init()) {
+    return false;
   }
 #endif // defined(PROJECT_ENABLE_CURL)
 
@@ -102,8 +93,7 @@ auto project_initialize() -> bool {
     auto res = sqlite3_initialize();
     if (res != SQLITE_OK) {
 #if defined(PROJECT_ENABLE_CURL)
-      dns_cache::cleanup();
-      curl_global_cleanup();
+      curl_shared::cleanup();
 #endif // defined(PROJECT_ENABLE_CURL)
       return false;
     }
@@ -115,8 +105,7 @@ auto project_initialize() -> bool {
 
 void project_cleanup() {
 #if defined(PROJECT_ENABLE_CURL)
-  dns_cache::cleanup();
-  curl_global_cleanup();
+  curl_shared::cleanup();
 #endif // defined(PROJECT_ENABLE_CURL)
 
 #if defined(PROJECT_ENABLE_SQLITE)
