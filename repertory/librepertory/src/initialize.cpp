@@ -115,6 +115,7 @@ auto project_initialize() -> bool {
 
 void project_cleanup() {
 #if defined(PROJECT_ENABLE_CURL)
+  dns_cache::cleanup();
   curl_global_cleanup();
 #endif // defined(PROJECT_ENABLE_CURL)
 
