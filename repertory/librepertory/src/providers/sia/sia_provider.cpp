@@ -691,32 +691,34 @@ auto sia_provider::read_file_bytes(const std::string &api_path,
          res != api_error::success &&
          idx < get_config().get_retry_read_count() + 1U;
          ++idx) {
-      long response_code{};
-      const auto notify_retry = [&]() {
-        if (response_code == 0) {
-          utils::error::raise_api_path_error(
-              function_name, api_path, api_error::comm_error,
-              "read file bytes failed|offset|" + std::to_string(offset) +
-                  "|size|" + std::to_string(size) + "|retry|" +
-                  std::to_string(idx + 1U));
-        } else {
-          utils::error::raise_api_path_error(
-              function_name, api_path, response_code,
-              "read file bytes failed|offset|" + std::to_string(offset) +
-                  "|size|" + std::to_string(size) + "|retry|" +
-                  std::to_string(idx + 1U));
-        }
+      if (idx > 0U) {
+        buffer.clear();
         std::this_thread::sleep_for(1s);
+      }
+
+      const auto notify_retry = [=](long response_code) {
+        auto msg =
+            fmt::format("read file bytes failed|offset|{}|size|{}|retry|{}",
+                        std::to_string(offset), std::to_string(size),
+                        std::to_string(idx + 1U));
+        if (response_code == 0) {
+          utils::error::raise_api_path_error(function_name, api_path,
+                                             api_error::comm_error, msg);
+        } else {
+          utils::error::raise_api_path_error(function_name, api_path,
+                                             response_code, msg);
+        }
       };
 
+      long response_code{};
       if (not get_comm().make_request(get, response_code, stop_requested)) {
-        notify_retry();
+        notify_retry(response_code);
         continue;
       }
 
       if (response_code < http_error_codes::ok ||
           response_code >= http_error_codes::multiple_choices) {
-        notify_retry();
+        notify_retry(response_code);
         continue;
       }
 
