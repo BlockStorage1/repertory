@@ -49,6 +49,7 @@ private:
 
   static const write_callback write_data;
   static const write_callback write_headers;
+  static constexpr std::uint8_t retry_request_count{5U};
 
 private:
   std::optional<host_config> host_config_;
@@ -239,7 +240,8 @@ public:
     };
 
     bool ret{false};
-    for (std::uint8_t retry = 0U; !ret && retry < 5U; ++retry) {
+    for (std::uint8_t retry = 0U; !ret && retry < retry_request_count;
+         ++retry) {
       ret = do_request();
       if (ret) {
         break;
