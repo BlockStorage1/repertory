@@ -46,7 +46,6 @@ public:
 
 private:
   static curl_sh_t cache_;
-  static std::unique_ptr<unique_recur_mutex_lock> lock_;
   static std::recursive_mutex mtx_;
 
 private:

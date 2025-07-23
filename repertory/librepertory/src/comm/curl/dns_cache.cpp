@@ -24,23 +24,20 @@
 namespace repertory {
 dns_cache::curl_sh_t dns_cache::cache_;
 
-std::unique_ptr<unique_recur_mutex_lock> dns_cache::lock_;
-
 std::recursive_mutex dns_cache::mtx_;
 
 void dns_cache::cleanup() { cache_.reset(nullptr); }
 
 void dns_cache::init() {
-  lock_ = std::make_unique<unique_recur_mutex_lock>(mtx_);
   auto *cache = curl_share_init();
   if (cache == nullptr) {
     return;
   }
+  cache_.reset(cache);
 
   curl_share_setopt(cache, CURLSHOPT_SHARE, CURL_LOCK_DATA_DNS);
   curl_share_setopt(cache, CURLSHOPT_LOCKFUNC, lock_callback);
   curl_share_setopt(cache, CURLSHOPT_UNLOCKFUNC, unlock_callback);
-  cache_.reset(cache);
 }
 
 void dns_cache::lock_callback(CURL * /* curl */, curl_lock_data data,
@@ -49,7 +46,7 @@ void dns_cache::lock_callback(CURL * /* curl */, curl_lock_data data,
     return;
   }
 
-  lock_->lock();
+  mtx_.lock();
 }
 
 void dns_cache::set_cache(CURL *curl) {
@@ -63,6 +60,6 @@ void dns_cache::unlock_callback(CURL * /* curl */, curl_lock_data data,
     return;
   }
 
-  lock_->unlock();
+  mtx_.unlock();
 }
 } // namespace repertory
