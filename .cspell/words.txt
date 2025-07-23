@@ -28,6 +28,7 @@ cppvsdbg
 create_notraverse
 crypto_aead_xchacha20poly1305_ietf_npubbytes
 cstdint
+curle_couldnt_resolve_host
 curlopt_aws_sigv4
 cxxflags
 cxxstd

@@ -14,6 +14,7 @@
 
 ### Changes from v2.0.5-rc
 
+* Added request retry on cURL error code `CURLE_COULDNT_RESOLVE_HOST`
 * Drive letters in UI should always be lowercase
 * Fixed WinFSP directory rename for non-empty directories
 * Migrated to v2 error handling
