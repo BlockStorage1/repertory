@@ -60,7 +60,7 @@ void curl_shared::lock_callback(CURL * /* curl */, curl_lock_data data,
   mtx_.lock();
 }
 
-void curl_shared::set_cache(CURL *curl) {
+void curl_shared::set_share(CURL *curl) {
   curl_easy_setopt(curl, CURLOPT_SHARE, cache_.get());
 }
 

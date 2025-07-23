@@ -211,7 +211,7 @@ public:
         curl_easy_setopt(curl, CURLOPT_HTTPHEADER, header_list);
       }
 
-      curl_shared::set_cache(curl);
+      curl_shared::set_share(curl);
 
       auto url = construct_url(curl, request.get_path(), cfg) + parameters;
       curl_easy_setopt(curl, CURLOPT_URL, url.c_str());

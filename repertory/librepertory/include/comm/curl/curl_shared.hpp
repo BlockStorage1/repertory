@@ -60,7 +60,7 @@ public:
 
   [[nodiscard]] static auto init() -> bool;
 
-  static void set_cache(CURL *curl);
+  static void set_share(CURL *curl);
 };
 } // namespace repertory
 
