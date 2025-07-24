@@ -37,7 +37,7 @@ inline const std::array<std::string, 4U> attribute_namespaces = {
 };
 #endif
 
-[[nodiscard]] auto from_api_error(const api_error &err) -> int;
+[[nodiscard]] auto from_api_error(api_error err) -> int;
 
 [[nodiscard]] auto to_api_error(int err) -> api_error;
 

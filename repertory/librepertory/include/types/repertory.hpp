@@ -221,8 +221,7 @@ enum class api_error {
 
 [[nodiscard]] auto api_error_from_string(std::string_view str) -> api_error;
 
-[[nodiscard]] auto api_error_to_string(const api_error &error)
-    -> const std::string &;
+[[nodiscard]] auto api_error_to_string(api_error error) -> const std::string &;
 
 enum class database_type {
   rocksdb,

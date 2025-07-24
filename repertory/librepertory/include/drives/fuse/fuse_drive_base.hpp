@@ -64,17 +64,14 @@ protected:
   [[nodiscard]] auto get_effective_uid() const -> uid_t;
 
   [[nodiscard]] static auto check_open_flags(int flags, int mask,
-                                             const api_error &fail_error)
-      -> api_error;
+                                             api_error fail_error) -> api_error;
 
   [[nodiscard]] auto check_owner(const api_meta_map &meta) const -> api_error;
 
-  [[nodiscard]] static auto check_readable(int flags,
-                                           const api_error &fail_error)
+  [[nodiscard]] static auto check_readable(int flags, api_error fail_error)
       -> api_error;
 
-  [[nodiscard]] static auto check_writeable(int flags,
-                                            const api_error &fail_error)
+  [[nodiscard]] static auto check_writeable(int flags, api_error fail_error)
       -> api_error;
 
 #if defined(__APPLE__)

@@ -138,8 +138,7 @@ auto fuse_drive_base::check_and_perform(
 }
 
 auto fuse_drive_base::check_open_flags(int flags, int mask,
-                                       const api_error &fail_error)
-    -> api_error {
+                                       api_error fail_error) -> api_error {
   return (((flags & mask) == 0) ? api_error::success : fail_error);
 }
 
@@ -196,13 +195,13 @@ auto fuse_drive_base::check_parent_access(const std::string &api_path,
   return ret;
 }
 
-auto fuse_drive_base::check_readable(int flags, const api_error &fail_error)
+auto fuse_drive_base::check_readable(int flags, api_error fail_error)
     -> api_error {
   auto mode = (flags & O_ACCMODE);
   return ((mode == O_WRONLY) ? fail_error : api_error::success);
 }
 
-auto fuse_drive_base::check_writeable(int flags, const api_error &fail_error)
+auto fuse_drive_base::check_writeable(int flags, api_error fail_error)
     -> api_error {
   return (((flags & O_ACCMODE) == 0) ? fail_error : api_error::success);
 }
