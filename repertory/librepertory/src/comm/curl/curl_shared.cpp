@@ -33,6 +33,8 @@ void curl_shared::cleanup() {
 }
 
 auto curl_shared::init() -> bool {
+  REPERTORY_USES_FUNCTION_NAME();
+
   auto res = curl_global_init(CURL_GLOBAL_ALL);
   if (res != 0) {
     utils::error::handle_error(function_name,
