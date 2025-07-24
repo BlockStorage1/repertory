@@ -39,6 +39,7 @@
 #include "spdlog/spdlog.h"
 
 #include "initialize.hpp"
+#include "utils/error.hpp"
 
 #if defined(PROJECT_REQUIRE_ALPINE) && !defined(PROJECT_IS_MINGW)
 #include "utils/path.hpp"
@@ -47,6 +48,11 @@
 #if defined(PROJECT_ENABLE_CURL)
 #include "comm/curl/curl_shared.hpp"
 #endif // defined(PROJECT_ENABLE_CURL)
+
+namespace {
+bool curl_initialized{false};
+bool sqlite3_initialized{false};
+} // namespace
 
 namespace repertory {
 auto project_initialize() -> bool {
@@ -65,38 +71,39 @@ auto project_initialize() -> bool {
 #endif // defined(PROJECT_REQUIRE_ALPINE) && !defined (PROJECT_IS_MINGW)
 
   spdlog::drop_all();
-  spdlog::flush_every(std::chrono::seconds(10));
+  spdlog::flush_every(std::chrono::seconds(5));
   spdlog::set_pattern("%Y-%m-%d|%T.%e|%^%l%$|%v");
 
 #if defined(PROJECT_ENABLE_LIBSODIUM)
-  {
-    if (sodium_init() == -1) {
-      return false;
-    }
+  if (sodium_init() == -1) {
+    utils::error::handle_error(function_name, "failed to initialize sodium");
+    return false;
   }
 #endif // defined(PROJECT_ENABLE_LIBSODIUM)
 
 #if defined(PROJECT_ENABLE_OPENSSL)
-  {
-    SSL_library_init();
-  }
+  SSL_library_init();
 #endif // defined(PROJECT_ENABLE_OPENSSL)
 
 #if defined(PROJECT_ENABLE_CURL)
   if (not curl_shared::init()) {
     return false;
   }
+
+  curl_initialized = true;
 #endif // defined(PROJECT_ENABLE_CURL)
 
 #if defined(PROJECT_ENABLE_SQLITE)
   {
     auto res = sqlite3_initialize();
     if (res != SQLITE_OK) {
-#if defined(PROJECT_ENABLE_CURL)
-      curl_shared::cleanup();
-#endif // defined(PROJECT_ENABLE_CURL)
+      utils::error::handle_error(function_name,
+                                 "failed to initialize sqlite3|result|" +
+                                     std::to_string(res));
       return false;
     }
+
+    sqlite3_initialized = true;
   }
 #endif // defined(PROJECT_ENABLE_SQLITE)
 
@@ -105,12 +112,17 @@ auto project_initialize() -> bool {
 
 void project_cleanup() {
 #if defined(PROJECT_ENABLE_CURL)
-  curl_shared::cleanup();
+  if (curl_initialized) {
+    curl_shared::cleanup();
+  }
 #endif // defined(PROJECT_ENABLE_CURL)
 
 #if defined(PROJECT_ENABLE_SQLITE)
-  sqlite3_shutdown();
+  if (sqlite3_initialized) {
+    sqlite3_shutdown();
+  }
 #endif // defined(PROJECT_ENABLE_SQLITE)
+
   spdlog::shutdown();
 }
 } // namespace repertory

@@ -38,6 +38,7 @@ auto main(int argc, char **argv) -> int {
 
   if (not repertory::project_initialize()) {
     std::cerr << "fatal: failed to initialize repertory" << std::endl;
+    repertory::project_cleanup();
     return -1;
   }
 

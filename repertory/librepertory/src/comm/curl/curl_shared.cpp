@@ -20,6 +20,7 @@
   SOFTWARE.
 */
 #include "comm/curl/curl_shared.hpp"
+#include "utils/error.hpp"
 
 namespace repertory {
 curl_shared::curl_sh_t curl_shared::cache_;
@@ -34,12 +35,15 @@ void curl_shared::cleanup() {
 auto curl_shared::init() -> bool {
   auto res = curl_global_init(CURL_GLOBAL_ALL);
   if (res != 0) {
+    utils::error::handle_error(function_name,
+                               "failed to initialize curl|result|" +
+                                   std::to_string(res));
     return false;
   }
 
   auto *cache = curl_share_init();
   if (cache == nullptr) {
-    curl_global_cleanup();
+    utils::error::handle_error(function_name, "failed to create curl share");
     return false;
   }
   cache_.reset(cache);
