@@ -56,6 +56,8 @@ bool sqlite3_initialized{false};
 
 namespace repertory {
 auto project_initialize() -> bool {
+  REPERTORY_USES_FUNCTION_NAME();
+
 #if defined(PROJECT_REQUIRE_ALPINE) && !defined(PROJECT_IS_MINGW)
   {
     static constexpr auto guard_size{4096U};
