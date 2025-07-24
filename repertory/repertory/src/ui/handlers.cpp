@@ -721,6 +721,7 @@ auto handlers::launch_process(provider_type prov, std::string_view name,
     args.insert(std::next(args.begin(), 4U), "/MIN");
     args.insert(std::next(args.begin(), 5U), repertory_binary_);
 #else  // !defined(_WIN32)
+    args.insert(std::next(args.begin()), "-f");
     args.insert(args.begin(), repertory_binary_);
 #endif // defined(_WIN32)
 
@@ -736,17 +737,28 @@ auto handlers::launch_process(provider_type prov, std::string_view name,
             const_cast<char *const *>(exec_args.data()));
 #else  // !defined(_WIN32)
     auto pid = fork();
+    if (pid < 0) {
+      exit(1);
+    }
+
     if (pid == 0) {
-      setsid();
+      if (setsid() < 0) {
+        exit(1);
+      }
       chdir("/");
+
       close(STDIN_FILENO);
       close(STDOUT_FILENO);
       close(STDERR_FILENO);
-      open("/dev/null", O_RDONLY);
-      open("/dev/null", O_WRONLY);
-      open("/dev/null", O_WRONLY);
+
+      if (open("/dev/null", O_RDONLY) != 0 ||
+          open("/dev/null", O_WRONLY) != 1 ||
+          open("/dev/null", O_WRONLY) != 2) {
+        exit(1);
+      }
 
       execvp(exec_args.at(0U), const_cast<char *const *>(exec_args.data()));
+      exit(1);
     } else {
       signal(SIGCHLD, SIG_IGN);
     }
