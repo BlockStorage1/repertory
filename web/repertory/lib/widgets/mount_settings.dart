@@ -18,9 +18,11 @@ class MountSettingsWidget extends StatefulWidget {
   final bool showAdvanced;
   final Mount mount;
   final Map<String, dynamic> settings;
+  final Function? onChanged;
   const MountSettingsWidget({
     super.key,
     this.isAdd = false,
+    this.onChanged,
     required this.mount,
     required this.settings,
     required this.showAdvanced,
@@ -1018,6 +1020,10 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
   void setState(VoidCallback fn) {
     if (!mounted) {
       return;
+    }
+
+    if (widget.onChanged != null) {
+      widget.onChanged!();
     }
 
     super.setState(fn);

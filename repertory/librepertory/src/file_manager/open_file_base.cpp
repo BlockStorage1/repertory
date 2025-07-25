@@ -30,7 +30,7 @@
 #include "utils/path.hpp"
 
 namespace repertory {
-void open_file_base::download::notify(const api_error &err) {
+void open_file_base::download::notify(api_error err) {
   complete_ = true;
   error_ = err;
   unique_mutex_lock lock(mtx_);
@@ -360,7 +360,7 @@ void open_file_base::reset_timeout() {
   last_access_ = std::chrono::system_clock::now();
 }
 
-auto open_file_base::set_api_error(const api_error &err) -> api_error {
+auto open_file_base::set_api_error(api_error err) -> api_error {
   mutex_lock error_lock(error_mtx_);
   if (error_ == err) {
     return error_;

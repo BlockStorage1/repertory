@@ -86,11 +86,13 @@ auto traverse_directory(
   struct dirent *de{nullptr};
   while (res && (de = readdir(root)) && !is_stop_requested()) {
     if (de->d_type == DT_DIR) {
-      if ((std::string_view(de->d_name) != ".") &&
-          (std::string_view(de->d_name) != "..")) {
-        res = directory_action(repertory::utils::file::directory(
-            repertory::utils::path::combine(path, {de->d_name})));
+      if ((std::string_view(de->d_name) == ".") ||
+          (std::string_view(de->d_name) == "..")) {
+        continue;
       }
+
+      res = directory_action(repertory::utils::file::directory(
+          repertory::utils::path::combine(path, {de->d_name})));
     } else {
       res = file_action(repertory::utils::file::file(
           repertory::utils::path::combine(path, {de->d_name})));
@@ -105,8 +107,8 @@ auto traverse_directory(
 } // namespace
 
 namespace repertory::utils::file {
-auto directory::copy_to(std::string_view new_path,
-                        bool overwrite) const -> bool {
+auto directory::copy_to(std::string_view new_path, bool overwrite) const
+    -> bool {
   REPERTORY_USES_FUNCTION_NAME();
 
   try {
@@ -213,7 +215,7 @@ auto directory::exists() const -> bool {
 #if defined(_WIN32)
   return ::PathIsDirectoryA(path_.c_str()) != 0;
 #else  // !defined(_WIN32)
-  struct stat64 st {};
+  struct stat64 st{};
   return (stat64(path_.c_str(), &st) == 0 && S_ISDIR(st.st_mode));
 #endif // defined(_WIN32)
 
@@ -266,8 +268,8 @@ auto directory::get_directories() const -> std::vector<fs_directory_t> {
   return {};
 }
 
-auto directory::create_file(std::string_view file_name,
-                            bool read_only) const -> fs_file_t {
+auto directory::create_file(std::string_view file_name, bool read_only) const
+    -> fs_file_t {
   REPERTORY_USES_FUNCTION_NAME();
 
   try {

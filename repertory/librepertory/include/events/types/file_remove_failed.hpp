@@ -34,8 +34,8 @@ struct file_remove_failed final : public i_event {
         error(error_),
         function_name(std::string(function_name_)) {}
 
-  static constexpr const event_level level{event_level::error};
-  static constexpr const std::string_view name{"file_remove_failed"};
+  static constexpr event_level level{event_level::error};
+  static constexpr std::string_view name{"file_remove_failed"};
 
   std::string api_path;
   api_error error{};

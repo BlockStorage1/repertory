@@ -24,13 +24,13 @@
 namespace {
 #if defined(PROJECT_ENABLE_LIBSODIUM) && defined(PROJECT_ENABLE_BOOST)
 #include "utils/file_enc_file.hpp"
-constexpr const auto file_type_count{3U};
+constexpr auto file_type_count{3U};
 #else
-constexpr const auto file_type_count{2U};
+constexpr auto file_type_count{2U};
 #endif
 
-[[nodiscard]] auto create_file(auto idx, auto path,
-                               bool read_only = false) -> auto {
+[[nodiscard]] auto create_file(auto idx, auto path, bool read_only = false)
+    -> auto {
   switch (idx) {
   case 0U:
     return repertory::utils::file::file::open_or_create_file(path, read_only);
@@ -47,8 +47,8 @@ constexpr const auto file_type_count{2U};
   }
 }
 
-[[nodiscard]] auto open_file(auto idx, auto path,
-                             bool read_only = false) -> auto {
+[[nodiscard]] auto open_file(auto idx, auto path, bool read_only = false)
+    -> auto {
   switch (idx) {
   case 0U:
     return repertory::utils::file::file::open_file(path, read_only);
@@ -368,6 +368,41 @@ TEST(utils_file, directory_exists_in_path) {
     EXPECT_FALSE(utils::file::file_exists_in_path(
         utils::string::from_utf8(test_dir.get_path()), L"moose"));
   }
+}
+
+TEST(utils_file, directory_can_get_empty_directory_count) {
+  auto &test_dir = test::generate_test_directory();
+  EXPECT_EQ(0U, test_dir.count());
+  EXPECT_EQ(0U, test_dir.count(false));
+}
+
+TEST(utils_file, directory_can_get_empty_directory_count_recursively) {
+  auto &test_dir = test::generate_test_directory();
+  EXPECT_EQ(0U, test_dir.count(true));
+}
+
+TEST(utils_file, directory_can_get_non_empty_directory_count) {
+  auto &test_dir = test::generate_test_directory();
+  auto sub_dir = test_dir.create_directory("sub_dir");
+  EXPECT_TRUE(sub_dir != nullptr);
+  if (sub_dir) {
+    sub_dir->create_directory("sub_dir");
+
+    EXPECT_EQ(1U, test_dir.count());
+    EXPECT_EQ(1U, test_dir.count(false));
+  }
+}
+
+TEST(utils_file, directory_can_get_non_empty_directory_count_recursively) {
+  auto &test_dir = test::generate_test_directory();
+  auto sub_dir = test_dir.create_directory("sub_dir");
+  EXPECT_TRUE(sub_dir != nullptr);
+  if (sub_dir) {
+    sub_dir = sub_dir->create_directory("sub_dir");
+    EXPECT_TRUE(sub_dir != nullptr);
+  }
+
+  EXPECT_EQ(2U, test_dir.count(true));
 }
 
 TEST(utils_file, file_exists_in_path) {

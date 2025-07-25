@@ -26,30 +26,30 @@
 #include "utils/string.hpp"
 
 namespace repertory::utils::path {
-inline constexpr const std::string_view backslash{"\\"};
-inline constexpr const std::wstring_view backslash_w{L"\\"};
-inline constexpr const std::string_view dot{"."};
-inline constexpr const std::wstring_view dot_w{L"."};
-inline constexpr const std::string_view dot_backslash{".\\"};
-inline constexpr const std::wstring_view dot_backslash_w{L".\\"};
-inline constexpr const std::string_view dot_slash{"./"};
-inline constexpr const std::wstring_view dot_slash_w{L"./"};
-inline constexpr const std::string_view long_notation{"\\\\?\\"};
-inline constexpr const std::wstring_view long_notation_w{L"\\\\?\\"};
-inline constexpr const std::string_view slash{"/"};
-inline constexpr const std::wstring_view slash_w{L"/"};
+inline constexpr std::string_view backslash{"\\"};
+inline constexpr std::wstring_view backslash_w{L"\\"};
+inline constexpr std::string_view dot{"."};
+inline constexpr std::wstring_view dot_w{L"."};
+inline constexpr std::string_view dot_backslash{".\\"};
+inline constexpr std::wstring_view dot_backslash_w{L".\\"};
+inline constexpr std::string_view dot_slash{"./"};
+inline constexpr std::wstring_view dot_slash_w{L"./"};
+inline constexpr std::string_view long_notation{"\\\\?\\"};
+inline constexpr std::wstring_view long_notation_w{L"\\\\?\\"};
+inline constexpr std::string_view slash{"/"};
+inline constexpr std::wstring_view slash_w{L"/"};
 #if defined(_WIN32)
-inline constexpr const std::string_view directory_seperator{backslash};
-inline constexpr const std::wstring_view directory_seperator_w{backslash_w};
-inline constexpr const std::string_view not_directory_seperator{slash};
-inline constexpr const std::wstring_view not_directory_seperator_w{slash_w};
-inline constexpr const std::string_view unc_notation{"\\\\"};
-inline constexpr const std::wstring_view unc_notation_w{L"\\\\"};
+inline constexpr std::string_view directory_seperator{backslash};
+inline constexpr std::wstring_view directory_seperator_w{backslash_w};
+inline constexpr std::string_view not_directory_seperator{slash};
+inline constexpr std::wstring_view not_directory_seperator_w{slash_w};
+inline constexpr std::string_view unc_notation{"\\\\"};
+inline constexpr std::wstring_view unc_notation_w{L"\\\\"};
 #else  // !defined(_WIN32)
-inline constexpr const std::string_view directory_seperator{slash};
-inline constexpr const std::wstring_view directory_seperator_w{slash_w};
-inline constexpr const std::string_view not_directory_seperator{backslash};
-inline constexpr const std::wstring_view not_directory_seperator_w{backslash_w};
+inline constexpr std::string_view directory_seperator{slash};
+inline constexpr std::wstring_view directory_seperator_w{slash_w};
+inline constexpr std::string_view not_directory_seperator{backslash};
+inline constexpr std::wstring_view not_directory_seperator_w{backslash_w};
 #endif // defined(_WIN32)
 
 template <typename char_t>

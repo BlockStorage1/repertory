@@ -34,28 +34,29 @@ struct i_http_comm {
   INTERFACE_SETUP(i_http_comm);
 
 public:
-  virtual void enable_s3_path_style(bool enable) = 0;
-
   [[nodiscard]] virtual auto
   make_request(const curl::requests::http_delete &del, long &response_code,
                stop_type &stop_requested) const -> bool = 0;
 
-  [[nodiscard]] virtual auto
-  make_request(const curl::requests::http_get &get, long &response_code,
-               stop_type &stop_requested) const -> bool = 0;
+  [[nodiscard]] virtual auto make_request(const curl::requests::http_get &get,
+                                          long &response_code,
+                                          stop_type &stop_requested) const
+      -> bool = 0;
 
-  [[nodiscard]] virtual auto
-  make_request(const curl::requests::http_head &head, long &response_code,
-               stop_type &stop_requested) const -> bool = 0;
+  [[nodiscard]] virtual auto make_request(const curl::requests::http_head &head,
+                                          long &response_code,
+                                          stop_type &stop_requested) const
+      -> bool = 0;
 
-  [[nodiscard]] virtual auto
-  make_request(const curl::requests::http_post &post, long &response_code,
-               stop_type &stop_requested) const -> bool = 0;
+  [[nodiscard]] virtual auto make_request(const curl::requests::http_post &post,
+                                          long &response_code,
+                                          stop_type &stop_requested) const
+      -> bool = 0;
 
   [[nodiscard]] virtual auto
   make_request(const curl::requests::http_put_file &put_file,
-               long &response_code,
-               stop_type &stop_requested) const -> bool = 0;
+               long &response_code, stop_type &stop_requested) const
+      -> bool = 0;
 };
 } // namespace repertory
 

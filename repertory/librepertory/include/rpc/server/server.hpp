@@ -30,8 +30,13 @@ class app_config;
 class server {
 public:
   explicit server(app_config &config);
+  server(const server &) = delete;
+  server(server &&) = delete;
 
-  virtual ~server() { stop(); }
+  auto operator=(const server &) -> server & = delete;
+  auto operator=(server &&) -> server & = delete;
+
+  virtual ~server();
 
 private:
   app_config &config_;

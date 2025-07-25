@@ -1,5 +1,5 @@
 #comment
-FROM alpine:3.21.3
+FROM alpine:3.21.4
 
 RUN apk update
 RUN apk upgrade
@@ -351,9 +351,9 @@ RUN cd /3rd_party/mingw64 && sha256sum -c ./expat-${MY_EXPAT_VERSION}.tar.gz.sha
 
 ARG FONTCONFIG_VERSION
 ENV MY_FONTCONFIG_VERSION=${FONTCONFIG_VERSION}
-RUN if [ -f "/3rd_party/fontconfig-${MY_FONTCONFIG_VERSION}.tar.gz" ]; then \
-      cd /3rd_party && sha256sum -c ./fontconfig-${MY_FONTCONFIG_VERSION}.tar.gz.sha256 && cd - \
-      && tar xvzf /3rd_party/fontconfig-${MY_FONTCONFIG_VERSION}.tar.gz \
+RUN if [ -f "/3rd_party/fontconfig-${MY_FONTCONFIG_VERSION}.tar.xz" ]; then \
+      cd /3rd_party && sha256sum -c ./fontconfig-${MY_FONTCONFIG_VERSION}.tar.xz.sha256 && cd - \
+      && tar xvJf /3rd_party/fontconfig-${MY_FONTCONFIG_VERSION}.tar.xz \
       && cd fontconfig-${MY_FONTCONFIG_VERSION} \
       && meson setup \
         --cross-file ${MY_TOOLCHAIN_FILE_MESON} \

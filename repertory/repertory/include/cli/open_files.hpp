@@ -22,20 +22,14 @@
 #ifndef REPERTORY_INCLUDE_CLI_OPEN_FILES_HPP_
 #define REPERTORY_INCLUDE_CLI_OPEN_FILES_HPP_
 
-#include "app_config.hpp"
-#include "platform/platform.hpp"
-#include "rpc/client/client.hpp"
-#include "types/repertory.hpp"
-#include "types/rpc.hpp"
-#include "utils/cli_utils.hpp"
+#include "cli/common.hpp"
 
 namespace repertory::cli::actions {
-[[nodiscard]] inline auto open_files(std::vector<const char *> /* args */,
-                                     const std::string &data_directory,
-                                     const provider_type &prov,
-                                     const std::string &unique_id,
-                                     std::string user,
-                                     std::string password) -> exit_code {
+[[nodiscard]] inline auto
+open_files(std::vector<const char *> /* args */,
+           const std::string &data_directory, const provider_type &prov,
+           const std::string &unique_id, std::string user, std::string password)
+    -> exit_code {
   auto ret = exit_code::success;
   lock_data lock(prov, unique_id);
   const auto res = lock.grab_lock(1U);

@@ -29,6 +29,14 @@ namespace repertory::remote_fuse {
 remote_client::remote_client(const app_config &config)
     : config_(config), packet_client_(config.get_remote_config()) {}
 
+auto remote_client::check() -> packet::error_type {
+  REPERTORY_USES_FUNCTION_NAME();
+
+  packet request;
+  std::uint32_t service_flags{};
+  return packet_client_.send(function_name, request, service_flags);
+}
+
 auto remote_client::fuse_access(const char *path, const std::int32_t &mask)
     -> packet::error_type {
   REPERTORY_USES_FUNCTION_NAME();

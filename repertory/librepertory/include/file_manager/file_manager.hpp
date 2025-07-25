@@ -40,7 +40,7 @@ class file_manager final : public i_file_manager, public i_upload_manager {
   E_CONSUMER();
 
 private:
-  static constexpr const std::chrono::seconds queue_wait_secs{
+  static constexpr std::chrono::seconds queue_wait_secs{
       5s,
   };
 

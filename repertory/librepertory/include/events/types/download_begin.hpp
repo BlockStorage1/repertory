@@ -34,8 +34,8 @@ struct download_begin final : public i_event {
         dest_path(std::move(dest_path_)),
         function_name(std::string(function_name_)) {}
 
-  static constexpr const event_level level{event_level::info};
-  static constexpr const std::string_view name{"download_begin"};
+  static constexpr event_level level{event_level::info};
+  static constexpr std::string_view name{"download_begin"};
 
   std::string api_path;
   std::string dest_path;

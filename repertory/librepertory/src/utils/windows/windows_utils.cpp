@@ -31,7 +31,7 @@
 #endif
 
 namespace repertory::utils {
-auto from_api_error(const api_error &e) -> NTSTATUS {
+auto from_api_error(api_error e) -> NTSTATUS {
   switch (e) {
   case api_error::access_denied:
     return STATUS_ACCESS_DENIED;

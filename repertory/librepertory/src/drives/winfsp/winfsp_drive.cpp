@@ -1023,8 +1023,15 @@ auto winfsp_drive::Rename(PVOID /*file_node*/, PVOID /*file_desc*/,
 
   const auto handle_error = [this, &from_api_path,
                              &to_api_path](api_error error) -> NTSTATUS {
-    return this->handle_error(function_name, from_api_path + '|' + to_api_path,
-                              error, nullptr, 0U);
+    auto ret = this->handle_error(
+        function_name, from_api_path + '|' + to_api_path, error, nullptr, 0U);
+    if (ret == FspNtStatusFromWin32(ERROR_FILE_EXISTS)) {
+      ret = FspNtStatusFromWin32(ERROR_ALREADY_EXISTS);
+    } else if (ret == STATUS_OBJECT_NAME_EXISTS) {
+      ret = STATUS_ACCESS_DENIED;
+    }
+
+    return ret;
   };
 
   bool exists{};

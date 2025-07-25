@@ -30,6 +30,10 @@
 #include "utils/types/file/i_file.hpp"
 #include "utils/types/file/i_fs_item.hpp"
 
+namespace repertory::utils::directory {
+[[nodiscard]] auto temp() -> std::string;
+}
+
 namespace repertory::utils::file {
 [[nodiscard]] auto change_to_process_directory() -> bool;
 

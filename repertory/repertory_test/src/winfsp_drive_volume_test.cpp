@@ -50,10 +50,17 @@ TYPED_TEST(winfsp_test, volume_can_get_volume_info) {
             flags);
   EXPECT_EQ(255U, max_component_length);
   EXPECT_EQ(0U, serial_num);
-  EXPECT_STREQ(
-      ("repertory_" + app_config::get_provider_name(this->current_provider))
-          .c_str(),
-      volume_label.c_str());
+  if (this->current_provider == provider_type::unknown) {
+    EXPECT_STREQ(
+        ("repertory_" + app_config::get_provider_name(provider_type::sia))
+            .c_str(),
+        volume_label.c_str());
+  } else {
+    EXPECT_STREQ(
+        ("repertory_" + app_config::get_provider_name(this->current_provider))
+            .c_str(),
+        volume_label.c_str());
+  }
   EXPECT_STREQ(this->mount_location.c_str(), fs_name.c_str());
 }
 

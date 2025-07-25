@@ -26,7 +26,7 @@
 #include "utils/error_utils.hpp"
 
 namespace repertory::utils {
-auto from_api_error(const api_error &err) -> int {
+auto from_api_error(api_error err) -> int {
   switch (err) {
   case api_error::access_denied:
     return -EACCES;

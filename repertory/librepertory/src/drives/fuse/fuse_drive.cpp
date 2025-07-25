@@ -85,8 +85,8 @@ auto fuse_drive::chown_impl(std::string api_path, uid_t uid, gid_t gid,
                             struct fuse_file_info * /*file_info*/)
     -> api_error {
 #else
-auto fuse_drive::chown_impl(std::string api_path, uid_t uid,
-                            gid_t gid) -> api_error {
+auto fuse_drive::chown_impl(std::string api_path, uid_t uid, gid_t gid)
+    -> api_error {
 #endif
   return check_and_perform(
       api_path, X_OK, [&](api_meta_map &meta) -> api_error {
@@ -464,7 +464,7 @@ auto fuse_drive::get_file_size(const std::string &api_path) const
 
   std::uint64_t file_size{};
   auto res = provider_.get_file_size(api_path, file_size);
-  if (res == api_error::success) {
+  if (res != api_error::success) {
     utils::error::raise_api_path_error(function_name, api_path, res,
                                        "failed to get file size from provider");
   }
@@ -494,8 +494,8 @@ auto fuse_drive::getattr_impl(std::string api_path, struct stat *unix_st,
                               struct fuse_file_info * /*file_info*/)
     -> api_error {
 #else
-auto fuse_drive::getattr_impl(std::string api_path,
-                              struct stat *unix_st) -> api_error {
+auto fuse_drive::getattr_impl(std::string api_path, struct stat *unix_st)
+    -> api_error {
 #endif
   auto parent = utils::path::get_parent_api_path(api_path);
 
@@ -561,8 +561,8 @@ auto fuse_drive::getxtimes_impl(std::string api_path, struct timespec *bkuptime,
 #endif // __APPLE__
 
 #if FUSE_USE_VERSION >= 30
-auto fuse_drive::init_impl(struct fuse_conn_info *conn,
-                           struct fuse_config *cfg) -> void * {
+auto fuse_drive::init_impl(struct fuse_conn_info *conn, struct fuse_config *cfg)
+    -> void * {
 #else
 void *fuse_drive::init_impl(struct fuse_conn_info *conn) {
 #endif
@@ -804,8 +804,9 @@ auto fuse_drive::release_impl(std::string /*api_path*/,
   return api_error::success;
 }
 
-auto fuse_drive::releasedir_impl(
-    std::string /*api_path*/, struct fuse_file_info *file_info) -> api_error {
+auto fuse_drive::releasedir_impl(std::string /*api_path*/,
+                                 struct fuse_file_info *file_info)
+    -> api_error {
   auto iter = directory_cache_->get_directory(file_info->fh);
   if (iter == nullptr) {
     return api_error::invalid_handle;
@@ -823,8 +824,8 @@ auto fuse_drive::rename_directory(const std::string &from_api_path,
 }
 
 auto fuse_drive::rename_file(const std::string &from_api_path,
-                             const std::string &to_api_path,
-                             bool overwrite) -> int {
+                             const std::string &to_api_path, bool overwrite)
+    -> int {
   auto res = fm_->rename_file(from_api_path, to_api_path, overwrite);
   errno = std::abs(utils::from_api_error(res));
   return (res == api_error::success) ? 0 : -1;
@@ -834,8 +835,8 @@ auto fuse_drive::rename_file(const std::string &from_api_path,
 auto fuse_drive::rename_impl(std::string from_api_path, std::string to_api_path,
                              unsigned int /*flags*/) -> api_error {
 #else
-auto fuse_drive::rename_impl(std::string from_api_path,
-                             std::string to_api_path) -> api_error {
+auto fuse_drive::rename_impl(std::string from_api_path, std::string to_api_path)
+    -> api_error {
 #endif
   auto res = check_parent_access(to_api_path, W_OK | X_OK);
   if (res != api_error::success) {
@@ -937,15 +938,15 @@ auto fuse_drive::getxattr_impl(std::string api_path, const char *name,
 }
 #else  // __APPLE__
 auto fuse_drive::getxattr_impl(std::string api_path, const char *name,
-                               char *value, size_t size,
-                               int &attribute_size) -> api_error {
+                               char *value, size_t size, int &attribute_size)
+    -> api_error {
   return getxattr_common(api_path, name, value, size, attribute_size, nullptr);
 }
 #endif // __APPLE__
 
 auto fuse_drive::listxattr_impl(std::string api_path, char *buffer, size_t size,
-                                int &required_size,
-                                bool &return_size) -> api_error {
+                                int &required_size, bool &return_size)
+    -> api_error {
   auto check_size = (size == 0);
 
   auto res = check_parent_access(api_path, X_OK);
@@ -985,8 +986,8 @@ auto fuse_drive::listxattr_impl(std::string api_path, char *buffer, size_t size,
   return res;
 }
 
-auto fuse_drive::removexattr_impl(std::string api_path,
-                                  const char *name) -> api_error {
+auto fuse_drive::removexattr_impl(std::string api_path, const char *name)
+    -> api_error {
   std::string attribute_name;
 #if defined(__APPLE__)
   auto res = parse_xattr_parameters(name, 0, attribute_name, api_path);
@@ -1014,8 +1015,8 @@ auto fuse_drive::setxattr_impl(std::string api_path, const char *name,
                                uint32_t position) -> api_error {
 #else // __APPLE__
 auto fuse_drive::setxattr_impl(std::string api_path, const char *name,
-                               const char *value, size_t size,
-                               int flags) -> api_error {
+                               const char *value, size_t size, int flags)
+    -> api_error {
 #endif
   std::string attribute_name;
 #if defined(__APPLE__)
@@ -1087,14 +1088,26 @@ void fuse_drive::set_item_meta(const std::string &api_path,
 
   auto res = provider_.set_item_meta(api_path, key, value);
   if (res != api_error::success) {
+    utils::error::raise_api_path_error(
+        function_name, api_path, res,
+        fmt::format("failed to set item meta|key|{}", key));
+  }
+}
+
+void fuse_drive::set_item_meta(const std::string &api_path,
+                               const api_meta_map &meta) {
+  REPERTORY_USES_FUNCTION_NAME();
+
+  auto res = provider_.set_item_meta(api_path, meta);
+  if (res != api_error::success) {
     utils::error::raise_api_path_error(function_name, api_path, res,
-                                       "key|" + key + "|value|" + value);
+                                       "failed to set item meta");
   }
 }
 
 #if defined(__APPLE__)
-auto fuse_drive::setattr_x_impl(std::string api_path,
-                                struct setattr_x *attr) -> api_error {
+auto fuse_drive::setattr_x_impl(std::string api_path, struct setattr_x *attr)
+    -> api_error {
   bool exists{};
   auto res = provider_.is_file(api_path, exists);
   if (res != api_error::success) {
@@ -1148,7 +1161,7 @@ auto fuse_drive::setattr_x_impl(std::string api_path,
       ts[0].tv_sec = attr->acctime.tv_sec;
       ts[0].tv_nsec = attr->acctime.tv_nsec;
     } else {
-      struct timeval tv {};
+      struct timeval tv{};
       gettimeofday(&tv, NULL);
       ts[0].tv_sec = tv.tv_sec;
       ts[0].tv_nsec = tv.tv_usec * 1000;
@@ -1193,8 +1206,9 @@ auto fuse_drive::setattr_x_impl(std::string api_path,
   return api_error::success;
 }
 
-auto fuse_drive::setbkuptime_impl(
-    std::string api_path, const struct timespec *bkuptime) -> api_error {
+auto fuse_drive::setbkuptime_impl(std::string api_path,
+                                  const struct timespec *bkuptime)
+    -> api_error {
   return check_and_perform(
       api_path, X_OK, [&](api_meta_map &meta) -> api_error {
         auto nanos = bkuptime->tv_nsec +
@@ -1230,8 +1244,8 @@ auto fuse_drive::setvolname_impl(const char * /*volname*/) -> api_error {
   return api_error::success;
 }
 
-auto fuse_drive::statfs_x_impl(std::string /*api_path*/,
-                               struct statfs *stbuf) -> api_error {
+auto fuse_drive::statfs_x_impl(std::string /*api_path*/, struct statfs *stbuf)
+    -> api_error {
   if (statfs(&config_.get_cache_directory()[0], stbuf) != 0) {
     return api_error::os_error;
   }
@@ -1256,8 +1270,8 @@ auto fuse_drive::statfs_x_impl(std::string /*api_path*/,
   return api_error::success;
 }
 #else  // __APPLE__
-auto fuse_drive::statfs_impl(std::string /*api_path*/,
-                             struct statvfs *stbuf) -> api_error {
+auto fuse_drive::statfs_impl(std::string /*api_path*/, struct statvfs *stbuf)
+    -> api_error {
   if (statvfs(config_.get_cache_directory().data(), stbuf) != 0) {
     return api_error::os_error;
   }
@@ -1341,8 +1355,8 @@ auto fuse_drive::utimens_impl(std::string api_path, const struct timespec tv[2],
                               struct fuse_file_info * /*file_info*/)
     -> api_error {
 #else
-auto fuse_drive::utimens_impl(std::string api_path,
-                              const struct timespec tv[2]) -> api_error {
+auto fuse_drive::utimens_impl(std::string api_path, const struct timespec tv[2])
+    -> api_error {
 #endif
   api_meta_map meta;
   auto res = provider_.get_item_meta(api_path, meta);
@@ -1431,4 +1445,4 @@ void fuse_drive::update_accessed_time(const std::string &api_path) {
 }
 } // namespace repertory
 
-#endif // _WIN32
+#endif // !defined(_WIN32)

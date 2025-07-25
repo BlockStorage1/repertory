@@ -39,8 +39,8 @@ struct filesystem_item_handle_closed final : public i_event {
         handle(handle_),
         source_path(std::move(source_path_)) {}
 
-  static constexpr const event_level level{event_level::trace};
-  static constexpr const std::string_view name{"filesystem_item_handle_closed"};
+  static constexpr event_level level{event_level::trace};
+  static constexpr std::string_view name{"filesystem_item_handle_closed"};
 
   std::string api_path;
   bool changed{};

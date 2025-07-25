@@ -31,8 +31,8 @@ struct unmount_requested final : public i_event {
   unmount_requested(std::string_view function_name_)
       : function_name(std::string(function_name_)) {}
 
-  static constexpr const event_level level{event_level::info};
-  static constexpr const std::string_view name{"unmount_requested"};
+  static constexpr event_level level{event_level::info};
+  static constexpr std::string_view name{"unmount_requested"};
 
   std::string function_name;
 

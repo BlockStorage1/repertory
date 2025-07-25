@@ -50,14 +50,14 @@ public:
   [[nodiscard]] auto fill_buffer(const remote::file_offset &offset,
                                  fuse_fill_dir_t filler_function, void *buffer,
                                  populate_stat_callback populate_stat) -> int;
-#endif
+#endif // !defined(_WIN32)
 
   [[nodiscard]] auto get(std::size_t offset, std::string &item) -> int;
 
   [[nodiscard]] auto get_count() const -> std::size_t { return items_.size(); }
 
-  [[nodiscard]] auto get_directory_item(std::size_t offset,
-                                        directory_item &di) -> api_error;
+  [[nodiscard]] auto get_directory_item(std::size_t offset, directory_item &di)
+      -> api_error;
 
   [[nodiscard]] auto get_directory_item(const std::string &api_path,
                                         directory_item &di) -> api_error;
@@ -71,8 +71,8 @@ public:
   auto operator=(const directory_iterator &iterator) noexcept
       -> directory_iterator &;
 
-  auto
-  operator=(directory_iterator &&iterator) noexcept -> directory_iterator &;
+  auto operator=(directory_iterator &&iterator) noexcept
+      -> directory_iterator &;
 
   auto operator=(directory_item_list list) noexcept -> directory_iterator &;
 };

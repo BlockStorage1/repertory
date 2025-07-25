@@ -27,7 +27,7 @@ class i_event;
 
 class event_system final {
 private:
-  static constexpr const std::uint8_t max_queue_retry{
+  static constexpr std::uint8_t max_queue_retry{
       30U,
   };
 
@@ -35,7 +35,7 @@ private:
       std::thread::hardware_concurrency() * 4U,
   };
 
-  static constexpr const std::chrono::seconds queue_wait_secs{
+  static constexpr std::chrono::seconds queue_wait_secs{
       5s,
   };
 

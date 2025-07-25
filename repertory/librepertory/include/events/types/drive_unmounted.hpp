@@ -32,8 +32,8 @@ struct drive_unmounted final : public i_event {
       : function_name(std::string(function_name_)),
         mount_location(std::move(mount_location_)) {}
 
-  static constexpr const event_level level{event_level::info};
-  static constexpr const std::string_view name{"drive_unmounted"};
+  static constexpr event_level level{event_level::info};
+  static constexpr std::string_view name{"drive_unmounted"};
 
   std::string function_name;
   std::string mount_location;

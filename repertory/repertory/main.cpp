@@ -38,13 +38,14 @@ auto main(int argc, char **argv) -> int {
 
   if (not repertory::project_initialize()) {
     std::cerr << "fatal: failed to initialize repertory" << std::endl;
+    repertory::project_cleanup();
     return -1;
   }
 
   std::vector<const char *> args;
   {
     auto args_span = std::span(argv, static_cast<std::size_t>(argc));
-    std::copy(args_span.begin(), args_span.end(), std::back_inserter(args));
+    std::ranges::copy(args_span, std::back_inserter(args));
   }
 
   if (argc == 1) {

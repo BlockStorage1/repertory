@@ -73,92 +73,95 @@ private:
 
 protected:
 #if defined(__APPLE__)
-  [[nodiscard]] auto chflags_impl(std::string api_path,
-                                  uint32_t flags) -> api_error override;
-#endif // __APPLE__
+  [[nodiscard]] auto chflags_impl(std::string api_path, uint32_t flags)
+      -> api_error override;
+#endif // defined(__APPLE__{}
 
 #if FUSE_USE_VERSION >= 30
-  [[nodiscard]] auto
-  chmod_impl(std::string api_path, mode_t mode,
-             struct fuse_file_info *file_info) -> api_error override;
-#else
-  [[nodiscard]] auto chmod_impl(std::string api_path,
-                                mode_t mode) -> api_error override;
-#endif
+  [[nodiscard]] auto chmod_impl(std::string api_path, mode_t mode,
+                                struct fuse_file_info *file_info)
+      -> api_error override;
+#else  // FUSE_USE_VERSION < 30
+  [[nodiscard]] auto chmod_impl(std::string api_path, mode_t mode)
+      -> api_error override;
+#endif // FUSE_USE_VERSION >= 30
 
 #if FUSE_USE_VERSION >= 30
-  [[nodiscard]] auto
-  chown_impl(std::string api_path, uid_t uid, gid_t gid,
-             struct fuse_file_info *file_info) -> api_error override;
-#else
-  [[nodiscard]] auto chown_impl(std::string api_path, uid_t uid,
-                                gid_t gid) -> api_error override;
-#endif
+  [[nodiscard]] auto chown_impl(std::string api_path, uid_t uid, gid_t gid,
+                                struct fuse_file_info *file_info)
+      -> api_error override;
+#else  // FUSE_USE_VERSION < 30
+  [[nodiscard]] auto chown_impl(std::string api_path, uid_t uid, gid_t gid)
+      -> api_error override;
+#endif // FUSE_USE_VERSION >= 30
 
-  [[nodiscard]] auto
-  create_impl(std::string api_path, mode_t mode,
-              struct fuse_file_info *file_info) -> api_error override;
+  [[nodiscard]] auto create_impl(std::string api_path, mode_t mode,
+                                 struct fuse_file_info *file_info)
+      -> api_error override;
 
   void destroy_impl(void *ptr) override;
 
-  [[nodiscard]] auto
-  fallocate_impl(std::string api_path, int mode, off_t offset, off_t length,
-                 struct fuse_file_info *file_info) -> api_error override;
+  [[nodiscard]] auto fallocate_impl(std::string api_path, int mode,
+                                    off_t offset, off_t length,
+                                    struct fuse_file_info *file_info)
+      -> api_error override;
 
-  [[nodiscard]] auto
-  fgetattr_impl(std::string api_path, struct stat *unix_st,
-                struct fuse_file_info *file_info) -> api_error override;
+  [[nodiscard]] auto fgetattr_impl(std::string api_path, struct stat *unix_st,
+                                   struct fuse_file_info *file_info)
+      -> api_error override;
 
 #if defined(__APPLE__)
-  [[nodiscard]] auto
-  fsetattr_x_impl(std::string api_path, struct setattr_x *attr,
-                  struct fuse_file_info *file_info) -> api_error override;
-#endif // __APPLE__
+  [[nodiscard]] auto fsetattr_x_impl(std::string api_path,
+                                     struct setattr_x *attr,
+                                     struct fuse_file_info *file_info)
+      -> api_error override;
+#endif // defined(__APPLE__)
 
-  [[nodiscard]] auto
-  fsync_impl(std::string api_path, int datasync,
-             struct fuse_file_info *file_info) -> api_error override;
+  [[nodiscard]] auto fsync_impl(std::string api_path, int datasync,
+                                struct fuse_file_info *file_info)
+      -> api_error override;
 
 #if FUSE_USE_VERSION < 30
-  [[nodiscard]] auto
-  ftruncate_impl(std::string api_path, off_t size,
-                 struct fuse_file_info *file_info) -> api_error override;
-#endif
+  [[nodiscard]] auto ftruncate_impl(std::string api_path, off_t size,
+                                    struct fuse_file_info *file_info)
+      -> api_error override;
+#endif // FUSE_USE_VERSION < 30
 
 #if FUSE_USE_VERSION >= 30
-  [[nodiscard]] auto
-  getattr_impl(std::string api_path, struct stat *unix_st,
-               struct fuse_file_info *file_info) -> api_error override;
-#else
-  [[nodiscard]] auto getattr_impl(std::string api_path,
-                                  struct stat *unix_st) -> api_error override;
-#endif
+  [[nodiscard]] auto getattr_impl(std::string api_path, struct stat *unix_st,
+                                  struct fuse_file_info *file_info)
+      -> api_error override;
+#else  // FUSE_USE_VERSION < 30
+  [[nodiscard]] auto getattr_impl(std::string api_path, struct stat *unix_st)
+      -> api_error override;
+#endif // FUSE_USE_VERSION >= 30
 
 #if defined(__APPLE__)
-  [[nodiscard]] auto
-  getxtimes_impl(std::string api_path, struct timespec *bkuptime,
-                 struct timespec *crtime) -> api_error override;
-#endif // __APPLE__
+  [[nodiscard]] auto getxtimes_impl(std::string api_path,
+                                    struct timespec *bkuptime,
+                                    struct timespec *crtime)
+      -> api_error override;
+#endif // defined(__APPLE__)
 
 #if FUSE_USE_VERSION >= 30
-  auto init_impl(struct fuse_conn_info *conn,
-                 struct fuse_config *cfg) -> void * override;
-#else
+  auto init_impl(struct fuse_conn_info *conn, struct fuse_config *cfg)
+      -> void * override;
+#else  // FUSE_USE_VERSION < 30
   auto init_impl(struct fuse_conn_info *conn) -> void * override;
-#endif
+#endif // FUSE_USE_VERSION >= 30
 
-  [[nodiscard]] auto mkdir_impl(std::string api_path,
-                                mode_t mode) -> api_error override;
+  [[nodiscard]] auto mkdir_impl(std::string api_path, mode_t mode)
+      -> api_error override;
 
   void notify_fuse_main_exit(int &ret) override;
 
-  [[nodiscard]] auto
-  open_impl(std::string api_path,
-            struct fuse_file_info *file_info) -> api_error override;
+  [[nodiscard]] auto open_impl(std::string api_path,
+                               struct fuse_file_info *file_info)
+      -> api_error override;
 
-  [[nodiscard]] auto
-  opendir_impl(std::string api_path,
-               struct fuse_file_info *file_info) -> api_error override;
+  [[nodiscard]] auto opendir_impl(std::string api_path,
+                                  struct fuse_file_info *file_info)
+      -> api_error override;
 
   [[nodiscard]] auto read_impl(std::string api_path, char *buffer,
                                size_t read_size, off_t read_offset,
@@ -166,121 +169,124 @@ protected:
                                std::size_t &bytes_read) -> api_error override;
 
 #if FUSE_USE_VERSION >= 30
-  [[nodiscard]] auto
-  readdir_impl(std::string api_path, void *buf, fuse_fill_dir_t fuse_fill_dir,
-               off_t offset, struct fuse_file_info *file_info,
-               fuse_readdir_flags flags) -> api_error override;
-#else
-  [[nodiscard]] auto
-  readdir_impl(std::string api_path, void *buf, fuse_fill_dir_t fuse_fill_dir,
-               off_t offset,
-               struct fuse_file_info *file_info) -> api_error override;
-#endif
+  [[nodiscard]] auto readdir_impl(std::string api_path, void *buf,
+                                  fuse_fill_dir_t fuse_fill_dir, off_t offset,
+                                  struct fuse_file_info *file_info,
+                                  fuse_readdir_flags flags)
+      -> api_error override;
+#else  // FUSE_USE_VERSION < 30
+  [[nodiscard]] auto readdir_impl(std::string api_path, void *buf,
+                                  fuse_fill_dir_t fuse_fill_dir, off_t offset,
+                                  struct fuse_file_info *file_info)
+      -> api_error override;
+#endif // FUSE_USE_VERSION >= 30
 
-  [[nodiscard]] auto
-  release_impl(std::string api_path,
-               struct fuse_file_info *file_info) -> api_error override;
+  [[nodiscard]] auto release_impl(std::string api_path,
+                                  struct fuse_file_info *file_info)
+      -> api_error override;
 
-  [[nodiscard]] auto
-  releasedir_impl(std::string api_path,
-                  struct fuse_file_info *file_info) -> api_error override;
+  [[nodiscard]] auto releasedir_impl(std::string api_path,
+                                     struct fuse_file_info *file_info)
+      -> api_error override;
 
 #if FUSE_USE_VERSION >= 30
   [[nodiscard]] auto rename_impl(std::string from_api_path,
-                                 std::string to_api_path,
-                                 unsigned int flags) -> api_error override;
-#else
+                                 std::string to_api_path, unsigned int flags)
+      -> api_error override;
+#else  // FUSE_USE_VERSION < 30
   [[nodiscard]] auto rename_impl(std::string from_api_path,
                                  std::string to_api_path) -> api_error override;
-#endif
+#endif // FUSE_USE_VERSION >= 30
 
   [[nodiscard]] auto rmdir_impl(std::string api_path) -> api_error override;
 
 #if defined(HAS_SETXATTR)
   [[nodiscard]] auto getxattr_common(std::string api_path, const char *name,
                                      char *value, size_t size,
-                                     int &attribute_size,
-                                     uint32_t *position) -> api_error;
+                                     int &attribute_size, uint32_t *position)
+      -> api_error;
 
 #if defined(__APPLE__)
   [[nodiscard]] auto getxattr_impl(std::string api_path, const char *name,
                                    char *value, size_t size, uint32_t position,
                                    int &attribute_size) -> api_error override;
-#else  // __APPLE__
+#else  // !defined(__APPLE__)
   [[nodiscard]] auto getxattr_impl(std::string api_path, const char *name,
                                    char *value, size_t size,
                                    int &attribute_size) -> api_error override;
-#endif // __APPLE__
+#endif // defined(__APPLE__)
 
   [[nodiscard]] auto listxattr_impl(std::string api_path, char *buffer,
                                     size_t size, int &required_size,
                                     bool &return_size) -> api_error override;
 
-  [[nodiscard]] auto removexattr_impl(std::string api_path,
-                                      const char *name) -> api_error override;
+  [[nodiscard]] auto removexattr_impl(std::string api_path, const char *name)
+      -> api_error override;
 
 #if defined(__APPLE__)
   [[nodiscard]] auto setxattr_impl(std::string api_path, const char *name,
                                    const char *value, size_t size, int flags,
                                    uint32_t position) -> api_error override;
-#else  // __APPLE__
+#else  // !defined(__APPLE__)
   [[nodiscard]] auto setxattr_impl(std::string api_path, const char *name,
-                                   const char *value, size_t size,
-                                   int flags) -> api_error override;
-#endif // __APPLE__
-#endif // HAS_SETXATTR
+                                   const char *value, size_t size, int flags)
+      -> api_error override;
+#endif // defined(__APPLE__)
+#endif // defined(HAS_SETXATTR{}
 
 #if defined(__APPLE__)
-  [[nodiscard]] auto
-  setattr_x_impl(std::string api_path,
-                 struct setattr_x *attr) -> api_error override;
+  [[nodiscard]] auto setattr_x_impl(std::string api_path,
+                                    struct setattr_x *attr)
+      -> api_error override;
 
-  [[nodiscard]] auto
-  setbkuptime_impl(std::string api_path,
-                   const struct timespec *bkuptime) -> api_error override;
+  [[nodiscard]] auto setbkuptime_impl(std::string api_path,
+                                      const struct timespec *bkuptime)
+      -> api_error override;
 
-  [[nodiscard]] auto
-  setchgtime_impl(std::string api_path,
-                  const struct timespec *chgtime) -> api_error override;
+  [[nodiscard]] auto setchgtime_impl(std::string api_path,
+                                     const struct timespec *chgtime)
+      -> api_error override;
 
-  [[nodiscard]] auto
-  setcrtime_impl(std::string api_path,
-                 const struct timespec *crtime) -> api_error override;
+  [[nodiscard]] auto setcrtime_impl(std::string api_path,
+                                    const struct timespec *crtime)
+      -> api_error override;
 
   [[nodiscard]] auto setvolname_impl(const char *volname) -> api_error override;
 
-  [[nodiscard]] auto statfs_x_impl(std::string api_path,
-                                   struct statfs *stbuf) -> api_error override;
-#else  // __APPLE__
-  [[nodiscard]] auto statfs_impl(std::string api_path,
-                                 struct statvfs *stbuf) -> api_error override;
-#endif // __APPLE__
+  [[nodiscard]] auto statfs_x_impl(std::string api_path, struct statfs *stbuf)
+      -> api_error override;
+#else  // !defined(__APPLE__)
+  [[nodiscard]] auto statfs_impl(std::string api_path, struct statvfs *stbuf)
+      -> api_error override;
+#endif // defined(__APPLE__)
 
 #if FUSE_USE_VERSION >= 30
-  [[nodiscard]] auto
-  truncate_impl(std::string api_path, off_t size,
-                struct fuse_file_info *file_info) -> api_error override;
-#else
-  [[nodiscard]] auto truncate_impl(std::string api_path,
-                                   off_t size) -> api_error override;
-#endif
+  [[nodiscard]] auto truncate_impl(std::string api_path, off_t size,
+                                   struct fuse_file_info *file_info)
+      -> api_error override;
+#else  // FUSE_USE_VERSION < 30
+  [[nodiscard]] auto truncate_impl(std::string api_path, off_t size)
+      -> api_error override;
+#endif // FUSE_USE_VERSION >= 30
 
   [[nodiscard]] auto unlink_impl(std::string api_path) -> api_error override;
 
 #if FUSE_USE_VERSION >= 30
-  [[nodiscard]] auto
-  utimens_impl(std::string api_path, const struct timespec tv[2],
-               struct fuse_file_info *file_info) -> api_error override;
-#else
-  [[nodiscard]] auto
-  utimens_impl(std::string api_path,
-               const struct timespec tv[2]) -> api_error override;
-#endif
+  [[nodiscard]] auto utimens_impl(std::string api_path,
+                                  const struct timespec tv[2],
+                                  struct fuse_file_info *file_info)
+      -> api_error override;
+#else  // FUSE_USE_VERSION < 30
+  [[nodiscard]] auto utimens_impl(std::string api_path,
+                                  const struct timespec tv[2])
+      -> api_error override;
+#endif // FUSE_USE_VERSION >= 30
 
-  [[nodiscard]] auto
-  write_impl(std::string api_path, const char *buffer, size_t write_size,
-             off_t write_offset, struct fuse_file_info *file_info,
-             std::size_t &bytes_written) -> api_error override;
+  [[nodiscard]] auto write_impl(std::string api_path, const char *buffer,
+                                size_t write_size, off_t write_offset,
+                                struct fuse_file_info *file_info,
+                                std::size_t &bytes_written)
+      -> api_error override;
 
 public:
   [[nodiscard]] auto get_directory_item_count(const std::string &api_path) const
@@ -289,16 +295,17 @@ public:
   [[nodiscard]] auto get_directory_items(const std::string &api_path) const
       -> directory_item_list override;
 
-  [[nodiscard]] auto
-  get_file_size(const std::string &api_path) const -> std::uint64_t override;
+  [[nodiscard]] auto get_file_size(const std::string &api_path) const
+      -> std::uint64_t override;
 
-  [[nodiscard]] auto
-  get_item_meta(const std::string &api_path,
-                api_meta_map &meta) const -> api_error override;
+  [[nodiscard]] auto get_item_meta(const std::string &api_path,
+                                   api_meta_map &meta) const
+      -> api_error override;
 
-  [[nodiscard]] auto
-  get_item_meta(const std::string &api_path, const std::string &name,
-                std::string &value) const -> api_error override;
+  [[nodiscard]] auto get_item_meta(const std::string &api_path,
+                                   const std::string &name,
+                                   std::string &value) const
+      -> api_error override;
 
   [[nodiscard]] auto get_total_drive_space() const -> std::uint64_t override;
 
@@ -309,21 +316,24 @@ public:
   void get_volume_info(UINT64 &total_size, UINT64 &free_size,
                        std::string &volume_label) const override;
 
-  [[nodiscard]] auto
-  is_processing(const std::string &api_path) const -> bool override;
+  [[nodiscard]] auto is_processing(const std::string &api_path) const
+      -> bool override;
 
-  [[nodiscard]] auto
-  rename_directory(const std::string &from_api_path,
-                   const std::string &to_api_path) -> int override;
+  [[nodiscard]] auto rename_directory(const std::string &from_api_path,
+                                      const std::string &to_api_path)
+      -> int override;
 
   [[nodiscard]] auto rename_file(const std::string &from_api_path,
-                                 const std::string &to_api_path,
-                                 bool overwrite) -> int override;
+                                 const std::string &to_api_path, bool overwrite)
+      -> int override;
 
   void set_item_meta(const std::string &api_path, const std::string &key,
                      const std::string &value) override;
+
+  void set_item_meta(const std::string &api_path,
+                     const api_meta_map &meta) override;
 };
 } // namespace repertory
 
-#endif // _WIN32
+#endif // !defined(_WIN32)
 #endif // REPERTORY_INCLUDE_DRIVES_FUSE_FUSE_DRIVE_HPP_

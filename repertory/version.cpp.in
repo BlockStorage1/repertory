@@ -1,8 +1,8 @@
 #include "version.hpp"
 
 namespace {
-static constexpr const std::string_view git_rev = "@PROJECT_GIT_REV@";
-static constexpr const std::string_view version =
+constexpr std::string_view git_rev = "@PROJECT_GIT_REV@";
+constexpr std::string_view version =
     "@PROJECT_MAJOR_VERSION@.@PROJECT_MINOR_VERSION@.@PROJECT_REVISION_VERSION@"
     "-@PROJECT_RELEASE_ITER@";
 } // namespace
@@ -11,4 +11,4 @@ namespace repertory {
   auto project_get_git_rev() -> std::string_view { return git_rev; }
 
   auto project_get_version() -> std::string_view { return version; }
-} // namespace repertory
+} // namespace %PROJECT_NAME %

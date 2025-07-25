@@ -23,32 +23,36 @@
 #define REPERTORY_INCLUDE_TYPES_REPERTORY_HPP_
 
 namespace repertory {
-constexpr const auto default_api_password_size{48U};
-constexpr const auto default_download_timeout_secs{30U};
-constexpr const auto default_eviction_delay_mins{1U};
-constexpr const auto default_high_freq_interval_secs{std::uint16_t{30U}};
-constexpr const auto default_low_freq_interval_secs{std::uint16_t(60U * 60U)};
-constexpr const auto default_max_cache_size_bytes{
+inline constexpr auto default_api_password_size{48U};
+inline constexpr auto default_download_timeout_secs{30U};
+inline constexpr auto default_eviction_delay_mins{1U};
+inline constexpr auto default_high_freq_interval_secs{std::uint16_t{30U}};
+inline constexpr auto default_low_freq_interval_secs{
+    std::uint16_t(60U * 60U),
+};
+inline constexpr auto default_max_cache_size_bytes{
     std::uint64_t(20ULL * 1024ULL * 1024ULL * 1024ULL),
 };
-constexpr const auto default_max_upload_count{5U};
-constexpr const auto default_med_freq_interval_secs{std::uint16_t{2U * 60U}};
-constexpr const auto default_online_check_retry_secs{60U};
-constexpr const auto default_retry_read_count{6U};
-constexpr const auto default_ring_buffer_file_size{512U};
-constexpr const auto default_task_wait_ms{100U};
-constexpr const auto default_timeout_ms{60000U};
-constexpr const auto default_ui_mgmt_port{std::uint16_t{30000U}};
-constexpr const auto max_ring_buffer_file_size{std::uint16_t(1024U)};
-constexpr const auto max_s3_object_name_length{1024U};
-constexpr const auto min_cache_size_bytes{
+inline constexpr auto default_max_upload_count{5U};
+inline constexpr auto default_med_freq_interval_secs{
+    std::uint16_t{2U * 60U},
+};
+inline constexpr auto default_online_check_retry_secs{60U};
+inline constexpr auto default_retry_read_count{6U};
+inline constexpr auto default_ring_buffer_file_size{512U};
+inline constexpr auto default_task_wait_ms{100U};
+inline constexpr auto default_timeout_ms{60000U};
+inline constexpr auto default_ui_mgmt_port{std::uint16_t{30000U}};
+inline constexpr auto max_ring_buffer_file_size{std::uint16_t(1024U)};
+inline constexpr auto max_s3_object_name_length{1024U};
+inline constexpr auto min_cache_size_bytes{
     std::uint64_t(100ULL * 1024ULL * 1024ULL),
 };
-constexpr const auto min_download_timeout_secs{std::uint8_t(5U)};
-constexpr const auto min_online_check_retry_secs{std::uint16_t(15U)};
-constexpr const auto min_retry_read_count{std::uint16_t(2U)};
-constexpr const auto min_ring_buffer_file_size{std::uint16_t(64U)};
-constexpr const auto min_task_wait_ms{std::uint16_t(50U)};
+inline constexpr auto min_download_timeout_secs{std::uint8_t(5U)};
+inline constexpr auto min_online_check_retry_secs{std::uint16_t(15U)};
+inline constexpr auto min_retry_read_count{std::uint16_t(2U)};
+inline constexpr auto min_ring_buffer_file_size{std::uint16_t(64U)};
+inline constexpr auto min_task_wait_ms{std::uint16_t(50U)};
 
 template <typename data_t> class atomic final {
 public:
@@ -139,28 +143,28 @@ public:
   [[nodiscard]] operator data_t() const { return load(); }
 };
 
-inline constexpr const auto max_time{
+inline constexpr auto max_time{
     std::numeric_limits<std::uint64_t>::max(),
 };
 
-inline constexpr const std::string META_ACCESSED{"accessed"};
-inline constexpr const std::string META_ATTRIBUTES{"attributes"};
-inline constexpr const std::string META_BACKUP{"backup"};
-inline constexpr const std::string META_CHANGED{"changed"};
-inline constexpr const std::string META_CREATION{"creation"};
-inline constexpr const std::string META_DIRECTORY{"directory"};
-inline constexpr const std::string META_GID{"gid"};
-inline constexpr const std::string META_KEY{"key"};
-inline constexpr const std::string META_MODE{"mode"};
-inline constexpr const std::string META_MODIFIED{"modified"};
-inline constexpr const std::string META_OSXFLAGS{"flags"};
-inline constexpr const std::string META_PINNED{"pinned"};
-inline constexpr const std::string META_SIZE{"size"};
-inline constexpr const std::string META_SOURCE{"source"};
-inline constexpr const std::string META_UID{"uid"};
-inline constexpr const std::string META_WRITTEN{"written"};
+inline constexpr std::string META_ACCESSED{"accessed"};
+inline constexpr std::string META_ATTRIBUTES{"attributes"};
+inline constexpr std::string META_BACKUP{"backup"};
+inline constexpr std::string META_CHANGED{"changed"};
+inline constexpr std::string META_CREATION{"creation"};
+inline constexpr std::string META_DIRECTORY{"directory"};
+inline constexpr std::string META_GID{"gid"};
+inline constexpr std::string META_KEY{"key"};
+inline constexpr std::string META_MODE{"mode"};
+inline constexpr std::string META_MODIFIED{"modified"};
+inline constexpr std::string META_OSXFLAGS{"flags"};
+inline constexpr std::string META_PINNED{"pinned"};
+inline constexpr std::string META_SIZE{"size"};
+inline constexpr std::string META_SOURCE{"source"};
+inline constexpr std::string META_UID{"uid"};
+inline constexpr std::string META_WRITTEN{"written"};
 
-inline constexpr const std::array<std::string, 16U> META_USED_NAMES = {
+inline constexpr std::array<std::string, 16U> META_USED_NAMES = {
     META_ACCESSED, META_ATTRIBUTES, META_BACKUP,   META_CHANGED,
     META_CREATION, META_DIRECTORY,  META_GID,      META_KEY,
     META_MODE,     META_MODIFIED,   META_OSXFLAGS, META_PINNED,
@@ -217,8 +221,7 @@ enum class api_error {
 
 [[nodiscard]] auto api_error_from_string(std::string_view str) -> api_error;
 
-[[nodiscard]] auto api_error_to_string(const api_error &error)
-    -> const std::string &;
+[[nodiscard]] auto api_error_to_string(api_error error) -> const std::string &;
 
 enum class database_type {
   rocksdb,
@@ -283,11 +286,13 @@ enum class exit_code : std::int32_t {
   init_failed = -18,
   ui_mount_failed = -19,
   exception = -20,
+  provider_offline = -21
 };
 
 enum http_error_codes : std::int32_t {
   ok = 200,
   multiple_choices = 300,
+  bad_request = 400,
   unauthorized = 401,
   not_found = 404,
   internal_error = 500,
@@ -465,66 +470,58 @@ using api_item_added_callback = std::function<api_error(bool, api_file &)>;
 using directory_item_list = std::vector<directory_item>;
 using meta_provider_callback = std::function<void(directory_item &)>;
 
-inline constexpr const auto JSON_ACCESS_KEY{"AccessKey"};
-inline constexpr const auto JSON_AGENT_STRING{"AgentString"};
-inline constexpr const auto JSON_API_PARENT{"ApiParent"};
-inline constexpr const auto JSON_API_PASSWORD{"ApiPassword"};
-inline constexpr const auto JSON_API_PATH{"ApiPath"};
-inline constexpr const auto JSON_API_PORT{"ApiPort"};
-inline constexpr const auto JSON_API_USER{"ApiUser"};
-inline constexpr const auto JSON_BUCKET{"Bucket"};
-inline constexpr const auto JSON_CLIENT_POOL_SIZE{"ClientPoolSize"};
-inline constexpr const auto JSON_DATABASE_TYPE{"DatabaseType"};
-inline constexpr const auto JSON_DIRECTORY{"Directory"};
-inline constexpr const auto JSON_DOWNLOAD_TIMEOUT_SECS{
-    "DownloadTimeoutSeconds"};
-inline constexpr const auto JSON_ENABLE_DRIVE_EVENTS{"EnableDriveEvents"};
-inline constexpr const auto JSON_ENABLE_DOWNLOAD_TIMEOUT{
-    "EnableDownloadTimeout"};
-inline constexpr const auto JSON_ENABLE_MOUNT_MANAGER{"EnableMountManager"};
-inline constexpr const auto JSON_ENABLE_REMOTE_MOUNT{"Enable"};
-inline constexpr const auto JSON_ENCRYPTION_TOKEN{"EncryptionToken"};
-inline constexpr const auto JSON_ENCRYPT_CONFIG{"EncryptConfig"};
-inline constexpr const auto JSON_EVENT_LEVEL{"EventLevel"};
-inline constexpr const auto JSON_EVICTION_DELAY_MINS{"EvictionDelayMinutes"};
-inline constexpr const auto JSON_EVICTION_USE_ACCESS_TIME{
-    "EvictionUseAccessedTime"};
-inline constexpr const auto JSON_HIGH_FREQ_INTERVAL_SECS{
-    "HighFreqIntervalSeconds"};
-inline constexpr const auto JSON_HOST_CONFIG{"HostConfig"};
-inline constexpr const auto JSON_HOST_NAME_OR_IP{"HostNameOrIp"};
-inline constexpr const auto JSON_LOW_FREQ_INTERVAL_SECS{
-    "LowFreqIntervalSeconds"};
-inline constexpr const auto JSON_MAX_CACHE_SIZE_BYTES{"MaxCacheSizeBytes"};
-inline constexpr const auto JSON_MAX_CONNECTIONS{"MaxConnections"};
-inline constexpr const auto JSON_MAX_UPLOAD_COUNT{"MaxUploadCount"};
-inline constexpr const auto JSON_MED_FREQ_INTERVAL_SECS{
-    "MedFreqIntervalSeconds"};
-inline constexpr const auto JSON_META{"Meta"};
-inline constexpr const auto JSON_MOUNT_LOCATIONS{"MountLocations"};
-inline constexpr const auto JSON_ONLINE_CHECK_RETRY_SECS{
-    "OnlineCheckRetrySeconds"};
-inline constexpr const auto JSON_PATH{"Path"};
-inline constexpr const auto JSON_PREFERRED_DOWNLOAD_TYPE{
-    "PreferredDownloadType"};
-inline constexpr const auto JSON_PROTOCOL{"Protocol"};
-inline constexpr const auto JSON_RECV_TIMEOUT_MS{"ReceiveTimeoutMs"};
-inline constexpr const auto JSON_REGION{"Region"};
-inline constexpr const auto JSON_REMOTE_CONFIG{"RemoteConfig"};
-inline constexpr const auto JSON_REMOTE_MOUNT{"RemoteMount"};
-inline constexpr const auto JSON_RETRY_READ_COUNT{"RetryReadCount"};
-inline constexpr const auto JSON_RING_BUFFER_FILE_SIZE{"RingBufferFileSize"};
-inline constexpr const auto JSON_S3_CONFIG{"S3Config"};
-inline constexpr const auto JSON_SECRET_KEY{"SecretKey"};
-inline constexpr const auto JSON_SEND_TIMEOUT_MS{"SendTimeoutMs"};
-inline constexpr const auto JSON_SIA_CONFIG{"SiaConfig"};
-inline constexpr const auto JSON_SIZE{"Size"};
-inline constexpr const auto JSON_TASK_WAIT_MS{"TaskWaitMs"};
-inline constexpr const auto JSON_TIMEOUT_MS{"TimeoutMs"};
-inline constexpr const auto JSON_URL{"URL"};
-inline constexpr const auto JSON_USE_PATH_STYLE{"UsePathStyle"};
-inline constexpr const auto JSON_USE_REGION_IN_URL{"UseRegionInURL"};
-inline constexpr const auto JSON_VERSION{"Version"};
+inline constexpr auto JSON_ACCESS_KEY{"AccessKey"};
+inline constexpr auto JSON_AGENT_STRING{"AgentString"};
+inline constexpr auto JSON_API_PARENT{"ApiParent"};
+inline constexpr auto JSON_API_PASSWORD{"ApiPassword"};
+inline constexpr auto JSON_API_PATH{"ApiPath"};
+inline constexpr auto JSON_API_PORT{"ApiPort"};
+inline constexpr auto JSON_API_USER{"ApiUser"};
+inline constexpr auto JSON_BUCKET{"Bucket"};
+inline constexpr auto JSON_CLIENT_POOL_SIZE{"ClientPoolSize"};
+inline constexpr auto JSON_DATABASE_TYPE{"DatabaseType"};
+inline constexpr auto JSON_DIRECTORY{"Directory"};
+inline constexpr auto JSON_DOWNLOAD_TIMEOUT_SECS{"DownloadTimeoutSeconds"};
+inline constexpr auto JSON_ENABLE_DRIVE_EVENTS{"EnableDriveEvents"};
+inline constexpr auto JSON_ENABLE_DOWNLOAD_TIMEOUT{"EnableDownloadTimeout"};
+inline constexpr auto JSON_ENABLE_MOUNT_MANAGER{"EnableMountManager"};
+inline constexpr auto JSON_ENABLE_REMOTE_MOUNT{"Enable"};
+inline constexpr auto JSON_ENCRYPTION_TOKEN{"EncryptionToken"};
+inline constexpr auto JSON_ENCRYPT_CONFIG{"EncryptConfig"};
+inline constexpr auto JSON_EVENT_LEVEL{"EventLevel"};
+inline constexpr auto JSON_EVICTION_DELAY_MINS{"EvictionDelayMinutes"};
+inline constexpr auto JSON_EVICTION_USE_ACCESS_TIME{"EvictionUseAccessedTime"};
+inline constexpr auto JSON_HIGH_FREQ_INTERVAL_SECS{"HighFreqIntervalSeconds"};
+inline constexpr auto JSON_HOST_CONFIG{"HostConfig"};
+inline constexpr auto JSON_HOST_NAME_OR_IP{"HostNameOrIp"};
+inline constexpr auto JSON_LOW_FREQ_INTERVAL_SECS{"LowFreqIntervalSeconds"};
+inline constexpr auto JSON_MAX_CACHE_SIZE_BYTES{"MaxCacheSizeBytes"};
+inline constexpr auto JSON_MAX_CONNECTIONS{"MaxConnections"};
+inline constexpr auto JSON_MAX_UPLOAD_COUNT{"MaxUploadCount"};
+inline constexpr auto JSON_MED_FREQ_INTERVAL_SECS{"MedFreqIntervalSeconds"};
+inline constexpr auto JSON_META{"Meta"};
+inline constexpr auto JSON_MOUNT_LOCATIONS{"MountLocations"};
+inline constexpr auto JSON_ONLINE_CHECK_RETRY_SECS{"OnlineCheckRetrySeconds"};
+inline constexpr auto JSON_PATH{"Path"};
+inline constexpr auto JSON_PREFERRED_DOWNLOAD_TYPE{"PreferredDownloadType"};
+inline constexpr auto JSON_PROTOCOL{"Protocol"};
+inline constexpr auto JSON_RECV_TIMEOUT_MS{"ReceiveTimeoutMs"};
+inline constexpr auto JSON_REGION{"Region"};
+inline constexpr auto JSON_REMOTE_CONFIG{"RemoteConfig"};
+inline constexpr auto JSON_REMOTE_MOUNT{"RemoteMount"};
+inline constexpr auto JSON_RETRY_READ_COUNT{"RetryReadCount"};
+inline constexpr auto JSON_RING_BUFFER_FILE_SIZE{"RingBufferFileSize"};
+inline constexpr auto JSON_S3_CONFIG{"S3Config"};
+inline constexpr auto JSON_SECRET_KEY{"SecretKey"};
+inline constexpr auto JSON_SEND_TIMEOUT_MS{"SendTimeoutMs"};
+inline constexpr auto JSON_SIA_CONFIG{"SiaConfig"};
+inline constexpr auto JSON_SIZE{"Size"};
+inline constexpr auto JSON_TASK_WAIT_MS{"TaskWaitMs"};
+inline constexpr auto JSON_TIMEOUT_MS{"TimeoutMs"};
+inline constexpr auto JSON_URL{"URL"};
+inline constexpr auto JSON_USE_PATH_STYLE{"UsePathStyle"};
+inline constexpr auto JSON_USE_REGION_IN_URL{"UseRegionInURL"};
+inline constexpr auto JSON_VERSION{"Version"};
 } // namespace repertory
 
 NLOHMANN_JSON_NAMESPACE_BEGIN

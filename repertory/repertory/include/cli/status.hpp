@@ -22,8 +22,7 @@
 #ifndef REPERTORY_INCLUDE_CLI_STATUS_HPP_
 #define REPERTORY_INCLUDE_CLI_STATUS_HPP_
 
-#include "platform/platform.hpp"
-#include "types/repertory.hpp"
+#include "cli/common.hpp"
 
 namespace repertory::cli::actions {
 [[nodiscard]] inline auto status(std::vector<const char *> /* args */,

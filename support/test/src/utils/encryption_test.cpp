@@ -28,8 +28,8 @@ const auto get_stop_requested = []() -> bool { return false; };
 } // namespace
 
 namespace repertory {
-static constexpr const std::string_view token{"moose"};
-static constexpr const std::wstring_view token_w{L"moose"};
+static constexpr std::string_view token{"moose"};
+static constexpr std::wstring_view token_w{L"moose"};
 
 TEST(utils_encryption, generate_key) {
   auto key1 =

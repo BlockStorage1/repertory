@@ -26,7 +26,7 @@
 #include "events/types/invalid_cache_size.hpp"
 #include "events/types/max_cache_size_reached.hpp"
 #include "types/startup_exception.hpp"
-#include "utils/file_utils.hpp"
+#include "utils/file.hpp"
 
 namespace repertory {
 cache_size_mgr cache_size_mgr::instance_{};
@@ -49,16 +49,15 @@ auto cache_size_mgr::expand(std::uint64_t size) -> api_error {
   auto last_cache_size{cache_size_};
   cache_size_ += size;
 
-  auto max_cache_size{cfg_->get_max_cache_size_bytes()};
-
   auto cache_dir{
       utils::file::directory{cfg_->get_cache_directory()},
   };
-  while (not get_stop_requested() && cache_size_ > max_cache_size &&
+  while (not get_stop_requested() &&
+         cache_size_ > cfg_->get_max_cache_size_bytes() &&
          cache_dir.count() > 1U) {
     if (last_cache_size != cache_size_) {
       event_system::instance().raise<max_cache_size_reached>(
-          cache_size_, function_name, max_cache_size);
+          cache_size_, function_name, cfg_->get_max_cache_size_bytes());
       last_cache_size = cache_size_;
     }
     notify_.wait_for(lock, cache_wait_secs);

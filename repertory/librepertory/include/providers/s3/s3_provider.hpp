@@ -70,8 +70,9 @@ private:
       -> api_error;
 
   [[nodiscard]] auto get_last_modified(bool directory,
-                                       const std::string &api_path) const
-      -> std::uint64_t;
+                                       const std::string &api_path,
+                                       std::uint64_t &last_modified) const
+      -> api_error;
 
   [[nodiscard]] auto
   get_object_info(bool directory, const std::string &api_path,

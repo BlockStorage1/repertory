@@ -48,7 +48,7 @@ on Windows.
 * [Sia renterd](https://github.com/SiaFoundation/renterd/releases) v2.0.0+ for Sia support
 * Linux requires `fusermount3`; otherwise, `repertory` must be manually compiled with `libfuse2` support
 * Windows requires the following dependencies to be installed:
-  * [WinFSP 2023](https://github.com/winfsp/winfsp/releases/download/v2.0/winfsp-2.0.23075.msi)
+  * [WinFSP 2025](https://github.com/winfsp/winfsp/releases/download/v2.1/winfsp-2.1.25156.msi)
 
 ### Supported Operating Systems
 

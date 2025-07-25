@@ -34,8 +34,8 @@ struct download_resume_added final : public i_event {
         dest_path(std::move(dest_path_)),
         function_name(std::string(function_name_)) {}
 
-  static constexpr const event_level level{event_level::debug};
-  static constexpr const std::string_view name{"download_resume_added"};
+  static constexpr event_level level{event_level::debug};
+  static constexpr std::string_view name{"download_resume_added"};
 
   std::string api_path;
   std::string dest_path;
