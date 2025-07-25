@@ -35,8 +35,8 @@ struct winfsp_event final : public i_event {
         error(error_),
         function_name(std::string{function_name_}) {}
 
-  static constexpr const event_level level{event_level::debug};
-  static constexpr const std::string_view name{"winfsp_event"};
+  static constexpr event_level level{event_level::debug};
+  static constexpr std::string_view name{"winfsp_event"};
 
   std::string api_path;
   NTSTATUS error{};

@@ -25,23 +25,32 @@
 
 #include "initialize.hpp"
 #include "test_common.hpp"
+#include "utils/error.hpp"
 
 using namespace repertory;
 
 int PROJECT_TEST_RESULT{0};
 
 auto main(int argc, char **argv) -> int {
+  REPERTORY_USES_FUNCTION_NAME();
+
 #if defined(PROJECT_ENABLE_BACKWARD_CPP)
   static backward::SignalHandling sh;
 #endif // defined(PROJECT_ENABLE_BACKWARD_CPP)
 
   if (not repertory::project_initialize()) {
-    std::cerr << "fatal: failed to initialize repertory" << std::endl;
+    repertory::project_cleanup();
     return -1;
   }
 
-  ::testing::InitGoogleTest(&argc, argv);
-  PROJECT_TEST_RESULT = RUN_ALL_TESTS();
+  try {
+    ::testing::InitGoogleTest(&argc, argv);
+    PROJECT_TEST_RESULT = RUN_ALL_TESTS();
+  } catch (const std::exception &e) {
+    utils::error::handle_exception(function_name, e);
+  } catch (...) {
+    utils::error::handle_exception(function_name);
+  }
 
   repertory::project_cleanup();
 

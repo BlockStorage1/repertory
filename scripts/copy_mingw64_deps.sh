@@ -194,7 +194,7 @@ if [ "${PROJECT_ENABLE_WINFSP}" == "ON" ]; then
   fi
 
   if [ "${WINFSP_DLL_PART}" != "" ]; then
-    PROJECT_MINGW64_COPY_DEPENDENCIES+=(${PROJECT_3RD_PARTY_DIR}/winfsp-2.0/bin/winfsp-${WINFSP_DLL_PART}.dll)
+    PROJECT_MINGW64_COPY_DEPENDENCIES+=(${PROJECT_3RD_PARTY_DIR}/winfsp-2.1/bin/winfsp-${WINFSP_DLL_PART}.dll)
   fi
 fi
 

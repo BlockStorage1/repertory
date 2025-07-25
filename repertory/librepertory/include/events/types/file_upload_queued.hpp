@@ -34,8 +34,8 @@ struct file_upload_queued final : public i_event {
         function_name(std::string(function_name_)),
         source_path(std::move(source_path_)) {}
 
-  static constexpr const event_level level{event_level::info};
-  static constexpr const std::string_view name{"file_upload_queued"};
+  static constexpr event_level level{event_level::info};
+  static constexpr std::string_view name{"file_upload_queued"};
 
   std::string api_path;
   std::string function_name;

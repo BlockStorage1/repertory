@@ -55,16 +55,16 @@ api_error remote_fuse_drive::chflags_impl(std::string api_path,
   return utils::to_api_error(
       remote_instance_->fuse_chflags(api_path.c_str(), flags));
 }
-#endif // __APPLE__
+#endif // defined(__APPLE__)
 
 #if FUSE_USE_VERSION >= 30
 auto remote_fuse_drive::chmod_impl(std::string api_path, mode_t mode,
                                    struct fuse_file_info * /*f_info*/)
     -> api_error {
-#else
+#else  // FUSE_USE_VERSION < 30
 auto remote_fuse_drive::chmod_impl(std::string api_path, mode_t mode)
     -> api_error {
-#endif
+#endif // FUSE_USE_VERSION >= 30
   return utils::to_api_error(remote_instance_->fuse_chmod(
       api_path.c_str(), static_cast<remote::file_mode>(mode)));
 }
@@ -73,10 +73,10 @@ auto remote_fuse_drive::chmod_impl(std::string api_path, mode_t mode)
 auto remote_fuse_drive::chown_impl(std::string api_path, uid_t uid, gid_t gid,
                                    struct fuse_file_info * /*f_info*/)
     -> api_error {
-#else
+#else  // FUSE_USE_VERSION < 30
 auto remote_fuse_drive::chown_impl(std::string api_path, uid_t uid, gid_t gid)
     -> api_error {
-#endif
+#endif // FUSE_USE_VERSION >= 30
   return utils::to_api_error(
       remote_instance_->fuse_chown(api_path.c_str(), uid, gid));
 }
@@ -162,7 +162,7 @@ api_error remote_fuse_drive::fsetattr_x_impl(std::string api_path,
   return utils::to_api_error(remote_instance_->fuse_fsetattr_x(
       api_path.c_str(), attributes, f_info->fh));
 }
-#endif
+#endif // defined(__APPLE__)
 
 auto remote_fuse_drive::fsync_impl(std::string api_path, int datasync,
                                    struct fuse_file_info *f_info) -> api_error {
@@ -178,16 +178,16 @@ auto remote_fuse_drive::ftruncate_impl(std::string api_path, off_t size,
   return utils::to_api_error(
       remote_instance_->fuse_ftruncate(api_path.c_str(), size, f_info->fh));
 }
-#endif
+#endif // FUSE_USE_VERSION < 30
 
 #if FUSE_USE_VERSION >= 30
 auto remote_fuse_drive::getattr_impl(std::string api_path, struct stat *unix_st,
                                      struct fuse_file_info * /*f_info*/)
     -> api_error {
-#else
+#else  // FUSE_USE_VERSION < 30
 auto remote_fuse_drive::getattr_impl(std::string api_path, struct stat *unix_st)
     -> api_error {
-#endif
+#endif // FUSE_USE_VERSION >= 30
   bool directory = false;
   remote::stat r_stat{};
 
@@ -223,21 +223,21 @@ api_error remote_fuse_drive::getxtimes_impl(std::string api_path,
 
   return utils::to_api_error(res);
 }
-#endif // __APPLE__
+#endif // defined(__APPLE__)
 
 #if FUSE_USE_VERSION >= 30
 auto remote_fuse_drive::init_impl(struct fuse_conn_info *conn,
                                   struct fuse_config *cfg) -> void * {
-#else
+#else  // FUSE_USE_VERSION < 30
 auto remote_fuse_drive::init_impl(struct fuse_conn_info *conn) -> void * {
-#endif
+#endif // FUSE_USE_VERSION >= 30
   REPERTORY_USES_FUNCTION_NAME();
 
 #if FUSE_USE_VERSION >= 30
   auto *ret = fuse_base::init_impl(conn, cfg);
-#else
+#else  // FUSE_USE_VERSION < 30
   auto *ret = fuse_base::init_impl(conn);
-#endif
+#endif // FUSE_USE_VERSION >= 30
 
   was_mounted_ = true;
 
@@ -259,7 +259,7 @@ auto remote_fuse_drive::init_impl(struct fuse_conn_info *conn) -> void * {
   if (remote_instance_->fuse_init() != 0) {
     utils::error::raise_error(function_name,
                               "failed to connect to remote server");
-    event_system::instance().raise<unmount_requested>();
+    event_system::instance().raise<unmount_requested>(function_name);
   } else {
     server_ = std::make_shared<server>(config_);
     server_->start();
@@ -383,13 +383,13 @@ auto remote_fuse_drive::readdir_impl(std::string api_path, void *buf,
                                      struct fuse_file_info *f_info,
                                      fuse_readdir_flags /*flags*/)
     -> api_error {
-#else
+#else  // FUSE_USE_VERSION < 30
 auto remote_fuse_drive::readdir_impl(std::string api_path, void *buf,
                                      fuse_fill_dir_t fuse_fill_dir,
                                      off_t offset,
                                      struct fuse_file_info *f_info)
     -> api_error {
-#endif
+#endif // FUSE_USE_VERSION >= 30
   std::string item_path;
   int res = 0;
   while ((res = remote_instance_->fuse_readdir(
@@ -402,9 +402,9 @@ auto remote_fuse_drive::readdir_impl(std::string api_path, void *buf,
 #if FUSE_USE_VERSION >= 30
     if (fuse_fill_dir(buf, item_path.c_str(), nullptr, ++offset,
                       static_cast<fuse_fill_dir_flags>(0)) != 0) {
-#else
+#else  // FUSE_USE_VERSION < 30
     if (fuse_fill_dir(buf, item_path.c_str(), nullptr, ++offset) != 0) {
-#endif
+#endif // FUSE_USE_VERSION >= 30
       break;
     }
   }
@@ -434,10 +434,10 @@ auto remote_fuse_drive::releasedir_impl(std::string api_path,
 auto remote_fuse_drive::rename_impl(std::string from_api_path,
                                     std::string to_api_path,
                                     unsigned int /*flags*/) -> api_error {
-#else
+#else  // FUSE_USE_VERSION < 30
 auto remote_fuse_drive::rename_impl(std::string from_api_path,
                                     std::string to_api_path) -> api_error {
-#endif
+#endif // FUSE_USE_VERSION >= 30
   return utils::to_api_error(remote_instance_->fuse_rename(
       from_api_path.c_str(), to_api_path.c_str()));
 }
@@ -521,7 +521,7 @@ api_error remote_fuse_drive::statfs_x_impl(std::string api_path,
 
   return utils::to_api_error(res);
 }
-#else  // __APPLE__
+#else  // !defined(__APPLE__)
 auto remote_fuse_drive::statfs_impl(std::string api_path, struct statvfs *stbuf)
     -> api_error {
   auto res = statvfs(config_.get_data_directory().c_str(), stbuf);
@@ -543,16 +543,16 @@ auto remote_fuse_drive::statfs_impl(std::string api_path, struct statvfs *stbuf)
 
   return utils::to_api_error(res);
 }
-#endif // __APPLE__
+#endif // defined(__APPLE__)
 
 #if FUSE_USE_VERSION >= 30
 auto remote_fuse_drive::truncate_impl(std::string api_path, off_t size,
                                       struct fuse_file_info * /*f_info*/)
     -> api_error {
-#else
+#else  // FUSE_USE_VERSION < 30
 auto remote_fuse_drive::truncate_impl(std::string api_path, off_t size)
     -> api_error {
-#endif
+#endif // FUSE_USE_VERSION >= 30
   return utils::to_api_error(remote_instance_->fuse_truncate(
       api_path.c_str(), static_cast<remote::file_offset>(size)));
 }
@@ -566,10 +566,10 @@ auto remote_fuse_drive::utimens_impl(std::string api_path,
                                      const struct timespec tv[2],
                                      struct fuse_file_info * /*f_info*/)
     -> api_error {
-#else
+#else  // FUSE_USE_VERSION < 30
 auto remote_fuse_drive::utimens_impl(std::string api_path,
                                      const struct timespec tv[2]) -> api_error {
-#endif
+#endif // FUSE_USE_VERSION >= 30
   remote::file_time rtv[2U] = {0};
   if (tv != nullptr) {
     const auto update_timespec = [](auto &dst, const auto &src) {
@@ -604,4 +604,4 @@ auto remote_fuse_drive::write_impl(std::string api_path, const char *buffer,
 }
 } // namespace repertory::remote_fuse
 
-#endif // _WIN32
+#endif // !defined(_WIN32)

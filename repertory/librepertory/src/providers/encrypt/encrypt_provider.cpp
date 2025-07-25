@@ -40,7 +40,7 @@
 #include "utils/file_utils.hpp"
 #include "utils/path.hpp"
 #include "utils/polling.hpp"
-#include <spdlog/fmt/bundled/base.h>
+#include <chrono>
 
 namespace repertory {
 encrypt_provider::encrypt_provider(app_config &config)
@@ -225,8 +225,7 @@ auto encrypt_provider::get_directory_items(const std::string &api_path,
                 }
 
                 if (result == api_error::directory_not_found) {
-                  process_directory_entry(*dir_entry.get(), cfg,
-                                          current_api_path);
+                  process_directory_entry(*dir_entry, cfg, current_api_path);
 
                   result = db_->get_directory_api_path(dir_entry->get_path(),
                                                        current_api_path);
@@ -247,7 +246,7 @@ auto encrypt_provider::get_directory_items(const std::string &api_path,
                   continue;
                 }
                 if (result == api_error::item_not_found &&
-                    not process_directory_entry(*dir_entry.get(), cfg,
+                    not process_directory_entry(*dir_entry, cfg,
                                                 current_api_path)) {
                   continue;
                 }
@@ -286,20 +285,26 @@ auto encrypt_provider::get_directory_items(const std::string &api_path,
                             (item1.api_path.compare(item2.api_path) < 0));
                   });
 
-        list.insert(list.begin(), directory_item{
-                                      "..",
-                                      "",
-                                      true,
-                                      0U,
-                                      {},
-                                  });
-        list.insert(list.begin(), directory_item{
-                                      ".",
-                                      "",
-                                      true,
-                                      0U,
-                                      {},
-                                  });
+        list.insert(list.begin(),
+                    directory_item{
+                        "..",
+                        "",
+                        true,
+                        0U,
+                        {
+                            {META_DIRECTORY, utils::string::from_bool(true)},
+                        },
+                    });
+        list.insert(list.begin(),
+                    directory_item{
+                        ".",
+                        "",
+                        true,
+                        0U,
+                        {
+                            {META_DIRECTORY, utils::string::from_bool(true)},
+                        },
+                    });
         return api_error::success;
       });
 }
@@ -347,12 +352,12 @@ auto encrypt_provider::get_file_list(api_file_list &list,
       for (const auto &dir_entry : utils::file::directory{path}.get_items()) {
         std::string api_path{};
         if (dir_entry->is_directory_item()) {
-          process_directory_entry(*dir_entry.get(), cfg, api_path);
+          process_directory_entry(*dir_entry, cfg, api_path);
           process_directory(dir_entry->get_path());
           continue;
         }
 
-        if (process_directory_entry(*dir_entry.get(), cfg, api_path)) {
+        if (process_directory_entry(*dir_entry, cfg, api_path)) {
           list.emplace_back(create_api_file(
               api_path, dir_entry->is_directory_item(), dir_entry->get_path()));
         }
@@ -877,6 +882,24 @@ void encrypt_provider::remove_deleted_files(stop_type &stop_requested) {
       get_stop_requested);
 }
 
+void encrypt_provider::remove_expired_files() {
+  recur_mutex_lock reader_lookup_lock(reader_lookup_mtx_);
+  auto remove_list = std::accumulate(
+      reader_lookup_.begin(), reader_lookup_.end(), std::vector<std::string>(),
+      [this](auto &&val, auto &&pair) -> auto {
+        const auto &[key, value] = pair;
+        auto diff = std::chrono::system_clock::now() - value->last_access_time;
+        if (std::chrono::duration_cast<std::chrono::seconds>(diff) >=
+            std::chrono::seconds(config_.get_download_timeout_secs())) {
+          val.emplace_back(key);
+        }
+        return val;
+      });
+  for (const auto &key : remove_list) {
+    reader_lookup_.erase(key);
+  }
+}
+
 auto encrypt_provider::start(api_item_added_callback /*api_item_added*/,
                              i_file_manager * /*mgr*/) -> bool {
   REPERTORY_USES_FUNCTION_NAME();
@@ -923,6 +946,12 @@ auto encrypt_provider::start(api_item_added_callback /*api_item_added*/,
       [this](auto &&stop_requested) { remove_deleted_files(stop_requested); },
   });
 
+  polling::instance().set_callback({
+      "remove_expired",
+      polling::frequency::high,
+      [this](auto && /* stop_requested */) { remove_expired_files(); },
+  });
+
   event_system::instance().raise<service_start_end>(function_name,
                                                     "encrypt_provider");
   return true;
@@ -934,6 +963,12 @@ void encrypt_provider::stop() {
   event_system::instance().raise<service_stop_begin>(function_name,
                                                      "encrypt_provider");
   polling::instance().remove_callback("check_deleted");
+  polling::instance().remove_callback("remove_expired");
+
+  unique_recur_mutex_lock reader_lookup_lock(reader_lookup_mtx_);
+  reader_lookup_.clear();
+  reader_lookup_lock.unlock();
+
   db_.reset();
   event_system::instance().raise<service_stop_end>(function_name,
                                                    "encrypt_provider");

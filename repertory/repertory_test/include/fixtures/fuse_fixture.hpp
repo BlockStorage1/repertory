@@ -47,28 +47,38 @@
 namespace {
 std::atomic<std::size_t> provider_idx{0U};
 
-constexpr const auto SLEEP_SECONDS{1.5s};
+constexpr auto SLEEP_SECONDS{1.5s};
 } // namespace
 
 namespace repertory {
 struct local_s3 final {
-  static constexpr const provider_type type{provider_type::s3};
-  static constexpr const provider_type type2{provider_type::s3};
+  static constexpr provider_type type{provider_type::s3};
+  static constexpr provider_type type2{provider_type::s3};
+  static constexpr std::uint16_t port{0U};
 };
 
 struct local_sia final {
-  static constexpr const provider_type type{provider_type::sia};
-  static constexpr const provider_type type2{provider_type::sia};
+  static constexpr provider_type type{provider_type::sia};
+  static constexpr provider_type type2{provider_type::sia};
+  static constexpr std::uint16_t port{0U};
 };
 
 struct remote_s3 final {
-  static constexpr const provider_type type{provider_type::remote};
-  static constexpr const provider_type type2{provider_type::s3};
+  static constexpr provider_type type{provider_type::remote};
+  static constexpr provider_type type2{provider_type::s3};
+  static constexpr std::uint16_t port{0U};
 };
 
 struct remote_sia final {
-  static constexpr const provider_type type{provider_type::remote};
-  static constexpr const provider_type type2{provider_type::sia};
+  static constexpr provider_type type{provider_type::remote};
+  static constexpr provider_type type2{provider_type::sia};
+  static constexpr std::uint16_t port{0U};
+};
+
+struct remote_linux_to_winfsp final {
+  static constexpr provider_type type{provider_type::remote};
+  static constexpr provider_type type2{provider_type::unknown};
+  static constexpr std::uint16_t port{40001U};
 };
 
 template <typename provider_t> class fuse_test : public ::testing::Test {
@@ -113,7 +123,7 @@ protected:
 
           auto r_cfg = config->get_remote_mount();
           r_cfg.enable = true;
-          r_cfg.api_port = 30000U;
+          r_cfg.api_port = 40000U;
           config->set_remote_mount(r_cfg);
         }
 
@@ -160,7 +170,7 @@ protected:
 
           auto r_cfg = config->get_remote_mount();
           r_cfg.enable = true;
-          r_cfg.api_port = 30000U;
+          r_cfg.api_port = 40000U;
           config->set_remote_mount(r_cfg);
         }
 
@@ -178,7 +188,7 @@ protected:
       execute_mount(drive_args, mount_location);
     };
 
-    const auto mount_remote = [&]() {
+    const auto mount_remote = [&](std::uint16_t port = 40000U) {
       {
         mount_location2 = mount_location;
 
@@ -187,7 +197,8 @@ protected:
             {
                 "fuse_test",
                 app_config::get_provider_name(provider_t::type) + '_' +
-                    app_config::get_provider_name(provider_t::type2),
+                    app_config::get_provider_name(provider_t::type2) + '_' +
+                    std::to_string(port),
             });
 
         mount_location = utils::path::combine(test_directory, {"mount"});
@@ -206,7 +217,7 @@ protected:
             "-dd",
             config2->get_data_directory(),
             "-rm",
-            "localhost:30000",
+            fmt::format("localhost:{}", port),
             mount_location,
         });
       }
@@ -232,6 +243,10 @@ protected:
       case provider_type::sia: {
         mount_sia();
       } break;
+
+      case provider_type::unknown:
+        mount_remote(provider_t::port);
+        return;
 
       default:
         throw std::runtime_error("remote provider type is not implemented");
@@ -307,6 +322,8 @@ public:
     mkdir(dir_path.c_str(), perms);
 
     EXPECT_TRUE(utils::file::directory(dir_path).exists());
+    EXPECT_EQ(0U, utils::file::directory(dir_path).count(false));
+    EXPECT_EQ(0U, utils::file::directory(dir_path).count(true));
     EXPECT_FALSE(utils::file::file(dir_path).exists());
 
     struct stat64 unix_st{};
@@ -410,9 +427,15 @@ std::string fuse_test<provider_t>::mount_location;
 template <typename provider_t>
 std::string fuse_test<provider_t>::mount_location2;
 
-// using fuse_provider_types = ::testing::Types<local_s3, remote_s3>;
+#if defined(__linux__)
 using fuse_provider_types =
     ::testing::Types<local_s3, remote_s3, local_sia, remote_sia>;
+// using fuse_provider_types =
+//     ::testing::Types<local_s3, remote_s3, local_sia, remote_sia,
+//     remote_linux_to_winfsp>;
+#else  // !defined(__linux__)
+build fails here
+#endif // defined(_WIN32)
 } // namespace repertory
 
 #endif // !defined(_WIN32)

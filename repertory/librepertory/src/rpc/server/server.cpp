@@ -34,6 +34,8 @@
 namespace repertory {
 server::server(app_config &config) : config_(config) {}
 
+server::~server() { stop(); }
+
 void server::handle_get_config(const httplib::Request & /*req*/,
                                httplib::Response &res) {
   auto data = config_.get_json();
@@ -68,7 +70,9 @@ void server::handle_set_config_value_by_name(const httplib::Request &req,
 
 void server::handle_unmount(const httplib::Request & /*req*/,
                             httplib::Response &res) {
-  event_system::instance().raise<unmount_requested>();
+  REPERTORY_USES_FUNCTION_NAME();
+
+  event_system::instance().raise<unmount_requested>(function_name);
   res.status = http_error_codes::ok;
 }
 

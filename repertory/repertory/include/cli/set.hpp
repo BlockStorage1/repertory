@@ -22,12 +22,7 @@
 #ifndef REPERTORY_INCLUDE_CLI_SET_HPP_
 #define REPERTORY_INCLUDE_CLI_SET_HPP_
 
-#include "app_config.hpp"
-#include "platform/platform.hpp"
-#include "rpc/client/client.hpp"
-#include "types/repertory.hpp"
-#include "types/rpc.hpp"
-#include "utils/cli_utils.hpp"
+#include "cli/common.hpp"
 
 namespace repertory::cli::actions {
 [[nodiscard]] inline auto set(std::vector<const char *> args,

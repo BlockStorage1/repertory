@@ -173,7 +173,7 @@ auto packet_client::send(std::string_view method, packet &request,
   request.encode_top(PACKET_SERVICE_FLAGS);
   request.encode_top(std::string{project_get_version()});
 
-  static constexpr const std::uint8_t max_attempts{5U};
+  static constexpr std::uint8_t max_attempts{5U};
   for (std::uint8_t i = 1U;
        allow_connections_ && not success && (i <= max_attempts); i++) {
     auto current_client = get_client();

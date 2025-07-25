@@ -35,8 +35,8 @@ struct filesystem_item_evicted final : public i_event {
         function_name(std::string(function_name_)),
         source_path(std::move(source_path_)) {}
 
-  static constexpr const event_level level{event_level::debug};
-  static constexpr const std::string_view name{"filesystem_item_evicted"};
+  static constexpr event_level level{event_level::debug};
+  static constexpr std::string_view name{"filesystem_item_evicted"};
 
   std::string api_path;
   std::string function_name;

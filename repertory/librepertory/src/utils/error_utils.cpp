@@ -22,13 +22,23 @@
 #include "utils/error_utils.hpp"
 
 #include "events/event_system.hpp"
+#include "events/types/debug_log.hpp"
+#include "events/types/info_log.hpp"
 #include "events/types/repertory_exception.hpp"
+#include "events/types/trace_log.hpp"
+#include "events/types/warn_log.hpp"
 #include "types/repertory.hpp"
 #include "utils/error.hpp"
 
 namespace {
 struct repertory_exception_handler final
     : repertory::utils::error::i_exception_handler {
+  void handle_debug(std::string_view function_name,
+                    std::string_view msg) const override {
+    repertory::event_system::instance().raise<repertory::debug_log>(
+        function_name, std::string{msg});
+  }
+
   void handle_error(std::string_view function_name,
                     std::string_view msg) const override {
     repertory::utils::error::raise_error(function_name, msg);
@@ -41,6 +51,24 @@ struct repertory_exception_handler final
   void handle_exception(std::string_view function_name,
                         const std::exception &ex) const override {
     repertory::utils::error::raise_error(function_name, ex);
+  }
+
+  void handle_info(std::string_view function_name,
+                   std::string_view msg) const override {
+    repertory::event_system::instance().raise<repertory::info_log>(
+        function_name, std::string{msg});
+  }
+
+  void handle_trace(std::string_view function_name,
+                    std::string_view msg) const override {
+    repertory::event_system::instance().raise<repertory::trace_log>(
+        function_name, std::string{msg});
+  }
+
+  void handle_warn(std::string_view function_name,
+                   std::string_view msg) const override {
+    repertory::event_system::instance().raise<repertory::warn_log>(
+        function_name, std::string{msg});
   }
 };
 
@@ -59,7 +87,7 @@ void raise_error(std::string_view function, std::string_view msg) {
       function, static_cast<std::string>(msg));
 }
 
-void raise_error(std::string_view function, const api_error &err,
+void raise_error(std::string_view function, api_error err,
                  std::string_view msg) {
   event_system::instance().raise<repertory_exception>(
       function,
@@ -93,7 +121,7 @@ void raise_error(std::string_view function, std::int64_t err,
       function, static_cast<std::string>(msg) + "|err|" + std::to_string(err));
 }
 
-void raise_error(std::string_view function, const api_error &err,
+void raise_error(std::string_view function, api_error err,
                  std::string_view file_path, std::string_view msg) {
   event_system::instance().raise<repertory_exception>(
       function, static_cast<std::string>(msg) + "|sp|" +
@@ -119,7 +147,7 @@ void raise_error(std::string_view function, const std::exception &exception,
 }
 
 void raise_api_path_error(std::string_view function, std::string_view api_path,
-                          const api_error &err, std::string_view msg) {
+                          api_error err, std::string_view msg) {
   event_system::instance().raise<repertory_exception>(
       function, static_cast<std::string>(msg) + "|ap|" +
                     static_cast<std::string>(api_path) + "|err|" +
@@ -153,7 +181,7 @@ void raise_api_path_error(std::string_view function, std::string_view api_path,
 }
 
 void raise_api_path_error(std::string_view function, std::string_view api_path,
-                          std::string_view source_path, const api_error &err,
+                          std::string_view source_path, api_error err,
                           std::string_view msg) {
   event_system::instance().raise<repertory_exception>(
       function, static_cast<std::string>(msg) + "|ap|" +

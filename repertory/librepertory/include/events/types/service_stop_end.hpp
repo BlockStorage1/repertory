@@ -32,8 +32,8 @@ struct service_stop_end final : public i_event {
       : function_name(std::string(function_name_)),
         service_name(std::move(service_name_)) {}
 
-  static constexpr const event_level level{event_level::debug};
-  static constexpr const std::string_view name{"service_stop_end"};
+  static constexpr event_level level{event_level::debug};
+  static constexpr std::string_view name{"service_stop_end"};
 
   std::string function_name;
   std::string service_name;

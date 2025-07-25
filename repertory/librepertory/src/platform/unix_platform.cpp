@@ -183,7 +183,7 @@ auto lock_data::set_mount_state(bool active, std::string_view mount_location,
 }
 
 auto lock_data::wait_for_lock(int handle, std::uint8_t retry_count) -> int {
-  static constexpr const std::uint32_t max_sleep{100U};
+  static constexpr std::uint32_t max_sleep{100U};
 
   auto lock_status{EWOULDBLOCK};
   auto remain{static_cast<std::uint32_t>(retry_count * max_sleep)};

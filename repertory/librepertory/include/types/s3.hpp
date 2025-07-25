@@ -50,15 +50,15 @@ using list_objects_result = std::vector<directory_item>;
 
 struct head_object_result {
   std::uint64_t content_length{};
-  std::string content_type{};
-  std::uint64_t last_modified{};
+  std::string content_type;
+  std::uint64_t last_modified;
 
-  inline auto from_headers(http_headers headers) -> head_object_result & {
+  auto from_headers(http_headers headers) -> head_object_result & {
     content_length = utils::string::to_uint64(headers["content-length"]);
     content_type = headers["content-type"];
     auto date = headers["last-modified"];
     if (not date.empty()) {
-      struct tm tm1 {};
+      struct tm tm1{};
       // Mon, 17 Dec 2012 02:14:10 GMT
 #if defined(_WIN32)
       utils::time::strptime(date.c_str(), "%a, %d %b %Y %H:%M:%S %Z", &tm1);

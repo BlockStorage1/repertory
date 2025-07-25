@@ -26,15 +26,9 @@
 
 namespace repertory::curl::requests {
 struct http_post final : http_request_base {
-  http_post() = default;
-  http_post(const http_post &) = default;
-  http_post(http_post &&) = default;
-  auto operator=(const http_post &) -> http_post & = default;
-  auto operator=(http_post &&) -> http_post & = default;
-
-  ~http_post() override = default;
-
   std::optional<nlohmann::json> json;
+
+  [[nodiscard]] auto get_type() const -> std::string override { return "post"; }
 
   [[nodiscard]] auto set_method(CURL *curl,
                                 stop_type & /*stop_requested*/) const

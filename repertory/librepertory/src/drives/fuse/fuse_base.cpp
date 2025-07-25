@@ -64,7 +64,7 @@ fuse_base::fuse_base(app_config &config) : config_(config) {
   fuse_ops_.truncate = fuse_base::truncate_;
 #if !defined(__APPLE__)
   fuse_ops_.statfs = fuse_base::statfs_;
-#endif // __APPLE__
+#endif // !defined(__APPLE__)
   fuse_ops_.unlink = fuse_base::unlink_;
   fuse_ops_.utimens = fuse_base::utimens_;
   fuse_ops_.write = fuse_base::write_;
@@ -117,7 +117,7 @@ auto fuse_base::chflags_(const char *path, uint32_t flags) -> int {
         return instance().chflags_impl(std::move(api_path), flags);
       });
 }
-#endif // __APPLE__
+#endif // defined(__APPLE__)
 
 #if FUSE_USE_VERSION >= 30
 auto fuse_base::chmod_(const char *path, mode_t mode, struct fuse_file_info *fi)
@@ -129,7 +129,7 @@ auto fuse_base::chmod_(const char *path, mode_t mode, struct fuse_file_info *fi)
         return instance().chmod_impl(std::move(api_path), mode, fi);
       });
 }
-#else
+#else  // FUSE_USE_VERSION < 30
 auto fuse_base::chmod_(const char *path, mode_t mode) -> int {
   REPERTORY_USES_FUNCTION_NAME();
 
@@ -138,7 +138,7 @@ auto fuse_base::chmod_(const char *path, mode_t mode) -> int {
         return instance().chmod_impl(std::move(api_path), mode);
       });
 }
-#endif
+#endif // FUSE_USE_VERSION >= 30
 
 #if FUSE_USE_VERSION >= 30
 auto fuse_base::chown_(const char *path, uid_t uid, gid_t gid,
@@ -150,7 +150,7 @@ auto fuse_base::chown_(const char *path, uid_t uid, gid_t gid,
         return instance().chown_impl(std::move(api_path), uid, gid, fi);
       });
 }
-#else
+#else  // FUSE_USE_VERSION < 30
 auto fuse_base::chown_(const char *path, uid_t uid, gid_t gid) -> int {
   REPERTORY_USES_FUNCTION_NAME();
 
@@ -159,7 +159,7 @@ auto fuse_base::chown_(const char *path, uid_t uid, gid_t gid) -> int {
         return instance().chown_impl(std::move(api_path), uid, gid);
       });
 }
-#endif
+#endif // FUSE_USE_VERSION >= 30
 
 auto fuse_base::create_(const char *path, mode_t mode,
                         struct fuse_file_info *fi) -> int {
@@ -187,12 +187,12 @@ void fuse_base::display_options(
     [[maybe_unused]] std::vector<const char *> args) {
 #if FUSE_USE_VERSION >= 30
   fuse_cmdline_help();
-#else
+#else  // FUSE_USE_VERSION < 30
   struct fuse_operations fuse_ops{};
   fuse_main(args.size(),
             reinterpret_cast<char **>(const_cast<char **>(args.data())),
             &fuse_ops, nullptr);
-#endif
+#endif // FUSE_USE_VERSION >= 30
 
   std::cout << std::endl;
 }
@@ -266,7 +266,7 @@ auto fuse_base::fgetattr_(const char *path, struct stat *st,
         return instance().fgetattr_impl(std::move(api_path), st, fi);
       });
 }
-#endif
+#endif // FUSE_USE_VERSION < 30
 
 #if defined(__APPLE__)
 auto fuse_base::fsetattr_x_(const char *path, struct setattr_x *attr,
@@ -278,7 +278,7 @@ auto fuse_base::fsetattr_x_(const char *path, struct setattr_x *attr,
         return instance().fsetattr_x_impl(std::move(api_path), attr, fi);
       });
 }
-#endif // __APPLE__
+#endif // defined(__APPLE__)
 
 auto fuse_base::fsync_(const char *path, int datasync,
                        struct fuse_file_info *fi) -> int {
@@ -300,7 +300,7 @@ auto fuse_base::ftruncate_(const char *path, off_t size,
         return instance().ftruncate_impl(std::move(api_path), size, fi);
       });
 }
-#endif
+#endif // FUSE_USE_VERSION < 30
 
 #if FUSE_USE_VERSION >= 30
 auto fuse_base::getattr_(const char *path, struct stat *st,
@@ -312,7 +312,7 @@ auto fuse_base::getattr_(const char *path, struct stat *st,
         return instance().getattr_impl(std::move(api_path), st, fi);
       });
 }
-#else
+#else  // FUSE_USE_VERSION < 30
 auto fuse_base::getattr_(const char *path, struct stat *st) -> int {
   REPERTORY_USES_FUNCTION_NAME();
 
@@ -321,7 +321,7 @@ auto fuse_base::getattr_(const char *path, struct stat *st) -> int {
         return instance().getattr_impl(std::move(api_path), st);
       });
 }
-#endif
+#endif // FUSE_USE_VERSION >= 30
 
 #if defined(__APPLE__)
 auto fuse_base::getxtimes_(const char *path, struct timespec *bkuptime,
@@ -333,7 +333,7 @@ auto fuse_base::getxtimes_(const char *path, struct timespec *bkuptime,
         return instance().getxtimes_impl(std::move(api_path), bkuptime, crtime);
       });
 }
-#endif // __APPLE__
+#endif // defined(__APPLE__)
 
 #if FUSE_USE_VERSION >= 30
 auto fuse_base::init_(struct fuse_conn_info *conn, struct fuse_config *cfg)
@@ -344,14 +344,14 @@ auto fuse_base::init_(struct fuse_conn_info *conn, struct fuse_config *cfg)
     return instance().init_impl(conn, cfg);
   });
 }
-#else
+#else  // FUSE_USE_VERSION < 30
 auto fuse_base::init_(struct fuse_conn_info *conn) -> void * {
   REPERTORY_USES_FUNCTION_NAME();
 
   return execute_void_pointer_callback(
       function_name, [&]() -> void * { return instance().init_impl(conn); });
 }
-#endif
+#endif // FUSE_USE_VERSION >= 30
 
 #if FUSE_USE_VERSION >= 30
 auto fuse_base::init_impl([[maybe_unused]] struct fuse_conn_info *conn,
@@ -374,13 +374,14 @@ auto fuse_base::init_impl(struct fuse_conn_info *conn) -> void * {
   if (not utils::file::change_to_process_directory()) {
     utils::error::raise_error(function_name,
                               "failed to change to process directory");
-    event_system::instance().raise<unmount_requested>();
+    event_system::instance().raise<unmount_requested>(function_name);
     return this;
   }
 
   if (not console_enabled_ && not repertory::project_initialize()) {
     utils::error::raise_error(function_name, "failed to initialize repertory");
-    event_system::instance().raise<unmount_requested>();
+    event_system::instance().raise<unmount_requested>(function_name);
+    repertory::project_cleanup();
   }
 
   return this;
@@ -413,9 +414,9 @@ auto fuse_base::mount(std::vector<std::string> args) -> int {
       struct fuse_cmdline_opts opts{};
       fuse_parse_cmdline(&fa, &opts);
       mount_location = opts.mountpoint;
-#else
+#else  // FUSE_USE_VERSION < 30
       fuse_parse_cmdline(&fa, &mount_location, nullptr, nullptr);
-#endif
+#endif // FUSE_USE_VERSION >= 30
 
       if (mount_location) {
         mount_location_ = mount_location;
@@ -427,7 +428,7 @@ auto fuse_base::mount(std::vector<std::string> args) -> int {
 
 #if FUSE_USE_VERSION < 30
     umask(0);
-#endif
+#endif // FUSE_USE_VERSION < 30
 
     if (not console_enabled_) {
       repertory::project_cleanup();
@@ -489,7 +490,7 @@ auto fuse_base::readdir_(const char *path, void *buf,
                                        offset, fi, flags);
       });
 }
-#else
+#else  // FUSE_USE_VERSION < 30
 auto fuse_base::readdir_(const char *path, void *buf,
                          fuse_fill_dir_t fuse_fill_dir, off_t offset,
                          struct fuse_file_info *fi) -> int {
@@ -501,7 +502,7 @@ auto fuse_base::readdir_(const char *path, void *buf,
                                        offset, fi);
       });
 }
-#endif
+#endif // FUSE_USE_VERSION >= 30
 
 auto fuse_base::release_(const char *path, struct fuse_file_info *fi) -> int {
   REPERTORY_USES_FUNCTION_NAME();
@@ -534,7 +535,7 @@ auto fuse_base::rename_(const char *from, const char *to, unsigned int flags)
                                       std::move(to_api_path), flags);
       });
 }
-#else
+#else  // FUSE_USE_VERSION < 30
 auto fuse_base::rename_(const char *from, const char *to) -> int {
   REPERTORY_USES_FUNCTION_NAME();
 
@@ -545,7 +546,7 @@ auto fuse_base::rename_(const char *from, const char *to) -> int {
                                       std::move(to_api_path));
       });
 }
-#endif
+#endif // FUSE_USE_VERSION >= 30
 
 auto fuse_base::rmdir_(const char *path) -> int {
   REPERTORY_USES_FUNCTION_NAME();
@@ -571,7 +572,7 @@ auto fuse_base::getxattr_(const char *path, const char *name, char *value,
 
   return res == 0 ? attribute_size : res;
 }
-#else  // __APPLE__
+#else  // !defined(__APPLE__)
 auto fuse_base::getxattr_(const char *path, const char *name, char *value,
                           size_t size) -> int {
   REPERTORY_USES_FUNCTION_NAME();
@@ -585,7 +586,7 @@ auto fuse_base::getxattr_(const char *path, const char *name, char *value,
 
   return res == 0 ? attribute_size : res;
 }
-#endif // __APPLE__
+#endif // defined(__APPLE__)
 
 auto fuse_base::listxattr_(const char *path, char *buffer, size_t size) -> int {
   REPERTORY_USES_FUNCTION_NAME();
@@ -737,7 +738,7 @@ auto fuse_base::setxattr_(const char *path, const char *name, const char *value,
 
   return res;
 }
-#else  // __APPLE__
+#else  // !defined(__APPLE__)
 auto fuse_base::setxattr_(const char *path, const char *name, const char *value,
                           size_t size, int flags) -> int {
   REPERTORY_USES_FUNCTION_NAME();
@@ -753,8 +754,8 @@ auto fuse_base::setxattr_(const char *path, const char *name, const char *value,
 
   return res;
 }
-#endif // __APPLE__
-#endif // HAS_SETXATTR
+#endif // defined(__APPLE__)
+#endif // defined(HAS_SETXATTR)
 
 void fuse_base::shutdown() {
   REPERTORY_USES_FUNCTION_NAME();
@@ -821,7 +822,7 @@ auto fuse_base::statfs_x_(const char *path, struct statfs *stbuf) -> int {
         return instance().statfs_x_impl(std::move(api_path), stbuf);
       });
 }
-#else  // __APPLE__
+#else  // !defined(__APPLE__)
 auto fuse_base::statfs_(const char *path, struct statvfs *stbuf) -> int {
   REPERTORY_USES_FUNCTION_NAME();
 
@@ -830,7 +831,7 @@ auto fuse_base::statfs_(const char *path, struct statvfs *stbuf) -> int {
         return instance().statfs_impl(std::move(api_path), stbuf);
       });
 }
-#endif // __APPLE__
+#endif // defined(__APPLE__)
 
 #if FUSE_USE_VERSION >= 30
 auto fuse_base::truncate_(const char *path, off_t size,
@@ -842,7 +843,7 @@ auto fuse_base::truncate_(const char *path, off_t size,
         return instance().truncate_impl(std::move(api_path), size, fi);
       });
 }
-#else
+#else  // FUSE_USE_VERSION < 30
 auto fuse_base::truncate_(const char *path, off_t size) -> int {
   REPERTORY_USES_FUNCTION_NAME();
 
@@ -851,7 +852,7 @@ auto fuse_base::truncate_(const char *path, off_t size) -> int {
         return instance().truncate_impl(std::move(api_path), size);
       });
 }
-#endif
+#endif // FUSE_USE_VERSION >= 30
 
 auto fuse_base::unlink_(const char *path) -> int {
   REPERTORY_USES_FUNCTION_NAME();
@@ -865,13 +866,13 @@ auto fuse_base::unlink_(const char *path) -> int {
 auto fuse_base::unmount(const std::string &mount_location) -> int {
 #if defined(__APPLE__)
   const auto cmd = "umount \"" + mount_location + "\" >/dev/null 2>&1";
-#else
+#else // !defined(__APPLE__)
 #if FUSE_USE_VERSION >= 30
   const auto cmd = "fusermount3 -u \"" + mount_location + "\" >/dev/null 2>&1";
-#else
+#else  // FUSE_USE_VERSION < 30
   const auto cmd = "fusermount -u \"" + mount_location + "\" >/dev/null 2>&1";
-#endif
-#endif
+#endif // FUSE_USE_VERSION >= 30
+#endif // defined(__APPLE__)
 
   return system(cmd.c_str());
 }
@@ -886,7 +887,7 @@ auto fuse_base::utimens_(const char *path, const struct timespec tv[2],
         return instance().utimens_impl(std::move(api_path), tv, fi);
       });
 }
-#else
+#else  // FUSE_USE_VERSION < 30
 auto fuse_base::utimens_(const char *path, const struct timespec tv[2]) -> int {
   REPERTORY_USES_FUNCTION_NAME();
 
@@ -895,7 +896,7 @@ auto fuse_base::utimens_(const char *path, const struct timespec tv[2]) -> int {
         return instance().utimens_impl(std::move(api_path), tv);
       });
 }
-#endif
+#endif // FUSE_USE_VERSION >= 30
 
 auto fuse_base::write_(const char *path, const char *buffer, size_t write_size,
                        off_t write_offset, struct fuse_file_info *fi) -> int {
@@ -914,4 +915,4 @@ auto fuse_base::write_(const char *path, const char *buffer, size_t write_size,
 }
 } // namespace repertory
 
-#endif // _WIN32
+#endif // !defined(_WIN32)

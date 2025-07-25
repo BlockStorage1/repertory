@@ -59,7 +59,8 @@ private:
 
   static void populate_stat(const struct stat64 &unix_st, remote::stat &r_stat);
 
-  [[nodiscard]] auto update_to_windows_format(json &item) -> json &;
+  [[nodiscard]] auto update_to_windows_format(const std::string &root_api_path,
+                                              json &item) -> json &;
 
 public:
   // FUSE Layer

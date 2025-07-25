@@ -27,7 +27,7 @@
 namespace repertory::utils::error {
 void raise_error(std::string_view function, std::string_view msg);
 
-void raise_error(std::string_view function, const api_error &err,
+void raise_error(std::string_view function, api_error err,
                  std::string_view msg);
 
 void raise_error(std::string_view function, const std::exception &exception);
@@ -41,7 +41,7 @@ void raise_error(std::string_view function, std::int64_t err,
 void raise_error(std::string_view function, const json &err,
                  std::string_view msg);
 
-void raise_error(std::string_view function, const api_error &err,
+void raise_error(std::string_view function, api_error err,
                  std::string_view file_path, std::string_view msg);
 
 void raise_error(std::string_view function, std::int64_t err,
@@ -51,7 +51,7 @@ void raise_error(std::string_view function, const std::exception &exception,
                  std::string_view file_path, std::string_view msg);
 
 void raise_api_path_error(std::string_view function, std::string_view api_path,
-                          const api_error &err, std::string_view msg);
+                          api_error err, std::string_view msg);
 
 void raise_api_path_error(std::string_view function, std::string_view api_path,
                           const std::exception &exception);
@@ -67,7 +67,7 @@ void raise_api_path_error(std::string_view function, std::string_view api_path,
                           const json &err, std::string_view msg);
 
 void raise_api_path_error(std::string_view function, std::string_view api_path,
-                          std::string_view source_path, const api_error &err,
+                          std::string_view source_path, api_error err,
                           std::string_view msg);
 
 void raise_api_path_error(std::string_view function, std::string_view api_path,

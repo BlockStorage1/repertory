@@ -22,7 +22,7 @@
 #ifndef REPERTORY_INCLUDE_CLI_VERSION_HPP_
 #define REPERTORY_INCLUDE_CLI_VERSION_HPP_
 
-#include "version.hpp"
+#include "cli/common.hpp"
 
 namespace repertory::cli::actions {
 template <typename drive> inline void version(std::vector<const char *> args) {

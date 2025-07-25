@@ -28,35 +28,36 @@ namespace repertory::utils::cli {
 using option = std::array<std::string, 2>;
 
 namespace options {
-static const option check_version_option = {"-cv", "--check_version"};
-static const option display_config_option = {"-dc", "--display_config"};
-static const option data_directory_option = {"-dd", "--data_directory"};
-static const option encrypt_option = {"-en", "--encrypt"};
-static const option drive_information_option = {"-di", "--drive_information"};
-static const option name_option = {"-na", "--name"};
-static const option s3_option = {"-s3", "--s3"};
-static const option generate_config_option = {"-gc", "--generate_config"};
-static const option get_option = {"-get", "--get"};
-static const option get_directory_items_option = {"-gdi",
+inline const option check_version_option = {"-cv", "--check_version"};
+inline const option display_config_option = {"-dc", "--display_config"};
+inline const option data_directory_option = {"-dd", "--data_directory"};
+inline const option encrypt_option = {"-en", "--encrypt"};
+inline const option drive_information_option = {"-di", "--drive_information"};
+inline const option name_option = {"-na", "--name"};
+inline const option s3_option = {"-s3", "--s3"};
+inline const option generate_config_option = {"-gc", "--generate_config"};
+inline const option get_option = {"-get", "--get"};
+inline const option get_directory_items_option = {"-gdi",
                                                   "--get_directory_items"};
-static const option get_pinned_files_option = {"-gpf", "--get_pinned_files"};
-static const option help_option = {"-h", "--help"};
-static const option hidden_option = {"-hidden", "--hidden"};
-static const option open_files_option = {"-of", "--open_files"};
-static const option pin_file_option = {"-pf", "--pin_file"};
-static const option pinned_status_option = {"-ps", "--pinned_status"};
-static const option password_option = {"-pw", "--password"};
-static const option remote_mount_option = {"-rm", "--remote_mount"};
-static const option set_option = {"-set", "--set"};
-static const option status_option = {"-status", "--status"};
-static const option ui_option = {"-ui", "--ui"};
-static const option ui_port_option = {"-up", "--ui_port"};
-static const option unmount_option = {"-unmount", "--unmount"};
-static const option unpin_file_option = {"-uf", "--unpin_file"};
-static const option user_option = {"-us", "--user"};
-static const option version_option = {"-V", "--version"};
+inline const option get_pinned_files_option = {"-gpf", "--get_pinned_files"};
+inline const option help_option = {"-h", "--help"};
+inline const option hidden_option = {"-hidden", "--hidden"};
+inline const option open_files_option = {"-of", "--open_files"};
+inline const option pin_file_option = {"-pf", "--pin_file"};
+inline const option pinned_status_option = {"-ps", "--pinned_status"};
+inline const option password_option = {"-pw", "--password"};
+inline const option remote_mount_option = {"-rm", "--remote_mount"};
+inline const option set_option = {"-set", "--set"};
+inline const option status_option = {"-status", "--status"};
+inline const option test_option = {"-test", "--test"};
+inline const option ui_option = {"-ui", "--ui"};
+inline const option ui_port_option = {"-up", "--ui_port"};
+inline const option unmount_option = {"-unmount", "--unmount"};
+inline const option unpin_file_option = {"-uf", "--unpin_file"};
+inline const option user_option = {"-us", "--user"};
+inline const option version_option = {"-V", "--version"};
 
-static const std::vector<option> option_list = {
+inline const std::vector<option> option_list = {
     check_version_option,
     display_config_option,
     data_directory_option,
@@ -77,6 +78,7 @@ static const std::vector<option> option_list = {
     remote_mount_option,
     set_option,
     status_option,
+    test_option,
     ui_option,
     ui_port_option,
     unmount_option,

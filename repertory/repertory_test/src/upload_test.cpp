@@ -27,7 +27,7 @@
 #include "utils/event_capture.hpp"
 
 namespace repertory {
-static constexpr const std::size_t test_chunk_size{1024U};
+static constexpr std::size_t test_chunk_size{1024U};
 
 TEST(upload_test, can_upload_a_valid_file) {
   console_consumer con;

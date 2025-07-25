@@ -29,7 +29,7 @@
 #include "utils/hash.hpp"
 
 namespace repertory::utils::encryption {
-inline constexpr const std::uint32_t encryption_header_size{
+inline constexpr std::uint32_t encryption_header_size{
     crypto_aead_xchacha20poly1305_IETF_NPUBBYTES +
         crypto_aead_xchacha20poly1305_IETF_ABYTES,
 };

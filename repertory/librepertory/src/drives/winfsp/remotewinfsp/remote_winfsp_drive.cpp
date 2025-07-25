@@ -131,18 +131,21 @@ auto remote_winfsp_drive::Create(PWSTR file_name, UINT32 create_options,
                                  UINT64 allocation_size, PVOID * /*file_node*/,
                                  PVOID *file_desc, OpenFileInfo *ofi)
     -> NTSTATUS {
-  remote::file_info fi{};
+  remote::file_info f_info{};
   std::string normalized_name;
-  BOOLEAN exists = 0;
+  BOOLEAN exists{0};
   auto ret = remote_instance_->winfsp_create(
       file_name, create_options, granted_access, attributes, allocation_size,
-      file_desc, &fi, normalized_name, exists);
+      file_desc, &f_info, normalized_name, exists);
   if (ret == STATUS_SUCCESS) {
-    set_file_info(ofi->FileInfo, fi);
+    set_file_info(ofi->FileInfo, f_info);
     auto file_path = utils::string::from_utf8(normalized_name);
     wcsncpy(ofi->NormalizedName, file_path.data(), wcslen(file_path.c_str()));
     ofi->NormalizedNameSize =
         static_cast<UINT16>(wcslen(file_path.c_str()) * sizeof(WCHAR));
+    if (exists != 0U) {
+      ret = STATUS_OBJECT_NAME_COLLISION;
+    }
   }
 
   return ret;
@@ -168,24 +171,32 @@ auto remote_winfsp_drive::GetSecurityByName(PWSTR file_name, PUINT32 attributes,
                                             PSECURITY_DESCRIPTOR descriptor,
                                             SIZE_T *descriptor_size)
     -> NTSTATUS {
+  std::uint64_t sds{
+      (descriptor_size == nullptr) ? 0U : *descriptor_size,
+  };
+
   std::wstring string_descriptor;
-  std::uint64_t sds = (descriptor_size == nullptr) ? 0 : *descriptor_size;
-  auto ret = remote_instance_->winfsp_get_security_by_name(
-      file_name, attributes, descriptor_size ? &sds : nullptr,
-      string_descriptor);
-  *descriptor_size = static_cast<SIZE_T>(sds);
-  if ((ret == STATUS_SUCCESS) && *descriptor_size) {
-    PSECURITY_DESCRIPTOR sd{nullptr};
-    ULONG sz2{0U};
+  auto ret{
+      remote_instance_->winfsp_get_security_by_name(
+          file_name, attributes, descriptor_size ? &sds : nullptr,
+          string_descriptor),
+  };
+
+  if ((ret == STATUS_SUCCESS) && (descriptor_size != nullptr)) {
+    *descriptor_size = static_cast<SIZE_T>(sds);
+
+    PSECURITY_DESCRIPTOR desc{nullptr};
+    ULONG size{0U};
     if (::ConvertStringSecurityDescriptorToSecurityDescriptorW(
-            string_descriptor.data(), SDDL_REVISION_1, &sd, &sz2)) {
-      if (sz2 > *descriptor_size) {
+            string_descriptor.data(), SDDL_REVISION_1, &desc, &size)) {
+      if (size > *descriptor_size) {
         ret = STATUS_BUFFER_TOO_SMALL;
       } else {
-        ::CopyMemory(descriptor, sd, sz2);
+        ::CopyMemory(descriptor, desc, size);
       }
-      *descriptor_size = sz2;
-      ::LocalFree(sd);
+
+      *descriptor_size = size;
+      ::LocalFree(desc);
     } else {
       ret = FspNtStatusFromWin32(::GetLastError());
     }
@@ -338,9 +349,14 @@ void remote_winfsp_drive::populate_file_info(const json &item,
 auto remote_winfsp_drive::Read(PVOID /*file_node*/, PVOID file_desc,
                                PVOID buffer, UINT64 offset, ULONG length,
                                PULONG bytes_transferred) -> NTSTATUS {
-  return remote_instance_->winfsp_read(
+  auto ret = remote_instance_->winfsp_read(
       file_desc, buffer, offset, length,
       reinterpret_cast<PUINT32>(bytes_transferred));
+  if ((ret == STATUS_SUCCESS) && (*bytes_transferred != length)) {
+    ::SetLastError(ERROR_HANDLE_EOF);
+  }
+
+  return ret;
 }
 
 auto remote_winfsp_drive::ReadDirectory(PVOID /*file_node*/, PVOID file_desc,
@@ -361,11 +377,10 @@ auto remote_winfsp_drive::ReadDirectory(PVOID /*file_node*/, PVOID file_desc,
               &ret)) {
         auto item_found = false;
         for (const auto &item : item_list) {
-          auto item_path = item["path"].get<std::string>();
+          auto item_path = item[JSON_API_PATH].get<std::string>();
           auto display_name = utils::string::from_utf8(
               utils::path::strip_to_file_name(item_path));
           if (not marker || (marker && item_found)) {
-            // if (not utils::path::is_ads_file_path(item_path)) {
             union {
               UINT8 B[FIELD_OFFSET(FSP_FSCTL_DIR_INFO, FileNameBuf) +
                       ((repertory::max_path_length + 1U) * sizeof(WCHAR))];
@@ -380,10 +395,8 @@ auto remote_winfsp_drive::ReadDirectory(PVOID /*file_node*/, PVOID file_desc,
                           display_name.size()) *
                  sizeof(WCHAR)));
 
-            if (not item["meta"].empty() ||
-                ((item_path != ".") && (item_path != ".."))) {
-              populate_file_info(item, directory_info->FileInfo);
-            }
+            populate_file_info(item, directory_info->FileInfo);
+
             if (ret == STATUS_SUCCESS) {
               ::wcscpy_s(&directory_info->FileNameBuf[0],
                          repertory::max_path_length, &display_name[0]);
@@ -394,7 +407,6 @@ auto remote_winfsp_drive::ReadDirectory(PVOID /*file_node*/, PVOID file_desc,
                 break;
               }
             }
-            // }
           } else {
             item_found = display_name == std::wstring(marker);
           }
@@ -418,8 +430,13 @@ auto remote_winfsp_drive::ReadDirectory(PVOID /*file_node*/, PVOID file_desc,
 auto remote_winfsp_drive::Rename(PVOID /*file_node*/, PVOID file_desc,
                                  PWSTR file_name, PWSTR new_file_name,
                                  BOOLEAN replace_if_exists) -> NTSTATUS {
-  return remote_instance_->winfsp_rename(file_desc, file_name, new_file_name,
-                                         replace_if_exists);
+  auto res = remote_instance_->winfsp_rename(file_desc, file_name,
+                                             new_file_name, replace_if_exists);
+  if (res == STATUS_OBJECT_NAME_EXISTS) {
+    return FspNtStatusFromWin32(ERROR_ALREADY_EXISTS);
+  }
+
+  return res;
 }
 
 auto remote_winfsp_drive::SetBasicInfo(PVOID /*file_node*/, PVOID file_desc,
@@ -428,11 +445,11 @@ auto remote_winfsp_drive::SetBasicInfo(PVOID /*file_node*/, PVOID file_desc,
                                        UINT64 last_write_time,
                                        UINT64 change_time, FileInfo *file_info)
     -> NTSTATUS {
-  remote::file_info fi{};
+  remote::file_info f_info{};
   auto ret = remote_instance_->winfsp_set_basic_info(
       file_desc, attributes, creation_time, last_access_time, last_write_time,
-      change_time, &fi);
-  set_file_info(*file_info, fi);
+      change_time, &f_info);
+  set_file_info(*file_info, f_info);
   return ret;
 }
 
@@ -473,7 +490,6 @@ VOID remote_winfsp_drive::Unmounted(PVOID host) {
   }
   remote_instance_->winfsp_unmounted(file_system_host->MountPoint());
   remote_instance_.reset();
-  mount_location_ = "";
 }
 
 auto remote_winfsp_drive::Write(PVOID /*file_node*/, PVOID file_desc,

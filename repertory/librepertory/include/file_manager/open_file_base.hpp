@@ -66,7 +66,7 @@ public:
     std::condition_variable notify_;
 
   public:
-    void notify(const api_error &err);
+    void notify(api_error err);
 
     auto wait() -> api_error;
   };
@@ -149,7 +149,7 @@ protected:
 
   void reset_timeout();
 
-  auto set_api_error(const api_error &err) -> api_error;
+  auto set_api_error(api_error err) -> api_error;
 
   void set_file_size(std::uint64_t size);
 

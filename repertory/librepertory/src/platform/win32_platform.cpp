@@ -90,7 +90,7 @@ auto lock_data::get_mount_state(json &mount_state) -> bool {
 }
 
 auto lock_data::grab_lock(std::uint8_t retry_count) -> lock_result {
-  static constexpr const std::uint32_t max_sleep{100U};
+  static constexpr std::uint32_t max_sleep{100U};
 
   if (mutex_handle_ == INVALID_HANDLE_VALUE) {
     return lock_result::failure;

@@ -35,8 +35,8 @@ auto fuse_drive_base::access_impl(std::string api_path, int mask) -> api_error {
   return check_access(api_path, mask);
 }
 
-auto fuse_drive_base::check_access(const std::string &api_path,
-                                   int mask) const -> api_error {
+auto fuse_drive_base::check_access(const std::string &api_path, int mask) const
+    -> api_error {
   REPERTORY_USES_FUNCTION_NAME();
 
   api_meta_map meta;
@@ -137,8 +137,8 @@ auto fuse_drive_base::check_and_perform(
   return action(meta);
 }
 
-auto fuse_drive_base::check_open_flags(
-    int flags, int mask, const api_error &fail_error) -> api_error {
+auto fuse_drive_base::check_open_flags(int flags, int mask,
+                                       api_error fail_error) -> api_error {
   return (((flags & mask) == 0) ? api_error::success : fail_error);
 }
 
@@ -195,13 +195,13 @@ auto fuse_drive_base::check_parent_access(const std::string &api_path,
   return ret;
 }
 
-auto fuse_drive_base::check_readable(int flags,
-                                     const api_error &fail_error) -> api_error {
+auto fuse_drive_base::check_readable(int flags, api_error fail_error)
+    -> api_error {
   auto mode = (flags & O_ACCMODE);
   return ((mode == O_WRONLY) ? fail_error : api_error::success);
 }
 
-auto fuse_drive_base::check_writeable(int flags, const api_error &fail_error)
+auto fuse_drive_base::check_writeable(int flags, api_error fail_error)
     -> api_error {
   return (((flags & O_ACCMODE) == 0) ? fail_error : api_error::success);
 }
@@ -254,13 +254,16 @@ auto fuse_drive_base::get_uid_from_meta(const api_meta_map &meta) -> uid_t {
 }
 
 #if defined(__APPLE__)
-auto fuse_drive_base::parse_xattr_parameters(
-    const char *name, const uint32_t &position, std::string &attribute_name,
-    const std::string &api_path) -> api_error {
+auto fuse_drive_base::parse_xattr_parameters(const char *name,
+                                             const uint32_t &position,
+                                             std::string &attribute_name,
+                                             const std::string &api_path)
+    -> api_error {
 #else  // !defined(__APPLE__)
-auto fuse_drive_base::parse_xattr_parameters(
-    const char *name, std::string &attribute_name,
-    const std::string &api_path) -> api_error {
+auto fuse_drive_base::parse_xattr_parameters(const char *name,
+                                             std::string &attribute_name,
+                                             const std::string &api_path)
+    -> api_error {
 #endif // defined(__APPLE__)
   auto res = api_path.empty() ? api_error::bad_address : api_error::success;
   if (res != api_error::success) {
@@ -293,9 +296,11 @@ auto fuse_drive_base::parse_xattr_parameters(
     std::string &attribute_name, const std::string &api_path) -> api_error {
   auto res = parse_xattr_parameters(name, position, attribute_name, api_path);
 #else  // !defined(__APPLE__)
-auto fuse_drive_base::parse_xattr_parameters(
-    const char *name, const char *value, size_t size,
-    std::string &attribute_name, const std::string &api_path) -> api_error {
+auto fuse_drive_base::parse_xattr_parameters(const char *name,
+                                             const char *value, size_t size,
+                                             std::string &attribute_name,
+                                             const std::string &api_path)
+    -> api_error {
   auto res = parse_xattr_parameters(name, attribute_name, api_path);
 #endif // defined(__APPLE__)
   if (res != api_error::success) {
@@ -361,4 +366,4 @@ void fuse_drive_base::set_timespec_from_meta(const api_meta_map &meta,
 }
 } // namespace repertory
 
-#endif // _WIN32
+#endif // !defined(_WIN32)

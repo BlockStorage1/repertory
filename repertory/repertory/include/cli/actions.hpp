@@ -36,6 +36,7 @@
 #include "cli/pinned_status.hpp"
 #include "cli/set.hpp"
 #include "cli/status.hpp"
+#include "cli/test.hpp"
 #include "cli/ui.hpp"
 #include "cli/unmount.hpp"
 #include "cli/unpin_file.hpp"
@@ -48,11 +49,11 @@ using action = std::function<exit_code(
 
 struct option_hasher {
   auto operator()(const utils::cli::option &opt) const -> std::size_t {
-    return std::hash<std::string>()(opt[0U] + '|' + opt[1U]);
+    return std::hash<std::string>()(opt.at(0U) + '|' + opt.at(1U));
   }
 };
 
-static const std::unordered_map<utils::cli::option, action, option_hasher>
+inline const std::unordered_map<utils::cli::option, action, option_hasher>
     option_actions = {
         {utils::cli::options::check_version_option,
          cli::actions::check_version},
@@ -71,6 +72,7 @@ static const std::unordered_map<utils::cli::option, action, option_hasher>
          cli::actions::pinned_status},
         {utils::cli::options::set_option, cli::actions::set},
         {utils::cli::options::status_option, cli::actions::status},
+        {utils::cli::options::test_option, cli::actions::test},
         {utils::cli::options::ui_option, cli::actions::ui},
         {utils::cli::options::unmount_option, cli::actions::unmount},
         {utils::cli::options::unpin_file_option, cli::actions::unpin_file},

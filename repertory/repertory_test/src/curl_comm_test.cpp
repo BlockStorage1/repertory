@@ -30,8 +30,9 @@ TEST(curl_comm_test, can_create_s3_host_config) {
   config.bucket = "repertory";
   config.url = "https://s3.test.com";
   config.region = "any";
+  config.use_path_style = false;
 
-  auto hc = curl_comm::create_host_config(config, false);
+  auto hc = curl_comm::create_host_config(config);
   EXPECT_STREQ("https", hc.protocol.c_str());
   EXPECT_STREQ("repertory.s3.test.com", hc.host_name_or_ip.c_str());
   EXPECT_TRUE(hc.path.empty());
@@ -42,8 +43,9 @@ TEST(curl_comm_test, can_create_s3_host_config_with_path_style) {
   config.bucket = "repertory";
   config.url = "https://s3.test.com";
   config.region = "any";
+  config.use_path_style = true;
 
-  auto hc = curl_comm::create_host_config(config, true);
+  auto hc = curl_comm::create_host_config(config);
   EXPECT_STREQ("https", hc.protocol.c_str());
   EXPECT_STREQ("s3.test.com", hc.host_name_or_ip.c_str());
   EXPECT_STREQ("/repertory", hc.path.c_str());
@@ -55,8 +57,9 @@ TEST(curl_comm_test, can_create_s3_host_config_with_region) {
   config.url = "https://s3.test.com";
   config.region = "any";
   config.use_region_in_url = true;
+  config.use_path_style = false;
 
-  auto hc = curl_comm::create_host_config(config, false);
+  auto hc = curl_comm::create_host_config(config);
   EXPECT_STREQ("https", hc.protocol.c_str());
   EXPECT_STREQ("repertory.s3.any.test.com", hc.host_name_or_ip.c_str());
   EXPECT_TRUE(hc.path.empty());
@@ -68,8 +71,9 @@ TEST(curl_comm_test, can_create_s3_host_config_with_region_and_path_style) {
   config.url = "https://s3.test.com";
   config.region = "any";
   config.use_region_in_url = true;
+  config.use_path_style = true;
 
-  auto hc = curl_comm::create_host_config(config, true);
+  auto hc = curl_comm::create_host_config(config);
   EXPECT_STREQ("https", hc.protocol.c_str());
   EXPECT_STREQ("s3.any.test.com", hc.host_name_or_ip.c_str());
   EXPECT_STREQ("/repertory", hc.path.c_str());

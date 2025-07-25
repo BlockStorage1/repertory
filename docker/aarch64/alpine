@@ -1,5 +1,5 @@
 #comment
-FROM         arm64v8/alpine:3.21.3
+FROM         arm64v8/alpine:3.21.4
 MAINTAINER   Scott E. Graves <scott.e.graves@protonmail.com>
 CMD          bash
 

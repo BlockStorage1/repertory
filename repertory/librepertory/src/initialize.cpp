@@ -19,10 +19,6 @@
   OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
   SOFTWARE.
 */
-#if defined(PROJECT_ENABLE_CURL)
-#include <curl/curl.h>
-#endif // defined(PROJECT_ENABLE_CURL)
-
 #if defined(PROJECT_ENABLE_OPENSSL)
 #include <openssl/ssl.h>
 #endif // defined(PROJECT_ENABLE_OPENSSL)
@@ -43,17 +39,29 @@
 #include "spdlog/spdlog.h"
 
 #include "initialize.hpp"
+#include "utils/error.hpp"
 
 #if defined(PROJECT_REQUIRE_ALPINE) && !defined(PROJECT_IS_MINGW)
 #include "utils/path.hpp"
 #endif // defined(PROJECT_REQUIRE_ALPINE) && !defined (PROJECT_IS_MINGW)
 
+#if defined(PROJECT_ENABLE_CURL)
+#include "comm/curl/curl_shared.hpp"
+#endif // defined(PROJECT_ENABLE_CURL)
+
+namespace {
+bool curl_initialized{false};
+bool sqlite3_initialized{false};
+} // namespace
+
 namespace repertory {
 auto project_initialize() -> bool {
+  REPERTORY_USES_FUNCTION_NAME();
+
 #if defined(PROJECT_REQUIRE_ALPINE) && !defined(PROJECT_IS_MINGW)
   {
-    static constexpr const auto guard_size{4096U};
-    static constexpr const auto stack_size{8U * 1024U * 1024U};
+    static constexpr auto guard_size{4096U};
+    static constexpr auto stack_size{8U * 1024U * 1024U};
 
     pthread_attr_t attr{};
     pthread_attr_setstacksize(&attr, stack_size);
@@ -65,41 +73,39 @@ auto project_initialize() -> bool {
 #endif // defined(PROJECT_REQUIRE_ALPINE) && !defined (PROJECT_IS_MINGW)
 
   spdlog::drop_all();
-  spdlog::flush_every(std::chrono::seconds(10));
+  spdlog::flush_every(std::chrono::seconds(5));
   spdlog::set_pattern("%Y-%m-%d|%T.%e|%^%l%$|%v");
 
 #if defined(PROJECT_ENABLE_LIBSODIUM)
-  {
-    if (sodium_init() == -1) {
-      return false;
-    }
+  if (sodium_init() == -1) {
+    utils::error::handle_error(function_name, "failed to initialize sodium");
+    return false;
   }
 #endif // defined(PROJECT_ENABLE_LIBSODIUM)
 
 #if defined(PROJECT_ENABLE_OPENSSL)
-  {
-    SSL_library_init();
-  }
+  SSL_library_init();
 #endif // defined(PROJECT_ENABLE_OPENSSL)
 
 #if defined(PROJECT_ENABLE_CURL)
-  {
-    auto res = curl_global_init(CURL_GLOBAL_ALL);
-    if (res != 0) {
-      return false;
-    }
+  if (not curl_shared::init()) {
+    return false;
   }
+
+  curl_initialized = true;
 #endif // defined(PROJECT_ENABLE_CURL)
 
 #if defined(PROJECT_ENABLE_SQLITE)
   {
     auto res = sqlite3_initialize();
     if (res != SQLITE_OK) {
-#if defined(PROJECT_ENABLE_CURL)
-      curl_global_cleanup();
-#endif // defined(PROJECT_ENABLE_CURL)
+      utils::error::handle_error(function_name,
+                                 "failed to initialize sqlite3|result|" +
+                                     std::to_string(res));
       return false;
     }
+
+    sqlite3_initialized = true;
   }
 #endif // defined(PROJECT_ENABLE_SQLITE)
 
@@ -108,12 +114,17 @@ auto project_initialize() -> bool {
 
 void project_cleanup() {
 #if defined(PROJECT_ENABLE_CURL)
-  curl_global_cleanup();
+  if (curl_initialized) {
+    curl_shared::cleanup();
+  }
 #endif // defined(PROJECT_ENABLE_CURL)
 
 #if defined(PROJECT_ENABLE_SQLITE)
-  sqlite3_shutdown();
+  if (sqlite3_initialized) {
+    sqlite3_shutdown();
+  }
 #endif // defined(PROJECT_ENABLE_SQLITE)
+
   spdlog::shutdown();
 }
 } // namespace repertory

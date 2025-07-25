@@ -48,8 +48,8 @@ public:
     return api_error::success;
   }
 
-  auto check_parent_access(const std::string &,
-                           int) const -> api_error override {
+  auto check_parent_access(const std::string &, int) const
+      -> api_error override {
     return api_error::success;
   }
 
@@ -84,8 +84,8 @@ public:
     return 0U;
   }
 
-  auto get_item_meta(const std::string &api_path,
-                     api_meta_map &meta) const -> api_error override {
+  auto get_item_meta(const std::string &api_path, api_meta_map &meta) const
+      -> api_error override {
     meta = const_cast<mock_fuse_drive *>(this)->meta_[api_path];
     return api_error::success;
   }
@@ -124,8 +124,8 @@ public:
   }
 
   auto rename_file(const std::string &from_api_path,
-                   const std::string &to_api_path,
-                   bool overwrite) -> int override {
+                   const std::string &to_api_path, bool overwrite)
+      -> int override {
     const auto from_file_path =
         utils::path::combine(mount_location_, {from_api_path});
     const auto to_file_path =
@@ -152,7 +152,13 @@ public:
                      const std::string &value) override {
     meta_[api_path][key] = value;
   }
-};
+
+  void set_item_meta(const std::string &api_path,
+                     const api_meta_map &meta) override {
+    for (const auto &[key, value] : meta) {
+      meta_[api_path][key] = value;
+    }
+  };
 } // namespace repertory
 
 #endif // !defined(_WIN32)

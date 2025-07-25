@@ -36,8 +36,8 @@ struct download_resume_add_failed final : public i_event {
         error(std::move(error_)),
         function_name(std::string(function_name_)) {}
 
-  static constexpr const event_level level{event_level::error};
-  static constexpr const std::string_view name{"download_resume_add_failed"};
+  static constexpr event_level level{event_level::error};
+  static constexpr std::string_view name{"download_resume_add_failed"};
 
   std::string api_path;
   std::string dest_path;

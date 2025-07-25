@@ -29,7 +29,7 @@ class app_config;
 
 class cache_size_mgr final {
 private:
-  static constexpr const std::chrono::seconds cache_wait_secs{
+  static constexpr std::chrono::seconds cache_wait_secs{
       5s,
   };
 

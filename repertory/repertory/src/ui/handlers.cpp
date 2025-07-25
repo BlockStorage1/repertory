@@ -23,6 +23,7 @@
 
 #include "app_config.hpp"
 #include "events/event_system.hpp"
+#include "platform/platform.hpp"
 #include "types/repertory.hpp"
 #include "ui/mgmt_app_config.hpp"
 #include "utils/collection.hpp"
@@ -34,12 +35,15 @@
 #include "utils/path.hpp"
 #include "utils/string.hpp"
 
-#include <boost/process.hpp>
+#include <boost/process/v1/args.hpp>
+#include <boost/process/v1/child.hpp>
+#include <boost/process/v1/io.hpp>
 
 namespace {
 [[nodiscard]] auto decrypt(std::string_view data, std::string_view password)
     -> std::string {
   REPERTORY_USES_FUNCTION_NAME();
+
   if (data.empty()) {
     return std::string{data};
   }
@@ -115,7 +119,10 @@ handlers::handlers(mgmt_app_config *config, httplib::Server *server)
     setsockopt(sock, SOL_SOCKET, SO_EXCLUSIVEADDRUSE,
                reinterpret_cast<const char *>(&enable), sizeof(enable));
 #else  //  !defined(_WIN32)
-    linger opt{1, 0};
+    linger opt{
+        .l_onoff = 1,
+        .l_linger = 0,
+    };
     setsockopt(sock, SOL_SOCKET, SO_LINGER,
                reinterpret_cast<const char *>(&opt), sizeof(opt));
 #endif // defined(_WIN32)
@@ -183,7 +190,7 @@ handlers::handlers(mgmt_app_config *config, httplib::Server *server)
     handle_get_mount_location(req, res);
   });
 
-  server->Get("/api/v1/mount_list", [this](auto && /* req */, auto &&res) {
+  server->Get("/api/v1/mount_list", [](auto && /* req */, auto &&res) {
     handle_get_mount_list(res);
   });
 
@@ -197,6 +204,9 @@ handlers::handlers(mgmt_app_config *config, httplib::Server *server)
   server->Get("/api/v1/settings", [this](auto && /* req */, auto &&res) {
     handle_get_settings(res);
   });
+
+  server->Get("/api/v1/test",
+              [this](auto &&req, auto &&res) { handle_get_test(req, res); });
 
   server->Post("/api/v1/add_mount", [this](auto &&req, auto &&res) {
     handle_post_add_mount(req, res);
@@ -306,6 +316,55 @@ auto handlers::data_directory_exists(provider_type prov,
   return ret;
 }
 
+void handlers::generate_config(provider_type prov, std::string_view name,
+                               const json &cfg,
+                               std::optional<std::string> data_dir) const {
+  REPERTORY_USES_FUNCTION_NAME();
+
+  std::map<std::string, std::string> values{};
+  for (const auto &[key, value] : cfg.items()) {
+    if (value.is_object()) {
+      for (const auto &[key2, value2] : value.items()) {
+        auto sub_key = fmt::format("{}.{}", key, key2);
+        auto skip{false};
+        auto decrypted = decrypt_value(
+            config_, sub_key, value2.template get<std::string>(), skip);
+        if (skip) {
+          continue;
+        }
+        values[sub_key] = decrypted;
+      }
+
+      continue;
+    }
+
+    auto skip{false};
+    auto decrypted =
+        decrypt_value(config_, key, value.template get<std::string>(), skip);
+    if (skip) {
+      continue;
+    }
+    values[key] = decrypted;
+  }
+
+  if (data_dir.has_value()) {
+    if (not utils::file::directory{data_dir.value()}.create_directory()) {
+      throw utils::error::create_exception(function_name,
+                                           {
+                                               "failed to create data diretory",
+                                               data_dir.value(),
+                                           });
+    }
+    launch_process(prov, name, {"-dd", data_dir.value(), "-gc"});
+  } else {
+    launch_process(prov, name, {"-gc"});
+  }
+
+  for (const auto &[key, value] : values) {
+    set_key_value(prov, name, key, value, data_dir);
+  }
+}
+
 void handlers::handle_put_mount_location(const httplib::Request &req,
                                          httplib::Response &res) const {
   REPERTORY_USES_FUNCTION_NAME();
@@ -325,10 +384,10 @@ void handlers::handle_put_mount_location(const httplib::Request &req,
 
 void handlers::handle_get_available_locations(httplib::Response &res) {
 #if defined(_WIN32)
-  constexpr const std::array<std::string_view, 26U> letters{
-      "A:", "B:", "C:", "D:", "E:", "F:", "G:", "H:", "I:",
-      "J:", "K:", "L:", "M:", "N:", "O:", "P:", "Q:", "R:",
-      "S:", "T:", "U:", "V:", "W:", "X:", "Y:", "Z:",
+  constexpr std::array<std::string_view, 26U> letters{
+      "a:", "b:", "c:", "d:", "e:", "f:", "g:", "h:", "i:",
+      "j:", "k:", "l:", "m:", "n:", "o:", "p:", "q:", "r:",
+      "s:", "t:", "u:", "v:", "w:", "x:", "y:", "z:",
   };
 
   auto available = std::accumulate(
@@ -365,7 +424,6 @@ void handlers::handle_get_mount(const httplib::Request &req,
   }
 
   auto lines = launch_process(prov, name, {"-dc"});
-
   if (lines.at(0U) != "0") {
     throw utils::error::create_exception(function_name, {
                                                             "command failed",
@@ -382,7 +440,7 @@ void handlers::handle_get_mount(const httplib::Request &req,
   res.status = http_error_codes::ok;
 }
 
-void handlers::handle_get_mount_list(httplib::Response &res) const {
+void handlers::handle_get_mount_list(httplib::Response &res) {
   auto data_dir = utils::file::directory{app_config::get_root_data_directory()};
 
   nlohmann::json result;
@@ -473,6 +531,39 @@ void handlers::handle_get_settings(httplib::Response &res) const {
   res.status = http_error_codes::ok;
 }
 
+void handlers::handle_get_test(const httplib::Request &req,
+                               httplib::Response &res) const {
+  REPERTORY_USES_FUNCTION_NAME();
+
+  unique_mutex_lock lock(test_mtx_);
+
+  auto name = req.get_param_value("name");
+  auto prov = provider_type_from_string(req.get_param_value("type"));
+  auto cfg = nlohmann::json::parse(req.get_param_value("config"));
+
+  auto data_dir = utils::path::combine(
+      utils::directory::temp(), {utils::file::create_temp_name("repertory")});
+
+  try {
+    generate_config(prov, name, cfg, data_dir);
+
+    auto lines = launch_process(prov, name, {"-dd", data_dir, "-test"});
+    res.status = lines.at(0U) == "0" ? http_error_codes::ok
+                                     : http_error_codes::internal_error;
+  } catch (const std::exception &e) {
+    utils::error::raise_error(function_name, e, "test provider config failed");
+    res.status = http_error_codes::internal_error;
+  }
+
+  if (utils::file::directory{data_dir}.remove_recursively()) {
+    return;
+  }
+
+  utils::error::raise_error(
+      function_name, utils::get_last_error_code(),
+      fmt::format("failed to remove data directory|{}", data_dir));
+}
+
 void handlers::handle_post_add_mount(const httplib::Request &req,
                                      httplib::Response &res) const {
   auto name = req.get_param_value("name");
@@ -483,37 +574,7 @@ void handlers::handle_post_add_mount(const httplib::Request &req,
   }
 
   auto cfg = nlohmann::json::parse(req.get_param_value("config"));
-
-  std::map<std::string, std::string> values{};
-  for (const auto &[key, value] : cfg.items()) {
-    if (value.is_object()) {
-      for (const auto &[key2, value2] : value.items()) {
-        auto sub_key = fmt::format("{}.{}", key, key2);
-        auto skip{false};
-        auto decrypted = decrypt_value(
-            config_, sub_key, value2.template get<std::string>(), skip);
-        if (skip) {
-          continue;
-        }
-        values[sub_key] = decrypted;
-      }
-
-      continue;
-    }
-
-    auto skip{false};
-    auto decrypted =
-        decrypt_value(config_, key, value.template get<std::string>(), skip);
-    if (skip) {
-      continue;
-    }
-    values[key] = decrypted;
-  }
-
-  launch_process(prov, name, {"-gc"});
-  for (auto &[key, value] : values) {
-    set_key_value(prov, name, key, value);
-  }
+  generate_config(prov, name, cfg);
 
   res.status = http_error_codes::ok;
 }
@@ -660,6 +721,7 @@ auto handlers::launch_process(provider_type prov, std::string_view name,
     args.insert(std::next(args.begin(), 4U), "/MIN");
     args.insert(std::next(args.begin(), 5U), repertory_binary_);
 #else  // !defined(_WIN32)
+    args.insert(args.begin(), "-f");
     args.insert(args.begin(), repertory_binary_);
 #endif // defined(_WIN32)
 
@@ -675,27 +737,42 @@ auto handlers::launch_process(provider_type prov, std::string_view name,
             const_cast<char *const *>(exec_args.data()));
 #else  // !defined(_WIN32)
     auto pid = fork();
+    if (pid < 0) {
+      exit(1);
+    }
+
     if (pid == 0) {
-      setsid();
-      chdir("/");
+      signal(SIGCHLD, SIG_DFL);
+
+      if (setsid() < 0) {
+        exit(1);
+      }
+
       close(STDIN_FILENO);
       close(STDOUT_FILENO);
       close(STDERR_FILENO);
-      open("/dev/null", O_RDONLY);
-      open("/dev/null", O_WRONLY);
-      open("/dev/null", O_WRONLY);
 
+      if (open("/dev/null", O_RDONLY) != 0 ||
+          open("/dev/null", O_WRONLY) != 1 ||
+          open("/dev/null", O_WRONLY) != 2) {
+        exit(1);
+      }
+
+      chdir(utils::path::get_parent_path(repertory_binary_).c_str());
       execvp(exec_args.at(0U), const_cast<char *const *>(exec_args.data()));
+      exit(1);
     } else {
       signal(SIGCHLD, SIG_IGN);
     }
 #endif // defined(_WIN32)
+
     return {};
   }
 
-  boost::process::ipstream out;
-  boost::process::child proc(repertory_binary_, boost::process::args(args),
-                             boost::process::std_out > out);
+  boost::process::v1::ipstream out;
+  boost::process::v1::child proc(repertory_binary_,
+                                 boost::process::v1::args(args),
+                                 boost::process::v1::std_out > out);
 
   std::string data;
   std::string line;
@@ -740,9 +817,13 @@ void handlers::removed_expired_nonces() {
 }
 
 void handlers::set_key_value(provider_type prov, std::string_view name,
-                             std::string_view key,
-                             std::string_view value) const {
+                             std::string_view key, std::string_view value,
+                             std::optional<std::string> data_dir) const {
   std::vector<std::string> args;
+  if (data_dir.has_value()) {
+    args.emplace_back("-dd");
+    args.emplace_back(data_dir.value());
+  }
   args.emplace_back("-set");
   args.emplace_back(key);
   args.emplace_back(value);

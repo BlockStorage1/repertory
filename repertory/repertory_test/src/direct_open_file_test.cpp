@@ -25,7 +25,7 @@
 #include "mocks/mock_provider.hpp"
 
 namespace {
-constexpr const std::size_t test_chunk_size{1024U};
+constexpr std::size_t test_chunk_size{1024U};
 } // namespace
 
 namespace repertory {
@@ -35,13 +35,9 @@ public:
   mock_provider provider;
 
 protected:
-  void SetUp() override {
-    event_system::instance().start();
-  }
+  void SetUp() override { event_system::instance().start(); }
 
-  void TearDown() override {
-    event_system::instance().stop();
-  }
+  void TearDown() override { event_system::instance().stop(); }
 };
 
 TEST_F(direct_open_file_test, read_full_file) {

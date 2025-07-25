@@ -35,7 +35,7 @@
 #include "utils/path.hpp"
 
 namespace {
-constexpr const std::size_t test_chunk_size{1024U};
+constexpr std::size_t test_chunk_size{1024U};
 }
 
 namespace repertory {
@@ -66,7 +66,7 @@ protected:
 std::atomic<std::size_t> open_file_test::inst{0U};
 
 static void test_closeable_open_file(const open_file &file, bool directory,
-                                     const api_error &err, std::uint64_t size,
+                                     api_error err, std::uint64_t size,
                                      const std::string &source_path) {
   EXPECT_EQ(directory, file.is_directory());
   EXPECT_EQ(err, file.get_api_error());

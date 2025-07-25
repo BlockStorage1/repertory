@@ -28,19 +28,19 @@
 #include "utils/windows.hpp"
 
 namespace repertory::utils {
-[[nodiscard]] auto
-get_accessed_time_from_meta(const api_meta_map &meta) -> std::uint64_t;
+[[nodiscard]] auto get_accessed_time_from_meta(const api_meta_map &meta)
+    -> std::uint64_t;
 
-[[nodiscard]] auto
-get_changed_time_from_meta(const api_meta_map &meta) -> std::uint64_t;
+[[nodiscard]] auto get_changed_time_from_meta(const api_meta_map &meta)
+    -> std::uint64_t;
 
-[[nodiscard]] auto
-get_creation_time_from_meta(const api_meta_map &meta) -> std::uint64_t;
+[[nodiscard]] auto get_creation_time_from_meta(const api_meta_map &meta)
+    -> std::uint64_t;
 
-[[nodiscard]] auto
-get_written_time_from_meta(const api_meta_map &meta) -> std::uint64_t;
+[[nodiscard]] auto get_written_time_from_meta(const api_meta_map &meta)
+    -> std::uint64_t;
 
-[[nodiscard]] auto from_api_error(const api_error &e) -> NTSTATUS;
+[[nodiscard]] auto from_api_error(api_error e) -> NTSTATUS;
 
 [[nodiscard]] auto unix_access_mask_to_windows(std::int32_t mask) -> int;
 

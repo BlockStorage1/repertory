@@ -94,7 +94,7 @@ private:
   bool shutdown_ = false;
 
 private:
-  static constexpr const auto min_pool_size = 10U;
+  static constexpr auto min_pool_size = 10U;
 
 public:
   void execute(const std::string &client_id, std::uint64_t thread_id,

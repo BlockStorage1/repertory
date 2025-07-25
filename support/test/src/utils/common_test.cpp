@@ -183,7 +183,7 @@ TEST(utils_common, divide_with_ceiling) {
 }
 
 TEST(utils_common, generate_random_between_for_signed_integers) {
-  static constexpr const auto max_iterations{1000000UL};
+  static constexpr auto max_iterations{1000000UL};
 
   for (std::size_t idx = 0U; idx < max_iterations; ++idx) {
     auto res = utils::generate_random_between(5, 12);
@@ -205,7 +205,7 @@ TEST(utils_common, generate_random_between_for_signed_integers) {
 }
 
 TEST(utils_common, generate_random_between_for_unsigned_integers) {
-  static constexpr const auto max_iterations{1000000UL};
+  static constexpr auto max_iterations{1000000UL};
 
   for (std::size_t idx = 0U; idx < max_iterations; ++idx) {
     auto res = utils::generate_random_between(5U, 12U);
@@ -239,7 +239,7 @@ TEST(utils_common, generate_random_between_throws_error_on_invalid_range) {
 }
 
 TEST(utils_common, generate_random_string) {
-  static constexpr const auto max_iterations{10000L};
+  static constexpr auto max_iterations{10000L};
 
   const auto test_string = [](auto str) {
     static std::vector<decltype(str)> list{};
@@ -267,7 +267,7 @@ TEST(utils_common, generate_random_string_for_zero_length) {
 }
 
 TEST(utils_common, get_environment_variable) {
-  static constexpr const std::string path_env{"PATH"};
+  static constexpr std::string path_env{"PATH"};
   std::string path;
 
 #if defined(_WIN32)

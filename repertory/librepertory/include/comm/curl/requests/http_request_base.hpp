@@ -61,6 +61,8 @@ struct http_request_base {
 
   [[nodiscard]] virtual auto get_path() const -> std::string { return path; }
 
+  [[nodiscard]] virtual auto get_type() const -> std::string = 0;
+
   [[nodiscard]] virtual auto set_method(CURL *curl,
                                         stop_type &stop_requested) const
       -> bool = 0;

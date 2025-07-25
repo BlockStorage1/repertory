@@ -34,8 +34,8 @@ struct provider_offline final : public i_event {
         host_name_or_ip(std::move(host_name_or_ip_)),
         port(port_) {}
 
-  static constexpr const event_level level{event_level::warn};
-  static constexpr const std::string_view name{"provider_offline"};
+  static constexpr event_level level{event_level::warn};
+  static constexpr std::string_view name{"provider_offline"};
 
   std::string function_name;
   std::string host_name_or_ip;
