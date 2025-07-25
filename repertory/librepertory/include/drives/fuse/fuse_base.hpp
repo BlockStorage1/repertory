@@ -61,7 +61,7 @@ private:
   static auto instance() -> fuse_base &;
 
 private:
-  struct fuse_operations fuse_ops_ {};
+  struct fuse_operations fuse_ops_{};
 
 private:
   [[nodiscard]] auto
@@ -78,9 +78,9 @@ private:
   static void execute_void_callback(std::string_view function_name,
                                     const std::function<void()> &cb);
 
-  static auto
-  execute_void_pointer_callback(std::string_view function_name,
-                                const std::function<void *()> &cb) -> void *;
+  static auto execute_void_pointer_callback(std::string_view function_name,
+                                            const std::function<void *()> &cb)
+      -> void *;
 
   void raise_fuse_event(std::string_view function_name,
                         std::string_view api_path, int ret,
@@ -91,22 +91,22 @@ private:
 
 #if defined(__APPLE__)
   [[nodiscard]] static auto chflags_(const char *path, uint32_t flags) -> int;
-#endif // __APPLE__
+#endif // defined(__APPLE__)
 
 #if FUSE_USE_VERSION >= 30
   [[nodiscard]] static auto chmod_(const char *path, mode_t mode,
                                    struct fuse_file_info *fi) -> int;
-#else
+#else  // FUSE_USE_VERSION < 30
   [[nodiscard]] static auto chmod_(const char *path, mode_t mode) -> int;
-#endif
+#endif // FUSE_USE_VERSION >= 30
 
 #if FUSE_USE_VERSION >= 30
   [[nodiscard]] static auto chown_(const char *path, uid_t uid, gid_t gid,
                                    struct fuse_file_info *fi) -> int;
-#else
-  [[nodiscard]] static auto chown_(const char *path, uid_t uid,
-                                   gid_t gid) -> int;
-#endif
+#else  // FUSE_USE_VERSION < 30
+  [[nodiscard]] static auto chown_(const char *path, uid_t uid, gid_t gid)
+      -> int;
+#endif // FUSE_USE_VERSION >= 30
 
   [[nodiscard]] static auto create_(const char *path, mode_t mode,
                                     struct fuse_file_info *fi) -> int;
@@ -114,19 +114,19 @@ private:
   static void destroy_(void *ptr);
 
   [[nodiscard]] static auto fallocate_(const char *path, int mode, off_t offset,
-                                       off_t length,
-                                       struct fuse_file_info *fi) -> int;
+                                       off_t length, struct fuse_file_info *fi)
+      -> int;
 
 #if FUSE_USE_VERSION < 30
   [[nodiscard]] static auto fgetattr_(const char *path, struct stat *st,
                                       struct fuse_file_info *fi) -> int;
-#endif
+#endif // FUSE_USE_VERSION < 30
 
 #if defined(__APPLE__)
   [[nodiscard]] static auto fsetattr_x_(const char *path,
                                         struct setattr_x *attr,
                                         struct fuse_file_info *fi) -> int;
-#endif // __APPLE__
+#endif // defined(__APPLE__)
 
   [[nodiscard]] static auto fsync_(const char *path, int datasync,
                                    struct fuse_file_info *fi) -> int;
@@ -137,27 +137,27 @@ private:
 #if FUSE_USE_VERSION >= 30
   [[nodiscard]] static auto getattr_(const char *path, struct stat *st,
                                      struct fuse_file_info *fi) -> int;
-#else
+#else  // FUSE_USE_VERSION < 30
   [[nodiscard]] static auto getattr_(const char *path, struct stat *st) -> int;
-#endif
+#endif // FUSE_USE_VERSION >= 30
 
 #if defined(__APPLE__)
   [[nodiscard]] static auto getxtimes_(const char *path,
                                        struct timespec *bkuptime,
                                        struct timespec *crtime) -> int;
-#endif // __APPLE__
+#endif // defined(__APPLE__)
 
 #if FUSE_USE_VERSION >= 30
   [[nodiscard]] static auto init_(struct fuse_conn_info *conn,
                                   struct fuse_config *cfg) -> void *;
-#else
+#else  // FUSE_USE_VERSION < 30
   [[nodiscard]] static auto init_(struct fuse_conn_info *conn) -> void *;
-#endif
+#endif // FUSE_USE_VERSION >= 30
 
   [[nodiscard]] static auto mkdir_(const char *path, mode_t mode) -> int;
 
-  [[nodiscard]] static auto open_(const char *path,
-                                  struct fuse_file_info *fi) -> int;
+  [[nodiscard]] static auto open_(const char *path, struct fuse_file_info *fi)
+      -> int;
 
   [[nodiscard]] static auto opendir_(const char *path,
                                      struct fuse_file_info *fi) -> int;
@@ -171,12 +171,12 @@ private:
                                      fuse_fill_dir_t fuse_fill_dir,
                                      off_t offset, struct fuse_file_info *fi,
                                      fuse_readdir_flags flags) -> int;
-#else
+#else  // FUSE_USE_VERSION < 30
   [[nodiscard]] static auto readdir_(const char *path, void *buf,
                                      fuse_fill_dir_t fuse_fill_dir,
-                                     off_t offset,
-                                     struct fuse_file_info *fi) -> int;
-#endif
+                                     off_t offset, struct fuse_file_info *fi)
+      -> int;
+#endif // FUSE_USE_VERSION >= 30
 
   [[nodiscard]] static auto release_(const char *path,
                                      struct fuse_file_info *fi) -> int;
@@ -187,9 +187,9 @@ private:
 #if FUSE_USE_VERSION >= 30
   [[nodiscard]] static auto rename_(const char *from, const char *to,
                                     unsigned int flags) -> int;
-#else
+#else  // FUSE_USE_VERSION < 30
   [[nodiscard]] static auto rename_(const char *from, const char *to) -> int;
-#endif
+#endif // FUSE_USE_VERSION >= 30
 
   [[nodiscard]] static auto rmdir_(const char *path) -> int;
 
@@ -199,35 +199,36 @@ private:
                                       char *value, size_t size,
                                       uint32_t position) -> int;
 
-#else  // __APPLE__
+#else  // !defined(__APPLE__)
   [[nodiscard]] static auto getxattr_(const char *path, const char *name,
                                       char *value, size_t size) -> int;
-#endif // __APPLE__
+#endif // defined(__APPLE__)
 
   [[nodiscard]] static auto listxattr_(const char *path, char *buffer,
                                        size_t size) -> int;
 
-  [[nodiscard]] static auto removexattr_(const char *path,
-                                         const char *name) -> int;
+  [[nodiscard]] static auto removexattr_(const char *path, const char *name)
+      -> int;
 
 #if defined(__APPLE__)
   [[nodiscard]] static auto setxattr_(const char *path, const char *name,
                                       const char *value, size_t size, int flags,
                                       uint32_t position) -> int;
 
-#else  // __APPLE__
+#else  // !defined(__APPLE__)
   [[nodiscard]] static auto setxattr_(const char *path, const char *name,
-                                      const char *value, size_t size,
-                                      int flags) -> int;
-#endif // __APPLE__
-#endif // HAS_SETXATTR
+                                      const char *value, size_t size, int flags)
+      -> int;
+#endif // defined(__APPLE__)
+#endif // defined(HAS_SETXATTR)
 
 #if defined(__APPLE__)
-  [[nodiscard]] static auto setattr_x_(const char *path,
-                                       struct setattr_x *attr) -> int;
+  [[nodiscard]] static auto setattr_x_(const char *path, struct setattr_x *attr)
+      -> int;
 
-  [[nodiscard]] static auto
-  setbkuptime_(const char *path, const struct timespec *bkuptime) -> int;
+  [[nodiscard]] static auto setbkuptime_(const char *path,
+                                         const struct timespec *bkuptime)
+      -> int;
 
   [[nodiscard]] static auto setchgtime_(const char *path,
                                         const struct timespec *chgtime) -> int;
@@ -237,20 +238,20 @@ private:
 
   [[nodiscard]] static auto setvolname_(const char *volname) -> int;
 
-  [[nodiscard]] static auto statfs_x_(const char *path,
-                                      struct statfs *stbuf) -> int;
+  [[nodiscard]] static auto statfs_x_(const char *path, struct statfs *stbuf)
+      -> int;
 
-#else  // __APPLE__
-  [[nodiscard]] static auto statfs_(const char *path,
-                                    struct statvfs *stbuf) -> int;
-#endif // __APPLE__
+#else  // !defined(__APPLE__)
+  [[nodiscard]] static auto statfs_(const char *path, struct statvfs *stbuf)
+      -> int;
+#endif // defined(__APPLE__)
 
 #if FUSE_USE_VERSION >= 30
   [[nodiscard]] static auto truncate_(const char *path, off_t size,
                                       struct fuse_file_info *fi) -> int;
-#else
+#else  // FUSE_USE_VERSION < 30
   [[nodiscard]] static auto truncate_(const char *path, off_t size) -> int;
-#endif
+#endif // FUSE_USE_VERSION >= 30
 
   [[nodiscard]] static auto unlink_(const char *path) -> int;
 
@@ -258,18 +259,18 @@ private:
   [[nodiscard]] static auto utimens_(const char *path,
                                      const struct timespec tv[2],
                                      struct fuse_file_info *fi) -> int;
-#else
+#else  // FUSE_USE_VERSION < 30
   [[nodiscard]] static auto utimens_(const char *path,
                                      const struct timespec tv[2]) -> int;
-#endif
+#endif // FUSE_USE_VERSION >= 30
 
   [[nodiscard]] static auto write_(const char *path, const char *buffer,
                                    size_t write_size, off_t write_offset,
                                    struct fuse_file_info *fi) -> int;
 
 protected:
-  [[nodiscard]] virtual auto access_impl(std::string /*api_path*/,
-                                         int /*mask*/) -> api_error {
+  [[nodiscard]] virtual auto access_impl(std::string /*api_path*/, int /*mask*/)
+      -> api_error {
     return api_error::not_implemented;
   }
 
@@ -278,37 +279,40 @@ protected:
                                           uint32_t /*flags*/) -> api_error {
     return api_error::not_implemented;
   }
-#endif // __APPLE__
+#endif // defined(__APPLE__)
 
 #if FUSE_USE_VERSION >= 30
-  [[nodiscard]] virtual auto
-  chmod_impl(std::string /*api_path*/, mode_t /*mode*/,
-             struct fuse_file_info * /*fi*/) -> api_error {
+  [[nodiscard]] virtual auto chmod_impl(std::string /*api_path*/,
+                                        mode_t /*mode*/,
+                                        struct fuse_file_info * /*fi*/)
+      -> api_error {
     return api_error::not_implemented;
   }
-#else
+#else //FUSE_USE_VERSION < 30
   [[nodiscard]] virtual auto chmod_impl(std::string /*api_path*/,
                                         mode_t /*mode*/) -> api_error {
     return api_error::not_implemented;
   }
-#endif
+#endif // FUSE_USE_VERSION >= 30
 
 #if FUSE_USE_VERSION >= 30
-  [[nodiscard]] virtual auto
-  chown_impl(std::string /*api_path*/, uid_t /*uid*/, gid_t /*gid*/,
-             struct fuse_file_info * /*fi*/) -> api_error {
+  [[nodiscard]] virtual auto chown_impl(std::string /*api_path*/, uid_t /*uid*/,
+                                        gid_t /*gid*/,
+                                        struct fuse_file_info * /*fi*/)
+      -> api_error {
     return api_error::not_implemented;
   }
-#else
+#else // FUSE_USE_VERSION < 30
   [[nodiscard]] virtual auto chown_impl(std::string /*api_path*/, uid_t /*uid*/,
                                         gid_t /*gid*/) -> api_error {
     return api_error::not_implemented;
   }
-#endif
+#endif // FUSE_USE_VERSION >= 30
 
-  [[nodiscard]] virtual auto
-  create_impl(std::string /*api_path*/, mode_t /*mode*/,
-              struct fuse_file_info * /*fi*/) -> api_error {
+  [[nodiscard]] virtual auto create_impl(std::string /*api_path*/,
+                                         mode_t /*mode*/,
+                                         struct fuse_file_info * /*fi*/)
+      -> api_error {
     return api_error::not_implemented;
   }
 
@@ -316,81 +320,87 @@ protected:
 
   [[nodiscard]] virtual auto
   fallocate_impl(std::string /*api_path*/, int /*mode*/, off_t /*offset*/,
-                 off_t /*length*/,
-                 struct fuse_file_info * /*fi*/) -> api_error {
+                 off_t /*length*/, struct fuse_file_info * /*fi*/)
+      -> api_error {
     return api_error::not_implemented;
   }
 
-  [[nodiscard]] virtual auto
-  fgetattr_impl(std::string /*api_path*/, struct stat * /*st*/,
-                struct fuse_file_info * /*fi*/) -> api_error {
+  [[nodiscard]] virtual auto fgetattr_impl(std::string /*api_path*/,
+                                           struct stat * /*st*/,
+                                           struct fuse_file_info * /*fi*/)
+      -> api_error {
     return api_error::not_implemented;
   }
 
 #if defined(__APPLE__)
-  [[nodiscard]] virtual auto
-  fsetattr_x_impl(std::string /*api_path*/, struct setattr_x * /*attr*/,
-                  struct fuse_file_info * /*fi*/) -> api_error {
+  [[nodiscard]] virtual auto fsetattr_x_impl(std::string /*api_path*/,
+                                             struct setattr_x * /*attr*/,
+                                             struct fuse_file_info * /*fi*/)
+      -> api_error {
     return api_error::not_implemented;
   }
-#endif // __APPLE__
+#endif // defined(__APPLE__)
 
-  [[nodiscard]] virtual auto
-  fsync_impl(std::string /*api_path*/, int /*datasync*/,
-             struct fuse_file_info * /*fi*/) -> api_error {
+  [[nodiscard]] virtual auto fsync_impl(std::string /*api_path*/,
+                                        int /*datasync*/,
+                                        struct fuse_file_info * /*fi*/)
+      -> api_error {
     return api_error::not_implemented;
   }
 
 #if FUSE_USE_VERSION < 30
-  [[nodiscard]] virtual auto
-  ftruncate_impl(std::string /*api_path*/, off_t /*size*/,
-                 struct fuse_file_info * /*fi*/) -> api_error {
+  [[nodiscard]] virtual auto ftruncate_impl(std::string /*api_path*/,
+                                            off_t /*size*/,
+                                            struct fuse_file_info * /*fi*/)
+      -> api_error {
     return api_error::not_implemented;
   }
-#endif
+#endif // FUSE_USE_VERSION < 30
 
 #if FUSE_USE_VERSION >= 30
-  [[nodiscard]] virtual auto
-  getattr_impl(std::string /*api_path*/, struct stat * /*st*/,
-               struct fuse_file_info * /*fi*/) -> api_error {
+  [[nodiscard]] virtual auto getattr_impl(std::string /*api_path*/,
+                                          struct stat * /*st*/,
+                                          struct fuse_file_info * /*fi*/)
+      -> api_error {
     return api_error::not_implemented;
   }
-#else
+#else // FUSE_USE_VERSION < 30
   [[nodiscard]] virtual auto getattr_impl(std::string /*api_path*/,
                                           struct stat * /*st*/) -> api_error {
     return api_error::not_implemented;
   }
-#endif
+#endif // FUSE_USE_VERSION >= 30
 
 #if defined(__APPLE__)
-  [[nodiscard]] virtual auto
-  getxtimes_impl(std::string /*api_path*/, struct timespec * /*bkuptime*/,
-                 struct timespec * /*crtime*/) -> api_error {
+  [[nodiscard]] virtual auto getxtimes_impl(std::string /*api_path*/,
+                                            struct timespec * /*bkuptime*/,
+                                            struct timespec * /*crtime*/)
+      -> api_error {
     return api_error::not_implemented;
   }
-#endif // __APPLE__
+#endif // defined(__APPLE__)
 
 #if FUSE_USE_VERSION >= 30
-  virtual auto init_impl(struct fuse_conn_info *conn,
-                         struct fuse_config *cfg) -> void *;
-#else
+  virtual auto init_impl(struct fuse_conn_info *conn, struct fuse_config *cfg)
+      -> void *;
+#else // FUSE_USE_VERSION < 30
   virtual auto init_impl(struct fuse_conn_info *conn) -> void *;
-#endif
+#endif // FUSE_USE_VERSION >= 30
 
   [[nodiscard]] virtual auto mkdir_impl(std::string /*api_path*/,
                                         mode_t /*mode*/) -> api_error {
     return api_error::not_implemented;
   }
 
-  [[nodiscard]] virtual auto
-  open_impl(std::string /*api_path*/,
-            struct fuse_file_info * /*fi*/) -> api_error {
+  [[nodiscard]] virtual auto open_impl(std::string /*api_path*/,
+                                       struct fuse_file_info * /*fi*/)
+      -> api_error {
     return api_error::not_implemented;
   }
 
-  [[nodiscard]] virtual auto
-  opendir_impl(std::string /*api_path*/,
-               struct fuse_file_info * /*fi*/) -> api_error {
+  [[nodiscard]] virtual auto opendir_impl(std::string /*api_path*/,
+                                          struct fuse_file_info * /*fi*/)
+      -> api_error {
     return api_error::not_implemented;
   }
 
@@ -405,28 +415,28 @@ protected:
   [[nodiscard]] virtual auto
   readdir_impl(std::string /*api_path*/, void * /*buf*/,
                fuse_fill_dir_t /*fuse_fill_dir*/, off_t /*offset*/,
-               struct fuse_file_info * /*fi*/,
-               fuse_readdir_flags /*flags*/) -> api_error {
+               struct fuse_file_info * /*fi*/, fuse_readdir_flags /*flags*/)
+      -> api_error {
     return api_error::not_implemented;
   }
-#else
+#else // FUSE_USE_VERSION < 30
   [[nodiscard]] virtual auto
   readdir_impl(std::string /*api_path*/, void * /*buf*/,
                fuse_fill_dir_t /*fuse_fill_dir*/, off_t /*offset*/,
                struct fuse_file_info * /*fi*/) -> api_error {
     return api_error::not_implemented;
   }
-#endif
+#endif // FUSE_USE_VERSION >= 30
 
-  [[nodiscard]] virtual auto
-  release_impl(std::string /*api_path*/,
-               struct fuse_file_info * /*fi*/) -> api_error {
+  [[nodiscard]] virtual auto release_impl(std::string /*api_path*/,
+                                          struct fuse_file_info * /*fi*/)
+      -> api_error {
     return api_error::not_implemented;
   }
 
-  [[nodiscard]] virtual auto
-  releasedir_impl(std::string /*api_path*/,
-                  struct fuse_file_info * /*fi*/) -> api_error {
+  [[nodiscard]] virtual auto releasedir_impl(std::string /*api_path*/,
+                                             struct fuse_file_info * /*fi*/)
+      -> api_error {
     return api_error::not_implemented;
   }
 
@@ -436,13 +446,13 @@ protected:
                                          unsigned int /*flags*/) -> api_error {
     return api_error::not_implemented;
   }
-#else
-  [[nodiscard]] virtual auto
-  rename_impl(std::string /*from_api_path*/,
-              std::string /*to_api_path*/) -> api_error {
+#else // FUSE_USE_VERSION < 30
+  [[nodiscard]] virtual auto rename_impl(std::string /*from_api_path*/,
+                                         std::string /*to_api_path*/)
+      -> api_error {
     return api_error::not_implemented;
   }
-#endif
+#endif // FUSE_USE_VERSION >= 30
 
   [[nodiscard]] virtual auto rmdir_impl(std::string /*api_path*/) -> api_error {
     return api_error::not_implemented;
@@ -456,14 +466,14 @@ protected:
                 int & /*attribute_size*/) -> api_error {
     return api_error::not_implemented;
   }
-#else  // __APPLE__
+#else  // !defined(__APPLE__)
   [[nodiscard]] virtual auto
   getxattr_impl(std::string /*api_path*/, const char * /*name*/,
-                char * /*value*/, size_t /*size*/,
-                int & /*attribute_size*/) -> api_error {
+                char * /*value*/, size_t /*size*/, int & /*attribute_size*/)
+      -> api_error {
     return api_error::not_implemented;
   }
-#endif // __APPLE__
+#endif // defined(__APPLE__)
 
   [[nodiscard]] virtual auto
   listxattr_impl(std::string /*api_path*/, char * /*buffer*/, size_t /*size*/,
@@ -471,9 +481,9 @@ protected:
     return api_error::not_implemented;
   }
 
-  [[nodiscard]] virtual auto
-  removexattr_impl(std::string /*api_path*/,
-                   const char * /*name*/) -> api_error {
+  [[nodiscard]] virtual auto removexattr_impl(std::string /*api_path*/,
+                                              const char * /*name*/)
+      -> api_error {
     return api_error::not_implemented;
   }
 
@@ -485,21 +495,20 @@ protected:
                                            uint32_t /*position*/) -> api_error {
     return api_error::not_implemented;
   }
-#else  // __APPLE__
-  [[nodiscard]] virtual auto setxattr_impl(std::string /*api_path*/,
-                                           const char * /*name*/,
-                                           const char * /*value*/,
-                                           size_t /*size*/,
-                                           int /*flags*/) -> api_error {
+#else  // !defined (__APPLE__)
+  [[nodiscard]] virtual auto
+  setxattr_impl(std::string /*api_path*/, const char * /*name*/,
+                const char * /*value*/, size_t /*size*/, int /*flags*/)
+      -> api_error {
     return api_error::not_implemented;
   }
-#endif // __APPLE__
-#endif // HAS_SETXATTR
+#endif // defined (__APPLE__)
+#endif // defined(HAS_SETXATTR)
 
 #if defined(__APPLE__)
-  [[nodiscard]] virtual auto
-  setattr_x_impl(std::string /*api_path*/,
-                 struct setattr_x * /*attr*/) -> api_error {
+  [[nodiscard]] virtual auto setattr_x_impl(std::string /*api_path*/,
+                                            struct setattr_x * /*attr*/)
+      -> api_error {
     return api_error::not_implemented;
   }
 
@@ -510,72 +519,74 @@ protected:
   }
 
   [[nodiscard]] virtual auto
-  setchgtime_impl(std::string /*api_path*/,
-                  const struct timespec * /*chgtime*/) -> api_error {
+  setchgtime_impl(std::string /*api_path*/, const struct timespec * /*chgtime*/)
+      -> api_error {
     return api_error::not_implemented;
   }
 
-  [[nodiscard]] virtual auto
-  setcrtime_impl(std::string /*api_path*/,
-                 const struct timespec * /*crtime*/) -> api_error {
+  [[nodiscard]] virtual auto setcrtime_impl(std::string /*api_path*/,
+                                            const struct timespec * /*crtime*/)
+      -> api_error {
     return api_error::not_implemented;
   }
 
-  [[nodiscard]] virtual auto
-  setvolname_impl(const char * /*volname*/) -> api_error {
+  [[nodiscard]] virtual auto setvolname_impl(const char * /*volname*/)
+      -> api_error {
     return api_error::not_implemented;
   }
 
-  [[nodiscard]] virtual auto
-  statfs_x_impl(std::string /*api_path*/,
-                struct statfs * /*stbuf*/) -> api_error {
+  [[nodiscard]] virtual auto statfs_x_impl(std::string /*api_path*/,
+                                           struct statfs * /*stbuf*/)
+      -> api_error {
     return api_error::not_implemented;
   }
-#else  // __APPLE__
-  [[nodiscard]] virtual auto
-  statfs_impl(std::string /*api_path*/,
-              struct statvfs * /*stbuf*/) -> api_error {
+#else  // !defined(__APPLE__)
+  [[nodiscard]] virtual auto statfs_impl(std::string /*api_path*/,
+                                         struct statvfs * /*stbuf*/)
+      -> api_error {
     return api_error::not_implemented;
   }
-#endif // __APPLE__
+#endif // defined(__APPLE__)
 
 #if FUSE_USE_VERSION >= 30
-  [[nodiscard]] virtual auto
-  truncate_impl(std::string /*api_path*/, off_t /*size*/,
-                struct fuse_file_info * /*fi*/) -> api_error {
+  [[nodiscard]] virtual auto truncate_impl(std::string /*api_path*/,
+                                           off_t /*size*/,
+                                           struct fuse_file_info * /*fi*/)
+      -> api_error {
     return api_error::not_implemented;
   }
-#else
+#else // FUSE_USE_VERSION < 30
   [[nodiscard]] virtual auto truncate_impl(std::string /*api_path*/,
                                            off_t /*size*/) -> api_error {
     return api_error::not_implemented;
   }
-#endif
+#endif // FUSE_USE_VERSION >= 30
 
-  [[nodiscard]] virtual auto
-  unlink_impl(std::string /*api_path*/) -> api_error {
+  [[nodiscard]] virtual auto unlink_impl(std::string /*api_path*/)
+      -> api_error {
     return api_error::not_implemented;
   }
 
 #if FUSE_USE_VERSION >= 30
-  [[nodiscard]] virtual auto
-  utimens_impl(std::string /*api_path*/, const struct timespec /*tv*/[2],
-               struct fuse_file_info * /*fi*/) -> api_error {
+  [[nodiscard]] virtual auto utimens_impl(std::string /*api_path*/,
+                                          const struct timespec /*tv*/[2],
+                                          struct fuse_file_info * /*fi*/)
+      -> api_error {
     return api_error::not_implemented;
   }
-#else
-  [[nodiscard]] virtual auto
-  utimens_impl(std::string /*api_path*/,
-               const struct timespec /*tv*/[2]) -> api_error {
+#else // FUSE_USE_VERSION < 30
+  [[nodiscard]] virtual auto utimens_impl(std::string /*api_path*/,
+                                          const struct timespec /*tv*/[2])
+      -> api_error {
     return api_error::not_implemented;
   }
-#endif
+#endif // FUSE_USE_VERSION >= 30
 
   [[nodiscard]] virtual auto
   write_impl(std::string /*api_path*/, const char * /*buffer*/,
              size_t /*write_size*/, off_t /*write_offset*/,
-             struct fuse_file_info * /*fi*/,
-             std::size_t & /*bytes_written*/) -> api_error {
+             struct fuse_file_info * /*fi*/, std::size_t & /*bytes_written*/)
+      -> api_error {
     return api_error::not_implemented;
   }
 
@@ -603,5 +614,5 @@ public:
 };
 } // namespace repertory
 
-#endif // _WIN32
+#endif // !defined(_WIN32)
 #endif // REPERTORY_INCLUDE_DRIVES_FUSE_FUSE_BASE_HPP_

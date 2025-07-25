@@ -29,7 +29,7 @@
 #include "utils/path.hpp"
 
 namespace {
-constexpr const std::size_t test_chunk_size{1024U};
+constexpr std::size_t test_chunk_size{1024U};
 
 const auto ring_buffer_dir{
     repertory::utils::path::combine(
@@ -45,13 +45,9 @@ public:
   mock_provider provider;
 
 protected:
-  void SetUp() override {
-    event_system::instance().start();
-  }
+  void SetUp() override { event_system::instance().start(); }
 
-  void TearDown() override {
-    event_system::instance().stop();
-  }
+  void TearDown() override { event_system::instance().stop(); }
 };
 
 TEST_F(ring_buffer_open_file_test, can_forward_to_last_chunk) {

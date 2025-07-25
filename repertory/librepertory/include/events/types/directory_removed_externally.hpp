@@ -35,8 +35,8 @@ struct directory_removed_externally final : public i_event {
         function_name(std::string(function_name_)),
         source_path(std::move(source_path_)) {}
 
-  static constexpr const event_level level{event_level::warn};
-  static constexpr const std::string_view name{"directory_removed_externally"};
+  static constexpr event_level level{event_level::warn};
+  static constexpr std::string_view name{"directory_removed_externally"};
 
   std::string api_path;
   std::string function_name;

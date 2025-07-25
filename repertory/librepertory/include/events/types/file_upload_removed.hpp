@@ -32,8 +32,8 @@ struct file_upload_removed final : public i_event {
       : api_path(std::move(api_path_)),
         function_name(std::string(function_name_)) {}
 
-  static constexpr const event_level level{event_level::debug};
-  static constexpr const std::string_view name{"file_upload_removed"};
+  static constexpr event_level level{event_level::debug};
+  static constexpr std::string_view name{"file_upload_removed"};
 
   std::string api_path;
   std::string function_name;

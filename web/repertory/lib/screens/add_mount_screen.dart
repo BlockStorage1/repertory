@@ -21,6 +21,7 @@ class _AddMountScreenState extends State<AddMountScreen> {
   Mount? _mount;
   final _mountNameController = TextEditingController();
   String _mountType = "";
+
   final Map<String, Map<String, dynamic>> _settings = {
     "": {},
     "Encrypt": createDefaultSettings("Encrypt"),
@@ -69,18 +70,16 @@ class _AddMountScreenState extends State<AddMountScreen> {
                         DropdownButton<String>(
                           autofocus: true,
                           value: _mountType,
-                          onChanged:
-                              (mountType) =>
-                                  _handleChange(auth, mountType ?? ''),
-                          items:
-                              constants.providerTypeList
-                                  .map<DropdownMenuItem<String>>((item) {
-                                    return DropdownMenuItem<String>(
-                                      value: item,
-                                      child: Text(item),
-                                    );
-                                  })
-                                  .toList(),
+                          onChanged: (mountType) =>
+                              _handleChange(auth, mountType ?? ''),
+                          items: constants.providerTypeList
+                              .map<DropdownMenuItem<String>>((item) {
+                                return DropdownMenuItem<String>(
+                                  value: item,
+                                  child: Text(item),
+                                );
+                              })
+                              .toList(),
                         ),
                       ],
                     ),
@@ -113,8 +112,8 @@ class _AddMountScreenState extends State<AddMountScreen> {
                       ),
                     ),
                   ),
-                if (_mount != null) const SizedBox(height: constants.padding),
-                if (_mount != null)
+                if (_mount != null) ...[
+                  const SizedBox(height: constants.padding),
                   Expanded(
                     child: Card(
                       margin: EdgeInsets.all(0.0),
@@ -129,10 +128,15 @@ class _AddMountScreenState extends State<AddMountScreen> {
                       ),
                     ),
                   ),
-                if (_mount != null) const SizedBox(height: constants.padding),
-                if (_mount != null)
+                  const SizedBox(height: constants.padding),
                   Row(
                     children: [
+                      ElevatedButton.icon(
+                        label: const Text('Test'),
+                        icon: const Icon(Icons.check),
+                        onPressed: _handleProviderTest,
+                      ),
+                      const SizedBox(width: constants.padding),
                       ElevatedButton.icon(
                         label: const Text('Add'),
                         icon: const Icon(Icons.add),
@@ -189,16 +193,9 @@ class _AddMountScreenState extends State<AddMountScreen> {
                           Navigator.pop(context);
                         },
                       ),
-                      if (_mountType == 'Sia' || _mountType == 'S3') ...[
-                        const SizedBox(width: constants.padding),
-                        ElevatedButton.icon(
-                          label: const Text('Test'),
-                          icon: const Icon(Icons.check),
-                          onPressed: () async {},
-                        ),
-                      ],
                     ],
                   ),
+                ],
               ],
             );
           },
@@ -218,20 +215,35 @@ class _AddMountScreenState extends State<AddMountScreen> {
         _mountNameController.text = mountType == 'Sia' ? 'default' : '';
       }
 
-      _mount =
-          (_mountNameController.text.isEmpty)
-              ? null
-              : Mount(
-                auth,
-                MountConfig(
-                  name: _mountNameController.text,
-                  settings: _settings[mountType],
-                  type: mountType,
-                ),
-                null,
-                isAdd: true,
-              );
+      _mount = (_mountNameController.text.isEmpty)
+          ? null
+          : Mount(
+              auth,
+              MountConfig(
+                name: _mountNameController.text,
+                settings: _settings[mountType],
+                type: mountType,
+              ),
+              null,
+              isAdd: true,
+            );
     });
+  }
+
+  Future<void> _handleProviderTest() async {
+    if (_mount == null) {
+      return;
+    }
+
+    final success = await _mount!.test();
+    if (!mounted) {
+      return;
+    }
+
+    displayErrorMessage(
+      context,
+      success ? "Success" : "Provider settings are invalid!",
+    );
   }
 
   @override

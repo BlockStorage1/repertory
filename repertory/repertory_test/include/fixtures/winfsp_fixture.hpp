@@ -38,28 +38,38 @@
 
 namespace {
 std::atomic<std::size_t> idx{0U};
-constexpr const auto SLEEP_SECONDS{1.5s};
+constexpr auto SLEEP_SECONDS{1.5s};
 } // namespace
 
 namespace repertory {
 struct local_s3 final {
-  static constexpr const provider_type type{provider_type::s3};
-  static constexpr const provider_type type2{provider_type::s3};
+  static constexpr provider_type type{provider_type::s3};
+  static constexpr provider_type type2{provider_type::s3};
+  static constexpr std::uint16_t port{0U};
 };
 
 struct local_sia final {
-  static constexpr const provider_type type{provider_type::sia};
-  static constexpr const provider_type type2{provider_type::sia};
+  static constexpr provider_type type{provider_type::sia};
+  static constexpr provider_type type2{provider_type::sia};
+  static constexpr std::uint16_t port{0U};
 };
 
 struct remote_s3 final {
-  static constexpr const provider_type type{provider_type::remote};
-  static constexpr const provider_type type2{provider_type::s3};
+  static constexpr provider_type type{provider_type::remote};
+  static constexpr provider_type type2{provider_type::s3};
+  static constexpr std::uint16_t port{0U};
 };
 
 struct remote_sia final {
-  static constexpr const provider_type type{provider_type::remote};
-  static constexpr const provider_type type2{provider_type::sia};
+  static constexpr provider_type type{provider_type::remote};
+  static constexpr provider_type type2{provider_type::sia};
+  static constexpr std::uint16_t port{0U};
+};
+
+struct remote_winfsp_to_linux final {
+  static constexpr provider_type type{provider_type::remote};
+  static constexpr provider_type type2{provider_type::unknown};
+  static constexpr std::uint16_t port{40001U};
 };
 
 template <typename provider_t> class winfsp_test : public ::testing::Test {
@@ -102,7 +112,7 @@ protected:
 
           auto r_cfg = config->get_remote_mount();
           r_cfg.enable = true;
-          r_cfg.api_port = 30000U;
+          r_cfg.api_port = 40000U;
           config->set_remote_mount(r_cfg);
         }
 
@@ -131,7 +141,7 @@ protected:
         ASSERT_TRUE(utils::file::directory(cfg_directory).create_directory());
 
         auto config =
-            std::make_unique<app_config>(provider_type::s3, cfg_directory);
+            std::make_unique<app_config>(provider_type::sia, cfg_directory);
         {
           app_config src_cfg{
               provider_type::sia,
@@ -144,7 +154,7 @@ protected:
 
           auto r_cfg = config->get_remote_mount();
           r_cfg.enable = true;
-          r_cfg.api_port = 30000U;
+          r_cfg.api_port = 40000U;
           config->set_remote_mount(r_cfg);
         }
 
@@ -160,13 +170,15 @@ protected:
       execute_mount(drive_args, mount_location);
     };
 
-    const auto mount_remote = [&]() {
+    const auto mount_remote = [&](std::uint16_t port = 40000U) {
       {
         auto test_directory = utils::path::combine(
             test::get_test_output_dir(),
             {
                 "winfsp_test",
-                app_config::get_provider_name(provider_type::remote),
+                app_config::get_provider_name(provider_t::type) + '_' +
+                    app_config::get_provider_name(provider_t::type2) + '_' +
+                    std::to_string(port),
             });
 
         mount_location2 = mount_location;
@@ -184,7 +196,7 @@ protected:
             "-dd",
             config->get_data_directory(),
             "-rm",
-            "localhost:30000",
+            fmt::format("localhost:{}", port),
             mount_location,
         });
       }
@@ -211,6 +223,10 @@ protected:
         mount_sia();
       } break;
 
+      case provider_type::unknown:
+        mount_remote(provider_t::port);
+        return;
+
       default:
         throw std::runtime_error("remote provider type is not implemented");
         return;
@@ -228,7 +244,9 @@ protected:
   static void TearDownTestCase() {
     if (provider_t::type == provider_type::remote) {
       execute_unmount(drive_args2, mount_location);
-      execute_unmount(drive_args, mount_location2);
+      if (provider_t::type2 != provider_type::unknown) {
+        execute_unmount(drive_args, mount_location2);
+      }
     } else {
       execute_unmount(drive_args, mount_location);
     }
@@ -245,6 +263,7 @@ protected:
   }
 
   static void execute_unmount(auto args, auto location) {
+    std::this_thread::sleep_for(10s);
     auto unmounted{false};
 
     auto unmount_cmd =
@@ -280,9 +299,9 @@ std::string winfsp_test<provider_t>::mount_location;
 template <typename provider_t>
 std::string winfsp_test<provider_t>::mount_location2;
 
-// using winfsp_provider_types = ::testing::Types<local_s3, remote_s3,
-// local_sia, remote_sia>;
-using winfsp_provider_types = ::testing::Types<local_s3, remote_s3>;
+using winfsp_provider_types =
+    ::testing::Types<local_s3, remote_s3, local_sia, remote_sia,
+                     remote_winfsp_to_linux>;
 } // namespace repertory
 
 #endif // defined(_WIN32)

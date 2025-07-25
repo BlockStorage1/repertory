@@ -30,8 +30,8 @@ class mgmt_app_config;
 
 class handlers final {
 private:
-  static constexpr const auto nonce_length{128U};
-  static constexpr const auto nonce_timeout{15U};
+  static constexpr auto nonce_length{128U};
+  static constexpr auto nonce_timeout{15U};
 
   struct nonce_data final {
     std::chrono::system_clock::time_point creation{
@@ -69,17 +69,22 @@ private:
   std::condition_variable nonce_notify_;
   std::unique_ptr<std::thread> nonce_thread_;
   stop_type stop_requested{false};
+  mutable std::mutex test_mtx_;
 
 private:
   [[nodiscard]] auto data_directory_exists(provider_type prov,
                                            std::string_view name) const -> bool;
+
+  void
+  generate_config(provider_type prov, std::string_view name, const json &cfg,
+                  std::optional<std::string> data_dir = std::nullopt) const;
 
   static void handle_get_available_locations(httplib::Response &res);
 
   void handle_get_mount(const httplib::Request &req,
                         httplib::Response &res) const;
 
-  void handle_get_mount_list(httplib::Response &res) const;
+  static void handle_get_mount_list(httplib::Response &res);
 
   void handle_get_mount_location(const httplib::Request &req,
                                  httplib::Response &res) const;
@@ -90,6 +95,9 @@ private:
   void handle_get_nonce(httplib::Response &res);
 
   void handle_get_settings(httplib::Response &res) const;
+
+  void handle_get_test(const httplib::Request &req,
+                       httplib::Response &res) const;
 
   void handle_post_add_mount(const httplib::Request &req,
                              httplib::Response &res) const;
@@ -113,7 +121,8 @@ private:
   void removed_expired_nonces();
 
   void set_key_value(provider_type prov, std::string_view name,
-                     std::string_view key, std::string_view value) const;
+                     std::string_view key, std::string_view value,
+                     std::optional<std::string> data_dir = std::nullopt) const;
 };
 } // namespace repertory::ui
 

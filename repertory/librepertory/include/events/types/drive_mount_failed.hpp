@@ -35,8 +35,8 @@ struct drive_mount_failed final : public i_event {
         function_name(std::string(function_name_)),
         mount_location(std::move(mount_location_)) {}
 
-  static constexpr const event_level level{event_level::error};
-  static constexpr const std::string_view name{"drive_mount_failed"};
+  static constexpr event_level level{event_level::error};
+  static constexpr std::string_view name{"drive_mount_failed"};
 
   NTSTATUS error{};
   std::string function_name;

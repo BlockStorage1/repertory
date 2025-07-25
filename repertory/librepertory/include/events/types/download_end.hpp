@@ -35,8 +35,8 @@ struct download_end final : public i_event {
         error(error_),
         function_name(std::string(function_name_)) {}
 
-  static constexpr const event_level level{event_level::info};
-  static constexpr const std::string_view name{"download_end"};
+  static constexpr event_level level{event_level::info};
+  static constexpr std::string_view name{"download_end"};
 
   std::string api_path;
   std::string dest_path;

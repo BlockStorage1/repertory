@@ -22,34 +22,7 @@
 #ifndef REPERTORY_INCLUDE_CLI_MOUNT_HPP_
 #define REPERTORY_INCLUDE_CLI_MOUNT_HPP_
 
-#include "app_config.hpp"
-#include "platform/platform.hpp"
-#include "providers/i_provider.hpp"
-#include "providers/provider.hpp"
-#include "types/repertory.hpp"
-#include "utils/cli_utils.hpp"
-#include "utils/file.hpp"
-
-#if defined(_WIN32)
-#include "drives/winfsp/remotewinfsp/remote_client.hpp"
-#include "drives/winfsp/remotewinfsp/remote_winfsp_drive.hpp"
-#include "drives/winfsp/winfsp_drive.hpp"
-#include "utils/com_init_wrapper.hpp"
-
-using repertory_drive = repertory::winfsp_drive;
-using remote_client = repertory::remote_winfsp::remote_client;
-using remote_drive = repertory::remote_winfsp::remote_winfsp_drive;
-using remote_instance = repertory::remote_winfsp::i_remote_instance;
-#else // !defined(_WIN32)
-#include "drives/fuse/fuse_drive.hpp"
-#include "drives/fuse/remotefuse/remote_client.hpp"
-#include "drives/fuse/remotefuse/remote_fuse_drive.hpp"
-
-using repertory_drive = repertory::fuse_drive;
-using remote_client = repertory::remote_fuse::remote_client;
-using remote_drive = repertory::remote_fuse::remote_fuse_drive;
-using remote_instance = repertory::remote_fuse::i_remote_instance;
-#endif // defined(_WIN32)
+#include "cli/common.hpp"
 
 namespace repertory::cli::actions {
 [[nodiscard]] inline auto

@@ -32,8 +32,8 @@ struct file_pinned final : public i_event {
       : api_path(std::move(api_path_)),
         function_name(std::string(function_name_)) {}
 
-  static constexpr const event_level level{event_level::info};
-  static constexpr const std::string_view name{"file_pinned"};
+  static constexpr event_level level{event_level::info};
+  static constexpr std::string_view name{"file_pinned"};
 
   std::string api_path;
   std::string function_name;

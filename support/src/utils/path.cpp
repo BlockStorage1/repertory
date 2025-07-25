@@ -152,19 +152,19 @@ auto find_program_in_path(const std::string &name_without_extension)
   }
 
 #if defined(_WIN32)
-  static constexpr const std::array<std::string_view, 4U> extension_list{
+  static constexpr std::array<std::string_view, 4U> extension_list{
       ".bat",
       ".cmd",
       ".exe",
       ".ps1",
   };
-  static constexpr const auto split_char = ';';
+  static constexpr auto split_char = ';';
 #else  // !defined(_WIN32)
-  static constexpr const std::array<std::string_view, 2U> extension_list{
+  static constexpr std::array<std::string_view, 2U> extension_list{
       "",
       ".sh",
   };
-  static constexpr const auto split_char = ':';
+  static constexpr auto split_char = ':';
 #endif // defined(_WIN32)
 
   auto search_path_list = utils::string::split(path, split_char, false);
@@ -274,18 +274,18 @@ auto strip_to_file_name(std::wstring path) -> std::wstring {
 }
 
 auto unmake_file_uri(std::string_view uri) -> std::string {
-  static constexpr const std::array<std::string_view, 23U> escape_characters = {
+  static constexpr std::array<std::string_view, 23U> escape_characters = {
       {
           " ", "<", ">", "#", "%", "+", "{", "}", "|", "\\", "^", "~",
           "[", "]", "`", ";", "/", "?", ":", "@", "=", "&",  "$",
       }};
-  static constexpr const std::array<std::string_view, 23U>
+  static constexpr std::array<std::string_view, 23U>
       escape_sequences_lower = {{
           "%20", "%3c", "%3e", "%23", "%25", "%2b", "%7b", "%7d",
           "%7c", "%5c", "%5e", "%7e", "%5b", "%5d", "%60", "%3b",
           "%2f", "%3f", "%3a", "%40", "%3d", "%26", "%24",
       }};
-  static constexpr const std::array<std::string_view, 23U>
+  static constexpr std::array<std::string_view, 23U>
       escape_sequences_upper = {{
           "%20", "%3C", "%3E", "%23", "%25", "%2B", "%7B", "%7D",
           "%7C", "%5C", "%5E", "%7E", "%5B", "%5D", "%60", "%3B",

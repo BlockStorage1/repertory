@@ -48,7 +48,7 @@ public:
       -> ring_buffer_base & = delete;
 
 public:
-  static constexpr const auto min_ring_size{5U};
+  static constexpr auto min_ring_size{5U};
 
 private:
   boost::dynamic_bitset<> read_state_;

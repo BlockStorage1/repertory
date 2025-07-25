@@ -31,8 +31,8 @@ struct drive_stop_timed_out final : public i_event {
   drive_stop_timed_out(std::string_view function_name_)
       : function_name(std::string(function_name_)) {}
 
-  static constexpr const event_level level{event_level::warn};
-  static constexpr const std::string_view name{"drive_stop_timed_out"};
+  static constexpr event_level level{event_level::warn};
+  static constexpr std::string_view name{"drive_stop_timed_out"};
 
   std::string function_name;
 

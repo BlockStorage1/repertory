@@ -41,8 +41,8 @@ const curl_comm::write_callback curl_comm::write_headers =
                                               size_t nitems,
                                               void *outstream) -> size_t {
       auto &headers = *reinterpret_cast<http_headers *>(outstream);
-      const auto header = std::string(buffer, size * nitems);
-      const auto parts = utils::string::split(header, ':', false);
+      auto header = std::string(buffer, size * nitems);
+      auto parts = utils::string::split(header, ':', false);
       if (parts.size() > 1U) {
         auto data = header.substr(parts[0U].size() + 1U);
         utils::string::left_trim(data);
@@ -62,8 +62,8 @@ curl_comm::curl_comm(s3_config cfg)
 
 auto curl_comm::construct_url(CURL *curl, const std::string &relative_path,
                               const host_config &cfg) -> std::string {
-  static constexpr const auto http = 80U;
-  static constexpr const auto https = 443U;
+  static constexpr auto http{80U};
+  static constexpr auto https{443U};
 
   auto custom_port = (((cfg.protocol == "http") &&
                        (cfg.api_port == http || cfg.api_port == 0U)) ||
@@ -102,8 +102,7 @@ auto curl_comm::reset_curl(CURL *curl_handle) -> CURL * {
   return curl_handle;
 }
 
-auto curl_comm::create_host_config(const s3_config &cfg, bool use_s3_path_style)
-    -> host_config {
+auto curl_comm::create_host_config(const s3_config &cfg) -> host_config {
   host_config host_cfg{};
   host_cfg.api_password = cfg.secret_key;
   host_cfg.api_user = cfg.access_key;
@@ -118,70 +117,61 @@ auto curl_comm::create_host_config(const s3_config &cfg, bool use_s3_path_style)
     }
   }
 
-  if (not use_s3_path_style) {
+  if (not cfg.use_path_style) {
     host_cfg.host_name_or_ip = cfg.bucket + '.' + host_cfg.host_name_or_ip;
   }
 
   host_cfg.protocol = cfg.url.substr(0U, pos);
-  if (use_s3_path_style) {
+  if (cfg.use_path_style) {
     host_cfg.path = '/' + cfg.bucket;
   }
 
   return host_cfg;
 }
 
-void curl_comm::enable_s3_path_style(bool enable) {
-  use_s3_path_style_ = enable;
-}
-
 auto curl_comm::make_request(const curl::requests::http_delete &del,
                              long &response_code,
                              stop_type &stop_requested) const -> bool {
-  return make_request(
-      s3_config_.has_value()
-          ? create_host_config(s3_config_.value(), use_s3_path_style_)
-          : host_config_.value_or(host_config{}),
-      del, response_code, stop_requested);
+  return make_request(s3_config_.has_value()
+                          ? create_host_config(s3_config_.value())
+                          : host_config_.value_or(host_config{}),
+                      del, response_code, stop_requested);
 }
 
 auto curl_comm::make_request(const curl::requests::http_get &get,
                              long &response_code,
                              stop_type &stop_requested) const -> bool {
-  return make_request(
-      s3_config_.has_value()
-          ? create_host_config(s3_config_.value(), use_s3_path_style_)
-          : host_config_.value_or(host_config{}),
-      get, response_code, stop_requested);
+  return make_request(s3_config_.has_value()
+                          ? create_host_config(s3_config_.value())
+                          : host_config_.value_or(host_config{}),
+                      get, response_code, stop_requested);
 }
 
 auto curl_comm::make_request(const curl::requests::http_head &head,
                              long &response_code,
                              stop_type &stop_requested) const -> bool {
-  return make_request(
-      s3_config_.has_value()
-          ? create_host_config(s3_config_.value(), use_s3_path_style_)
-          : host_config_.value_or(host_config{}),
-      head, response_code, stop_requested);
+  return make_request(s3_config_.has_value()
+                          ? create_host_config(s3_config_.value())
+                          : host_config_.value_or(host_config{}),
+                      head, response_code, stop_requested);
 }
 
 auto curl_comm::make_request(const curl::requests::http_post &post,
                              long &response_code,
                              stop_type &stop_requested) const -> bool {
-  return make_request(
-      s3_config_.has_value()
-          ? create_host_config(s3_config_.value(), use_s3_path_style_)
-          : host_config_.value_or(host_config{}),
-      post, response_code, stop_requested);
+  return make_request(s3_config_.has_value()
+                          ? create_host_config(s3_config_.value())
+                          : host_config_.value_or(host_config{}),
+                      post, response_code, stop_requested);
 }
 
 auto curl_comm::make_request(const curl::requests::http_put_file &put_file,
                              long &response_code,
                              stop_type &stop_requested) const -> bool {
-  return make_request(
-      s3_config_.has_value()
-          ? create_host_config(s3_config_.value(), use_s3_path_style_)
-          : host_config_.value_or(host_config{}),
-      put_file, response_code, stop_requested);
+  return make_request(s3_config_.has_value()
+                          ? create_host_config(s3_config_.value())
+                          : host_config_.value_or(host_config{}),
+                      put_file, response_code, stop_requested);
 }
 
 auto curl_comm::url_encode(CURL *curl, const std::string &data,

@@ -1,7 +1,30 @@
 # Changelog
 
+## v2.0.6-release
+
+### Issues
+* \#42 [bug] Remote mount directory listing on Windows connected to Linux is failing
+* \#43 [bug] Directories are not importing properly for Sia
+* \#44 [bug] Windows-to-Linux remote mount ignores `CREATE_NEW`
+* \#45 [bug] Windows-to-Linux remote mount is not handling attempts to remove a non-empty directory properly
+* \#46 [bug] Changes to maximum cache size should be updated live
+* \#47 [bug] Windows-to-Linux remote mount is allowing directory rename when directory is not empty
+* \#48 [bug] Windows-to-Linux remote mount overlapped I/O is not detecting EOF for read operations
+* \#49 [ui] Implement provider test button
+
+### Changes from v2.0.5-rc
+
+* Added request retry on `libcurl` error code `CURLE_COULDNT_RESOLVE_HOST`
+* Added `libcurl` DNS caching
+* Drive letters in UI should always be lowercase
+* Fixed WinFSP directory rename for non-empty directories
+* Fixed segfault in UI due to incorrect `SIGCHLD` handling
+* Migrated to v2 error handling
+* Upgraded WinFSP to v2.1 (2025)
+
 ## v2.0.5-rc
 
+<!-- markdownlint-disable-next-line -->
 ### Issues
 
 * \#39 Create management portal in Flutter
@@ -69,6 +92,7 @@
 
 ## v2.0.2-rc
 
+<!-- markdownlint-disable-next-line -->
 ### BREAKING CHANGES
 
 * Refactored `config.json` - will need to verify configuration settings prior to mounting

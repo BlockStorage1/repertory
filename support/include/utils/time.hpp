@@ -25,9 +25,9 @@
 #include "utils/config.hpp"
 
 namespace repertory::utils::time {
-inline constexpr const auto NANOS_PER_SECOND{1000000000ULL};
-inline constexpr const auto WIN32_TIME_CONVERSION{116444736000000000ULL};
-inline constexpr const auto WIN32_TIME_NANOS_PER_TICK{100ULL};
+inline constexpr auto NANOS_PER_SECOND{1000000000ULL};
+inline constexpr auto WIN32_TIME_CONVERSION{116444736000000000ULL};
+inline constexpr auto WIN32_TIME_NANOS_PER_TICK{100ULL};
 
 #if defined(PROJECT_ENABLE_SPDLOG) || defined(PROJECT_ENABLE_FMT)
 [[nodiscard]] inline auto convert_to_utc(time_t time) -> std::time_t {

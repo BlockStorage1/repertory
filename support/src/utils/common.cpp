@@ -157,6 +157,7 @@ auto get_next_available_port(std::uint16_t first_port,
         ++check_port;
         continue;
       }
+
       acceptor.set_option(boost::asio::ip::tcp::acceptor::linger(true, 0));
       acceptor.bind({tcp::v4(), static_cast<std::uint16_t>(check_port)},
                     error_code);

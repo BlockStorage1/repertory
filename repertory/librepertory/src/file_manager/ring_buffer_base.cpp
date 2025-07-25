@@ -207,6 +207,7 @@ auto ring_buffer_base::read(std::size_t read_size, std::uint64_t read_offset,
   read_size =
       utils::calculate_read_size(get_file_size(), read_size, read_offset);
   if (read_size == 0U) {
+    data.resize(0U);
     return api_error::success;
   }
 

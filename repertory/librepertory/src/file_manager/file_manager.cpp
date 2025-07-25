@@ -370,7 +370,7 @@ auto file_manager::is_processing(const std::string &api_path) const -> bool {
   }
 
   unique_mutex_lock upload_lock(upload_mtx_);
-  if (upload_lookup_.find(api_path) != upload_lookup_.end()) {
+  if (upload_lookup_.contains(api_path)) {
     return true;
   }
   upload_lock.unlock();
@@ -695,7 +695,7 @@ void file_manager::remove_upload(const std::string &api_path, bool no_lock) {
                                        "failed to remove active upload");
   }
 
-  if (upload_lookup_.find(api_path) != upload_lookup_.end()) {
+  if (upload_lookup_.contains(api_path)) {
     upload_lookup_.at(api_path)->cancel();
     upload_lookup_.erase(api_path);
   }
@@ -871,9 +871,12 @@ void file_manager::start() {
   stop_requested_ = false;
 
   polling::instance().set_callback({
-      "timed_out_close",
-      polling::frequency::second,
-      [this](auto && /* stop_requested */) { this->close_timed_out_files(); },
+      .name = "timed_out_close",
+      .freq = polling::frequency::second,
+      .action =
+          [this](auto && /* stop_requested */) {
+            this->close_timed_out_files();
+          },
   });
 
   if (provider_.is_read_only()) {
@@ -1002,10 +1005,10 @@ void file_manager::store_resume(const i_open_file &file) {
   }
 
   if (mgr_db_->add_resume(i_file_mgr_db::resume_entry{
-          file.get_api_path(),
-          file.get_chunk_size(),
-          file.get_read_state(),
-          file.get_source_path(),
+          .api_path = file.get_api_path(),
+          .chunk_size = file.get_chunk_size(),
+          .read_state = file.get_read_state(),
+          .source_path = file.get_source_path(),
       })) {
     event_system::instance().raise<download_resume_added>(
         file.get_api_path(), file.get_source_path(), function_name);
@@ -1110,8 +1113,8 @@ void file_manager::upload_handler() {
             if (mgr_db_->remove_upload(entry->api_path)) {
               if (not mgr_db_->add_upload_active(
                       i_file_mgr_db::upload_active_entry{
-                          entry->api_path,
-                          entry->source_path,
+                          .api_path = entry->api_path,
+                          .source_path = entry->source_path,
                       })) {
                 utils::error::raise_api_path_error(
                     function_name, entry->api_path, entry->source_path,

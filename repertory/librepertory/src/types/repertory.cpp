@@ -230,7 +230,7 @@ auto api_error_from_string(std::string_view str) -> api_error {
   return iter == LOOKUP.end() ? api_error::error : iter->first;
 }
 
-auto api_error_to_string(const api_error &error) -> const std::string & {
+auto api_error_to_string(api_error error) -> const std::string & {
   if (LOOKUP.size() != static_cast<std::size_t>(api_error::ERROR_COUNT)) {
     throw startup_exception("undefined api_error strings");
   }

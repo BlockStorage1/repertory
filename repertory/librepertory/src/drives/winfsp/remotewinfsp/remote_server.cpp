@@ -855,7 +855,7 @@ auto remote_server::json_create_directory_snapshot(const std::string &path,
     json_data["path"] = path;
     json_data["handle"] = handle;
     json_data["page_count"] = utils::divide_with_ceiling(
-        iter->get_count(), REPERTORY_DIRECTORY_PAGE_SIZE);
+        iter->get_count(), default_remote_directory_page_size);
     res = 0;
     errno = 0;
   }
@@ -877,17 +877,18 @@ auto remote_server::json_read_directory_snapshot(
   if (iter != nullptr) {
     std::size_t offset{};
     json item_json;
-    while (
-        (json_data["directory_list"].size() < REPERTORY_DIRECTORY_PAGE_SIZE) &&
-        (res = iter->get_json((page * REPERTORY_DIRECTORY_PAGE_SIZE) + offset++,
-                              item_json)) == 0) {
+    while ((json_data["directory_list"].size() <
+            default_remote_directory_page_size) &&
+           (res = iter->get_json((page * default_remote_directory_page_size) +
+                                     offset++,
+                                 item_json)) == 0) {
       json_data["directory_list"].emplace_back(item_json);
     }
     json_data["handle"] = handle;
     json_data["path"] = path;
     json_data["page"] = page;
     json_data["page_count"] = utils::divide_with_ceiling(
-        iter->get_count(), REPERTORY_DIRECTORY_PAGE_SIZE);
+        iter->get_count(), default_remote_directory_page_size);
   }
 
   auto ret = ((res < 0) ? -errno : 0);
@@ -1061,7 +1062,7 @@ auto remote_server::winfsp_get_security_by_name(PWSTR file_name,
   auto file_path = utils::string::from_utf8(utils::path::combine(
       mount_location_, {utils::string::to_utf8(file_name)}));
 
-  auto ret = STATUS_BUFFER_OVERFLOW;
+  auto ret{STATUS_BUFFER_OVERFLOW};
   if ((descriptor_size == nullptr) ||
       (*descriptor_size <= std::numeric_limits<SIZE_T>::max())) {
     auto *descriptor = descriptor_size == nullptr
@@ -1221,6 +1222,7 @@ auto remote_server::winfsp_read(PVOID file_desc, PVOID buffer, UINT64 offset,
               ? STATUS_SUCCESS
               : FspNtStatusFromWin32(::GetLastError());
   }
+
   if (ret != STATUS_SUCCESS) {
     RAISE_REMOTE_WINFSP_SERVER_EVENT(function_name,
                                      get_open_file_path(file_desc), ret);

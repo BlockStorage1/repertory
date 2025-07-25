@@ -26,11 +26,11 @@
 
 namespace repertory::curl::requests {
 struct http_head final : http_request_base {
-  ~http_head() override = default;
+  [[nodiscard]] auto get_type() const -> std::string override { return "head"; }
 
-  [[nodiscard]] auto
-  set_method(CURL *curl,
-             stop_type & /* stop_requested */) const -> bool override {
+  [[nodiscard]] auto set_method(CURL *curl,
+                                stop_type & /* stop_requested */) const
+      -> bool override {
     curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, "HEAD");
     curl_easy_setopt(curl, CURLOPT_NOBODY, 1L);
     return true;

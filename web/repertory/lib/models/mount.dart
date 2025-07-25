@@ -282,4 +282,31 @@ class Mount with ChangeNotifier {
       debugPrint('$e');
     }
   }
+
+  Future<bool> test() async {
+    try {
+      final map = await convertAllToString(
+        jsonDecode(jsonEncode(mountConfig.settings)),
+        _auth.key,
+      );
+      final auth = await _auth.createAuth();
+      final response = await http.get(
+        Uri.parse(
+          Uri.encodeFull(
+            '${getBaseUri()}/api/v1/test?auth=$auth&name=$name&type=$type&config=${jsonEncode(map)}',
+          ),
+        ),
+      );
+
+      if (response.statusCode == 401) {
+        _auth.logoff();
+      }
+
+      return (response.statusCode == 200);
+    } catch (e) {
+      debugPrint('$e');
+    }
+
+    return false;
+  }
 }

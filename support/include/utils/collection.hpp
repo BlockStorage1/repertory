@@ -75,7 +75,7 @@ template <typename val_t>
     -> bool {
   REPERTORY_USES_FUNCTION_NAME();
 
-  static constexpr const auto base16{16};
+  static constexpr auto base16{16};
 
   try {
     val.clear();
@@ -158,7 +158,7 @@ template <typename col_t>
 inline auto to_hex_string(const col_t &collection) -> std::string {
   static_assert(sizeof(typename col_t::value_type) == 1U,
                 "value_type must be 1 byte in size");
-  static constexpr const auto mask = 0xFF;
+  static constexpr auto mask{0xFF};
 
   std::stringstream stream{};
   for (auto &&val : collection) {
