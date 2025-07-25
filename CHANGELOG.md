@@ -1,5 +1,11 @@
 # Changelog
 
+## v2.1.0-rc
+
+### Issues
+
+### Changes from v2.0.6-release
+
 ## v2.0.6-release
 
 ### Issues
