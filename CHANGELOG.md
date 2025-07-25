@@ -18,6 +18,7 @@
 * Added `libcurl` DNS caching
 * Drive letters in UI should always be lowercase
 * Fixed WinFSP directory rename for non-empty directories
+* Fixed segfault in UI due to incorrect `SIGCHLD` handling
 * Migrated to v2 error handling
 * Upgraded WinFSP to v2.1 (2025)
 
