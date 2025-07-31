@@ -1,5 +1,11 @@
 # Changelog
 
+## v2.0.7-release
+
+### Issues
+* \#55 [bug] UI is unable to launch `repertory.exe` on Windows when absolute path contains spaces
+* \#57 [bug] Directory entries . and .. are incorrectly being reported as files in Linux remote mounts
+
 ## v2.0.6-release
 
 ### Issues

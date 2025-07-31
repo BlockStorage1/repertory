@@ -38,6 +38,7 @@
 #include <boost/process/v1/args.hpp>
 #include <boost/process/v1/child.hpp>
 #include <boost/process/v1/io.hpp>
+namespace bp1 = boost::process::v1;
 
 namespace {
 [[nodiscard]] auto decrypt(std::string_view data, std::string_view password)
@@ -227,23 +228,6 @@ handlers::handlers(mgmt_app_config *config, httplib::Server *server)
     handle_put_settings(req, res);
   });
 
-  static std::atomic<httplib::Server *> this_server{server_};
-  static const auto quit_handler = [](int /* sig */) {
-    auto *ptr = this_server.load();
-    if (ptr == nullptr) {
-      return;
-    }
-
-    this_server = nullptr;
-    ptr->stop();
-  };
-
-  std::signal(SIGINT, quit_handler);
-#if !defined(_WIN32)
-  std::signal(SIGQUIT, quit_handler);
-#endif // !defined(_WIN32)
-  std::signal(SIGTERM, quit_handler);
-
 #if defined(_WIN32)
   system(fmt::format(
              R"(start "Repertory Management Portal" "http://127.0.0.1:{}/ui")",
@@ -269,6 +253,23 @@ handlers::handlers(mgmt_app_config *config, httplib::Server *server)
                  config_->get_api_port(), port);
     return;
   }
+
+  static std::atomic<httplib::Server *> this_server{server_};
+  static const auto quit_handler = [](int /* sig */) {
+    auto *ptr = this_server.load();
+    if (ptr == nullptr) {
+      return;
+    }
+
+    this_server = nullptr;
+    ptr->stop();
+  };
+
+  std::signal(SIGINT, quit_handler);
+#if !defined(_WIN32)
+  std::signal(SIGQUIT, quit_handler);
+#endif // !defined(_WIN32)
+  std::signal(SIGTERM, quit_handler);
 
   event_system::instance().start();
 
@@ -711,19 +712,37 @@ auto handlers::launch_process(provider_type prov, std::string_view name,
   recur_mutex_lock inst_lock(inst_mtx);
   if (background) {
 #if defined(_WIN32)
-    std::array<char, MAX_PATH + 1U> path{};
-    ::GetSystemDirectoryA(path.data(), path.size());
+    args.insert(args.begin(), "--hidden");
 
-    args.insert(args.begin(), utils::path::combine(path.data(), {"cmd.exe"}));
-    args.insert(std::next(args.begin()), "/c");
-    args.insert(std::next(args.begin(), 2U), "start");
-    args.insert(std::next(args.begin(), 3U), "");
-    args.insert(std::next(args.begin(), 4U), "/MIN");
-    args.insert(std::next(args.begin(), 5U), repertory_binary_);
+    auto cmdline = fmt::format("{}{}{}", '"', repertory_binary_, '"');
+    for (const auto &arg : args) {
+      cmdline += " ";
+      if (arg.find_first_of(" \t") != std::string::npos) {
+        cmdline += fmt::format("{}{}{}", '"', arg, '"');
+      } else {
+        cmdline += arg;
+      }
+    }
+
+    STARTUPINFOA start_info{};
+    start_info.cb = sizeof(start_info);
+    start_info.dwFlags = STARTF_USESHOWWINDOW;
+    start_info.wShowWindow = SW_SHOWMINNOACTIVE;
+
+    PROCESS_INFORMATION proc_info{};
+    auto result = ::CreateProcessA(
+        nullptr, &cmdline[0U], nullptr, nullptr, FALSE,
+        CREATE_NEW_CONSOLE | CREATE_NEW_PROCESS_GROUP, nullptr,
+        utils::path::get_parent_path(repertory_binary_).c_str(), &start_info,
+        &proc_info);
+
+    if (result) {
+      ::CloseHandle(proc_info.hProcess);
+      ::CloseHandle(proc_info.hThread);
+    }
 #else  // !defined(_WIN32)
-    args.insert(args.begin(), "-f");
     args.insert(args.begin(), repertory_binary_);
-#endif // defined(_WIN32)
+    args.insert(std::next(args.begin()), "-f");
 
     std::vector<const char *> exec_args;
     exec_args.reserve(args.size() + 1U);
@@ -732,10 +751,6 @@ auto handlers::launch_process(provider_type prov, std::string_view name,
     }
     exec_args.push_back(nullptr);
 
-#if defined(_WIN32)
-    _spawnv(_P_DETACH, exec_args.at(0U),
-            const_cast<char *const *>(exec_args.data()));
-#else  // !defined(_WIN32)
     auto pid = fork();
     if (pid < 0) {
       exit(1);
@@ -769,10 +784,8 @@ auto handlers::launch_process(provider_type prov, std::string_view name,
     return {};
   }
 
-  boost::process::v1::ipstream out;
-  boost::process::v1::child proc(repertory_binary_,
-                                 boost::process::v1::args(args),
-                                 boost::process::v1::std_out > out);
+  bp1::ipstream out;
+  bp1::child proc(repertory_binary_, bp1::args(args), bp1::std_out > out);
 
   std::string data;
   std::string line;

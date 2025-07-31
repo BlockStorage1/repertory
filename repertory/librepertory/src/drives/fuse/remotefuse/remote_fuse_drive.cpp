@@ -102,7 +102,7 @@ void remote_fuse_drive::destroy_impl(void *ptr) {
   }
 
   if (remote_instance_) {
-    const auto res = remote_instance_->fuse_destroy();
+    auto res = remote_instance_->fuse_destroy();
     if (res != 0) {
       utils::error::raise_error(function_name,
                                 "remote fuse_destroy() failed|err|" +
@@ -128,8 +128,8 @@ auto remote_fuse_drive::fgetattr_impl(std::string api_path,
   remote::stat r_stat{};
   auto directory = false;
 
-  const auto res = remote_instance_->fuse_fgetattr(api_path.c_str(), r_stat,
-                                                   directory, f_info->fh);
+  auto res = remote_instance_->fuse_fgetattr(api_path.c_str(), r_stat,
+                                             directory, f_info->fh);
   if (res == 0) {
     populate_stat(r_stat, directory, *unix_st);
   }
@@ -191,7 +191,7 @@ auto remote_fuse_drive::getattr_impl(std::string api_path, struct stat *unix_st)
   bool directory = false;
   remote::stat r_stat{};
 
-  const auto res =
+  auto res =
       remote_instance_->fuse_getattr(api_path.c_str(), r_stat, directory);
   if (res == 0) {
     populate_stat(r_stat, directory, *unix_st);
@@ -208,9 +208,9 @@ api_error remote_fuse_drive::getxtimes_impl(std::string api_path,
     return utils::to_api_error(-EFAULT);
   }
 
-  remote::file_time repertory_bkuptime = 0u;
-  remote::file_time repertory_crtime = 0u;
-  const auto res = remote_instance_->fuse_getxtimes(
+  remote::file_time repertory_bkuptime{0U};
+  remote::file_time repertory_crtime{0U};
+  auto res = remote_instance_->fuse_getxtimes(
       api_path.c_str(), repertory_bkuptime, repertory_crtime);
   if (res == 0) {
     bkuptime->tv_nsec =
@@ -381,7 +381,7 @@ auto remote_fuse_drive::readdir_impl(std::string api_path, void *buf,
                                      fuse_fill_dir_t fuse_fill_dir,
                                      off_t offset,
                                      struct fuse_file_info *f_info,
-                                     fuse_readdir_flags /*flags*/)
+                                     fuse_readdir_flags /* flags */)
     -> api_error {
 #else  // FUSE_USE_VERSION < 30
 auto remote_fuse_drive::readdir_impl(std::string api_path, void *buf,
@@ -390,20 +390,42 @@ auto remote_fuse_drive::readdir_impl(std::string api_path, void *buf,
                                      struct fuse_file_info *f_info)
     -> api_error {
 #endif // FUSE_USE_VERSION >= 30
+
   std::string item_path;
-  int res = 0;
+  int res{0};
   while ((res = remote_instance_->fuse_readdir(
               api_path.c_str(), static_cast<remote::file_offset>(offset),
               f_info->fh, item_path)) == 0) {
-    if ((item_path != ".") && (item_path != "..")) {
+    std::unique_ptr<struct stat> p_stat{nullptr};
+    int stat_res{0};
+    if ((item_path == ".") || (item_path == "..")) {
+      p_stat = std::make_unique<struct stat>();
+      std::memset(p_stat.get(), 0, sizeof(struct stat));
+      if (item_path == ".") {
+        stat_res =
+            stat(utils::path::combine(get_mount_location(), {api_path}).c_str(),
+                 p_stat.get());
+      } else {
+        stat_res =
+            stat(utils::path::get_parent_path(
+                     utils::path::combine(get_mount_location(), {api_path}))
+                     .c_str(),
+                 p_stat.get());
+      }
+
+      if (stat_res != 0) {
+        res = stat_res;
+        break;
+      }
+    } else {
       item_path = utils::path::strip_to_file_name(item_path);
     }
 
 #if FUSE_USE_VERSION >= 30
-    if (fuse_fill_dir(buf, item_path.c_str(), nullptr, ++offset,
-                      static_cast<fuse_fill_dir_flags>(0)) != 0) {
+    if (fuse_fill_dir(buf, item_path.c_str(), p_stat.get(), ++offset,
+                      FUSE_FILL_DIR_PLUS) != 0) {
 #else  // FUSE_USE_VERSION < 30
-    if (fuse_fill_dir(buf, item_path.c_str(), nullptr, ++offset) != 0) {
+    if (fuse_fill_dir(buf, item_path.c_str(), p_stat.get(), ++offset) != 0) {
 #endif // FUSE_USE_VERSION >= 30
       break;
     }
@@ -592,7 +614,7 @@ auto remote_fuse_drive::write_impl(std::string api_path, const char *buffer,
                                    size_t write_size, off_t write_offset,
                                    struct fuse_file_info *f_info,
                                    std::size_t &bytes_written) -> api_error {
-  const auto res = remote_instance_->fuse_write(
+  auto res = remote_instance_->fuse_write(
       api_path.c_str(), buffer, write_size,
       static_cast<remote::file_offset>(write_offset), f_info->fh);
   if (res >= 0) {
