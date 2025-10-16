@@ -86,8 +86,9 @@ void tasks::start(app_config *config) {
 
   for (std::uint32_t idx = 0U; idx < std::thread::hardware_concurrency() * 2U;
        ++idx) {
-    task_threads_.emplace_back(
-        std::make_unique<std::jthread>([this]() { task_thread(); }));
+    auto thread{std::make_unique<std::thread>([this]() { task_thread(); })};
+    thread->detach();
+    task_threads_.emplace_back(std::move(thread));
   }
 }
 
@@ -100,7 +101,7 @@ void tasks::stop() {
   stop_requested_ = true;
 
   unique_mutex_lock lock(mutex_);
-  std::vector<std::unique_ptr<std::jthread>> threads;
+  std::vector<std::unique_ptr<std::thread>> threads;
   std::swap(threads, task_threads_);
 
   std::deque<scheduled_task> task_list;

@@ -93,14 +93,19 @@ auto get_accessed_time_from_meta(const api_meta_map &meta) -> std::uint64_t {
       utils::string::to_uint64(meta.at(META_ACCESSED)));
 }
 
-auto get_changed_time_from_meta(const api_meta_map &meta) -> std::uint64_t {
-  return utils::time::unix_time_to_windows_time(
-      utils::string::to_uint64(meta.at(META_MODIFIED)));
-}
-
 auto get_creation_time_from_meta(const api_meta_map &meta) -> std::uint64_t {
   return utils::time::unix_time_to_windows_time(
       utils::string::to_uint64(meta.at(META_CREATION)));
+}
+
+auto get_changed_time_from_meta(const api_meta_map &meta) -> std::uint64_t {
+  return utils::time::unix_time_to_windows_time(
+      utils::string::to_uint64(meta.at(META_CHANGED)));
+}
+
+auto get_modified_time_from_meta(const api_meta_map &meta) -> std::uint64_t {
+  return utils::time::unix_time_to_windows_time(
+      utils::string::to_uint64(meta.at(META_MODIFIED)));
 }
 
 auto get_written_time_from_meta(const api_meta_map &meta) -> std::uint64_t {
@@ -119,7 +124,7 @@ auto unix_access_mask_to_windows(std::int32_t mask) -> int {
   return mask & 6;
 }
 
-auto unix_open_flags_to_flags_and_perms(const remote::file_mode & /*mode*/,
+auto unix_open_flags_to_flags_and_perms(remote::file_mode /*mode*/,
                                         const remote::open_flags &flags,
                                         std::int32_t &perms) -> int {
   auto ret = _O_BINARY | _O_RANDOM;

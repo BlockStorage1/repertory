@@ -27,7 +27,11 @@
 namespace repertory {
 TEST(json_serialize_test, can_handle_directory_item) {
   directory_item cfg{
-      "api", "parent", true, 2U, {{META_DIRECTORY, "true"}},
+      .api_path = "api",
+      .api_parent = "parent",
+      .directory = true,
+      .size = 2U,
+      .meta = {{META_DIRECTORY, "true"}},
   };
 
   json data(cfg);
@@ -48,26 +52,40 @@ TEST(json_serialize_test, can_handle_directory_item) {
 }
 
 TEST(json_serialize_test, can_handle_encrypt_config) {
+  auto kdf_cfg = utils::encryption::kdf_config{};
+  kdf_cfg.seal();
+
   encrypt_config cfg{
-      "token",
-      "path",
+      .encryption_token = "token",
+      .kdf_cfg = kdf_cfg,
+      .path = "path",
   };
 
   json data(cfg);
   EXPECT_STREQ("token",
                data.at(JSON_ENCRYPTION_TOKEN).get<std::string>().c_str());
+  EXPECT_STREQ(utils::collection::to_hex_string(kdf_cfg.to_header()).c_str(),
+               data.at(JSON_KDF_CONFIG).get<std::string>().c_str());
   EXPECT_STREQ("path", data.at(JSON_PATH).get<std::string>().c_str());
 
   {
     auto cfg2 = data.get<encrypt_config>();
     EXPECT_STREQ(cfg2.encryption_token.c_str(), cfg.encryption_token.c_str());
+    EXPECT_EQ(cfg2.kdf_cfg, cfg.kdf_cfg);
     EXPECT_STREQ(cfg2.path.c_str(), cfg.path.c_str());
   }
 }
 
 TEST(json_serialize_test, can_handle_host_config) {
   host_config cfg{
-      "agent", "pwd", "user", 1024U, "host", "path", "http", 11U,
+      .agent_string = "agent",
+      .api_password = "pwd",
+      .api_user = "user",
+      .api_port = 1024U,
+      .host_name_or_ip = "host",
+      .path = "path",
+      .protocol = "http",
+      .timeout_ms = 11U,
   };
 
   json data(cfg);
@@ -96,11 +114,18 @@ TEST(json_serialize_test, can_handle_host_config) {
 
 TEST(json_serialize_test, can_handle_remote_config) {
   remote::remote_config cfg{
-      1024U, "token", "host", 11U, 20U, 21U,
+      .api_port = 1024U,
+      .conn_timeout_ms = 22U,
+      .encryption_token = "token",
+      .host_name_or_ip = "host",
+      .max_connections = 11U,
+      .recv_timeout_ms = 20U,
+      .send_timeout_ms = 21U,
   };
 
   json data(cfg);
   EXPECT_EQ(1024U, data.at(JSON_API_PORT).get<std::uint16_t>());
+  EXPECT_EQ(22U, data.at(JSON_CONNECT_TIMEOUT_MS).get<std::uint16_t>());
   EXPECT_STREQ("token",
                data.at(JSON_ENCRYPTION_TOKEN).get<std::string>().c_str());
   EXPECT_STREQ("host",
@@ -112,6 +137,7 @@ TEST(json_serialize_test, can_handle_remote_config) {
   {
     auto cfg2 = data.get<remote::remote_config>();
     EXPECT_EQ(cfg2.api_port, cfg.api_port);
+    EXPECT_EQ(cfg2.conn_timeout_ms, cfg.conn_timeout_ms);
     EXPECT_STREQ(cfg2.encryption_token.c_str(), cfg.encryption_token.c_str());
     EXPECT_STREQ(cfg2.host_name_or_ip.c_str(), cfg.host_name_or_ip.c_str());
     EXPECT_EQ(cfg2.max_connections, cfg.max_connections);
@@ -121,7 +147,10 @@ TEST(json_serialize_test, can_handle_remote_config) {
 }
 
 TEST(json_serialize_test, can_handle_remote_mount) {
-  remote::remote_mount cfg{1024U, 21U, true, "token"};
+  remote::remote_mount cfg{.api_port = 1024U,
+                           .client_pool_size = 21U,
+                           .enable = true,
+                           .encryption_token = "token"};
 
   json data(cfg);
   EXPECT_EQ(1024U, data.at(JSON_API_PORT).get<std::uint16_t>());
@@ -141,7 +170,15 @@ TEST(json_serialize_test, can_handle_remote_mount) {
 
 TEST(json_serialize_test, can_handle_s3_config) {
   s3_config cfg{
-      "access", "bucket", "token", "region", "secret", 31U, "url", true, false,
+      .access_key = "access",
+      .bucket = "bucket",
+      .encryption_token = "token",
+      .region = "region",
+      .secret_key = "secret",
+      .timeout_ms = 31U,
+      .url = "url",
+      .use_path_style = true,
+      .use_region_in_url = false,
   };
 
   json data(cfg);
@@ -185,7 +222,7 @@ TEST(json_serialize_test, can_handle_sia_config) {
 }
 
 TEST(json_serialize_test, can_handle_atomic) {
-  atomic<sia_config> cfg({
+  utils::atomic<sia_config> cfg({
       "bucket",
   });
 
@@ -193,7 +230,7 @@ TEST(json_serialize_test, can_handle_atomic) {
   EXPECT_STREQ("bucket", data.at(JSON_BUCKET).get<std::string>().c_str());
 
   {
-    auto cfg2 = data.get<atomic<sia_config>>();
+    auto cfg2 = data.get<utils::atomic<sia_config>>();
     EXPECT_STREQ(cfg2.load().bucket.c_str(), cfg.load().bucket.c_str());
   }
 }
@@ -249,52 +286,53 @@ TEST(json_serialize_test, can_handle_event_level) {
 }
 
 TEST(json_serialize_test, can_handle_atomic_database_type) {
-  json data(atomic<database_type>{database_type::rocksdb});
-  EXPECT_EQ(database_type::rocksdb, data.get<atomic<database_type>>());
+  json data(utils::atomic<database_type>{database_type::rocksdb});
+  EXPECT_EQ(database_type::rocksdb, data.get<utils::atomic<database_type>>());
   EXPECT_STREQ("rocksdb", data.get<std::string>().c_str());
 
-  data = atomic<database_type>(database_type::sqlite);
-  EXPECT_EQ(database_type::sqlite, data.get<atomic<database_type>>());
+  data = utils::atomic<database_type>(database_type::sqlite);
+  EXPECT_EQ(database_type::sqlite, data.get<utils::atomic<database_type>>());
   EXPECT_STREQ("sqlite", data.get<std::string>().c_str());
 }
 
 TEST(json_serialize_test, can_handle_atomic_download_type) {
-  json data(atomic<download_type>{download_type::direct});
-  EXPECT_EQ(download_type::direct, data.get<atomic<download_type>>());
+  json data(utils::atomic<download_type>{download_type::direct});
+  EXPECT_EQ(download_type::direct, data.get<utils::atomic<download_type>>());
   EXPECT_STREQ("direct", data.get<std::string>().c_str());
 
-  data = atomic<download_type>{download_type::default_};
+  data = utils::atomic<download_type>{download_type::default_};
   EXPECT_EQ(download_type::default_, data.get<download_type>());
   EXPECT_STREQ("default", data.get<std::string>().c_str());
 
-  data = atomic<download_type>{download_type::ring_buffer};
-  EXPECT_EQ(download_type::ring_buffer, data.get<atomic<download_type>>());
+  data = utils::atomic<download_type>{download_type::ring_buffer};
+  EXPECT_EQ(download_type::ring_buffer,
+            data.get<utils::atomic<download_type>>());
   EXPECT_STREQ("ring_buffer", data.get<std::string>().c_str());
 }
 
 TEST(json_serialize_test, can_handle_atomic_event_level) {
-  json data(atomic<event_level>{event_level::critical});
-  EXPECT_EQ(event_level::critical, data.get<atomic<event_level>>());
+  json data(utils::atomic<event_level>{event_level::critical});
+  EXPECT_EQ(event_level::critical, data.get<utils::atomic<event_level>>());
   EXPECT_STREQ("critical", data.get<std::string>().c_str());
 
-  data = atomic<event_level>(event_level::error);
-  EXPECT_EQ(event_level::error, data.get<atomic<event_level>>());
+  data = utils::atomic<event_level>(event_level::error);
+  EXPECT_EQ(event_level::error, data.get<utils::atomic<event_level>>());
   EXPECT_STREQ("error", data.get<std::string>().c_str());
 
-  data = atomic<event_level>(event_level::warn);
-  EXPECT_EQ(event_level::warn, data.get<atomic<event_level>>());
+  data = utils::atomic<event_level>(event_level::warn);
+  EXPECT_EQ(event_level::warn, data.get<utils::atomic<event_level>>());
   EXPECT_STREQ("warn", data.get<std::string>().c_str());
 
-  data = atomic<event_level>(event_level::info);
-  EXPECT_EQ(event_level::info, data.get<atomic<event_level>>());
+  data = utils::atomic<event_level>(event_level::info);
+  EXPECT_EQ(event_level::info, data.get<utils::atomic<event_level>>());
   EXPECT_STREQ("info", data.get<std::string>().c_str());
 
-  data = atomic<event_level>(event_level::debug);
-  EXPECT_EQ(event_level::debug, data.get<atomic<event_level>>());
+  data = utils::atomic<event_level>(event_level::debug);
+  EXPECT_EQ(event_level::debug, data.get<utils::atomic<event_level>>());
   EXPECT_STREQ("debug", data.get<std::string>().c_str());
 
-  data = atomic<event_level>(event_level::trace);
-  EXPECT_EQ(event_level::trace, data.get<atomic<event_level>>());
+  data = utils::atomic<event_level>(event_level::trace);
+  EXPECT_EQ(event_level::trace, data.get<utils::atomic<event_level>>());
   EXPECT_STREQ("trace", data.get<std::string>().c_str());
 }
 } // namespace repertory

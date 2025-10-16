@@ -23,6 +23,7 @@
 
 #include "app_config.hpp"
 #include "types/startup_exception.hpp"
+#include "utils/collection.hpp"
 #include "utils/error_utils.hpp"
 #include "utils/file.hpp"
 #include "utils/path.hpp"
@@ -87,7 +88,7 @@ void rdb_meta_db::enumerate_api_path_list(
   }
 }
 
-auto rdb_meta_db::get_api_path(const std::string &source_path,
+auto rdb_meta_db::get_api_path(std::string_view source_path,
                                std::string &api_path) const -> api_error {
   REPERTORY_USES_FUNCTION_NAME();
 
@@ -111,7 +112,7 @@ auto rdb_meta_db::get_api_path_list() const -> std::vector<std::string> {
   return ret;
 }
 
-auto rdb_meta_db::get_item_meta_json(const std::string &api_path,
+auto rdb_meta_db::get_item_meta_json(std::string_view api_path,
                                      json &json_data) const -> api_error {
   REPERTORY_USES_FUNCTION_NAME();
 
@@ -168,7 +169,7 @@ auto rdb_meta_db::get_item_meta_json(const std::string &api_path,
   return api_error::error;
 }
 
-auto rdb_meta_db::get_item_meta(const std::string &api_path,
+auto rdb_meta_db::get_item_meta(std::string_view api_path,
                                 api_meta_map &meta) const -> api_error {
   json json_data;
   auto ret = get_item_meta_json(api_path, json_data);
@@ -183,8 +184,7 @@ auto rdb_meta_db::get_item_meta(const std::string &api_path,
   return api_error::success;
 }
 
-auto rdb_meta_db::get_item_meta(const std::string &api_path,
-                                const std::string &key,
+auto rdb_meta_db::get_item_meta(std::string_view api_path, std::string_view key,
                                 std::string &value) const -> api_error {
   REPERTORY_USES_FUNCTION_NAME();
 
@@ -297,7 +297,7 @@ auto rdb_meta_db::perform_action(
   return api_error::error;
 }
 
-void rdb_meta_db::remove_api_path(const std::string &api_path) {
+void rdb_meta_db::remove_api_path(std::string_view api_path) {
   REPERTORY_USES_FUNCTION_NAME();
 
   std::string source_path;
@@ -318,9 +318,10 @@ void rdb_meta_db::remove_api_path(const std::string &api_path) {
   }
 }
 
-auto rdb_meta_db::remove_api_path(
-    const std::string &api_path, const std::string &source_path,
-    rocksdb::Transaction *txn) -> rocksdb::Status {
+auto rdb_meta_db::remove_api_path(std::string_view api_path,
+                                  std::string_view source_path,
+                                  rocksdb::Transaction *txn)
+    -> rocksdb::Status {
   auto txn_res = txn->Delete(pinned_family_, api_path);
   if (not txn_res.ok()) {
     return txn_res;
@@ -341,12 +342,16 @@ auto rdb_meta_db::remove_api_path(
   return txn->Delete(meta_family_, api_path);
 }
 
-auto rdb_meta_db::remove_item_meta(const std::string &api_path,
-                                   const std::string &key) -> api_error {
-  if (key == META_DIRECTORY || key == META_PINNED || key == META_SIZE ||
-      key == META_SOURCE) {
-    // TODO log warning for unsupported attributes
-    return api_error::success;
+auto rdb_meta_db::remove_item_meta(std::string_view api_path,
+                                   std::string_view key) -> api_error {
+  REPERTORY_USES_FUNCTION_NAME();
+
+  if (utils::collection::includes(META_USED_NAMES, std::string{key})) {
+    utils::error::raise_api_path_error(
+        function_name, api_path,
+        fmt::format("failed to remove item meta-key is restricted|key|{}",
+                    key));
+    return api_error::permission_denied;
   }
 
   json json_data;
@@ -359,9 +364,8 @@ auto rdb_meta_db::remove_item_meta(const std::string &api_path,
   return update_item_meta(api_path, json_data);
 }
 
-auto rdb_meta_db::rename_item_meta(const std::string &from_api_path,
-                                   const std::string &to_api_path)
-    -> api_error {
+auto rdb_meta_db::rename_item_meta(std::string_view from_api_path,
+                                   std::string_view to_api_path) -> api_error {
   REPERTORY_USES_FUNCTION_NAME();
 
   json json_data;
@@ -385,9 +389,8 @@ auto rdb_meta_db::rename_item_meta(const std::string &from_api_path,
       });
 }
 
-auto rdb_meta_db::set_item_meta(const std::string &api_path,
-                                const std::string &key,
-                                const std::string &value) -> api_error {
+auto rdb_meta_db::set_item_meta(std::string_view api_path, std::string_view key,
+                                std::string_view value) -> api_error {
   REPERTORY_USES_FUNCTION_NAME();
 
   if (key == META_PINNED) {
@@ -415,12 +418,15 @@ auto rdb_meta_db::set_item_meta(const std::string &api_path,
   return update_item_meta(api_path, json_data);
 }
 
-auto rdb_meta_db::set_item_meta(const std::string &api_path,
+auto rdb_meta_db::set_item_meta(std::string_view api_path,
                                 const api_meta_map &meta) -> api_error {
+  REPERTORY_USES_FUNCTION_NAME();
+
   json json_data;
   auto res = get_item_meta_json(api_path, json_data);
   if (res != api_error::success && res != api_error::item_not_found) {
-    return res;
+    utils::error::raise_api_path_error(function_name, api_path, res,
+                                       "failed to get item meta");
   }
 
   for (const auto &data : meta) {
@@ -430,7 +436,7 @@ auto rdb_meta_db::set_item_meta(const std::string &api_path,
   return update_item_meta(api_path, json_data);
 }
 
-auto rdb_meta_db::update_item_meta(const std::string &api_path, json json_data,
+auto rdb_meta_db::update_item_meta(std::string_view api_path, json json_data,
                                    rocksdb::Transaction *base_txn,
                                    rocksdb::Status *status) -> api_error {
   REPERTORY_USES_FUNCTION_NAME();

@@ -45,7 +45,7 @@ namespace repertory::utils {
 [[nodiscard]] auto unix_access_mask_to_windows(std::int32_t mask) -> int;
 
 [[nodiscard]] auto
-unix_open_flags_to_flags_and_perms(const remote::file_mode &mode,
+unix_open_flags_to_flags_and_perms(remote::file_mode mode,
                                    const remote::open_flags &flags,
                                    std::int32_t &perms) -> int;
 } // namespace repertory::utils

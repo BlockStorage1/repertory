@@ -28,12 +28,12 @@
 namespace repertory {
 struct file_removed_externally final : public i_event {
   file_removed_externally() = default;
-  file_removed_externally(std::string api_path_,
+  file_removed_externally(std::string_view api_path_,
                           std::string_view function_name_,
-                          std::string source_path_)
-      : api_path(std::move(api_path_)),
-        function_name(std::string(function_name_)),
-        source_path(std::move(source_path_)) {}
+                          std::string_view source_path_)
+      : api_path(api_path_),
+        function_name(function_name_),
+        source_path(source_path_) {}
 
   static constexpr event_level level{event_level::warn};
   static constexpr std::string_view name{"file_removed_externally"};

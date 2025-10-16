@@ -23,16 +23,32 @@
 
 #include "platform/platform.hpp"
 
+#include "app_config.hpp"
 #include "events/event_system.hpp"
 #include "events/types/filesystem_item_added.hpp"
 #include "providers/i_provider.hpp"
+#include "utils/collection.hpp"
 #include "utils/config.hpp"
 #include "utils/error_utils.hpp"
+#include "utils/hash.hpp"
+#include "utils/path.hpp"
 #include "utils/string.hpp"
 
+namespace {
+[[nodiscard]] auto create_lock_key(std::string_view dir_id,
+                                   std::string_view mutex_id) -> std::string {
+  return fmt::format(R"(SOFTWARE\{}\Lock\{}\{})", REPERTORY_DATA_NAME, dir_id,
+                     mutex_id);
+}
+} // namespace
+
 namespace repertory {
-lock_data::lock_data(provider_type prov, std::string unique_id)
-    : mutex_id_(create_lock_id(prov, unique_id)),
+lock_data::lock_data(std::string_view data_directory, provider_type prov,
+                     std::string_view unique_id)
+    : dir_id_(
+          utils::collection::to_hex_string(utils::hash::create_hash_blake2b_64(
+              utils::string::to_lower(utils::path::absolute(data_directory))))),
+      mutex_id_(create_lock_id(prov, unique_id)),
       mutex_handle_(::CreateMutex(nullptr, FALSE,
                                   create_lock_id(prov, unique_id).c_str())) {}
 
@@ -43,10 +59,8 @@ auto lock_data::get_current_mount_state(json &mount_state) -> bool {
 
   HKEY key{};
   if (::RegOpenKeyEx(HKEY_CURRENT_USER,
-                     fmt::format(R"(SOFTWARE\{}\Mounts\{})",
-                                 REPERTORY_DATA_NAME, mutex_id_)
-                         .c_str(),
-                     0, KEY_ALL_ACCESS, &key) != ERROR_SUCCESS) {
+                     create_lock_key(dir_id_, mutex_id_).c_str(), 0,
+                     KEY_ALL_ACCESS, &key) != ERROR_SUCCESS) {
     return true;
   }
 
@@ -150,10 +164,8 @@ auto lock_data::set_mount_state(bool active, std::string_view mount_location,
 
   HKEY key{};
   if (::RegCreateKeyExA(HKEY_CURRENT_USER,
-                        fmt::format(R"(SOFTWARE\{}\Mounts\{})",
-                                    REPERTORY_DATA_NAME, mutex_id_)
-                            .c_str(),
-                        0, nullptr, 0, KEY_ALL_ACCESS, nullptr, &key,
+                        create_lock_key(dir_id_, mutex_id_).c_str(), 0, nullptr,
+                        0, KEY_ALL_ACCESS, nullptr, &key,
                         nullptr) != ERROR_SUCCESS) {
     return false;
   }
@@ -162,11 +174,10 @@ auto lock_data::set_mount_state(bool active, std::string_view mount_location,
   if (mount_location.empty() && not active) {
     ::RegCloseKey(key);
 
-    if (::RegCreateKeyExA(
-            HKEY_CURRENT_USER,
-            fmt::format(R"(SOFTWARE\{}\Mounts)", REPERTORY_DATA_NAME).c_str(),
-            0, nullptr, 0, KEY_ALL_ACCESS, nullptr, &key,
-            nullptr) != ERROR_SUCCESS) {
+    if (::RegCreateKeyExA(HKEY_CURRENT_USER,
+                          create_lock_key(dir_id_, mutex_id_).c_str(), 0,
+                          nullptr, 0, KEY_ALL_ACCESS, nullptr, &key,
+                          nullptr) != ERROR_SUCCESS) {
       return false;
     }
 
@@ -189,43 +200,57 @@ auto lock_data::set_mount_state(bool active, std::string_view mount_location,
   return ret;
 }
 
-auto create_meta_attributes(
-    std::uint64_t accessed_date, std::uint32_t attributes,
-    std::uint64_t changed_date, std::uint64_t creation_date, bool directory,
-    std::uint32_t gid, const std::string &key, std::uint32_t mode,
-    std::uint64_t modified_date, std::uint32_t osx_backup,
-    std::uint32_t osx_flags, std::uint64_t size, const std::string &source_path,
-    std::uint32_t uid, std::uint64_t written_date) -> api_meta_map {
-  return {
+auto create_meta_attributes(std::uint64_t accessed_date,
+                            std::uint32_t attributes,
+                            std::uint64_t changed_date,
+                            std::uint64_t creation_date, bool directory,
+                            std::uint32_t gid, std::string_view key,
+                            std::uint32_t mode, std::uint64_t modified_date,
+                            std::uint32_t osx_flags, std::uint64_t size,
+                            std::string_view source_path, std::uint32_t uid,
+                            std::uint64_t written_date) -> api_meta_map {
+  api_meta_map meta{
       {META_ACCESSED, std::to_string(accessed_date)},
       {META_ATTRIBUTES, std::to_string(attributes)},
-      {META_BACKUP, std::to_string(osx_backup)},
       {META_CHANGED, std::to_string(changed_date)},
       {META_CREATION, std::to_string(creation_date)},
       {META_DIRECTORY, utils::string::from_bool(directory)},
       {META_GID, std::to_string(gid)},
-      {META_KEY, key},
+      {META_KEY, std::string{key}},
       {META_MODE, std::to_string(mode)},
       {META_MODIFIED, std::to_string(modified_date)},
       {META_OSXFLAGS, std::to_string(osx_flags)},
-      {META_PINNED, "0"},
+      {META_PINNED, utils::string::from_bool(false)},
       {META_SIZE, std::to_string(size)},
-      {META_SOURCE, source_path},
+      {META_SOURCE, std::string{source_path}},
       {META_UID, std::to_string(uid)},
       {META_WRITTEN, std::to_string(written_date)},
   };
+
+  for (const auto &name : META_USED_NAMES) {
+    if (not meta.contains(name)) {
+      meta[name] = "";
+    }
+  }
+
+  return meta;
+}
+
+auto provider_meta_creator(bool directory, const api_file &file)
+    -> api_meta_map {
+  return create_meta_attributes(
+      file.accessed_date,
+      directory ? FILE_ATTRIBUTE_DIRECTORY : FILE_ATTRIBUTE_ARCHIVE,
+      file.changed_date, file.creation_date, directory, 0u, file.key,
+      directory ? S_IFDIR : S_IFREG, file.modified_date, 0u, file.file_size,
+      file.source_path, 0u, file.written_date);
 }
 
 auto provider_meta_handler(i_provider &provider, bool directory,
                            const api_file &file) -> api_error {
   REPERTORY_USES_FUNCTION_NAME();
 
-  const auto meta = create_meta_attributes(
-      file.accessed_date,
-      directory ? FILE_ATTRIBUTE_DIRECTORY : FILE_ATTRIBUTE_ARCHIVE,
-      file.changed_date, file.creation_date, directory, 0u, file.key,
-      directory ? S_IFDIR : S_IFREG, file.modified_date, 0u, 0u, file.file_size,
-      file.source_path, 0u, file.modified_date);
+  auto meta = provider_meta_creator(directory, file);
   auto res = provider.set_item_meta(file.api_path, meta);
   if (res == api_error::success) {
     event_system::instance().raise<filesystem_item_added>(

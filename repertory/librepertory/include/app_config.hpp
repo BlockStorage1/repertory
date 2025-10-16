@@ -31,24 +31,22 @@ private:
   static stop_type stop_requested;
 
 public:
-  [[nodiscard]] static auto default_agent_name(const provider_type &prov)
+  [[nodiscard]] static auto default_agent_name(provider_type prov)
       -> std::string;
 
-  [[nodiscard]] static auto default_api_port(const provider_type &prov)
+  [[nodiscard]] static auto default_api_port(provider_type prov)
       -> std::uint16_t;
 
-  [[nodiscard]] static auto default_data_directory(const provider_type &prov)
+  [[nodiscard]] static auto default_data_directory(provider_type prov)
       -> std::string;
 
-  [[nodiscard]] static auto default_remote_api_port(const provider_type &prov)
+  [[nodiscard]] static auto default_remote_api_port(provider_type prov)
       -> std::uint16_t;
 
-  [[nodiscard]] static auto default_rpc_port() -> std::uint16_t;
-
-  [[nodiscard]] static auto get_provider_display_name(const provider_type &prov)
+  [[nodiscard]] static auto get_provider_display_name(provider_type prov)
       -> std::string;
 
-  [[nodiscard]] static auto get_provider_name(const provider_type &prov)
+  [[nodiscard]] static auto get_provider_name(provider_type prov)
       -> std::string;
 
   [[nodiscard]] static auto get_root_data_directory() -> std::string;
@@ -59,7 +57,7 @@ public:
   static void set_stop_requested();
 
 public:
-  app_config(const provider_type &prov, std::string_view data_directory = "");
+  app_config(provider_type prov, std::string_view data_directory);
 
   app_config() = delete;
   app_config(app_config &&) = delete;
@@ -72,10 +70,12 @@ public:
 
 private:
   provider_type prov_;
-  atomic<std::string> api_password_;
+  utils::atomic<std::string> api_password_;
   std::atomic<std::uint16_t> api_port_;
-  atomic<std::string> api_user_;
+  utils::atomic<std::string> api_user_;
+  std::string cache_directory_;
   std::atomic<bool> config_changed_;
+  std::string data_directory_;
   std::atomic<database_type> db_type_{database_type::rocksdb};
   std::atomic<std::uint8_t> download_timeout_secs_;
   std::atomic<bool> enable_download_timeout_;
@@ -87,6 +87,7 @@ private:
   std::atomic<std::uint32_t> eviction_delay_mins_;
   std::atomic<bool> eviction_uses_accessed_time_;
   std::atomic<std::uint16_t> high_freq_interval_secs_;
+  std::string log_directory_;
   std::atomic<std::uint16_t> low_freq_interval_secs_;
   std::atomic<std::uint64_t> max_cache_size_bytes_;
   std::atomic<std::uint8_t> max_upload_count_;
@@ -98,20 +99,16 @@ private:
   std::atomic<std::uint16_t> task_wait_ms_;
 
 private:
-  std::string cache_directory_;
-  std::string data_directory_;
-  atomic<encrypt_config> encrypt_config_;
-  atomic<host_config> host_config_;
-  std::string log_directory_;
+  utils::atomic<encrypt_config> encrypt_config_;
+  utils::atomic<host_config> host_config_;
   mutable std::recursive_mutex read_write_mutex_;
-  atomic<remote::remote_config> remote_config_;
-  atomic<remote::remote_mount> remote_mount_;
-  atomic<s3_config> s3_config_;
-  atomic<sia_config> sia_config_;
+  utils::atomic<remote::remote_config> remote_config_;
+  utils::atomic<remote::remote_mount> remote_mount_;
+  utils::atomic<s3_config> s3_config_;
+  utils::atomic<sia_config> sia_config_;
   std::unordered_map<std::string, std::function<std::string()>>
       value_get_lookup_;
-  std::unordered_map<std::string,
-                     std::function<std::string(const std::string &)>>
+  std::unordered_map<std::string, std::function<std::string(std::string_view)>>
       value_set_lookup_;
   std::uint64_t version_{REPERTORY_CONFIG_VERSION};
 
@@ -120,6 +117,8 @@ private:
 
   template <typename dest, typename source>
   auto set_value(dest &dst, const source &src) -> bool;
+
+  auto set_value(utils::atomic<std::string> &dst, std::string_view src) -> bool;
 
 public:
   [[nodiscard]] auto get_api_password() const -> std::string;
@@ -190,21 +189,21 @@ public:
 
   [[nodiscard]] auto get_task_wait_ms() const -> std::uint16_t;
 
-  [[nodiscard]] auto get_value_by_name(const std::string &name) const
+  [[nodiscard]] auto get_value_by_name(std::string_view name) const
       -> std::string;
 
-  [[nodiscard]] auto get_raw_value_by_name(const std::string &name) const
+  [[nodiscard]] auto get_raw_value_by_name(std::string_view name) const
       -> std::string;
 
   [[nodiscard]] auto get_version() const -> std::uint64_t;
 
   void save();
 
-  void set_api_password(const std::string &value);
+  void set_api_password(std::string_view value);
 
   void set_api_port(std::uint16_t value);
 
-  void set_api_user(const std::string &value);
+  void set_api_user(std::string_view value);
 
   void set_download_timeout_secs(std::uint8_t value);
 
@@ -256,8 +255,8 @@ public:
 
   void set_task_wait_ms(std::uint16_t value);
 
-  [[nodiscard]] auto set_value_by_name(const std::string &name,
-                                       const std::string &value) -> std::string;
+  [[nodiscard]] auto set_value_by_name(std::string_view name,
+                                       std::string_view value) -> std::string;
 };
 } // namespace repertory
 

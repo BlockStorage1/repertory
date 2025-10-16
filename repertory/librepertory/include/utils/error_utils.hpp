@@ -51,6 +51,9 @@ void raise_error(std::string_view function, const std::exception &exception,
                  std::string_view file_path, std::string_view msg);
 
 void raise_api_path_error(std::string_view function, std::string_view api_path,
+                          std::string_view msg);
+
+void raise_api_path_error(std::string_view function, std::string_view api_path,
                           api_error err, std::string_view msg);
 
 void raise_api_path_error(std::string_view function, std::string_view api_path,

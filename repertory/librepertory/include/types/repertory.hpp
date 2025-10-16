@@ -22,6 +22,9 @@
 #ifndef REPERTORY_INCLUDE_TYPES_REPERTORY_HPP_
 #define REPERTORY_INCLUDE_TYPES_REPERTORY_HPP_
 
+#include "utils/atomic.hpp"
+#include "utils/encryption.hpp"
+
 namespace repertory {
 inline constexpr auto default_api_password_size{48U};
 inline constexpr auto default_download_timeout_secs{30U};
@@ -40,11 +43,13 @@ inline constexpr auto default_med_freq_interval_secs{
 inline constexpr auto default_online_check_retry_secs{60U};
 inline constexpr auto default_retry_read_count{6U};
 inline constexpr auto default_ring_buffer_file_size{512U};
+inline constexpr auto default_rpc_port{std::uint16_t(10000U)};
 inline constexpr auto default_task_wait_ms{100U};
 inline constexpr auto default_timeout_ms{60000U};
 inline constexpr auto default_ui_mgmt_port{std::uint16_t{30000U}};
 inline constexpr auto max_ring_buffer_file_size{std::uint16_t(1024U)};
 inline constexpr auto max_s3_object_name_length{1024U};
+inline constexpr auto max_s3_segment_name_length{255U};
 inline constexpr auto min_cache_size_bytes{
     std::uint64_t(100ULL * 1024ULL * 1024ULL),
 };
@@ -53,95 +58,6 @@ inline constexpr auto min_online_check_retry_secs{std::uint16_t(15U)};
 inline constexpr auto min_retry_read_count{std::uint16_t(2U)};
 inline constexpr auto min_ring_buffer_file_size{std::uint16_t(64U)};
 inline constexpr auto min_task_wait_ms{std::uint16_t(50U)};
-
-template <typename data_t> class atomic final {
-public:
-  atomic() : mtx_(std::make_shared<std::mutex>()) {}
-
-  atomic(const atomic &at_data)
-      : data_(at_data.load()), mtx_(std::make_shared<std::mutex>()) {}
-
-  atomic(data_t data)
-      : data_(std::move(data)), mtx_(std::make_shared<std::mutex>()) {}
-
-  atomic(atomic &&) = default;
-
-  ~atomic() = default;
-
-private:
-  data_t data_;
-  std::shared_ptr<std::mutex> mtx_;
-
-public:
-  [[nodiscard]] auto load() const -> data_t {
-    mutex_lock lock(*mtx_);
-    return data_;
-  }
-
-  auto store(data_t data) -> data_t {
-    mutex_lock lock(*mtx_);
-    data_ = std::move(data);
-    return data_;
-  }
-
-  auto operator=(const atomic &at_data) -> atomic & {
-    if (&at_data == this) {
-      return *this;
-    }
-
-    store(at_data.load());
-    return *this;
-  }
-
-  auto operator=(atomic &&) -> atomic & = default;
-
-  auto operator=(data_t data) -> atomic & {
-    if (&data == &data_) {
-      return *this;
-    }
-
-    store(std::move(data));
-    return *this;
-  }
-
-  [[nodiscard]] auto operator==(const atomic &at_data) const -> bool {
-    if (&at_data == this) {
-      return true;
-    }
-
-    mutex_lock lock(*mtx_);
-    return at_data.load() == data_;
-  }
-
-  [[nodiscard]] auto operator==(const data_t &data) const -> bool {
-    if (&data == &data_) {
-      return true;
-    }
-
-    mutex_lock lock(*mtx_);
-    return data == data_;
-  }
-
-  [[nodiscard]] auto operator!=(const atomic &at_data) const -> bool {
-    if (&at_data == this) {
-      return false;
-    }
-
-    mutex_lock lock(*mtx_);
-    return at_data.load() != data_;
-  }
-
-  [[nodiscard]] auto operator!=(const data_t &data) const -> bool {
-    if (&data == &data_) {
-      return false;
-    }
-
-    mutex_lock lock(*mtx_);
-    return data != data_;
-  }
-
-  [[nodiscard]] operator data_t() const { return load(); }
-};
 
 inline constexpr auto max_time{
     std::numeric_limits<std::uint64_t>::max(),
@@ -154,6 +70,7 @@ inline constexpr std::string META_CHANGED{"changed"};
 inline constexpr std::string META_CREATION{"creation"};
 inline constexpr std::string META_DIRECTORY{"directory"};
 inline constexpr std::string META_GID{"gid"};
+inline constexpr std::string META_KDF{"kdf"};
 inline constexpr std::string META_KEY{"key"};
 inline constexpr std::string META_MODE{"mode"};
 inline constexpr std::string META_MODIFIED{"modified"};
@@ -164,11 +81,11 @@ inline constexpr std::string META_SOURCE{"source"};
 inline constexpr std::string META_UID{"uid"};
 inline constexpr std::string META_WRITTEN{"written"};
 
-inline constexpr std::array<std::string, 16U> META_USED_NAMES = {
-    META_ACCESSED, META_ATTRIBUTES, META_BACKUP,   META_CHANGED,
-    META_CREATION, META_DIRECTORY,  META_GID,      META_KEY,
-    META_MODE,     META_MODIFIED,   META_OSXFLAGS, META_PINNED,
-    META_SIZE,     META_SOURCE,     META_UID,      META_WRITTEN,
+inline constexpr std::array<std::string, 17U> META_USED_NAMES = {
+    META_ACCESSED,  META_ATTRIBUTES, META_BACKUP, META_CHANGED, META_CREATION,
+    META_DIRECTORY, META_GID,        META_KDF,    META_KEY,     META_MODE,
+    META_MODIFIED,  META_OSXFLAGS,   META_PINNED, META_SIZE,    META_SOURCE,
+    META_UID,       META_WRITTEN,
 };
 
 using api_meta_map = std::map<std::string, std::string>;
@@ -208,9 +125,11 @@ enum class api_error {
   no_disk_space,
   not_implemented,
   not_supported,
+  no_tty,
   os_error,
   out_of_memory,
   permission_denied,
+  stale_descriptor,
   upload_failed,
   xattr_buffer_small,
   xattr_exists,
@@ -228,7 +147,7 @@ enum class database_type {
   sqlite,
 };
 [[nodiscard]] auto
-database_type_from_string(std::string type,
+database_type_from_string(std::string_view type,
                           database_type default_type = database_type::rocksdb)
     -> database_type;
 
@@ -241,7 +160,7 @@ enum class download_type {
   ring_buffer,
 };
 [[nodiscard]] auto
-download_type_from_string(std::string type,
+download_type_from_string(std::string_view type,
                           download_type default_type = download_type::default_)
     -> download_type;
 
@@ -258,7 +177,7 @@ enum class event_level {
 };
 
 [[nodiscard]] auto
-event_level_from_string(std::string level,
+event_level_from_string(std::string_view type,
                         event_level default_level = event_level::info)
     -> event_level;
 
@@ -286,7 +205,10 @@ enum class exit_code : std::int32_t {
   init_failed = -18,
   ui_mount_failed = -19,
   exception = -20,
-  provider_offline = -21
+  provider_offline = -21,
+  ui_failed = -22,
+  remove_failed = -23,
+  mount_not_found = -24,
 };
 
 enum http_error_codes : std::int32_t {
@@ -342,6 +264,7 @@ struct api_file final {
   std::string key;
   std::uint64_t modified_date{};
   std::string source_path;
+  std::uint64_t written_date{};
 };
 
 struct directory_item final {
@@ -354,11 +277,13 @@ struct directory_item final {
 
 struct encrypt_config final {
   std::string encryption_token;
+  utils::encryption::kdf_config kdf_cfg;
   std::string path;
 
   auto operator==(const encrypt_config &cfg) const noexcept -> bool {
     if (&cfg != this) {
-      return encryption_token == cfg.encryption_token && path == cfg.path;
+      return encryption_token == cfg.encryption_token &&
+             kdf_cfg == cfg.kdf_cfg && path == cfg.path;
     }
 
     return true;
@@ -416,6 +341,7 @@ struct s3_config final {
   std::string access_key;
   std::string bucket;
   std::string encryption_token;
+  bool force_legacy_encryption{false};
   std::string region{"any"};
   std::string secret_key;
   std::uint32_t timeout_ms{default_timeout_ms};
@@ -426,9 +352,11 @@ struct s3_config final {
   auto operator==(const s3_config &cfg) const noexcept -> bool {
     if (&cfg != this) {
       return access_key == cfg.access_key && bucket == cfg.bucket &&
-             encryption_token == cfg.encryption_token && region == cfg.region &&
-             secret_key == cfg.secret_key && timeout_ms == cfg.timeout_ms &&
-             url == cfg.url && use_path_style == cfg.use_path_style &&
+             encryption_token == cfg.encryption_token &&
+             force_legacy_encryption == cfg.force_legacy_encryption &&
+             region == cfg.region && secret_key == cfg.secret_key &&
+             timeout_ms == cfg.timeout_ms && url == cfg.url &&
+             use_path_style == cfg.use_path_style &&
              use_region_in_url == cfg.use_region_in_url;
     }
 
@@ -472,18 +400,21 @@ using meta_provider_callback = std::function<void(directory_item &)>;
 
 inline constexpr auto JSON_ACCESS_KEY{"AccessKey"};
 inline constexpr auto JSON_AGENT_STRING{"AgentString"};
+inline constexpr auto JSON_ANIMATIONS{"Animations"};
 inline constexpr auto JSON_API_PARENT{"ApiParent"};
 inline constexpr auto JSON_API_PASSWORD{"ApiPassword"};
 inline constexpr auto JSON_API_PATH{"ApiPath"};
 inline constexpr auto JSON_API_PORT{"ApiPort"};
 inline constexpr auto JSON_API_USER{"ApiUser"};
+inline constexpr auto JSON_AUTO_START{"AutoStart"};
 inline constexpr auto JSON_BUCKET{"Bucket"};
 inline constexpr auto JSON_CLIENT_POOL_SIZE{"ClientPoolSize"};
+inline constexpr auto JSON_CONNECT_TIMEOUT_MS{"ConnectTimeoutMs"};
 inline constexpr auto JSON_DATABASE_TYPE{"DatabaseType"};
 inline constexpr auto JSON_DIRECTORY{"Directory"};
 inline constexpr auto JSON_DOWNLOAD_TIMEOUT_SECS{"DownloadTimeoutSeconds"};
-inline constexpr auto JSON_ENABLE_DRIVE_EVENTS{"EnableDriveEvents"};
 inline constexpr auto JSON_ENABLE_DOWNLOAD_TIMEOUT{"EnableDownloadTimeout"};
+inline constexpr auto JSON_ENABLE_DRIVE_EVENTS{"EnableDriveEvents"};
 inline constexpr auto JSON_ENABLE_MOUNT_MANAGER{"EnableMountManager"};
 inline constexpr auto JSON_ENABLE_REMOTE_MOUNT{"Enable"};
 inline constexpr auto JSON_ENCRYPTION_TOKEN{"EncryptionToken"};
@@ -491,15 +422,18 @@ inline constexpr auto JSON_ENCRYPT_CONFIG{"EncryptConfig"};
 inline constexpr auto JSON_EVENT_LEVEL{"EventLevel"};
 inline constexpr auto JSON_EVICTION_DELAY_MINS{"EvictionDelayMinutes"};
 inline constexpr auto JSON_EVICTION_USE_ACCESS_TIME{"EvictionUseAccessedTime"};
+inline constexpr auto JSON_FORCE_LEGACY_ENCRYPTION{"ForceLegacyEncryption"};
 inline constexpr auto JSON_HIGH_FREQ_INTERVAL_SECS{"HighFreqIntervalSeconds"};
 inline constexpr auto JSON_HOST_CONFIG{"HostConfig"};
 inline constexpr auto JSON_HOST_NAME_OR_IP{"HostNameOrIp"};
+inline constexpr auto JSON_KDF_CONFIG{"KDFConfig"};
 inline constexpr auto JSON_LOW_FREQ_INTERVAL_SECS{"LowFreqIntervalSeconds"};
 inline constexpr auto JSON_MAX_CACHE_SIZE_BYTES{"MaxCacheSizeBytes"};
 inline constexpr auto JSON_MAX_CONNECTIONS{"MaxConnections"};
 inline constexpr auto JSON_MAX_UPLOAD_COUNT{"MaxUploadCount"};
 inline constexpr auto JSON_MED_FREQ_INTERVAL_SECS{"MedFreqIntervalSeconds"};
 inline constexpr auto JSON_META{"Meta"};
+inline constexpr auto JSON_MOUNT_AUTO_START{"MountAutoStart"};
 inline constexpr auto JSON_MOUNT_LOCATIONS{"MountLocations"};
 inline constexpr auto JSON_ONLINE_CHECK_RETRY_SECS{"OnlineCheckRetrySeconds"};
 inline constexpr auto JSON_PATH{"Path"};
@@ -546,12 +480,36 @@ template <> struct adl_serializer<repertory::directory_item> {
 template <> struct adl_serializer<repertory::encrypt_config> {
   static void to_json(json &data, const repertory::encrypt_config &value) {
     data[repertory::JSON_ENCRYPTION_TOKEN] = value.encryption_token;
+    data[repertory::JSON_KDF_CONFIG] =
+        repertory::utils::collection::to_hex_string(value.kdf_cfg.to_header());
     data[repertory::JSON_PATH] = value.path;
   }
 
   static void from_json(const json &data, repertory::encrypt_config &value) {
+    REPERTORY_USES_FUNCTION_NAME();
     data.at(repertory::JSON_ENCRYPTION_TOKEN).get_to(value.encryption_token);
     data.at(repertory::JSON_PATH).get_to(value.path);
+
+    if (not data.contains(repertory::JSON_KDF_CONFIG)) {
+      return;
+    }
+
+    auto kdf_str = data.at(repertory::JSON_KDF_CONFIG).get<std::string>();
+    if (kdf_str.empty()) {
+      return;
+    }
+
+    repertory::data_buffer buffer;
+    if (not repertory::utils::collection::from_hex_string(kdf_str, buffer)) {
+      throw repertory::utils::error::create_exception(
+          function_name, {"failed to convert kdf config hex string to buffer"});
+    }
+
+    if (not repertory::utils::encryption::kdf_config::from_header(
+            buffer, value.kdf_cfg, true)) {
+      throw repertory::utils::error::create_exception(
+          function_name, {"failed to parse kdf header"});
+    }
   }
 };
 
@@ -584,6 +542,8 @@ template <> struct adl_serializer<repertory::s3_config> {
     data[repertory::JSON_ACCESS_KEY] = value.access_key;
     data[repertory::JSON_BUCKET] = value.bucket;
     data[repertory::JSON_ENCRYPTION_TOKEN] = value.encryption_token;
+    data[repertory::JSON_FORCE_LEGACY_ENCRYPTION] =
+        value.force_legacy_encryption;
     data[repertory::JSON_REGION] = value.region;
     data[repertory::JSON_SECRET_KEY] = value.secret_key;
     data[repertory::JSON_TIMEOUT_MS] = value.timeout_ms;
@@ -602,6 +562,10 @@ template <> struct adl_serializer<repertory::s3_config> {
     data.at(repertory::JSON_URL).get_to(value.url);
     data.at(repertory::JSON_USE_PATH_STYLE).get_to(value.use_path_style);
     data.at(repertory::JSON_USE_REGION_IN_URL).get_to(value.use_region_in_url);
+    if (data.contains(repertory::JSON_FORCE_LEGACY_ENCRYPTION)) {
+      data.at(repertory::JSON_FORCE_LEGACY_ENCRYPTION)
+          .get_to(value.force_legacy_encryption);
+    }
   }
 };
 
@@ -615,12 +579,15 @@ template <> struct adl_serializer<repertory::sia_config> {
   }
 };
 
-template <typename data_t> struct adl_serializer<repertory::atomic<data_t>> {
-  static void to_json(json &data, const repertory::atomic<data_t> &value) {
+template <typename data_t>
+struct adl_serializer<repertory::utils::atomic<data_t>> {
+  static void to_json(json &data,
+                      const repertory::utils::atomic<data_t> &value) {
     data = value.load();
   }
 
-  static void from_json(const json &data, repertory::atomic<data_t> &value) {
+  static void from_json(const json &data,
+                        repertory::utils::atomic<data_t> &value) {
     value.store(data.get<data_t>());
   }
 };

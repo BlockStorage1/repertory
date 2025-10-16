@@ -26,130 +26,178 @@
 #include "events/types/service_start_end.hpp"
 #include "events/types/service_stop_begin.hpp"
 #include "events/types/service_stop_end.hpp"
-#include "platform/platform.hpp"
-#include "utils/error_utils.hpp"
+#include "utils/error.hpp"
 
 namespace repertory {
-void client_pool::pool::execute(
-    std::uint64_t thread_id, const worker_callback &worker,
-    const worker_complete_callback &worker_complete) {
-  auto index = thread_id % pool_queues_.size();
-  auto job = std::make_shared<work_item>(worker, worker_complete);
-  auto &pool_queue = pool_queues_[index];
-
-  unique_mutex_lock queue_lock(pool_queue->mutex);
-  pool_queue->queue.emplace_back(job);
-  pool_queue->notify.notify_all();
-  queue_lock.unlock();
+client_pool::pool::work_queue::work_queue() {
+  thread = std::make_unique<std::thread>([this]() { work_thread(); });
 }
 
-client_pool::pool::pool(std::uint8_t pool_size) {
+client_pool::pool::work_queue::~work_queue() {
+  shutdown = true;
+
+  unique_mutex_lock lock(mutex);
+  notify.notify_all();
+  lock.unlock();
+
+  if (thread->joinable()) {
+    thread->join();
+  }
+}
+
+void client_pool::pool::work_queue::work_thread() {
+  REPERTORY_USES_FUNCTION_NAME();
+
+  unique_mutex_lock lock(mutex);
+  const auto unlock_and_notify = [this, &lock]() {
+    lock.unlock();
+    notify.notify_all();
+  };
+  unlock_and_notify();
+
+  const auto process_next_item = [this, &unlock_and_notify]() {
+    if (actions.empty()) {
+      unlock_and_notify();
+      return;
+    }
+
+    auto item = actions.front();
+    actions.pop_front();
+    unlock_and_notify();
+
+    try {
+      item->work_complete(item->work());
+    } catch (const std::exception &e) {
+      utils::error::handle_exception(function_name, e);
+    } catch (...) {
+      utils::error::handle_exception(function_name);
+    }
+  };
+
+  while (not shutdown) {
+    lock.lock();
+    if (actions.empty()) {
+      notify.wait(lock, [this]() { return shutdown || not actions.empty(); });
+      unlock_and_notify();
+      continue;
+    }
+
+    process_next_item();
+  }
+
+  while (not actions.empty()) {
+    lock.lock();
+    process_next_item();
+  }
+}
+
+client_pool::pool::~pool() { shutdown(); }
+
+void client_pool::pool::execute(std::uint64_t thread_id, worker_callback worker,
+                                worker_complete_callback worker_complete) {
+  REPERTORY_USES_FUNCTION_NAME();
+
+  auto job = std::make_shared<work_item>(std::move(worker),
+                                         std::move(worker_complete));
+
+  unique_mutex_lock pool_lock(pool_mtx_);
+  if (pool_queues_[thread_id] == nullptr) {
+    pool_queues_[thread_id] = std::make_shared<work_queue>();
+  }
+
+  auto pool_queue = pool_queues_[thread_id];
+  pool_lock.unlock();
+
+  pool_queue->modified = std::chrono::steady_clock::now();
+
+  unique_mutex_lock queue_lock(pool_queue->mutex);
+  pool_queue->actions.emplace_back(std::move(job));
+  pool_queue->notify.notify_all();
+}
+
+void client_pool::pool::remove_expired(std::uint16_t seconds) {
+  auto now = std::chrono::steady_clock::now();
+
+  unique_mutex_lock pool_lock(pool_mtx_);
+  auto results = std::accumulate(
+      pool_queues_.begin(), pool_queues_.end(),
+      std::unordered_map<std::uint64_t, std::shared_ptr<work_queue>>(),
+      [&now, seconds](auto &&res, auto &&entry) -> auto {
+        auto duration = now - entry.second->modified.load();
+        if (std::chrono::duration_cast<std::chrono::seconds>(duration) >=
+            std::chrono::seconds(seconds)) {
+          res[entry.first] = entry.second;
+        }
+
+        return res;
+      });
+  pool_lock.unlock();
+
+  for (const auto &entry : results) {
+    pool_lock.lock();
+    pool_queues_.erase(entry.first);
+    pool_lock.unlock();
+  }
+
+  results.clear();
+}
+
+void client_pool::pool::shutdown() {
+  std::unordered_map<std::uint64_t, std::shared_ptr<work_queue>> pool_queues;
+
+  unique_mutex_lock pool_lock(pool_mtx_);
+  std::swap(pool_queues, pool_queues_);
+  pool_lock.unlock();
+
+  pool_queues.clear();
+}
+
+client_pool::client_pool() noexcept {
   REPERTORY_USES_FUNCTION_NAME();
 
   event_system::instance().raise<service_start_begin>(function_name,
                                                       "client_pool");
 
-  for (std::uint8_t i = 0U; i < pool_size; i++) {
-    pool_queues_.emplace_back(std::make_unique<work_queue>());
-  }
-
-  for (std::size_t i = 0U; i < pool_queues_.size(); i++) {
-    pool_threads_.emplace_back([this]() {
-      auto thread_index = thread_index_++;
-
-      auto &pool_queue = pool_queues_[thread_index];
-      auto &queue = pool_queue->queue;
-      auto &queue_mutex = pool_queue->mutex;
-      auto &queue_notify = pool_queue->notify;
-
-      unique_mutex_lock queue_lock(queue_mutex);
-      queue_notify.notify_all();
-      queue_lock.unlock();
-      while (not shutdown_) {
-        queue_lock.lock();
-        if (queue.empty()) {
-          queue_notify.wait(queue_lock);
-        }
-
-        while (not queue.empty()) {
-          auto item = queue.front();
-          queue.pop_front();
-          queue_notify.notify_all();
-          queue_lock.unlock();
-
-          try {
-            auto result = item->work();
-            item->work_complete(result);
-          } catch (const std::exception &e) {
-            item->work_complete(utils::from_api_error(api_error::error));
-            utils::error::raise_error(function_name, e,
-                                      "exception occurred in work item");
-          }
-
-          queue_lock.lock();
-        }
-
-        queue_notify.notify_all();
-        queue_lock.unlock();
-      }
-
-      queue_lock.lock();
-      while (not queue.empty()) {
-        auto job = queue.front();
-        queue.pop_front();
-        queue_notify.notify_all();
-        queue_lock.unlock();
-
-        job->work_complete(utils::from_api_error(api_error::download_stopped));
-
-        queue_lock.lock();
-      }
-
-      queue_notify.notify_all();
-      queue_lock.unlock();
-    });
-  }
-
   event_system::instance().raise<service_start_end>(function_name,
                                                     "client_pool");
 }
 
-void client_pool::pool::shutdown() {
-  shutdown_ = true;
-
-  for (auto &pool_queue : pool_queues_) {
-    mutex_lock lock(pool_queue->mutex);
-    pool_queue->notify.notify_all();
-  }
-
-  for (auto &thread : pool_threads_) {
-    thread.join();
-  }
-
-  pool_queues_.clear();
-  pool_threads_.clear();
+auto client_pool::get_expired_seconds() const -> std::uint16_t {
+  return expired_seconds_.load();
 }
 
-void client_pool::execute(const std::string &client_id, std::uint64_t thread_id,
-                          const worker_callback &worker,
-                          const worker_complete_callback &worker_complete) {
+void client_pool::execute(std::string client_id, std::uint64_t thread_id,
+                          worker_callback worker,
+                          worker_complete_callback worker_complete) {
   unique_mutex_lock pool_lock(pool_mutex_);
   if (shutdown_) {
     pool_lock.unlock();
-    throw std::runtime_error("Client pool is shutdown");
+    throw std::runtime_error("client pool is shutdown");
   }
 
   if (not pool_lookup_[client_id]) {
-    pool_lookup_[client_id] = std::make_shared<pool>(pool_size_);
+    pool_lookup_[client_id] = std::make_unique<pool>();
   }
 
-  pool_lookup_[client_id]->execute(thread_id, worker, worker_complete);
+  pool_lookup_[client_id]->execute(thread_id, std::move(worker),
+                                   std::move(worker_complete));
   pool_lock.unlock();
 }
 
-void client_pool::remove_client(const std::string &client_id) {
+void client_pool::remove_client(std::string client_id) {
   mutex_lock pool_lock(pool_mutex_);
   pool_lookup_.erase(client_id);
+}
+
+void client_pool::remove_expired() {
+  mutex_lock pool_lock(pool_mutex_);
+  for (auto &entry : pool_lookup_) {
+    entry.second->remove_expired(expired_seconds_);
+  }
+}
+
+void client_pool::set_expired_seconds(std::uint16_t seconds) {
+  expired_seconds_ = std::max(std::uint16_t{min_expired_seconds}, seconds);
 }
 
 void client_pool::shutdown() {
@@ -159,17 +207,23 @@ void client_pool::shutdown() {
     return;
   }
 
+  shutdown_ = true;
+
   event_system::instance().raise<service_stop_begin>(function_name,
                                                      "client_pool");
+
   unique_mutex_lock pool_lock(pool_mutex_);
-  if (not shutdown_) {
-    shutdown_ = true;
-    for (auto &pool_entry : pool_lookup_) {
+  std::unordered_map<std::string, std::unique_ptr<pool>> pool_lookup;
+  std::swap(pool_lookup, pool_lookup_);
+  pool_lock.unlock();
+
+  if (not pool_lookup.empty()) {
+    for (auto &pool_entry : pool_lookup) {
       pool_entry.second->shutdown();
     }
-    pool_lookup_.clear();
+    pool_lookup.clear();
   }
-  pool_lock.unlock();
+
   event_system::instance().raise<service_stop_end>(function_name,
                                                    "client_pool");
 }

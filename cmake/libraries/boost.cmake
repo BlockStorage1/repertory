@@ -39,6 +39,14 @@ if(PROJECT_ENABLE_BOOST)
           wserialization
       )
     else()
+      if(PROJECT_IS_DARWIN)
+        set(CMAKE_HAVE_THREADS_LIBRARY 1)
+        set(CMAKE_THREAD_LIBS_INIT "-lpthread")
+        set(CMAKE_USE_PTHREADS_INIT 1)
+        set(CMAKE_USE_WIN32_THREADS_INIT 0)
+        set(THREADS_PREFER_PTHREAD_FLAG ON)
+      endif()
+
       find_package(Boost ${BOOST_MAJOR_VERSION}.${BOOST_MINOR_VERSION}.${BOOST_PATCH_VERSION}
         REQUIRED
         COMPONENTS
@@ -54,7 +62,6 @@ if(PROJECT_ENABLE_BOOST)
           random
           regex
           serialization
-          system
           thread
           wserialization
       )
@@ -120,16 +127,22 @@ if(PROJECT_ENABLE_BOOST)
           --with-libraries=atomic,chrono,date_time,filesystem,iostreams,locale,log,program_options,random,regex,serialization,system,test,thread
         BUILD_COMMAND
           ./b2
+          -sNO_BZIP2=1
           -j$ENV{CMAKE_BUILD_PARALLEL_LEVEL}
           ${BOOST_BUILD_ARGS}
         INSTALL_COMMAND
           ./b2
+          -sNO_BZIP2=1
           -j$ENV{CMAKE_BUILD_PARALLEL_LEVEL}
           ${BOOST_BUILD_ARGS}
           install
       )
 
       list(APPEND PROJECT_DEPENDENCIES boost_project)
+
+     if(PROJECT_IS_DARWIN OR PROJECT_REQUIRE_ALPINE)
+        add_dependencies(boost_project icu_project)
+      endif()
 
       if (NOT CMAKE_HOST_WIN32)
         add_dependencies(boost_project openssl_project)

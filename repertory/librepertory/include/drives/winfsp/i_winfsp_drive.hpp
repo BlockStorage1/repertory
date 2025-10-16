@@ -32,22 +32,22 @@ class i_winfsp_drive {
 
 public:
   [[nodiscard]] virtual auto
-  get_directory_item_count(const std::string &api_path) const
+  get_directory_item_count(std::string_view api_path) const
       -> std::uint64_t = 0;
 
   [[nodiscard]] virtual auto
-  get_directory_items(const std::string &api_path) const
+  get_directory_items(std::string_view api_path) const
       -> directory_item_list = 0;
 
-  [[nodiscard]] virtual auto get_file_size(const std::string &api_path) const
+  [[nodiscard]] virtual auto get_file_size(std::string_view api_path) const
       -> std::uint64_t = 0;
 
-  [[nodiscard]] virtual auto get_item_meta(const std::string &api_path,
-                                           const std::string &name,
+  [[nodiscard]] virtual auto get_item_meta(std::string_view api_path,
+                                           std::string_view name,
                                            std::string &value) const
       -> api_error = 0;
 
-  [[nodiscard]] virtual auto get_item_meta(const std::string &api_path,
+  [[nodiscard]] virtual auto get_item_meta(std::string_view api_path,
                                            api_meta_map &meta) const
       -> api_error = 0;
 
@@ -65,8 +65,8 @@ public:
   virtual void get_volume_info(UINT64 &total_size, UINT64 &free_size,
                                std::string &volume_label) const = 0;
 
-  [[nodiscard]] virtual auto populate_file_info(const std::string &api_path,
-                                                remote::file_info &fi) const
+  [[nodiscard]] virtual auto populate_file_info(std::string_view api_path,
+                                                remote::file_info &r_info) const
       -> api_error = 0;
 };
 } // namespace repertory

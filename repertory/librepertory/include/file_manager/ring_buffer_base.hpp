@@ -57,8 +57,9 @@ private:
 private:
   std::condition_variable chunk_notify_;
   mutable std::mutex chunk_mtx_;
+  std::unique_ptr<std::thread> forward_reader_thread_;
   std::mutex read_mtx_;
-  std::unique_ptr<std::thread> reader_thread_;
+  std::unique_ptr<std::thread> reverse_reader_thread_;
   std::size_t ring_begin_{};
   std::size_t ring_end_{};
   std::size_t ring_pos_{};
@@ -69,7 +70,7 @@ private:
 
   auto download_chunk(std::size_t chunk, bool skip_active) -> api_error;
 
-  void reader_thread();
+  void reader_thread(bool is_forward);
 
   void update_position(std::size_t count, bool is_forward);
 
@@ -77,7 +78,7 @@ private:
 
 protected:
   [[nodiscard]] auto has_reader_thread() const -> bool {
-    return reader_thread_ != nullptr;
+    return forward_reader_thread_ != nullptr;
   }
 
   [[nodiscard]] auto get_ring_size() const -> std::size_t {
@@ -139,7 +140,7 @@ public:
 
   void set(std::size_t first_chunk, std::size_t current_chunk);
 
-  void set_api_path(const std::string &api_path) override;
+  void set_api_path(std::string_view api_path) override;
 
   [[nodiscard]] auto write(std::uint64_t /* write_offset */,
                            const data_buffer & /* data */,

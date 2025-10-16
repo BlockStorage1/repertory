@@ -92,6 +92,8 @@ std::atomic<std::size_t> file_manager_test::inst{0U};
 
 TEST_F(file_manager_test, can_start_and_stop) {
   EXPECT_CALL(mp, is_read_only()).WillRepeatedly(Return(false));
+  EXPECT_CALL(mp, get_pinned_files())
+      .WillOnce(Return(std::vector<std::string>()));
 
   event_consumer consumer(service_start_begin::name, [](const i_event &evt) {
     const auto &evt2 = dynamic_cast<const service_start_begin &>(evt);
@@ -126,8 +128,11 @@ TEST_F(file_manager_test, can_start_and_stop) {
 
 TEST_F(file_manager_test, can_create_and_close_file) {
   cfg->set_enable_download_timeout(true);
+  cfg->set_download_timeout_secs(1U);
 
   EXPECT_CALL(mp, is_read_only()).WillRepeatedly(Return(false));
+  EXPECT_CALL(mp, get_pinned_files())
+      .WillOnce(Return(std::vector<std::string>()));
 
   polling::instance().start(cfg.get());
 
@@ -152,14 +157,14 @@ TEST_F(file_manager_test, can_create_and_close_file) {
     auto now = utils::time::get_time_now();
     auto meta = create_meta_attributes(now, FILE_ATTRIBUTE_ARCHIVE, now + 1U,
                                        now + 2U, false, 1, "key", 2, now + 3U,
-                                       3U, 4U, 0U, source_path, 10U, now + 4U);
+                                       0U, 0U, source_path, 10U, now + 4U);
 
     EXPECT_CALL(mp, create_file("/test_create.txt", meta))
         .WillOnce(Return(api_error::success));
     EXPECT_CALL(mp, get_filesystem_item)
-        .WillOnce([&meta](const std::string &api_path, bool directory,
+        .WillOnce([&meta](std::string_view api_path, bool directory,
                           filesystem_item &fsi) -> api_error {
-          EXPECT_STREQ("/test_create.txt", api_path.c_str());
+          EXPECT_STREQ("/test_create.txt", std::string{api_path}.c_str());
           EXPECT_FALSE(directory);
           fsi.api_path = api_path;
           fsi.api_parent = utils::path::get_parent_api_path(api_path);
@@ -231,8 +236,11 @@ TEST_F(file_manager_test, can_create_and_close_file) {
 
 TEST_F(file_manager_test, can_open_and_close_file) {
   cfg->set_enable_download_timeout(true);
+  cfg->set_download_timeout_secs(1U);
 
   EXPECT_CALL(mp, is_read_only()).WillRepeatedly(Return(false));
+  EXPECT_CALL(mp, get_pinned_files())
+      .WillOnce(Return(std::vector<std::string>()));
 
   polling::instance().start(cfg.get());
 
@@ -255,14 +263,14 @@ TEST_F(file_manager_test, can_open_and_close_file) {
     auto now = utils::time::get_time_now();
     auto meta = create_meta_attributes(now, FILE_ATTRIBUTE_ARCHIVE, now + 1U,
                                        now + 2U, false, 1U, "key", 2U, now + 3U,
-                                       3U, 4U, 0U, source_path, 10U, now + 4U);
+                                       0U, 0U, source_path, 10U, now + 4U);
 
     EXPECT_CALL(mp, create_file).Times(0U);
 
     EXPECT_CALL(mp, get_filesystem_item)
-        .WillOnce([&meta](const std::string &api_path, bool directory,
+        .WillOnce([&meta](std::string_view api_path, bool directory,
                           filesystem_item &fsi) -> api_error {
-          EXPECT_STREQ("/test_open.txt", api_path.c_str());
+          EXPECT_STREQ("/test_open.txt", std::string{api_path}.c_str());
           EXPECT_FALSE(directory);
           fsi.api_path = api_path;
           fsi.api_parent = utils::path::get_parent_api_path(api_path);
@@ -335,6 +343,8 @@ TEST_F(file_manager_test, can_open_and_close_file) {
 
 TEST_F(file_manager_test, can_open_and_close_multiple_handles_for_same_file) {
   EXPECT_CALL(mp, is_read_only()).WillRepeatedly(Return(false));
+  EXPECT_CALL(mp, get_pinned_files())
+      .WillOnce(Return(std::vector<std::string>()));
 
   polling::instance().start(cfg.get());
 
@@ -348,14 +358,14 @@ TEST_F(file_manager_test, can_open_and_close_multiple_handles_for_same_file) {
     auto now = utils::time::get_time_now();
     auto meta = create_meta_attributes(now, FILE_ATTRIBUTE_ARCHIVE, now + 1U,
                                        now + 2U, false, 1U, "key", 2U, now + 3U,
-                                       3U, 4U, 0U, source_path, 10U, now + 4U);
+                                       0U, 4U, source_path, 10U, now + 4U);
 
     EXPECT_CALL(mp, create_file).Times(0U);
 
     EXPECT_CALL(mp, get_filesystem_item)
-        .WillOnce([&meta](const std::string &api_path, bool directory,
+        .WillOnce([&meta](std::string_view api_path, bool directory,
                           filesystem_item &fsi) -> api_error {
-          EXPECT_STREQ("/test_open.txt", api_path.c_str());
+          EXPECT_STREQ("/test_open.txt", std::string{api_path}.c_str());
           EXPECT_FALSE(directory);
           fsi.api_path = api_path;
           fsi.api_parent = utils::path::get_parent_api_path(api_path);
@@ -398,6 +408,9 @@ TEST_F(file_manager_test, can_open_and_close_multiple_handles_for_same_file) {
 TEST_F(file_manager_test,
        download_is_stored_after_write_if_partially_downloaded) {
   EXPECT_CALL(mp, is_read_only()).WillRepeatedly(Return(false));
+  EXPECT_CALL(mp, get_pinned_files())
+      .Times(2)
+      .WillRepeatedly(Return(std::vector<std::string>()));
 
   file_manager mgr(*cfg, mp);
   mgr.start();
@@ -421,16 +434,17 @@ TEST_F(file_manager_test,
   auto now = utils::time::get_time_now();
   auto meta = create_meta_attributes(
       now, FILE_ATTRIBUTE_ARCHIVE, now + 1U, now + 2U, false, 1U, "key", 2U,
-      now + 3U, 3U, 4U,
+      now + 3U, 3U,
       utils::encryption::encrypting_reader::get_data_chunk_size() * 4U,
       source_path, 10U, now + 4U);
   auto &file =
       test::create_random_file(utils::string::to_uint64(meta[META_SIZE]));
 
   EXPECT_CALL(mp, get_filesystem_item)
-      .WillRepeatedly([&meta](const std::string &api_path, bool directory,
+      .WillRepeatedly([&meta](std::string_view api_path, bool directory,
                               filesystem_item &fsi) -> api_error {
-        EXPECT_STREQ("/test_write_partial_download.txt", api_path.c_str());
+        EXPECT_STREQ("/test_write_partial_download.txt",
+                     std::string{api_path}.c_str());
         EXPECT_FALSE(directory);
         fsi.api_path = api_path;
         fsi.api_parent = utils::path::get_parent_api_path(api_path);
@@ -441,9 +455,8 @@ TEST_F(file_manager_test,
       });
 
   EXPECT_CALL(mp, read_file_bytes)
-      .WillRepeatedly([&file](const std::string & /* api_path */,
-                              std::size_t size, std::uint64_t offset,
-                              data_buffer &data,
+      .WillRepeatedly([&file](std::string_view /* api_path */, std::size_t size,
+                              std::uint64_t offset, data_buffer &data,
                               stop_type &stop_requested) -> api_error {
         if (stop_requested) {
           return api_error::download_stopped;
@@ -476,13 +489,12 @@ TEST_F(file_manager_test,
 #endif
 
   EXPECT_CALL(mp, set_item_meta("/test_write_partial_download.txt", _))
-      .WillOnce(
-          [](const std::string &, const api_meta_map &meta2) -> api_error {
-            EXPECT_NO_THROW(EXPECT_FALSE(meta2.at(META_CHANGED).empty()));
-            EXPECT_NO_THROW(EXPECT_FALSE(meta2.at(META_MODIFIED).empty()));
-            EXPECT_NO_THROW(EXPECT_FALSE(meta2.at(META_WRITTEN).empty()));
-            return api_error::success;
-          });
+      .WillOnce([](std::string_view, const api_meta_map &meta2) -> api_error {
+        EXPECT_NO_THROW(EXPECT_FALSE(meta2.at(META_CHANGED).empty()));
+        EXPECT_NO_THROW(EXPECT_FALSE(meta2.at(META_MODIFIED).empty()));
+        EXPECT_NO_THROW(EXPECT_FALSE(meta2.at(META_WRITTEN).empty()));
+        return api_error::success;
+      });
   EXPECT_CALL(mp, upload_file).Times(0u);
 
   if (not open_file->is_write_supported()) {
@@ -547,8 +559,11 @@ TEST_F(file_manager_test,
 
 TEST_F(file_manager_test, upload_occurs_after_write_if_fully_downloaded) {
   cfg->set_enable_download_timeout(true);
+  cfg->set_download_timeout_secs(1U);
 
   EXPECT_CALL(mp, is_read_only()).WillRepeatedly(Return(false));
+  EXPECT_CALL(mp, get_pinned_files())
+      .WillOnce(Return(std::vector<std::string>()));
 
   polling::instance().start(cfg.get());
 
@@ -573,17 +588,18 @@ TEST_F(file_manager_test, upload_occurs_after_write_if_fully_downloaded) {
 
   auto now = utils::time::get_time_now();
   auto meta = create_meta_attributes(
-      now, FILE_ATTRIBUTE_ARCHIVE, now + 1u, now + 2u, false, 1, "key", 2,
-      now + 3u, 3u, 4u,
+      now, FILE_ATTRIBUTE_ARCHIVE, now + 1u, now + 2U, false, 1, "key", 2,
+      now + 3u, 3u,
       utils::encryption::encrypting_reader::get_data_chunk_size() * 4u,
       source_path, 10, now + 4u);
   auto &file =
       test::create_random_file(utils::string::to_uint64(meta[META_SIZE]));
 
   EXPECT_CALL(mp, get_filesystem_item)
-      .WillRepeatedly([&meta](const std::string &api_path, bool directory,
+      .WillRepeatedly([&meta](std::string_view api_path, bool directory,
                               filesystem_item &fsi) -> api_error {
-        EXPECT_STREQ("/test_write_full_download.txt", api_path.c_str());
+        EXPECT_STREQ("/test_write_full_download.txt",
+                     std::string{api_path}.c_str());
         EXPECT_FALSE(directory);
         fsi.api_path = api_path;
         fsi.api_parent = utils::path::get_parent_api_path(api_path);
@@ -594,9 +610,8 @@ TEST_F(file_manager_test, upload_occurs_after_write_if_fully_downloaded) {
       });
 
   EXPECT_CALL(mp, read_file_bytes)
-      .WillRepeatedly([&file](const std::string & /* api_path */,
-                              std::size_t size, std::uint64_t offset,
-                              data_buffer &data,
+      .WillRepeatedly([&file](std::string_view /* api_path */, std::size_t size,
+                              std::uint64_t offset, data_buffer &data,
                               stop_type & /* stop_requested */) -> api_error {
         std::size_t bytes_read{};
         data.resize(size);
@@ -617,13 +632,12 @@ TEST_F(file_manager_test, upload_occurs_after_write_if_fully_downloaded) {
 #endif
 
   EXPECT_CALL(mp, set_item_meta("/test_write_full_download.txt", _))
-      .WillOnce(
-          [](const std::string &, const api_meta_map &meta2) -> api_error {
-            EXPECT_NO_THROW(EXPECT_FALSE(meta2.at(META_CHANGED).empty()));
-            EXPECT_NO_THROW(EXPECT_FALSE(meta2.at(META_MODIFIED).empty()));
-            EXPECT_NO_THROW(EXPECT_FALSE(meta2.at(META_WRITTEN).empty()));
-            return api_error::success;
-          });
+      .WillOnce([](std::string_view, const api_meta_map &meta2) -> api_error {
+        EXPECT_NO_THROW(EXPECT_FALSE(meta2.at(META_CHANGED).empty()));
+        EXPECT_NO_THROW(EXPECT_FALSE(meta2.at(META_MODIFIED).empty()));
+        EXPECT_NO_THROW(EXPECT_FALSE(meta2.at(META_WRITTEN).empty()));
+        return api_error::success;
+      });
 
   if (not open_file->is_write_supported()) {
     EXPECT_TRUE(mgr.get_open_file(handle, true, open_file));
@@ -664,6 +678,8 @@ TEST_F(file_manager_test, upload_occurs_after_write_if_fully_downloaded) {
 
 TEST_F(file_manager_test, can_evict_file) {
   EXPECT_CALL(mp, is_read_only()).WillRepeatedly(Return(false));
+  EXPECT_CALL(mp, get_pinned_files())
+      .WillOnce(Return(std::vector<std::string>()));
 
   file_manager mgr(*cfg, mp);
   mgr.start();
@@ -682,8 +698,8 @@ TEST_F(file_manager_test, can_evict_file) {
   auto now = utils::time::get_time_now();
 
   auto meta = create_meta_attributes(now, FILE_ATTRIBUTE_ARCHIVE, now + 1u,
-                                     now + 2u, false, 1, "key", 2, now + 3u, 3u,
-                                     4u, 0u, source_path, 10, now + 4u);
+                                     now + 2U, false, 1, "key", 2, now + 3u, 3u,
+                                     0U, source_path, 10, now + 4u);
   std::uint64_t handle{};
   {
     std::shared_ptr<i_open_file> open_file;
@@ -691,9 +707,9 @@ TEST_F(file_manager_test, can_evict_file) {
     EXPECT_CALL(mp, create_file("/test_evict.txt", meta))
         .WillOnce(Return(api_error::success));
     EXPECT_CALL(mp, get_filesystem_item)
-        .WillRepeatedly([&meta](const std::string &api_path, bool directory,
+        .WillRepeatedly([&meta](std::string_view api_path, bool directory,
                                 filesystem_item &fsi) -> api_error {
-          EXPECT_STREQ("/test_evict.txt", api_path.c_str());
+          EXPECT_STREQ("/test_evict.txt", std::string{api_path}.c_str());
           EXPECT_FALSE(directory);
           fsi.api_path = api_path;
           fsi.api_parent = utils::path::get_parent_api_path(api_path);
@@ -736,10 +752,10 @@ TEST_F(file_manager_test, can_evict_file) {
       [&mgr]() -> bool { return not mgr.is_processing("/test_evict.txt"); }));
 
   EXPECT_CALL(mp, get_item_meta(_, META_PINNED, _))
-      .WillOnce([](const std::string &api_path, const std::string &key,
+      .WillOnce([](std::string_view api_path, std::string_view key,
                    std::string &value) -> api_error {
-        EXPECT_STREQ("/test_evict.txt", api_path.c_str());
-        EXPECT_STREQ(META_PINNED.c_str(), key.c_str());
+        EXPECT_STREQ("/test_evict.txt", std::string{api_path}.c_str());
+        EXPECT_STREQ(META_PINNED.c_str(), std::string{key}.c_str());
         value = "0";
         return api_error::success;
       });
@@ -754,7 +770,7 @@ TEST_F(file_manager_test, evict_file_fails_if_file_is_pinned) {
   file_manager mgr(*cfg, mp);
 
   EXPECT_CALL(mp, get_filesystem_item)
-      .WillRepeatedly([](const std::string &api_path, bool directory,
+      .WillRepeatedly([](std::string_view api_path, bool directory,
                          filesystem_item &fsi) -> api_error {
         fsi.api_path = api_path;
         fsi.api_parent = utils::path::get_parent_api_path(api_path);
@@ -765,10 +781,10 @@ TEST_F(file_manager_test, evict_file_fails_if_file_is_pinned) {
       });
 
   EXPECT_CALL(mp, get_item_meta(_, META_PINNED, _))
-      .WillOnce([](const std::string &api_path, const std::string &key,
+      .WillOnce([](std::string_view api_path, std::string_view key,
                    std::string &value) -> api_error {
-        EXPECT_STREQ("/test_open.txt", api_path.c_str());
-        EXPECT_STREQ(META_PINNED.c_str(), key.c_str());
+        EXPECT_STREQ("/test_open.txt", std::string{api_path}.c_str());
+        EXPECT_STREQ(META_PINNED.c_str(), std::string{key}.c_str());
         value = "1";
         return api_error::success;
       });
@@ -787,9 +803,10 @@ TEST_F(file_manager_test, evict_file_fails_if_file_is_open) {
   file_manager mgr(*cfg, mp);
 
   EXPECT_CALL(mp, get_filesystem_item)
-      .WillOnce([](const std::string &api_path, bool directory,
+      .WillOnce([](std::string_view api_path, bool directory,
+
                    filesystem_item &fsi) -> api_error {
-        EXPECT_STREQ("/test_open.txt", api_path.c_str());
+        EXPECT_STREQ("/test_open.txt", std::string{api_path}.c_str());
         EXPECT_FALSE(directory);
         fsi.api_path = api_path;
         fsi.api_parent = utils::path::get_parent_api_path(api_path);
@@ -799,10 +816,10 @@ TEST_F(file_manager_test, evict_file_fails_if_file_is_open) {
       });
 
   EXPECT_CALL(mp, set_item_meta(_, _, _))
-      .WillOnce([](const std::string &api_path, const std::string &key,
-                   const std::string &value) -> api_error {
-        EXPECT_STREQ("/test_open.txt", api_path.c_str());
-        EXPECT_STREQ(META_SOURCE.c_str(), key.c_str());
+      .WillOnce([](std::string_view api_path, std::string_view key,
+                   std::string_view value) -> api_error {
+        EXPECT_STREQ("/test_open.txt", std::string{api_path}.c_str());
+        EXPECT_STREQ(META_SOURCE.c_str(), std::string{key}.c_str());
         EXPECT_FALSE(value.empty());
         return api_error::success;
       });
@@ -827,8 +844,7 @@ TEST_F(file_manager_test, evict_file_fails_if_unable_to_get_filesystem_item) {
   file_manager mgr(*cfg, mp);
 
   EXPECT_CALL(mp, get_filesystem_item)
-      .WillRepeatedly([](const std::string & /* api_path */,
-                         bool /* directory */,
+      .WillRepeatedly([](std::string_view /* api_path */, bool /* directory */,
                          filesystem_item & /* fsi */) -> api_error {
         return api_error::error;
       });
@@ -841,7 +857,7 @@ TEST_F(file_manager_test, evict_file_fails_if_source_path_is_empty) {
   file_manager mgr(*cfg, mp);
 
   EXPECT_CALL(mp, get_filesystem_item)
-      .WillRepeatedly([](const std::string &api_path, bool directory,
+      .WillRepeatedly([](std::string_view api_path, bool directory,
                          filesystem_item &fsi) -> api_error {
         fsi.api_path = api_path;
         fsi.api_parent = utils::path::get_parent_api_path(api_path);
@@ -855,6 +871,8 @@ TEST_F(file_manager_test, evict_file_fails_if_source_path_is_empty) {
 
 TEST_F(file_manager_test, evict_file_fails_if_file_is_uploading) {
   EXPECT_CALL(mp, is_read_only()).WillRepeatedly(Return(false));
+  EXPECT_CALL(mp, get_pinned_files())
+      .WillOnce(Return(std::vector<std::string>()));
 
   file_manager mgr(*cfg, mp);
   mgr.start();
@@ -873,8 +891,8 @@ TEST_F(file_manager_test, evict_file_fails_if_file_is_uploading) {
   auto now = utils::time::get_time_now();
 
   auto meta = create_meta_attributes(now, FILE_ATTRIBUTE_ARCHIVE, now + 1u,
-                                     now + 2u, false, 1, "", 2, now + 3u, 3u,
-                                     4u, 0u, source_path, 10, now + 4u);
+                                     now + 2U, false, 1, "", 2, now + 3u, 3u,
+                                     0U, source_path, 10, now + 4u);
   std::uint64_t handle{};
   {
     std::shared_ptr<i_open_file> open_file;
@@ -882,9 +900,9 @@ TEST_F(file_manager_test, evict_file_fails_if_file_is_uploading) {
     EXPECT_CALL(mp, create_file("/test_evict.txt", meta))
         .WillOnce(Return(api_error::success));
     EXPECT_CALL(mp, get_filesystem_item)
-        .WillRepeatedly([&meta](const std::string &api_path, bool directory,
+        .WillRepeatedly([&meta](std::string_view api_path, bool directory,
                                 filesystem_item &fsi) -> api_error {
-          EXPECT_STREQ("/test_evict.txt", api_path.c_str());
+          EXPECT_STREQ("/test_evict.txt", std::string{api_path}.c_str());
           EXPECT_FALSE(directory);
           fsi.api_path = api_path;
           fsi.api_parent = utils::path::get_parent_api_path(api_path);
@@ -905,10 +923,9 @@ TEST_F(file_manager_test, evict_file_fails_if_file_is_uploading) {
         .Times(2)
         .WillRepeatedly(Return(api_error::success));
     EXPECT_CALL(mp, upload_file)
-        .WillOnce([](const std::string &api_path,
-                     const std::string &source_path2,
+        .WillOnce([](std::string_view api_path, std::string_view source_path2,
                      stop_type & /*stop_requested*/) -> api_error {
-          EXPECT_STREQ("/test_evict.txt", api_path.c_str());
+          EXPECT_STREQ("/test_evict.txt", std::string{api_path}.c_str());
           EXPECT_FALSE(source_path2.empty());
           std::this_thread::sleep_for(3s);
           return api_error::success;
@@ -946,6 +963,7 @@ TEST_F(file_manager_test, evict_file_fails_if_file_is_in_upload_queue) {
   file_manager mgr(*cfg, mp);
 
   mock_open_file open_file{};
+  EXPECT_CALL(open_file, is_unlinked).WillRepeatedly(Return(false));
   EXPECT_CALL(open_file, is_directory).WillRepeatedly(Return(false));
   EXPECT_CALL(open_file, get_api_path)
       .WillRepeatedly(Return("/test_evict.txt"));
@@ -963,9 +981,9 @@ TEST_F(file_manager_test, evict_file_fails_if_file_is_modified) {
   file_manager mgr(*cfg, mp);
 
   EXPECT_CALL(mp, get_filesystem_item)
-      .WillOnce([](const std::string &api_path, bool directory,
+      .WillOnce([](std::string_view api_path, bool directory,
                    filesystem_item &fsi) -> api_error {
-        EXPECT_STREQ("/test_evict.txt", api_path.c_str());
+        EXPECT_STREQ("/test_evict.txt", std::string{api_path}.c_str());
         EXPECT_FALSE(directory);
         fsi.api_path = api_path;
         fsi.api_parent = utils::path::get_parent_api_path(api_path);
@@ -981,6 +999,7 @@ TEST_F(file_manager_test, evict_file_fails_if_file_is_modified) {
   EXPECT_CALL(*file, get_source_path).WillRepeatedly(Return("/test_evict.src"));
   EXPECT_CALL(*file, is_directory).WillOnce(Return(false));
   EXPECT_CALL(*file, is_modified).WillRepeatedly(Return(true));
+  EXPECT_CALL(*file, is_unlinked).WillRepeatedly(Return(false));
   EXPECT_CALL(*file, is_write_supported).WillRepeatedly(Return(true));
 
   std::uint64_t handle{};
@@ -1000,9 +1019,9 @@ TEST_F(file_manager_test, evict_file_fails_if_file_is_not_complete) {
 
   file_manager mgr(*cfg, mp);
   EXPECT_CALL(mp, get_filesystem_item)
-      .WillOnce([](const std::string &api_path, bool directory,
+      .WillOnce([](std::string_view api_path, bool directory,
                    filesystem_item &fsi) -> api_error {
-        EXPECT_STREQ("/test_evict.txt", api_path.c_str());
+        EXPECT_STREQ("/test_evict.txt", std::string{api_path}.c_str());
         EXPECT_FALSE(directory);
         fsi.api_parent = utils::path::get_parent_api_path(api_path);
         fsi.api_path = api_path;
@@ -1039,9 +1058,9 @@ TEST_F(file_manager_test, can_get_directory_items) {
 
   file_manager mgr(*cfg, mp);
   EXPECT_CALL(mp, get_directory_items)
-      .WillOnce([](const std::string &api_path,
+      .WillOnce([](std::string_view api_path,
                    directory_item_list &list) -> api_error {
-        EXPECT_STREQ("/", api_path.c_str());
+        EXPECT_STREQ("/", std::string{api_path}.c_str());
         list.insert(list.begin(), directory_item{
                                       "..",
                                       "",
@@ -1067,8 +1086,8 @@ TEST_F(file_manager_test, file_is_not_opened_if_provider_create_file_fails) {
 
   auto now = utils::time::get_time_now();
   auto meta = create_meta_attributes(now, FILE_ATTRIBUTE_ARCHIVE, now + 1u,
-                                     now + 2u, false, 1, "", 2, now + 3u, 3u,
-                                     4u, 0u, "/test_create.src", 10, now + 4u);
+                                     now + 2U, false, 1, "", 2, now + 3u, 3u,
+                                     0U, "/test_create.src", 10, now + 4u);
   file_manager mgr(*cfg, mp);
 
   EXPECT_CALL(mp, create_file("/test_create.txt", meta))
@@ -1150,9 +1169,9 @@ TEST_F(file_manager_test,
       });
 
   EXPECT_CALL(mp, get_filesystem_item)
-      .WillOnce([](const std::string &api_path, bool directory,
+      .WillOnce([](std::string_view api_path, bool directory,
                    filesystem_item &fsi) -> api_error {
-        EXPECT_STREQ("/test_open.txt", api_path.c_str());
+        EXPECT_STREQ("/test_open.txt", std::string{api_path}.c_str());
         EXPECT_FALSE(directory);
         fsi.api_path = api_path;
         fsi.api_parent = utils::path::get_parent_api_path(api_path);
@@ -1226,9 +1245,9 @@ TEST_F(file_manager_test,
   EXPECT_CALL(*file, get_source_path).WillRepeatedly(Return("/test_open.src"));
 
   EXPECT_CALL(mp, get_filesystem_item)
-      .WillOnce([](const std::string &api_path, bool directory,
+      .WillOnce([](std::string_view api_path, bool directory,
                    filesystem_item & /*fsi*/) -> api_error {
-        EXPECT_STREQ("/test_open.txt", api_path.c_str());
+        EXPECT_STREQ("/test_open.txt", std::string{api_path}.c_str());
         EXPECT_FALSE(directory);
         return api_error::error;
       });
@@ -1260,9 +1279,9 @@ TEST_F(file_manager_test, open_file_fails_if_provider_set_item_meta_fails) {
   EXPECT_CALL(*file, get_source_path).WillRepeatedly(Return("/test_open.src"));
 
   EXPECT_CALL(mp, get_filesystem_item)
-      .WillOnce([](const std::string &api_path, bool directory,
+      .WillOnce([](std::string_view api_path, bool directory,
                    filesystem_item &fsi) -> api_error {
-        EXPECT_STREQ("/test_open.txt", api_path.c_str());
+        EXPECT_STREQ("/test_open.txt", std::string{api_path}.c_str());
         EXPECT_FALSE(directory);
         fsi.api_path = api_path;
         fsi.api_parent = utils::path::get_parent_api_path(api_path);
@@ -1303,9 +1322,9 @@ TEST_F(file_manager_test, open_file_creates_source_path_if_empty) {
   EXPECT_CALL(*file, get_source_path).WillRepeatedly(Return(""));
 
   EXPECT_CALL(mp, get_filesystem_item)
-      .WillOnce([](const std::string &api_path, bool directory,
+      .WillOnce([](std::string_view api_path, bool directory,
                    filesystem_item &fsi) -> api_error {
-        EXPECT_STREQ("/test_open.txt", api_path.c_str());
+        EXPECT_STREQ("/test_open.txt", std::string{api_path}.c_str());
         EXPECT_FALSE(directory);
         fsi.api_path = api_path;
         fsi.api_parent = utils::path::get_parent_api_path(api_path);
@@ -1315,10 +1334,10 @@ TEST_F(file_manager_test, open_file_creates_source_path_if_empty) {
       });
 
   EXPECT_CALL(mp, set_item_meta("/test_open.txt", _, _))
-      .WillOnce([](const std::string &api_path, const std::string &key,
-                   const std::string &value) -> api_error {
-        EXPECT_STREQ("/test_open.txt", api_path.c_str());
-        EXPECT_STREQ(META_SOURCE.c_str(), key.c_str());
+      .WillOnce([](std::string_view api_path, std::string_view key,
+                   std::string_view value) -> api_error {
+        EXPECT_STREQ("/test_open.txt", std::string{api_path}.c_str());
+        EXPECT_STREQ(META_SOURCE.c_str(), std::string{key}.c_str());
         EXPECT_FALSE(value.empty());
         return api_error::success;
       });
@@ -1356,9 +1375,9 @@ TEST_F(file_manager_test, open_file_first_file_handle_is_not_zero) {
   EXPECT_CALL(*file, get_source_path).WillRepeatedly(Return("/test_open.src"));
 
   EXPECT_CALL(mp, get_filesystem_item)
-      .WillOnce([](const std::string &api_path, bool directory,
+      .WillOnce([](std::string_view api_path, bool directory,
                    filesystem_item &fsi) -> api_error {
-        EXPECT_STREQ("/test_open.txt", api_path.c_str());
+        EXPECT_STREQ("/test_open.txt", std::string{api_path}.c_str());
         EXPECT_FALSE(directory);
         fsi.api_path = api_path;
         fsi.api_parent = utils::path::get_parent_api_path(api_path);
@@ -1392,10 +1411,31 @@ TEST_F(file_manager_test, can_remove_file) {
   }
   EXPECT_TRUE(utils::file::file("./test_remove.txt").exists());
 
+  api_file api_f{
+      .api_path = "/test_remove.txt",
+      .api_parent = "/",
+      .accessed_date = 0,
+      .changed_date = 0,
+      .creation_date = 0,
+      .file_size = 0,
+      .key = "",
+      .modified_date = 0,
+      .source_path = "",
+      .written_date = 0,
+  };
+
+  EXPECT_CALL(mp, get_item_meta(_, _))
+      .WillOnce(
+          [&api_f](std::string_view api_path, api_meta_map &meta) -> api_error {
+            EXPECT_STREQ("/test_remove.txt", std::string{api_path}.c_str());
+            meta = provider_meta_creator(false, api_f);
+            return api_error::success;
+          });
+
   EXPECT_CALL(mp, get_filesystem_item)
-      .WillOnce([](const std::string &api_path, bool directory,
+      .WillOnce([](std::string_view api_path, bool directory,
                    filesystem_item &fsi) -> api_error {
-        EXPECT_STREQ("/test_remove.txt", api_path.c_str());
+        EXPECT_STREQ("/test_remove.txt", std::string{api_path}.c_str());
         EXPECT_FALSE(directory);
         fsi.api_path = api_path;
         fsi.api_parent = utils::path::get_parent_api_path(api_path);
@@ -1423,6 +1463,7 @@ TEST_F(file_manager_test, can_queue_and_remove_upload) {
   file_manager mgr(*cfg, mp);
 
   mock_open_file file{};
+  EXPECT_CALL(file, is_unlinked).WillOnce(Return(false));
   EXPECT_CALL(file, get_api_path).WillOnce(Return("/test_queue.txt"));
   EXPECT_CALL(file, get_source_path).WillOnce(Return("/test_queue.src"));
 
@@ -1438,11 +1479,13 @@ TEST_F(file_manager_test, can_queue_and_remove_upload) {
 
 TEST_F(file_manager_test, file_is_closed_after_download_timeout) {
   cfg->set_enable_download_timeout(true);
-  cfg->set_download_timeout_secs(3U);
+  cfg->set_download_timeout_secs(1U);
 
   polling::instance().start(cfg.get());
 
   EXPECT_CALL(mp, is_read_only()).WillRepeatedly(Return(false));
+  EXPECT_CALL(mp, get_pinned_files())
+      .WillOnce(Return(std::vector<std::string>()));
 
   file_manager mgr(*cfg, mp);
   mgr.start();
@@ -1457,15 +1500,16 @@ TEST_F(file_manager_test, file_is_closed_after_download_timeout) {
 
   auto now = utils::time::get_time_now();
   auto meta = create_meta_attributes(
-      now, FILE_ATTRIBUTE_ARCHIVE, now + 1u, now + 2u, false, 1, "key", 2,
-      now + 3u, 3u, 4u,
+      now, FILE_ATTRIBUTE_ARCHIVE, now + 1u, now + 2U, false, 1, "key", 2,
+      now + 3u, 3u,
       utils::encryption::encrypting_reader::get_data_chunk_size() * 4u,
       source_path, 10, now + 4u);
 
   EXPECT_CALL(mp, get_filesystem_item)
-      .WillRepeatedly([&meta](const std::string &api_path, bool directory,
+      .WillRepeatedly([&meta](std::string_view api_path, bool directory,
                               filesystem_item &fsi) -> api_error {
-        EXPECT_STREQ("/test_download_timeout.txt", api_path.c_str());
+        EXPECT_STREQ("/test_download_timeout.txt",
+                     std::string{api_path}.c_str());
         EXPECT_FALSE(directory);
         fsi.api_path = api_path;
         fsi.api_parent = utils::path::get_parent_api_path(api_path);
@@ -1478,7 +1522,7 @@ TEST_F(file_manager_test, file_is_closed_after_download_timeout) {
   event_capture capture({item_timeout::name});
 
   EXPECT_CALL(mp, read_file_bytes)
-      .WillRepeatedly([](const std::string & /* api_path */, std::size_t size,
+      .WillRepeatedly([](std::string_view /* api_path */, std::size_t size,
                          std::uint64_t offset, data_buffer &data,
                          stop_type &stop_requested) -> api_error {
         if (stop_requested) {
@@ -1532,9 +1576,9 @@ TEST_F(file_manager_test, remove_file_fails_if_file_does_not_exist) {
   file_manager mgr(*cfg, mp);
 
   EXPECT_CALL(mp, get_filesystem_item)
-      .WillOnce([](const std::string &api_path, const bool &directory,
+      .WillOnce([](std::string_view api_path, const bool &directory,
                    filesystem_item & /*fsi*/) -> api_error {
-        EXPECT_STREQ("/test_remove.txt", api_path.c_str());
+        EXPECT_STREQ("/test_remove.txt", std::string{api_path}.c_str());
         EXPECT_FALSE(directory);
         return api_error::item_not_found;
       });
@@ -1547,10 +1591,11 @@ TEST_F(file_manager_test, remove_file_fails_if_provider_remove_file_fails) {
 
   file_manager mgr(*cfg, mp);
 
+  EXPECT_CALL(mp, get_item_meta(_, _)).WillOnce(Return(api_error::success));
   EXPECT_CALL(mp, get_filesystem_item)
-      .WillOnce([](const std::string &api_path, const bool &directory,
+      .WillOnce([](std::string_view api_path, const bool &directory,
                    filesystem_item &fsi) -> api_error {
-        EXPECT_STREQ("/test_remove.txt", api_path.c_str());
+        EXPECT_STREQ("/test_remove.txt", std::string{api_path}.c_str());
         EXPECT_FALSE(directory);
         fsi.api_path = api_path;
         fsi.api_parent = utils::path::get_parent_api_path(api_path);
@@ -1564,11 +1609,34 @@ TEST_F(file_manager_test, remove_file_fails_if_provider_remove_file_fails) {
   EXPECT_EQ(api_error::item_not_found, mgr.remove_file("/test_remove.txt"));
 }
 
+TEST_F(file_manager_test, remove_file_fails_if_get_item_meta_fails) {
+  EXPECT_CALL(mp, is_read_only()).WillRepeatedly(Return(false));
+
+  file_manager mgr(*cfg, mp);
+
+  EXPECT_CALL(mp, get_item_meta(_, _)).WillOnce(Return(api_error::error));
+  EXPECT_CALL(mp, get_filesystem_item)
+      .WillOnce([](std::string_view api_path, const bool &directory,
+                   filesystem_item &fsi) -> api_error {
+        EXPECT_STREQ("/test_remove.txt", std::string{api_path}.c_str());
+        EXPECT_FALSE(directory);
+        fsi.api_path = api_path;
+        fsi.api_parent = utils::path::get_parent_api_path(api_path);
+        fsi.directory = directory;
+        fsi.size = 0U;
+        return api_error::success;
+      });
+
+  EXPECT_EQ(api_error::error, mgr.remove_file("/test_remove.txt"));
+}
+
 TEST_F(file_manager_test,
        resize_greater_than_chunk_size_sets_new_chunks_to_read) {
   cfg->set_enable_download_timeout(true);
 
   EXPECT_CALL(mp, is_read_only()).WillRepeatedly(Return(false));
+  EXPECT_CALL(mp, get_pinned_files())
+      .WillOnce(Return(std::vector<std::string>()));
 
   polling::instance().start(cfg.get());
 
@@ -1591,15 +1659,15 @@ TEST_F(file_manager_test,
   auto now = utils::time::get_time_now();
   auto meta = create_meta_attributes(now, FILE_ATTRIBUTE_ARCHIVE, now + 1U,
                                      now + 2U, false, 1U, "key", 2, now + 3U,
-                                     3U, 4U, 0U, source_path, 10U, now + 4U);
+                                     0U, 0U, source_path, 10U, now + 4U);
 
   EXPECT_CALL(mp, create_file("/test_create.txt", meta))
       .WillOnce(Return(api_error::success));
 
   EXPECT_CALL(mp, get_filesystem_item)
-      .WillRepeatedly([&meta](const std::string &api_path, bool directory,
+      .WillRepeatedly([&meta](std::string_view api_path, bool directory,
                               filesystem_item &fsi) -> api_error {
-        EXPECT_STREQ("/test_create.txt", api_path.c_str());
+        EXPECT_STREQ("/test_create.txt", std::string{api_path}.c_str());
         EXPECT_FALSE(directory);
         fsi.api_path = api_path;
         fsi.api_parent = utils::path::get_parent_api_path(api_path);
@@ -1610,7 +1678,7 @@ TEST_F(file_manager_test,
       });
 
   EXPECT_CALL(mp, set_item_meta("/test_create.txt", _))
-      .WillOnce([](const std::string &,
+      .WillOnce([](std::string_view,
                    const api_meta_map &new_meta) -> api_error {
         EXPECT_EQ(utils::encryption::encrypting_reader::get_data_chunk_size() *
                       4UL,

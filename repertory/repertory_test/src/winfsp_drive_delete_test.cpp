@@ -25,10 +25,10 @@
 // Implemented test cases based on WinFsp tests:
 // https://github.com/winfsp/winfsp/blob/v2.0/tst/winfsp-tests
 //
-#include "fixtures/winfsp_fixture.hpp"
+#include "fixtures/drive_fixture.hpp"
 
 namespace repertory {
-TYPED_TEST_CASE(winfsp_test, winfsp_provider_types);
+TYPED_TEST_SUITE(winfsp_test, platform_provider_types);
 
 TYPED_TEST(winfsp_test, delete_directory_fails_if_directory_not_empty) {
   auto dir_path{

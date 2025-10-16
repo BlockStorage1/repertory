@@ -1,5 +1,5 @@
 #comment
-FROM alpine:3.21.4
+FROM alpine:3.22.2
 
 RUN apk update
 RUN apk upgrade
@@ -12,6 +12,7 @@ RUN apk add \
   bzip2 \
   clang17-extra-tools \
   cmake \
+  curl \
   file \
   flex \
   g++ \
@@ -43,6 +44,7 @@ RUN apk add \
   ruby \
   texinfo \
   unzip \
+  xvfb \
   wget \
   wine \
   xz \
@@ -102,6 +104,39 @@ RUN echo -e \
   "system = 'windows'\n"\
     > ${MY_TOOLCHAIN_FILE_MESON}
 
+RUN mkdir -p /opt/bin;echo -e \
+  "#!/bin/sh\n"\
+  "COUNT=0\n"\
+  "echo \"Start waiting on \$@\"\n"\
+  "while pgrep \"\$@\" > /dev/null; do \n"\
+  "  echo \"waiting ...\"\n"\
+  "  sleep 1;\n"\
+  "  COUNT=\$((COUNT+1))\n"\
+  "  if [ \$COUNT -eq 60 ]; then\n"\
+  "    exit 3;\n"\
+  "  fi\n"\
+  "done\n"\
+  "echo \"\$@ completed\"\n"\
+      > /opt/bin/waitonprocess && \
+      chmod +x /opt/bin/waitonprocess && \
+      cat /opt/bin/waitonprocess
+
+RUN echo -e \
+  "#!/bin/sh\n"\
+  "Xvfb \$DISPLAY &\n"\
+  "tokill=\$!\n"\
+  "wine wineboot --init\n"\
+  "waitonprocess wineserver\n"\
+  "\"\$@\"\n"\
+  "retval=\$?\n"\
+  "kill -15 \$tokill\n"\
+  "wine wineboot --shutdown\n"\
+  "return \$retval\n"\
+        > /opt/bin/wine-x11-run && \
+        chmod +x /opt/bin/wine-x11-run && \
+        cat /opt/bin/wine-x11-run
+
+ENV PATH="/opt/bin:${PATH}"
 SHELL [ "/bin/bash", "-c" ]
 
 RUN mkdir -p \
@@ -711,6 +746,7 @@ RUN if [ -f "/3rd_party/cpp-httplib-${MY_CPP_HTTPLIB_VERSION}.tar.gz" ]; then \
         -DCMAKE_BUILD_TYPE=Release \
         -DCMAKE_CXX_STANDARD=${MY_CXX_STANDARD} \
         -DCMAKE_INSTALL_PREFIX=${MY_MINGW_DIR} \
+        -DCMAKE_SYSTEM_VERSION="10.0.0" \
         -DCMAKE_TOOLCHAIN_FILE=${MY_TOOLCHAIN_FILE_CMAKE} \
         -DHTTPLIB_REQUIRE_BROTLI=OFF \
         -DHTTPLIB_REQUIRE_OPENSSL=ON \
@@ -799,6 +835,7 @@ RUN if [ -f "/3rd_party/libevent-${MY_LIBEVENT_VERSION}-stable.tar.gz" ]; then \
       && cmake .. \
         -DCMAKE_BUILD_TYPE=Release \
         -DCMAKE_CXX_STANDARD=${MY_CXX_STANDARD} \
+        -DCMAKE_C_FLAGS="-include winsock2.h -include ws2tcpip.h -include iphlpapi.h" \
         -DCMAKE_INSTALL_PREFIX=${MY_MINGW_DIR} \
         -DCMAKE_TOOLCHAIN_FILE=${MY_TOOLCHAIN_FILE_CMAKE} \
         -DEVENT__DISABLE_OPENSSL=ON \
@@ -888,6 +925,7 @@ RUN if [ -f "/3rd_party/rocksdb-${MY_ROCKSDB_VERSION}.tar.gz" ]; then \
         -DROCKSDB_INSTALL_ON_WINDOWS=ON \
         -DWITH_BENCHMARK=OFF \
         -DWITH_BENCHMARK_TOOLS=OFF \
+        -DWITH_BZ2=OFF \
         -DWITH_CORE_TOOLS=OFF \
         -DWITH_EXAMPLES=OFF \
         -DWITH_GFLAGS=OFF \
@@ -1119,6 +1157,33 @@ RUN if [ -f "/3rd_party/libdsm-${MY_LIBDSM_VERSION}.tar.gz" ]; then \
       && rm -r libdsm-${MY_LIBDSM_VERSION} \
     ; fi
 
-RUN (mv ${MY_MINGW_DIR}/lib/*.dll ${MY_MINGW_DIR}/bin || echo "no dll's found") \
+ENV DISPLAY=:90
+ENV WINEDEBUG=-all,err+all
+
+ARG INNOSETUP_VERSION
+ENV MY_INNOSETUP_VERSION=${INNOSETUP_VERSION}
+RUN rm -rf /root/.wine; \
+  wine64 reg add 'HKEY_CURRENT_USER\Software\Wine' /v ShowDotFiles /d Y \
+  && while [ ! -f /root/.wine/user.reg ]; do sleep 1; done; \
+  wine-x11-run wine64 /3rd_party/mingw64/innosetup-${MY_INNOSETUP_VERSION}.exe /SP- /VERYSILENT /ALLUSERS /SUPPRESSMSGBOXES /DOWNLOADISCRYPT=1
+
+ARG UID=1000
+ARG GID=1000
+ARG USERNAME=myuser
+
+RUN delgroup scanner || echo "no scanner group found"
+
+RUN addgroup -g $GID $USERNAME && \
+    adduser -D -u $UID -G $USERNAME -h /home/$USERNAME $USERNAME
+
+RUN rsync -av --progress /root/.wine/ /home/$USERNAME/.wine/ && \
+  chown -R $UID:$GID -R /home/$USERNAME/.wine/
+
+RUN (cp ${MY_MINGW_DIR}/lib/*.dll ${MY_MINGW_DIR}/bin || echo "no dll's found") \
     && chmod 0777 -R ${MY_MINGW_DIR} \
-    && rm -rf /3rd_party
+    && rm -rf /3rd_party \
+    && rm -rf /root/.wine
+
+USER $USERNAME
+WORKDIR /home/$USERNAME
+    

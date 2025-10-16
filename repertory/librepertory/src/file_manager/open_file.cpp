@@ -90,6 +90,7 @@ open_file::open_file(std::uint64_t chunk_size, std::uint8_t chunk_timeout,
     read_state_ = read_state.value();
     set_modified();
     allocated = true;
+    update_reader(0U);
     return;
   }
 
@@ -235,6 +236,10 @@ auto open_file::close() -> bool {
 
   nf_->close();
 
+  if (is_unlinked()) {
+    return true;
+  }
+
   if (is_modified()) {
     if (err == api_error::success) {
       mgr_.queue_upload(*this);
@@ -270,6 +275,14 @@ auto open_file::close() -> bool {
   }
 
   return true;
+}
+
+void open_file::force_download() {
+  unique_recur_mutex_lock rw_lock(rw_mtx_);
+  auto read_chunk = read_chunk_;
+  rw_lock.unlock();
+
+  update_reader(read_chunk);
 }
 
 void open_file::download_chunk(std::size_t chunk, bool skip_active,
@@ -525,6 +538,17 @@ auto open_file::native_operation(
 
   set_file_size(new_file_size);
   auto now = std::to_string(utils::time::get_time_now());
+
+  if (is_unlinked()) {
+    auto meta = get_unlinked_meta();
+    meta[META_CHANGED] = now;
+    meta[META_MODIFIED] = now;
+    meta[META_SIZE] = std::to_string(new_file_size);
+    meta[META_WRITTEN] = now;
+    set_unlinked_meta(meta);
+    return api_error::success;
+  }
+
   res = get_provider().set_item_meta(
       get_api_path(), {
                           {META_CHANGED, now},
@@ -644,6 +668,13 @@ auto open_file::resize(std::uint64_t new_file_size) -> api_error {
 }
 
 void open_file::set_modified() {
+  if (is_unlinked()) {
+    if (not is_modified()) {
+      open_file_base::set_modified(true);
+    }
+    return;
+  }
+
   if (not is_modified()) {
     open_file_base::set_modified(true);
     mgr_.store_resume(*this);
@@ -757,6 +788,17 @@ auto open_file::write(std::uint64_t write_offset, const data_buffer &data,
   }
 
   auto now = std::to_string(utils::time::get_time_now());
+  if (is_unlinked()) {
+    auto meta = get_unlinked_meta();
+    meta[META_CHANGED] = now;
+    meta[META_MODIFIED] = now;
+    meta[META_WRITTEN] = now;
+    set_unlinked_meta(meta);
+    set_modified();
+
+    return api_error::success;
+  }
+
   res = get_provider().set_item_meta(get_api_path(), {
                                                          {META_CHANGED, now},
                                                          {META_MODIFIED, now},

@@ -31,9 +31,7 @@ struct fuse_event final : public i_event {
   fuse_event() = default;
   fuse_event(std::string_view api_path_, std::int32_t error_,
              std::string_view function_name_)
-      : api_path(std::string{api_path_}),
-        error(error_),
-        function_name(std::string{function_name_}) {}
+      : api_path(api_path_), error(error_), function_name(function_name_) {}
 
   static constexpr event_level level{event_level::debug};
   static constexpr std::string_view name{"fuse_event"};

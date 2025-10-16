@@ -1,11 +1,11 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 PROJECT_SCRIPTS_DIR=$(realpath "$0")
 PROJECT_SCRIPTS_DIR=$(dirname "${PROJECT_SCRIPTS_DIR}")
 . "${PROJECT_SCRIPTS_DIR}/env.sh" "$1" "$2" "$3" "$4" "$5"
 
 if [ -f "${PROJECT_SOURCE_DIR}/web/${PROJECT_NAME}/pubspec.yaml" ]; then
-  if [ "${PROJECT_IS_MINGW}" == "0" ] || [ "${PROJECT_IS_MINGW_UNIX}" == "1" ]; then
+  if [[ "${PROJECT_IS_DARWIN}" == "0" && ("${PROJECT_IS_MINGW}" == "0" || "${PROJECT_IS_MINGW_UNIX}" == "1") ]]; then
     FLUTTER_CONTAINER_NAME="${PROJECT_NAME}_flutter"
     FLUTTER_TAG_NAME="${PROJECT_NAME}:flutter"
 

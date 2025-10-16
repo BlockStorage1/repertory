@@ -22,11 +22,14 @@
 #ifndef REPERTORY_INCLUDE_CLI_ACTIONS_HPP_
 #define REPERTORY_INCLUDE_CLI_ACTIONS_HPP_
 
+#include "cli/common.hpp"
+
 #include "cli/check_version.hpp"
 #include "cli/display_config.hpp"
 #include "cli/drive_information.hpp"
 #include "cli/get.hpp"
 #include "cli/get_directory_items.hpp"
+#include "cli/get_item_info.hpp"
 #include "cli/get_pinned_files.hpp"
 #include "cli/get_version.hpp"
 #include "cli/help.hpp"
@@ -34,18 +37,18 @@
 #include "cli/open_files.hpp"
 #include "cli/pin_file.hpp"
 #include "cli/pinned_status.hpp"
+#include "cli/remove.hpp"
 #include "cli/set.hpp"
 #include "cli/status.hpp"
 #include "cli/test.hpp"
-#include "cli/ui.hpp"
 #include "cli/unmount.hpp"
 #include "cli/unpin_file.hpp"
 #include "utils/cli_utils.hpp"
 
 namespace repertory::cli::actions {
 using action = std::function<exit_code(
-    std::vector<const char *>, const std::string &, const provider_type &,
-    const std::string &, std::string, std::string)>;
+    std::vector<const char *>, std::string_view, provider_type,
+    std::string_view, std::string, std::string)>;
 
 struct option_hasher {
   auto operator()(const utils::cli::option &opt) const -> std::size_t {
@@ -55,36 +58,75 @@ struct option_hasher {
 
 inline const std::unordered_map<utils::cli::option, action, option_hasher>
     option_actions = {
-        {utils::cli::options::check_version_option,
-         cli::actions::check_version},
-        {utils::cli::options::display_config_option,
-         cli::actions::display_config},
-        {utils::cli::options::drive_information_option,
-         cli::actions::drive_information},
-        {utils::cli::options::get_directory_items_option,
-         cli::actions::get_directory_items},
-        {utils::cli::options::get_option, cli::actions::get},
-        {utils::cli::options::get_pinned_files_option,
-         cli::actions::get_pinned_files},
-        {utils::cli::options::open_files_option, cli::actions::open_files},
-        {utils::cli::options::pin_file_option, cli::actions::pin_file},
-        {utils::cli::options::pinned_status_option,
-         cli::actions::pinned_status},
-        {utils::cli::options::set_option, cli::actions::set},
-        {utils::cli::options::status_option, cli::actions::status},
-        {utils::cli::options::test_option, cli::actions::test},
-        {utils::cli::options::ui_option, cli::actions::ui},
-        {utils::cli::options::unmount_option, cli::actions::unmount},
-        {utils::cli::options::unpin_file_option, cli::actions::unpin_file},
+        {
+            utils::cli::options::display_config_option,
+            cli::actions::display_config,
+        },
+        {
+            utils::cli::options::drive_information_option,
+            cli::actions::drive_information,
+        },
+        {
+            utils::cli::options::get_directory_items_option,
+            cli::actions::get_directory_items,
+        },
+        {
+            utils::cli::options::get_item_info_option,
+            cli::actions::get_item_info,
+        },
+        {
+            utils::cli::options::get_option,
+            cli::actions::get,
+        },
+        {
+            utils::cli::options::get_pinned_files_option,
+            cli::actions::get_pinned_files,
+        },
+        {
+            utils::cli::options::open_files_option,
+            cli::actions::open_files,
+        },
+        {
+            utils::cli::options::pin_file_option,
+            cli::actions::pin_file,
+        },
+        {
+            utils::cli::options::pinned_status_option,
+            cli::actions::pinned_status,
+        },
+        {
+            utils::cli::options::remove_option,
+            cli::actions::remove,
+        },
+        {
+            utils::cli::options::set_option,
+            cli::actions::set,
+        },
+        {
+            utils::cli::options::status_option,
+            cli::actions::status,
+        },
+        {
+            utils::cli::options::test_option,
+            cli::actions::test,
+        },
+        {
+            utils::cli::options::unmount_option,
+            cli::actions::unmount,
+        },
+        {
+            utils::cli::options::unpin_file_option,
+            cli::actions::unpin_file,
+        },
 };
 
 [[nodiscard]] inline auto
 perform_action(const utils::cli::option &opt, std::vector<const char *> args,
-               const std::string &data_directory, const provider_type &prov,
-               const std::string &unique_id, std::string user,
+               std::string_view data_directory, provider_type prov,
+               std::string_view unique_id, std::string user,
                std::string password) -> exit_code {
   if (utils::cli::has_option(args, opt)) {
-    if (option_actions.find(opt) != option_actions.end()) {
+    if (option_actions.contains(opt)) {
       return option_actions.at(opt)(args, data_directory, prov, unique_id, user,
                                     password);
     }

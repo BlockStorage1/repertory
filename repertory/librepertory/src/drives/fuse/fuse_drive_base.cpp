@@ -35,7 +35,7 @@ auto fuse_drive_base::access_impl(std::string api_path, int mask) -> api_error {
   return check_access(api_path, mask);
 }
 
-auto fuse_drive_base::check_access(const std::string &api_path, int mask) const
+auto fuse_drive_base::check_access(std::string_view api_path, int mask) const
     -> api_error {
   REPERTORY_USES_FUNCTION_NAME();
 
@@ -116,7 +116,7 @@ auto fuse_drive_base::check_access(const std::string &api_path, int mask) const
 }
 
 auto fuse_drive_base::check_and_perform(
-    const std::string &api_path, int parent_mask,
+    std::string_view api_path, int parent_mask,
     const std::function<api_error(api_meta_map &meta)> &action) -> api_error {
   api_meta_map meta;
   auto ret = get_item_meta(api_path, meta);
@@ -142,7 +142,7 @@ auto fuse_drive_base::check_open_flags(int flags, int mask,
   return (((flags & mask) == 0) ? api_error::success : fail_error);
 }
 
-auto fuse_drive_base::check_owner(const std::string &api_path) const
+auto fuse_drive_base::check_owner(std::string_view api_path) const
     -> api_error {
   api_meta_map meta{};
   auto ret = get_item_meta(api_path, meta);
@@ -167,7 +167,7 @@ auto fuse_drive_base::check_owner(const api_meta_map &meta) const -> api_error {
   return api_error::success;
 }
 
-auto fuse_drive_base::check_parent_access(const std::string &api_path,
+auto fuse_drive_base::check_parent_access(std::string_view api_path,
                                           int mask) const -> api_error {
   auto ret = api_error::success;
 
@@ -240,9 +240,9 @@ auto fuse_drive_base::get_mode_from_meta(const api_meta_map &meta) -> mode_t {
 }
 
 void fuse_drive_base::get_timespec_from_meta(const api_meta_map &meta,
-                                             const std::string &name,
+                                             std::string_view name,
                                              struct timespec &ts) {
-  auto meta_time = utils::string::to_uint64(meta.at(name));
+  auto meta_time = utils::string::to_uint64(meta.at(std::string{name}));
   ts.tv_nsec =
       static_cast<std::int64_t>(meta_time % utils::time::NANOS_PER_SECOND);
   ts.tv_sec =
@@ -257,12 +257,12 @@ auto fuse_drive_base::get_uid_from_meta(const api_meta_map &meta) -> uid_t {
 auto fuse_drive_base::parse_xattr_parameters(const char *name,
                                              const uint32_t &position,
                                              std::string &attribute_name,
-                                             const std::string &api_path)
+                                             std::string_view api_path)
     -> api_error {
 #else  // !defined(__APPLE__)
 auto fuse_drive_base::parse_xattr_parameters(const char *name,
                                              std::string &attribute_name,
-                                             const std::string &api_path)
+                                             std::string_view api_path)
     -> api_error {
 #endif // defined(__APPLE__)
   auto res = api_path.empty() ? api_error::bad_address : api_error::success;
@@ -293,13 +293,13 @@ auto fuse_drive_base::parse_xattr_parameters(const char *name,
 #if defined(__APPLE__)
 auto fuse_drive_base::parse_xattr_parameters(
     const char *name, const char *value, size_t size, const uint32_t &position,
-    std::string &attribute_name, const std::string &api_path) -> api_error {
+    std::string &attribute_name, std::string_view api_path) -> api_error {
   auto res = parse_xattr_parameters(name, position, attribute_name, api_path);
 #else  // !defined(__APPLE__)
 auto fuse_drive_base::parse_xattr_parameters(const char *name,
                                              const char *value, size_t size,
                                              std::string &attribute_name,
-                                             const std::string &api_path)
+                                             std::string_view api_path)
     -> api_error {
   auto res = parse_xattr_parameters(name, attribute_name, api_path);
 #endif // defined(__APPLE__)
@@ -312,58 +312,72 @@ auto fuse_drive_base::parse_xattr_parameters(const char *name,
               : api_error::success);
 }
 
-void fuse_drive_base::populate_stat(const std::string &api_path,
+void fuse_drive_base::populate_stat(std::string_view api_path,
                                     std::uint64_t size_or_count,
                                     const api_meta_map &meta, bool directory,
-                                    i_provider &provider, struct stat *st) {
-  std::memset(st, 0, sizeof(struct stat));
-  st->st_nlink = static_cast<nlink_t>(
+                                    i_provider &provider, struct stat *u_stat) {
+  std::memset(u_stat, 0, sizeof(struct stat));
+  u_stat->st_nlink = static_cast<nlink_t>(
       directory ? 2 + (size_or_count == 0U
                            ? provider.get_directory_item_count(api_path)
                            : size_or_count)
                 : 1);
   if (directory) {
-    st->st_blocks = 0;
+    u_stat->st_blocks = 0;
   } else {
-    st->st_size = static_cast<off_t>(size_or_count);
+    u_stat->st_size = static_cast<off_t>(size_or_count);
     static const auto block_size_stat = static_cast<std::uint64_t>(512U);
     static const auto block_size = static_cast<std::uint64_t>(4096U);
     auto size = utils::divide_with_ceiling(
-                    static_cast<std::uint64_t>(st->st_size), block_size) *
+                    static_cast<std::uint64_t>(u_stat->st_size), block_size) *
                 block_size;
-    st->st_blocks = static_cast<blkcnt_t>(
+    u_stat->st_blocks = static_cast<blkcnt_t>(
         std::max(block_size / block_size_stat,
                  utils::divide_with_ceiling(size, block_size_stat)));
   }
-  st->st_gid = get_gid_from_meta(meta);
-  st->st_mode = (directory ? S_IFDIR : S_IFREG) | get_mode_from_meta(meta);
-  st->st_uid = get_uid_from_meta(meta);
+  u_stat->st_gid = get_gid_from_meta(meta);
+  u_stat->st_mode = (directory ? S_IFDIR : S_IFREG) | get_mode_from_meta(meta);
+  u_stat->st_uid = get_uid_from_meta(meta);
 #if defined(__APPLE__)
-  st->st_blksize = 0;
-  st->st_flags = get_flags_from_meta(meta);
+  u_stat->st_blksize = 0;
+  u_stat->st_flags = get_flags_from_meta(meta);
 
-  set_timespec_from_meta(meta, META_MODIFIED, st->st_mtimespec);
-  set_timespec_from_meta(meta, META_CREATION, st->st_birthtimespec);
-  set_timespec_from_meta(meta, META_CHANGED, st->st_ctimespec);
-  set_timespec_from_meta(meta, META_ACCESSED, st->st_atimespec);
+  set_timespec_from_meta(meta, META_ACCESSED, u_stat->st_atimespec);
+  set_timespec_from_meta(meta, META_CHANGED, u_stat->st_ctimespec);
+  set_timespec_from_meta(meta, META_CREATION, u_stat->st_birthtimespec);
+  set_timespec_from_meta(meta, META_MODIFIED, u_stat->st_mtimespec);
 #else  // !defined(__APPLE__)
-  st->st_blksize = 4096;
+  u_stat->st_blksize = 4096;
 
-  set_timespec_from_meta(meta, META_MODIFIED, st->st_mtim);
-  set_timespec_from_meta(meta, META_CREATION, st->st_ctim);
-  set_timespec_from_meta(meta, META_ACCESSED, st->st_atim);
+  set_timespec_from_meta(meta, META_MODIFIED, u_stat->st_mtim);
+  set_timespec_from_meta(meta, META_CHANGED, u_stat->st_ctim);
+  set_timespec_from_meta(meta, META_ACCESSED, u_stat->st_atim);
 #endif // defined(__APPLE__)
 }
 
 void fuse_drive_base::set_timespec_from_meta(const api_meta_map &meta,
-                                             const std::string &name,
+                                             std::string_view name,
                                              struct timespec &ts) {
-  auto meta_time = utils::string::to_uint64(meta.at(name));
+  auto meta_time = utils::string::to_uint64(meta.at(std::string{name}));
   ts.tv_nsec =
       static_cast<std::int64_t>(meta_time % utils::time::NANOS_PER_SECOND);
   ts.tv_sec =
       static_cast<std::int64_t>(meta_time / utils::time::NANOS_PER_SECOND);
 }
+
+auto fuse_drive_base::validate_timespec(const timespec &spec) -> bool {
+  if (spec.tv_nsec == UTIME_NOW || spec.tv_nsec == UTIME_OMIT) {
+    return true;
+  }
+
+  if (spec.tv_nsec < 0 || spec.tv_nsec >= static_cast<std::int64_t>(
+                                              utils::time::NANOS_PER_SECOND)) {
+    return false;
+  }
+
+  return true;
+};
+
 } // namespace repertory
 
 #endif // !defined(_WIN32)

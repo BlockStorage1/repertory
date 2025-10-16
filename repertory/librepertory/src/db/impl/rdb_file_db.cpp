@@ -57,12 +57,12 @@ void rdb_file_db::create_or_open(bool clear) {
   source_family_ = handles.at(idx++);
 }
 
-auto rdb_file_db::add_directory(const std::string &api_path,
-                                const std::string &source_path) -> api_error {
+auto rdb_file_db::add_or_update_directory(const i_file_db::directory_data &data)
+    -> api_error {
   REPERTORY_USES_FUNCTION_NAME();
 
   std::string existing_source_path;
-  auto result = get_directory_source_path(api_path, existing_source_path);
+  auto result = get_directory_source_path(data.api_path, existing_source_path);
   if (result != api_error::success &&
       result != api_error::directory_not_found) {
     return result;
@@ -71,23 +71,28 @@ auto rdb_file_db::add_directory(const std::string &api_path,
   return perform_action(
       function_name, [&](rocksdb::Transaction *txn) -> rocksdb::Status {
         if (not existing_source_path.empty()) {
-          auto res = remove_item(api_path, existing_source_path, txn);
+          auto res = remove_item(data.api_path, existing_source_path, txn);
           if (not res.ok() && not res.IsNotFound()) {
             return res;
           }
         }
 
-        auto res = txn->Put(directory_family_, api_path, source_path);
+        json json_data = {
+            {"kdf_configs", data.kdf_configs},
+            {"source_path", data.source_path},
+        };
+
+        auto res = txn->Put(directory_family_, data.api_path, json_data.dump());
         if (not res.ok()) {
           return res;
         }
 
-        res = txn->Put(path_family_, api_path, source_path);
+        res = txn->Put(path_family_, data.api_path, data.source_path);
         if (not res.ok()) {
           return res;
         }
 
-        return txn->Put(source_family_, source_path, api_path);
+        return txn->Put(source_family_, data.source_path, data.api_path);
       });
 }
 
@@ -113,6 +118,7 @@ auto rdb_file_db::add_or_update_file(const i_file_db::file_data &data)
         json json_data = {
             {"file_size", data.file_size},
             {"iv", data.iv_list},
+            {"kdf_configs", data.kdf_configs},
             {"source_path", data.source_path},
         };
 
@@ -177,10 +183,11 @@ void rdb_file_db::enumerate_item_list(
     auto iter = create_iterator(directory_family_);
     for (iter->SeekToFirst(); not stop_requested_cb() && iter->Valid();
          iter->Next()) {
+      auto json_data = nlohmann::json::parse(iter->value().ToString());
       list.emplace_back(i_file_db::file_info{
           iter->key().ToString(),
           true,
-          iter->value().ToString(),
+          json_data.at("source_path").get<std::string>(),
       });
 
       if (list.size() < 100U) {
@@ -197,7 +204,7 @@ void rdb_file_db::enumerate_item_list(
   }
 }
 
-auto rdb_file_db::get_api_path(const std::string &source_path,
+auto rdb_file_db::get_api_path(std::string_view source_path,
                                std::string &api_path) const -> api_error {
   REPERTORY_USES_FUNCTION_NAME();
 
@@ -207,8 +214,9 @@ auto rdb_file_db::get_api_path(const std::string &source_path,
   });
 }
 
-auto rdb_file_db::get_directory_api_path(
-    const std::string &source_path, std::string &api_path) const -> api_error {
+auto rdb_file_db::get_directory_api_path(std::string_view source_path,
+                                         std::string &api_path) const
+    -> api_error {
   REPERTORY_USES_FUNCTION_NAME();
 
   auto result = perform_action(function_name, [&]() -> rocksdb::Status {
@@ -231,20 +239,53 @@ auto rdb_file_db::get_directory_api_path(
                                              : result;
 }
 
-auto rdb_file_db::get_directory_source_path(
-    const std::string &api_path, std::string &source_path) const -> api_error {
+auto rdb_file_db::get_directory_data(std::string_view api_path,
+                                     i_file_db::directory_data &data) const
+    -> api_error {
   REPERTORY_USES_FUNCTION_NAME();
 
   auto result = perform_action(function_name, [&]() -> rocksdb::Status {
-    return db_->Get(rocksdb::ReadOptions{}, directory_family_, api_path,
-                    &source_path);
+    std::string value;
+    auto res =
+        db_->Get(rocksdb::ReadOptions{}, directory_family_, api_path, &value);
+    if (not res.ok()) {
+      return res;
+    }
+
+    auto json_data = json::parse(value);
+    data.api_path = api_path;
+    json_data.at("kdf_configs").get_to(data.kdf_configs);
+    data.source_path = json_data.at("source_path").get<std::string>();
+
+    return res;
   });
 
   return result == api_error::item_not_found ? api_error::directory_not_found
                                              : result;
 }
 
-auto rdb_file_db::get_file_api_path(const std::string &source_path,
+auto rdb_file_db::get_directory_source_path(std::string_view api_path,
+                                            std::string &source_path) const
+    -> api_error {
+  REPERTORY_USES_FUNCTION_NAME();
+
+  auto result = perform_action(function_name, [&]() -> rocksdb::Status {
+    std::string data;
+    auto ret =
+        db_->Get(rocksdb::ReadOptions{}, directory_family_, api_path, &data);
+    if (ret.ok()) {
+      source_path =
+          nlohmann::json::parse(data).at("source_path").get<std::string>();
+    }
+
+    return ret;
+  });
+
+  return result == api_error::item_not_found ? api_error::directory_not_found
+                                             : result;
+}
+
+auto rdb_file_db::get_file_api_path(std::string_view source_path,
                                     std::string &api_path) const -> api_error {
   REPERTORY_USES_FUNCTION_NAME();
 
@@ -266,7 +307,7 @@ auto rdb_file_db::get_file_api_path(const std::string &source_path,
   return result;
 }
 
-auto rdb_file_db::get_file_data(const std::string &api_path,
+auto rdb_file_db::get_file_data(std::string_view api_path,
                                 i_file_db::file_data &data) const -> api_error {
   REPERTORY_USES_FUNCTION_NAME();
 
@@ -285,6 +326,7 @@ auto rdb_file_db::get_file_data(const std::string &api_path,
             .get<std::vector<
                 std::array<unsigned char,
                            crypto_aead_xchacha20poly1305_IETF_NPUBBYTES>>>();
+    json_data.at("kdf_configs").get_to(data.kdf_configs);
     data.source_path = json_data.at("source_path").get<std::string>();
 
     return res;
@@ -293,8 +335,9 @@ auto rdb_file_db::get_file_data(const std::string &api_path,
   return result;
 }
 
-auto rdb_file_db::get_file_source_path(
-    const std::string &api_path, std::string &source_path) const -> api_error {
+auto rdb_file_db::get_file_source_path(std::string_view api_path,
+                                       std::string &source_path) const
+    -> api_error {
   REPERTORY_USES_FUNCTION_NAME();
 
   auto result = perform_action(function_name, [&]() -> rocksdb::Status {
@@ -319,10 +362,11 @@ auto rdb_file_db::get_item_list(stop_type_callback stop_requested_cb) const
     auto iter = create_iterator(directory_family_);
     for (iter->SeekToFirst(); not stop_requested_cb() && iter->Valid();
          iter->Next()) {
+      auto json_data = json::parse(iter->value().ToString());
       ret.emplace_back(i_file_db::file_info{
           iter->key().ToString(),
           true,
-          iter->value().ToString(),
+          json_data.at("source_path").get<std::string>(),
       });
     }
   }
@@ -343,7 +387,7 @@ auto rdb_file_db::get_item_list(stop_type_callback stop_requested_cb) const
   return ret;
 }
 
-auto rdb_file_db::get_source_path(const std::string &api_path,
+auto rdb_file_db::get_source_path(std::string_view api_path,
                                   std::string &source_path) const -> api_error {
   REPERTORY_USES_FUNCTION_NAME();
 
@@ -403,7 +447,7 @@ auto rdb_file_db::perform_action(
   return api_error::error;
 }
 
-auto rdb_file_db::remove_item(const std::string &api_path) -> api_error {
+auto rdb_file_db::remove_item(std::string_view api_path) -> api_error {
   REPERTORY_USES_FUNCTION_NAME();
 
   std::string source_path;
@@ -418,8 +462,8 @@ auto rdb_file_db::remove_item(const std::string &api_path) -> api_error {
                         });
 }
 
-auto rdb_file_db::remove_item(const std::string &api_path,
-                              const std::string &source_path,
+auto rdb_file_db::remove_item(std::string_view api_path,
+                              std::string_view source_path,
                               rocksdb::Transaction *txn) -> rocksdb::Status {
   auto res = txn->Delete(source_family_, source_path);
   if (not res.ok()) {

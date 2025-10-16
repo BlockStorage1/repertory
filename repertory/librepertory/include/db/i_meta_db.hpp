@@ -35,19 +35,19 @@ public:
       std::function<void(const std::vector<std::string> &)> callback,
       stop_type_callback stop_requested_cb) const = 0;
 
-  [[nodiscard]] virtual auto get_api_path(const std::string &source_path,
+  [[nodiscard]] virtual auto get_api_path(std::string_view source_path,
                                           std::string &api_path) const
       -> api_error = 0;
 
   [[nodiscard]] virtual auto get_api_path_list() const
       -> std::vector<std::string> = 0;
 
-  [[nodiscard]] virtual auto get_item_meta(const std::string &api_path,
+  [[nodiscard]] virtual auto get_item_meta(std::string_view api_path,
                                            api_meta_map &meta) const
       -> api_error = 0;
 
-  [[nodiscard]] virtual auto get_item_meta(const std::string &api_path,
-                                           const std::string &key,
+  [[nodiscard]] virtual auto get_item_meta(std::string_view api_path,
+                                           std::string_view key,
                                            std::string &value) const
       -> api_error = 0;
 
@@ -58,22 +58,22 @@ public:
 
   [[nodiscard]] virtual auto get_total_size() const -> std::uint64_t = 0;
 
-  virtual void remove_api_path(const std::string &api_path) = 0;
+  virtual void remove_api_path(std::string_view api_path) = 0;
 
-  [[nodiscard]] virtual auto remove_item_meta(const std::string &api_path,
-                                              const std::string &key)
+  [[nodiscard]] virtual auto remove_item_meta(std::string_view api_path,
+                                              std::string_view key)
       -> api_error = 0;
 
-  [[nodiscard]] virtual auto rename_item_meta(const std::string &from_api_path,
-                                              const std::string &to_api_path)
+  [[nodiscard]] virtual auto rename_item_meta(std::string_view from_api_path,
+                                              std::string_view to_api_path)
       -> api_error = 0;
 
-  [[nodiscard]] virtual auto set_item_meta(const std::string &api_path,
-                                           const std::string &key,
-                                           const std::string &value)
+  [[nodiscard]] virtual auto set_item_meta(std::string_view api_path,
+                                           std::string_view key,
+                                           std::string_view value)
       -> api_error = 0;
 
-  [[nodiscard]] virtual auto set_item_meta(const std::string &api_path,
+  [[nodiscard]] virtual auto set_item_meta(std::string_view api_path,
                                            const api_meta_map &meta)
       -> api_error = 0;
 };

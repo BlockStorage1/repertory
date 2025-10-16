@@ -134,4 +134,10 @@ TEST(utils_string, to_bool) {
   EXPECT_FALSE(utils::string::to_bool("0"));
   EXPECT_FALSE(utils::string::to_bool("00000.00000"));
 }
+
+TEST(utils_string, utf8_string_conversion) {
+  std::wstring ws = L"Hello 🌍 — 𝄞 漢字";
+  std::wstring ws2 = utils::string::from_utf8(utils::string::to_utf8(ws));
+  EXPECT_STREQ(ws.c_str(), ws2.c_str());
+}
 } // namespace repertory

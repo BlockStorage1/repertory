@@ -25,6 +25,7 @@
 
 #include "utils/config.hpp"
 
+#include "utils/encryption.hpp"
 #include "utils/hash.hpp"
 #include "utils/types/file/i_file.hpp"
 
@@ -37,14 +38,74 @@ public:
                     std::optional<std::string> relative_parent_path,
                     std::size_t error_return = 0U);
 
-  encrypting_reader(std::string_view encrypted_file_path,
-                    std::string_view source_path,
-                    stop_type_callback stop_requested_cb,
-                    std::string_view token, std::size_t error_return = 0U);
+  encrypting_reader(stop_type_callback stop_requested_cb,
+                    std::string_view encrypted_file_path,
+                    std::string_view source_path, std::string_view token,
+                    std::size_t error_return = 0U);
 
   encrypting_reader(
+      stop_type_callback stop_requested_cb,
       std::string_view encrypted_file_path, std::string_view source_path,
-      stop_type_callback stop_requested_cb, std::string_view token,
+      std::string_view token,
+      std::vector<std::array<unsigned char,
+                             crypto_aead_xchacha20poly1305_IETF_NPUBBYTES>>
+          iv_list,
+      std::size_t error_return = 0U);
+
+  encrypting_reader(std::string_view file_name, std::string_view source_path,
+                    stop_type_callback stop_requested_cb,
+                    std::string_view token, kdf_config cfg,
+                    std::optional<std::string> relative_parent_path,
+                    std::size_t error_return = 0U);
+
+  encrypting_reader(stop_type_callback stop_requested_cb,
+                    std::string_view encrypted_file_path,
+                    std::string_view source_path, std::string_view token,
+                    kdf_config cfg, std::size_t error_return = 0U);
+
+  encrypting_reader(
+      stop_type_callback stop_requested_cb,
+      std::string_view encrypted_file_path, std::string_view source_path,
+      std::string_view token, kdf_config cfg,
+      std::vector<std::array<unsigned char,
+                             crypto_aead_xchacha20poly1305_IETF_NPUBBYTES>>
+          iv_list,
+      std::size_t error_return = 0U);
+
+  encrypting_reader(std::string_view file_name, std::string_view source_path,
+                    stop_type_callback stop_requested_cb,
+                    const utils::hash::hash_256_t &master_key,
+                    const kdf_config &cfg,
+                    std::optional<std::string> relative_parent_path,
+                    std::size_t error_return = 0U);
+
+  encrypting_reader(std::string_view file_name, std::string_view source_path,
+                    stop_type_callback stop_requested_cb,
+                    const utils::hash::hash_256_t &master_key,
+                    const std::pair<kdf_config, kdf_config> &configs,
+                    std::optional<std::string> relative_parent_path,
+                    std::size_t error_return = 0U);
+
+  encrypting_reader(stop_type_callback stop_requested_cb,
+                    std::string_view encrypted_file_path,
+                    std::string_view source_path,
+                    const utils::hash::hash_256_t &master_key,
+                    const kdf_config &cfg, std::size_t error_return = 0U);
+
+  encrypting_reader(
+      stop_type_callback stop_requested_cb,
+      std::string_view encrypted_file_path, std::string_view source_path,
+      const utils::hash::hash_256_t &master_key, const kdf_config &cfg,
+      std::vector<std::array<unsigned char,
+                             crypto_aead_xchacha20poly1305_IETF_NPUBBYTES>>
+          iv_list,
+      std::size_t error_return = 0U);
+
+  encrypting_reader(
+      stop_type_callback stop_requested_cb,
+      std::string_view encrypted_file_path, std::string_view source_path,
+      const utils::hash::hash_256_t &master_key,
+      const std::pair<kdf_config, kdf_config> &configs,
       std::vector<std::array<unsigned char,
                              crypto_aead_xchacha20poly1305_IETF_NPUBBYTES>>
           iv_list,
@@ -60,21 +121,25 @@ public:
 
 public:
   using iostream = std::basic_iostream<char, std::char_traits<char>>;
+  using kdf_pair_t = std::pair<data_buffer, data_buffer>;
+  using key_pair_t =
+      std::pair<utils::hash::hash_256_t, utils::hash::hash_256_t>;
   using streambuf = std::basic_streambuf<char, std::char_traits<char>>;
 
 private:
-  utils::encryption::hash_256_t key_;
+  key_pair_t keys_;
   stop_type_callback stop_requested_cb_;
   size_t error_return_;
   std::unique_ptr<utils::file::i_file> source_file_;
-
-private:
-  std::unordered_map<std::size_t, data_buffer> chunk_buffers_;
   std::string encrypted_file_name_;
   std::string encrypted_file_path_;
   std::vector<
       std::array<unsigned char, crypto_aead_xchacha20poly1305_IETF_NPUBBYTES>>
       iv_list_;
+
+private:
+  std::unordered_map<std::size_t, data_buffer> chunk_buffers_;
+  std::optional<kdf_pair_t> kdf_headers_;
   std::size_t last_data_chunk_{};
   std::size_t last_data_chunk_size_{};
   std::uint64_t read_offset_{};
@@ -88,12 +153,30 @@ private:
 private:
   auto reader_function(char *buffer, size_t size, size_t nitems) -> size_t;
 
+  void common_initialize(bool procces_iv_list);
+
+  void common_initialize_kdf_data(const kdf_config &cfg,
+                                  const utils::hash::hash_256_t &master_key);
+
+  void common_initialize_kdf_keys(std::string_view token, kdf_config &cfg);
+
+  void common_initialize_kdf_path(const utils::hash::hash_256_t &master_key);
+
+  void create_encrypted_paths(std::string_view file_name,
+                              std::optional<std::string> relative_parent_path);
+
 public:
-  [[nodiscard]] static auto calculate_decrypted_size(std::uint64_t total_size)
+  [[nodiscard]] static auto calculate_decrypted_size(std::uint64_t total_size,
+                                                     bool uses_kdf)
       -> std::uint64_t;
 
   [[nodiscard]] static auto
-  calculate_encrypted_size(std::string_view source_path) -> std::uint64_t;
+  calculate_encrypted_size(std::string_view source_path, bool uses_kdf)
+      -> std::uint64_t;
+
+  [[nodiscard]] static auto calculate_encrypted_size(std::uint64_t size,
+                                                     bool uses_kdf)
+      -> std::uint64_t;
 
   [[nodiscard]] auto create_iostream() const -> std::shared_ptr<iostream>;
 
@@ -126,6 +209,12 @@ public:
       std::array<unsigned char, crypto_aead_xchacha20poly1305_IETF_NPUBBYTES>> {
     return iv_list_;
   }
+
+  [[nodiscard]] auto get_kdf_config_for_data() const
+      -> std::optional<kdf_config>;
+
+  [[nodiscard]] auto get_kdf_config_for_path() const
+      -> std::optional<kdf_config>;
 
   [[nodiscard]] auto get_stop_requested() const -> bool {
     return stop_requested_cb_();

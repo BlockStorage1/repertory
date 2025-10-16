@@ -49,28 +49,28 @@ private:
   stop_type *stop_requested_{nullptr};
 
 public:
-  [[nodiscard]] auto copy_to(std::string_view new_path,
-                             bool overwrite) const -> bool override;
+  [[nodiscard]] auto copy_to(std::string_view new_path, bool overwrite) const
+      -> bool override;
 
-  [[nodiscard]] auto
-  count(bool recursive = false) const -> std::uint64_t override;
+  [[nodiscard]] auto count(bool recursive = false) const
+      -> std::uint64_t override;
 
-  [[nodiscard]] auto
-  create_directory(std::string_view path = "") const -> fs_directory_t override;
+  [[nodiscard]] auto create_directory(std::string_view path = "") const
+      -> fs_directory_t override;
 
   [[nodiscard]] auto create_file(std::string_view file_name,
                                  bool read_only) const -> fs_file_t override;
 
   [[nodiscard]] auto exists() const -> bool override;
 
-  [[nodiscard]] auto
-  get_directory(std::string_view path) const -> fs_directory_t override;
+  [[nodiscard]] auto get_directory(std::string_view path) const
+      -> fs_directory_t override;
 
-  [[nodiscard]] auto
-  get_directories() const -> std::vector<fs_directory_t> override;
+  [[nodiscard]] auto get_directories() const
+      -> std::vector<fs_directory_t> override;
 
-  [[nodiscard]] auto
-  get_file(std::string_view path) const -> fs_file_t override;
+  [[nodiscard]] auto get_file(std::string_view path) const
+      -> fs_file_t override;
 
   [[nodiscard]] auto get_files() const -> std::vector<fs_file_t> override;
 
@@ -88,8 +88,8 @@ public:
 
   [[nodiscard]] auto remove_recursively() -> bool override;
 
-  [[nodiscard]] auto
-  size(bool recursive = false) const -> std::uint64_t override;
+  [[nodiscard]] auto size(bool recursive = false) const
+      -> std::uint64_t override;
 
 public:
   auto operator=(const directory &) noexcept -> directory & = delete;

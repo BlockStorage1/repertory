@@ -31,7 +31,7 @@ struct invalid_cache_size final : public i_event {
   invalid_cache_size(std::uint64_t cache_size_, std::string_view function_name_,
                      std::uint64_t invalid_size_)
       : cache_size(cache_size_),
-        function_name(std::string{function_name_}),
+        function_name(function_name_),
         invalid_size(invalid_size_) {}
 
   static constexpr event_level level{event_level::warn};

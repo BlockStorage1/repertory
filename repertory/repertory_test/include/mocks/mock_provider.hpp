@@ -41,56 +41,54 @@ public:
               (const, override));
 
   MOCK_METHOD(api_error, create_directory,
-              (const std::string &api_path, api_meta_map &meta), (override));
+              (std::string_view api_path, api_meta_map &meta), (override));
 
   MOCK_METHOD(api_error, create_directory_clone_source_meta,
-              (const std::string &source_api_path, const std::string &api_path),
+              (std::string_view source_api_path, std::string_view api_path),
               (override));
 
   MOCK_METHOD(api_error, create_file,
-              (const std::string &api_path, api_meta_map &meta), (override));
+              (std::string_view api_path, api_meta_map &meta), (override));
 
   MOCK_METHOD(api_error, get_api_path_from_source,
-              (const std::string &source_path, std::string &api_path),
+              (std::string_view source_path, std::string &api_path),
               (const, override));
 
   MOCK_METHOD(std::uint64_t, get_directory_item_count,
-              (const std::string &api_path), (const, override));
+              (std::string_view api_path), (const, override));
 
-  MOCK_METHOD(api_error, get_directory_items,
-              (const std::string &api_path, directory_item_list &list),
+  MOCK_METHOD(api_error, get_directory_item,
+              (std::string_view api_path, directory_item &item),
               (const, override));
 
-  MOCK_METHOD(api_error, get_file,
-              (const std::string &api_path, api_file &file), (const, override));
+  MOCK_METHOD(api_error, get_directory_items,
+              (std::string_view api_path, directory_item_list &list),
+              (const, override));
+
+  MOCK_METHOD(api_error, get_file, (std::string_view api_path, api_file &file),
+              (const, override));
 
   MOCK_METHOD(api_error, get_file_list,
               (api_file_list & list, std::string &marker), (const, override));
 
   MOCK_METHOD(api_error, get_file_size,
-              (const std::string &api_path, std::uint64_t &file_size),
+              (std::string_view api_path, std::uint64_t &file_size),
               (const, override));
 
   MOCK_METHOD(api_error, get_filesystem_item,
-              (const std::string &api_path, bool directory,
-               filesystem_item &fsi),
-              (const, override));
-
-  MOCK_METHOD(api_error, get_filesystem_item_and_file,
-              (const std::string &api_path, api_file &file,
-               filesystem_item &fsi),
+              (std::string_view api_path, bool directory, filesystem_item &fsi),
               (const, override));
 
   MOCK_METHOD(api_error, get_filesystem_item_from_source_path,
-              (const std::string &source_path, filesystem_item &fsi),
+              (std::string_view source_path, filesystem_item &fsi),
               (const, override));
 
   MOCK_METHOD(api_error, get_item_meta,
-              (const std::string &api_path, api_meta_map &meta),
+              (std::string_view api_path, api_meta_map &meta),
               (const, override));
 
   MOCK_METHOD(api_error, get_item_meta,
-              (const std::string &api_path, const std::string &key,
+              (std::string_view api_path, std::string_view key,
                std::string &value),
               (const, override));
 
@@ -108,47 +106,39 @@ public:
   MOCK_METHOD(bool, is_read_only, (), (const, override));
 
   MOCK_METHOD(api_error, is_directory,
-              (const std::string &api_path, bool &exists), (const, override));
+              (std::string_view api_path, bool &exists), (const, override));
 
-  MOCK_METHOD(api_error, is_file, (const std::string &api_path, bool &exists),
+  MOCK_METHOD(api_error, is_file, (std::string_view api_path, bool &exists),
               (const, override));
-
-  bool is_file_writeable(const std::string & /* api_path */) const override {
-    return true;
-  }
 
   MOCK_METHOD(bool, is_online, (), (const, override));
 
   bool is_rename_supported() const override { return allow_rename_; }
 
   MOCK_METHOD(api_error, read_file_bytes,
-              (const std::string &path, std::size_t size, std::uint64_t offset,
+              (std::string_view path, std::size_t size, std::uint64_t offset,
                data_buffer &data, stop_type &stop_requested),
               (override));
 
-  MOCK_METHOD(api_error, remove_directory, (const std::string &api_path),
+  MOCK_METHOD(api_error, remove_directory, (std::string_view api_path),
               (override));
 
-  MOCK_METHOD(api_error, remove_file, (const std::string &api_path),
-              (override));
+  MOCK_METHOD(api_error, remove_file, (std::string_view api_path), (override));
 
   MOCK_METHOD(api_error, remove_item_meta,
-              (const std::string &api_path, const std::string &key),
-              (override));
+              (std::string_view api_path, std::string_view key), (override));
 
   MOCK_METHOD(api_error, rename_file,
-              (const std::string &from_api_path,
-               const std::string &to_api_path),
+              (std::string_view from_api_path, std::string_view to_api_path),
               (override));
 
   MOCK_METHOD(api_error, set_item_meta,
-              (const std::string &api_path, const std::string &key,
-               const std::string &value),
+              (std::string_view api_path, std::string_view key,
+               std::string_view value),
               (override));
 
   MOCK_METHOD(api_error, set_item_meta,
-              (const std::string &api_path, const api_meta_map &meta),
-              (override));
+              (std::string_view api_path, api_meta_map meta), (override));
 
   MOCK_METHOD(bool, start,
               (api_item_added_callback api_item_added, i_file_manager *fm),
@@ -157,7 +147,7 @@ public:
   MOCK_METHOD(void, stop, (), (override));
 
   MOCK_METHOD(api_error, upload_file,
-              (const std::string &api_path, const std::string &source_path,
+              (std::string_view api_path, std::string_view source_path,
                stop_type &stop_requested),
               (override));
 };

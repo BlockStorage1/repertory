@@ -193,11 +193,11 @@ auto sqlite_file_mgr_db::get_resume_list() const -> std::vector<resume_entry> {
   return ret;
 }
 
-auto sqlite_file_mgr_db::get_upload(const std::string &api_path) const
+auto sqlite_file_mgr_db::get_upload(std::string_view api_path) const
     -> std::optional<upload_entry> {
   auto result = utils::db::sqlite::db_select{*db_, upload_table}
                     .where("api_path")
-                    .equals(api_path)
+                    .equals(std::string{api_path})
                     .go();
   std::optional<utils::db::sqlite::db_result::row> row;
   if (not result.get_row(row) || not row.has_value()) {
@@ -238,37 +238,37 @@ auto sqlite_file_mgr_db::get_upload_active_list() const
   return ret;
 }
 
-auto sqlite_file_mgr_db::remove_resume(const std::string &api_path) -> bool {
+auto sqlite_file_mgr_db::remove_resume(std::string_view api_path) -> bool {
   return utils::db::sqlite::db_delete{*db_, resume_table}
       .where("api_path")
-      .equals(api_path)
+      .equals(std::string{api_path})
       .go()
       .ok();
 }
 
-auto sqlite_file_mgr_db::remove_upload(const std::string &api_path) -> bool {
+auto sqlite_file_mgr_db::remove_upload(std::string_view api_path) -> bool {
   return utils::db::sqlite::db_delete{*db_, upload_table}
       .where("api_path")
-      .equals(api_path)
+      .equals(std::string{api_path})
       .go()
       .ok();
 }
 
-auto sqlite_file_mgr_db::remove_upload_active(const std::string &api_path)
+auto sqlite_file_mgr_db::remove_upload_active(std::string_view api_path)
     -> bool {
   return utils::db::sqlite::db_delete{*db_, upload_active_table}
       .where("api_path")
-      .equals(api_path)
+      .equals(std::string{api_path})
       .go()
       .ok();
 }
 
-auto sqlite_file_mgr_db::rename_resume(const std::string &from_api_path,
-                                       const std::string &to_api_path) -> bool {
+auto sqlite_file_mgr_db::rename_resume(std::string_view from_api_path,
+                                       std::string_view to_api_path) -> bool {
   return utils::db::sqlite::db_update{*db_, resume_table}
-      .column_value("api_path", to_api_path)
+      .column_value("api_path", std::string{to_api_path})
       .where("api_path")
-      .equals(from_api_path)
+      .equals(std::string{from_api_path})
       .go()
       .ok();
 }

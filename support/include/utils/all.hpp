@@ -24,6 +24,7 @@
 
 #include "utils/config.hpp"
 
+#include "utils/atomic.hpp"
 #include "utils/base64.hpp"
 #include "utils/collection.hpp"
 #if defined(_WIN32)
@@ -49,6 +50,7 @@
 #include "utils/path.hpp"
 #include "utils/string.hpp"
 #include "utils/time.hpp"
+#include "utils/ttl_cache.hpp"
 #if !defined(_WIN32)
 #include "utils/unix.hpp"
 #endif // !defined(_WIN32)

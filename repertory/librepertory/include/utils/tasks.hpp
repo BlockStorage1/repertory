@@ -98,7 +98,7 @@ private:
   std::condition_variable notify_;
   std::mutex start_stop_mutex_;
   stop_type stop_requested_{false};
-  std::vector<std::unique_ptr<std::jthread>> task_threads_;
+  std::vector<std::unique_ptr<std::thread>> task_threads_;
   std::deque<scheduled_task> tasks_;
 
 private:

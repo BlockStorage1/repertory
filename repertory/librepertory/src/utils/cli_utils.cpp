@@ -31,12 +31,10 @@
 
 namespace repertory::utils::cli {
 void get_api_authentication_data(std::string &user, std::string &password,
-                                 std::uint16_t &port, const provider_type &prov,
-                                 const std::string &data_directory) {
-  const auto cfg_file_path = utils::path::combine(
-      data_directory.empty() ? app_config::default_data_directory(prov)
-                             : data_directory,
-      {"config.json"});
+                                 std::uint16_t &port,
+                                 std::string_view data_directory) {
+  const auto cfg_file_path =
+      utils::path::combine(data_directory, {"config.json"});
 
   json data;
   const auto success = utils::retry_action([&]() -> bool {
@@ -67,7 +65,7 @@ void get_api_authentication_data(std::string &user, std::string &password,
   return provider_type::sia;
 }
 
-auto has_option(std::vector<const char *> args, const std::string &option_name)
+auto has_option(std::vector<const char *> args, std::string_view option_name)
     -> bool {
   return std::ranges::find_if(args, [&option_name](auto &&value) -> bool {
            return option_name == value;
@@ -78,17 +76,18 @@ auto has_option(std::vector<const char *> args, const option &opt) -> bool {
   return has_option(args, opt.at(0U)) || has_option(args, opt.at(1U));
 }
 
-auto parse_option(std::vector<const char *> args,
-                  const std::string &option_name, std::uint8_t count)
-    -> std::vector<std::string> {
+auto parse_option(std::vector<const char *> args, std::string_view option_name,
+                  std::uint8_t count) -> std::vector<std::string> {
   std::vector<std::string> ret;
   auto found{false};
-  for (std::size_t i = 0U; not found && (i < args.size()); i++) {
-    if ((found = (option_name == args.at(i)))) {
-      if ((++i + count) <= args.size()) {
-        while ((count--) != 0U) {
-          ret.emplace_back(args.at(i++));
-        }
+  for (std::size_t idx{0U}; not found && (idx < args.size()); idx++) {
+    found = option_name == args.at(idx);
+    if (not found) {
+      continue;
+    }
+    if ((++idx + count) <= args.size()) {
+      while ((count--) != 0U) {
+        ret.emplace_back(args.at(idx++));
       }
     }
   }
@@ -148,7 +147,7 @@ auto parse_drive_options(std::vector<const char *> args,
 #if !defined(_WIN32)
   std::vector<std::string> fuse_flags_list;
   for (std::size_t i = 1; i < drive_args.size(); i++) {
-    if (drive_args.at(i).find("-o") == 0) {
+    if (drive_args.at(i).starts_with("-o")) {
       std::string options;
       if (drive_args[i].size() == 2) {
         if ((i + 1) < drive_args.size()) {
@@ -160,12 +159,12 @@ auto parse_drive_options(std::vector<const char *> args,
 
       const auto fuse_option_list = utils::string::split(options, ',', true);
       for (const auto &fuse_option : fuse_option_list) {
-        if (fuse_option.find("s3") == 0) {
+        if (fuse_option.starts_with("s3")) {
           prov = provider_type::s3;
           continue;
         }
-        if ((fuse_option.find("dd") == 0) ||
-            (fuse_option.find("data_directory") == 0)) {
+        if ((fuse_option.starts_with("dd")) ||
+            (fuse_option.starts_with("data_directory"))) {
           const auto data = utils::string::split(fuse_option, '=', true);
           if (data.size() == 2U) {
             data_directory = data.at(1U);
@@ -184,61 +183,59 @@ auto parse_drive_options(std::vector<const char *> args,
 
   {
     std::vector<std::string> new_drive_args(drive_args);
-    for (std::size_t i = 1; i < new_drive_args.size(); i++) {
-      if (new_drive_args[i].find("-o") == 0) {
-        if (new_drive_args[i].size() == 2) {
-          if ((i + 1) < drive_args.size()) {
+    for (std::size_t idx{1}; idx < new_drive_args.size(); idx++) {
+      if (new_drive_args[idx].starts_with("-o")) {
+        if (new_drive_args[idx].size() == 2) {
+          if ((idx + 1) < drive_args.size()) {
             utils::collection::remove_element(new_drive_args,
-                                              new_drive_args[i]);
+                                              new_drive_args[idx]);
             utils::collection::remove_element(new_drive_args,
-                                              new_drive_args[i]);
-            i--;
+                                              new_drive_args[idx]);
+            idx--;
           }
           continue;
         }
 
-        utils::collection::remove_element(new_drive_args, new_drive_args[i]);
-        i--;
+        utils::collection::remove_element(new_drive_args, new_drive_args[idx]);
+        idx--;
         continue;
       }
     }
 
 #if FUSE_USE_VERSION < 30
     {
-      auto it = std::remove_if(
+      auto iter = std::remove_if(
           fuse_flags_list.begin(), fuse_flags_list.end(),
-          [](const auto &opt) -> bool { return opt.find("hard_remove") == 0; });
-      if (it == fuse_flags_list.end()) {
+          [](auto &&opt) -> bool { return opt.find("hard_remove") == 0; });
+      if (iter == fuse_flags_list.end()) {
         fuse_flags_list.emplace_back("hard_remove");
       }
     }
-#endif
+#endif // FUSE_USE_VERSION < 30
 
 #if defined(__APPLE__)
     {
-      auto it = std::remove_if(
+      auto iter = std::remove_if(
           fuse_flags_list.begin(), fuse_flags_list.end(),
-          [](const auto &opt) -> bool { return opt.find("volname") == 0; });
-      if (it != fuse_flags_list.end()) {
-        fuse_flags_list.erase(it, fuse_flags_list.end());
+          [](auto &&opt) -> bool { return opt.find("volname") == 0; });
+      if (iter != fuse_flags_list.end()) {
+        fuse_flags_list.erase(iter, fuse_flags_list.end());
       }
       fuse_flags_list.emplace_back("volname=Repertory" +
                                    app_config::get_provider_display_name(prov));
 
-      it = std::remove_if(fuse_flags_list.begin(), fuse_flags_list.end(),
-                          [](const auto &opt) -> bool {
-                            return opt.find("daemon_timeout") == 0;
-                          });
-      if (it != fuse_flags_list.end()) {
-        fuse_flags_list.erase(it, fuse_flags_list.end());
+      iter = std::remove_if(
+          fuse_flags_list.begin(), fuse_flags_list.end(),
+          [](auto &&opt) -> bool { return opt.find("daemon_timeout") == 0; });
+      if (iter != fuse_flags_list.end()) {
+        fuse_flags_list.erase(iter, fuse_flags_list.end());
       }
       fuse_flags_list.emplace_back("daemon_timeout=300");
 
-      it = std::remove_if(fuse_flags_list.begin(), fuse_flags_list.end(),
-                          [](const auto &opt) -> bool {
-                            return opt.find("noappledouble") == 0;
-                          });
-      if (it == fuse_flags_list.end()) {
+      iter = std::remove_if(
+          fuse_flags_list.begin(), fuse_flags_list.end(),
+          [](auto &&opt) -> bool { return opt.find("noappledouble") == 0; });
+      if (iter == fuse_flags_list.end()) {
         fuse_flags_list.emplace_back("noappledouble");
       }
     }

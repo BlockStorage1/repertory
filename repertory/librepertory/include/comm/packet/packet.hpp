@@ -200,7 +200,7 @@ public:
 
   void encode_top(remote::file_info val);
 
-  void encrypt(std::string_view token);
+  void encrypt(std::string_view token, bool include_size = true);
 
   [[nodiscard]] auto get_size() const -> std::uint32_t {
     return static_cast<std::uint32_t>(buffer_.size());

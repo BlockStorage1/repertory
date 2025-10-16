@@ -35,9 +35,10 @@ struct result final {
 
 using retryable_action_t = std::function<bool()>;
 
-[[nodiscard]] inline constexpr auto
-calculate_read_size(std::uint64_t total_size, std::size_t read_size,
-                    std::uint64_t offset) -> std::size_t {
+[[nodiscard]] constexpr auto calculate_read_size(std::uint64_t total_size,
+                                                 std::size_t read_size,
+                                                 std::uint64_t offset)
+    -> std::size_t {
   return static_cast<std::size_t>(
       ((offset + read_size) > total_size)
           ? ((offset < total_size) ? total_size - offset : 0U)

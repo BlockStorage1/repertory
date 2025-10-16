@@ -69,7 +69,7 @@ winfsp_drive::winfsp_service::winfsp_service(
       lock_(lock) {}
 
 auto winfsp_drive::handle_error(std::string_view function_name,
-                                const std::string &api_path, api_error error,
+                                std::string_view api_path, api_error error,
                                 FileInfo *file_info, std::uint64_t file_size,
                                 bool raise_on_failure_only) const -> NTSTATUS {
   auto ret = utils::from_api_error(error);
@@ -136,7 +136,7 @@ auto winfsp_drive::winfsp_service::OnStart(ULONG /*Argc*/, PWSTR * /*Argv*/)
 auto winfsp_drive::winfsp_service::OnStop() -> NTSTATUS {
   REPERTORY_USES_FUNCTION_NAME();
 
-  timeout stop_timeout(
+  utils::timeout stop_timeout(
       []() {
         event_system::instance().raise<drive_stop_timed_out>(function_name);
         app_config::set_stop_requested();
@@ -216,15 +216,11 @@ VOID winfsp_drive::Cleanup(PVOID file_node, PVOID file_desc,
       FspFileSystemDeleteDirectoryBuffer(&directory_buffer);
     }
 
-    if (not directory) {
-      return handle_error(fm_->remove_file(api_path));
+    if (directory) {
+      return handle_error(fm_->remove_directory(api_path));
     }
 
-    if (provider_.get_directory_item_count(api_path) == 0) {
-      return handle_error(provider_.remove_directory(api_path));
-    }
-
-    return handle_error(api_error::directory_not_empty);
+    return handle_error(fm_->remove_file(api_path));
   }
 
   if (((flags & FspCleanupSetArchiveBit) != 0U) && not directory) {
@@ -334,7 +330,7 @@ auto winfsp_drive::Create(PWSTR file_name, UINT32 create_options,
   auto now = utils::time::get_time_now();
   auto meta = create_meta_attributes(
       now, attributes, now, now, (attributes & FILE_ATTRIBUTE_DIRECTORY) != 0U,
-      0U, "", 0U, now, 0U, 0U, 0U,
+      0U, "", 0U, now, 0U, 0U,
       (attributes & FILE_ATTRIBUTE_DIRECTORY) != 0U
           ? ""
           : utils::path::combine(config_.get_cache_directory(),
@@ -399,12 +395,12 @@ auto winfsp_drive::Flush(PVOID /*file_node*/, PVOID file_desc,
   }));
 }
 
-auto winfsp_drive::get_directory_item_count(const std::string &api_path) const
+auto winfsp_drive::get_directory_item_count(std::string_view api_path) const
     -> std::uint64_t {
   return provider_.get_directory_item_count(api_path);
 }
 
-auto winfsp_drive::get_directory_items(const std::string &api_path) const
+auto winfsp_drive::get_directory_items(std::string_view api_path) const
     -> directory_item_list {
   REPERTORY_USES_FUNCTION_NAME();
 
@@ -439,7 +435,7 @@ auto winfsp_drive::GetFileInfo(PVOID /*file_node*/, PVOID file_desc,
   return handle_error(api_error::success);
 }
 
-auto winfsp_drive::get_file_size(const std::string &api_path) const
+auto winfsp_drive::get_file_size(std::string_view api_path) const
     -> std::uint64_t {
   REPERTORY_USES_FUNCTION_NAME();
 
@@ -453,18 +449,18 @@ auto winfsp_drive::get_file_size(const std::string &api_path) const
   return file_size;
 }
 
-auto winfsp_drive::get_item_meta(const std::string &api_path,
+auto winfsp_drive::get_item_meta(std::string_view api_path,
                                  api_meta_map &meta) const -> api_error {
   return provider_.get_item_meta(api_path, meta);
 }
 
-auto winfsp_drive::get_item_meta(const std::string &api_path,
-                                 const std::string &name,
+auto winfsp_drive::get_item_meta(std::string_view api_path,
+                                 std::string_view name,
                                  std::string &value) const -> api_error {
   api_meta_map meta{};
   auto ret = provider_.get_item_meta(api_path, meta);
   if (ret == api_error::success) {
-    value = meta[name];
+    value = meta[std::string{name}];
   }
 
   return ret;
@@ -590,7 +586,10 @@ auto winfsp_drive::Init(PVOID host) -> NTSTATUS {
   return STATUS_SUCCESS;
 }
 
-auto winfsp_drive::mount(const std::vector<std::string> &drive_args) -> int {
+auto winfsp_drive::mount(std::vector<std::string> /* orig_args */,
+                         std::vector<std::string> drive_args,
+                         provider_type /* prov */,
+                         std::string_view /* unique_id */) -> int {
   REPERTORY_USES_FUNCTION_NAME();
 
   std::vector<std::string> parsed_drive_args;
@@ -703,9 +702,8 @@ auto winfsp_drive::Open(PWSTR file_name, UINT32 create_options,
       if (not directory &&
           (((granted_access & FILE_WRITE_DATA) == FILE_WRITE_DATA) ||
            ((granted_access & GENERIC_WRITE) == GENERIC_WRITE))) {
-        error = provider_.is_file_writeable(api_path)
-                    ? api_error::success
-                    : api_error::permission_denied;
+        error = provider_.is_read_only() ? api_error::permission_denied
+                                         : api_error::success;
       }
 
       if (error == api_error::success) {
@@ -786,19 +784,19 @@ auto winfsp_drive::Overwrite(PVOID /*file_node*/, PVOID file_desc,
   return handle_error(api_error::success);
 }
 
-auto winfsp_drive::parse_mount_location(const std::wstring &mount_location)
+auto winfsp_drive::parse_mount_location(std::wstring_view mount_location)
     -> std::string {
   return utils::string::to_utf8((mount_location.substr(0, 4) == L"\\\\.\\")
                                     ? mount_location.substr(4)
                                     : mount_location);
 }
 
-void winfsp_drive::populate_file_info(const std::string &api_path,
+void winfsp_drive::populate_file_info(std::string_view api_path,
                                       std::uint64_t file_size,
                                       const api_meta_map &meta,
                                       FSP_FSCTL_OPEN_FILE_INFO &ofi) const {
   auto file_path = utils::string::from_utf8(
-      utils::string::replace_copy(api_path, '/', '\\'));
+      utils::string::replace_copy(std::string{api_path}, '/', '\\'));
 
   wcscpy_s(ofi.NormalizedName, ofi.NormalizedNameSize / sizeof(WCHAR),
            file_path.data());
@@ -807,7 +805,7 @@ void winfsp_drive::populate_file_info(const std::string &api_path,
   populate_file_info(file_size, meta, ofi.FileInfo);
 }
 
-auto winfsp_drive::populate_file_info(const std::string &api_path,
+auto winfsp_drive::populate_file_info(std::string_view api_path,
                                       remote::file_info &file_info) const
     -> api_error {
   api_meta_map meta{};

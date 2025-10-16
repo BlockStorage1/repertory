@@ -30,7 +30,7 @@ namespace {
 } // namespace
 
 namespace repertory {
-TYPED_TEST_CASE(meta_db_test, meta_db_types);
+TYPED_TEST_SUITE(meta_db_test, meta_db_types);
 
 TYPED_TEST(meta_db_test, can_get_api_path_from_source_path) {
   auto test_file = create_test_file();

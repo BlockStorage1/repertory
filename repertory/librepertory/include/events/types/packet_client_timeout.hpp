@@ -28,11 +28,9 @@
 namespace repertory {
 struct packet_client_timeout final : public i_event {
   packet_client_timeout() = default;
-  packet_client_timeout(std::string event_name_,
-                        std::string_view function_name_, std::string msg_)
-      : event_name(std::move(event_name_)),
-        function_name(std::string(function_name_)),
-        msg(std::move(msg_)) {}
+  packet_client_timeout(std::string_view event_name_,
+                        std::string_view function_name_)
+      : event_name(event_name_), function_name(function_name_) {}
 
   static constexpr event_level level{event_level::warn};
   static constexpr std::string_view name{"packet_client_timeout"};
@@ -50,8 +48,7 @@ struct packet_client_timeout final : public i_event {
   }
 
   [[nodiscard]] auto get_single_line() const -> std::string override {
-    return fmt::format("{}|func|{}|event|{}|msg|{}", name, function_name,
-                       event_name, msg);
+    return fmt::format("{}|func|{}|event|{}", name, function_name, event_name);
   }
 };
 } // namespace repertory
@@ -62,14 +59,12 @@ template <> struct adl_serializer<repertory::packet_client_timeout> {
                       const repertory::packet_client_timeout &value) {
     data["event_name"] = value.event_name;
     data["function_name"] = value.function_name;
-    data["msg"] = value.msg;
   }
 
   static void from_json(const json &data,
                         repertory::packet_client_timeout &value) {
     data.at("event_name").get_to<std::string>(value.event_name);
     data.at("function_name").get_to<std::string>(value.function_name);
-    data.at("msg").get_to<std::string>(value.msg);
   }
 };
 NLOHMANN_JSON_NAMESPACE_END

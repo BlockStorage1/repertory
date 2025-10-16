@@ -31,14 +31,17 @@
 
     <title>repertory</title>
     <link rel="manifest" href="manifest.json">
+
     <script type="text/javascript" src="sodium.js" async="true"></script>
   </head>
   <body>
     <script>
-      window.flutterConfiguration = {
-          canvasKitBaseUrl: "/canvaskit/"
-      };
+      {{flutter_js}}
+      {{flutter_build_config}}
+
+      _flutter.loader.load({
+        config: {'canvasKitBaseUrl': "$FLUTTER_BASE_HREFcanvaskit/"},
+      });
     </script>
-    <script src="flutter_bootstrap.js" async=""></script>
   </body>
 </html>

@@ -31,10 +31,10 @@ class i_upload_manager {
 public:
   virtual void queue_upload(const i_open_file &file) = 0;
 
-  virtual void remove_resume(const std::string &api_path,
-                             const std::string &source_path) = 0;
+  virtual void remove_resume(std::string_view api_path,
+                             std::string_view source_path) = 0;
 
-  virtual void remove_upload(const std::string &api_path) = 0;
+  virtual void remove_upload(std::string_view api_path) = 0;
 
   virtual void store_resume(const i_open_file &file) = 0;
 };

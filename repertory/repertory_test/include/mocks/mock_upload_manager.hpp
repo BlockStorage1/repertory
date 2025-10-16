@@ -32,10 +32,10 @@ public:
   MOCK_METHOD(void, queue_upload, (const i_open_file &o), (override));
 
   MOCK_METHOD(void, remove_resume,
-              (const std::string &api_path, const std::string &source_path),
+              (std::string_view api_path, std::string_view source_path),
               (override));
 
-  MOCK_METHOD(void, remove_upload, (const std::string &api_path), (override));
+  MOCK_METHOD(void, remove_upload, (std::string_view api_path), (override));
 
   MOCK_METHOD(void, store_resume, (const i_open_file &o), (override));
 };

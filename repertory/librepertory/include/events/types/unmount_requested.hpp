@@ -29,7 +29,7 @@ namespace repertory {
 struct unmount_requested final : public i_event {
   unmount_requested() = default;
   unmount_requested(std::string_view function_name_)
-      : function_name(std::string(function_name_)) {}
+      : function_name(function_name_) {}
 
   static constexpr event_level level{event_level::info};
   static constexpr std::string_view name{"unmount_requested"};

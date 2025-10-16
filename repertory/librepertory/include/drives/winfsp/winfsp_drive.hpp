@@ -77,23 +77,23 @@ private:
 
 private:
   [[nodiscard]] auto handle_error(std::string_view function_name,
-                                  const std::string &api_path, api_error error,
-                                  FileInfo *file_info, std::uint64_t file_size,
+                                  std::string_view api_path, api_error error,
+                                  FileInfo *f_info, std::uint64_t file_size,
                                   bool raise_on_failure_only = false) const
       -> NTSTATUS;
 
-  static auto parse_mount_location(const std::wstring &mount_location)
+  static auto parse_mount_location(std::wstring_view mount_location)
       -> std::string;
 
-  void populate_file_info(const std::string &api_path, std::uint64_t file_size,
+  void populate_file_info(std::string_view api_path, std::uint64_t file_size,
                           const api_meta_map &meta,
                           FSP_FSCTL_OPEN_FILE_INFO &ofi) const;
 
   void populate_file_info(std::uint64_t file_size, api_meta_map meta,
                           FSP_FSCTL_FILE_INFO &fi) const;
 
-  static void set_file_info(remote::file_info &dest,
-                            const FSP_FSCTL_FILE_INFO &src);
+  static void set_file_info(remote::file_info &r_info,
+                            const FSP_FSCTL_FILE_INFO &f_info);
 
   void stop_all();
 
@@ -111,27 +111,27 @@ public:
               UINT64 allocation_size, PVOID *file_node, PVOID *file_desc,
               OpenFileInfo *ofi) -> NTSTATUS override;
 
-  auto Flush(PVOID file_node, PVOID file_desc, FileInfo *file_info)
+  auto Flush(PVOID file_node, PVOID file_desc, FileInfo *f_info)
       -> NTSTATUS override;
 
-  [[nodiscard]] auto get_directory_item_count(const std::string &api_path) const
+  [[nodiscard]] auto get_directory_item_count(std::string_view api_path) const
       -> std::uint64_t override;
 
-  [[nodiscard]] auto get_directory_items(const std::string &api_path) const
+  [[nodiscard]] auto get_directory_items(std::string_view api_path) const
       -> directory_item_list override;
 
-  auto GetFileInfo(PVOID file_node, PVOID file_desc, FileInfo *file_info)
+  auto GetFileInfo(PVOID file_node, PVOID file_desc, FileInfo *f_info)
       -> NTSTATUS override;
 
-  [[nodiscard]] auto get_file_size(const std::string &api_path) const
+  [[nodiscard]] auto get_file_size(std::string_view api_path) const
       -> std::uint64_t override;
 
-  [[nodiscard]] auto get_item_meta(const std::string &api_path,
+  [[nodiscard]] auto get_item_meta(std::string_view api_path,
                                    api_meta_map &meta) const
       -> api_error override;
 
-  [[nodiscard]] auto get_item_meta(const std::string &api_path,
-                                   const std::string &name,
+  [[nodiscard]] auto get_item_meta(std::string_view api_path,
+                                   std::string_view name,
                                    std::string &value) const
       -> api_error override;
 
@@ -157,7 +157,10 @@ public:
 
   auto Init(PVOID host) -> NTSTATUS override;
 
-  [[nodiscard]] auto mount(const std::vector<std::string> &drive_args) -> int;
+  [[nodiscard]] auto mount(std::vector<std::string> orig_args,
+                           std::vector<std::string> drive_args,
+                           provider_type prov, std::string_view unique_id)
+      -> int;
 
   auto Mounted(PVOID host) -> NTSTATUS override;
 
@@ -167,10 +170,10 @@ public:
 
   auto Overwrite(PVOID file_node, PVOID file_desc, UINT32 attributes,
                  BOOLEAN replace_attributes, UINT64 allocation_size,
-                 FileInfo *file_info) -> NTSTATUS override;
+                 FileInfo *f_info) -> NTSTATUS override;
 
-  [[nodiscard]] auto populate_file_info(const std::string &api_path,
-                                        remote::file_info &file_info) const
+  [[nodiscard]] auto populate_file_info(std::string_view api_path,
+                                        remote::file_info &r_info) const
       -> api_error override;
 
   auto Read(PVOID file_node, PVOID file_desc, PVOID buffer, UINT64 offset,
@@ -187,18 +190,17 @@ public:
   auto SetBasicInfo(PVOID file_node, PVOID file_desc, UINT32 attributes,
                     UINT64 creation_time, UINT64 last_access_time,
                     UINT64 last_write_time, UINT64 change_time,
-                    FileInfo *file_info) -> NTSTATUS override;
+                    FileInfo *f_info) -> NTSTATUS override;
 
   auto SetFileSize(PVOID file_node, PVOID file_desc, UINT64 new_size,
-                   BOOLEAN set_allocation_size, FileInfo *file_info)
+                   BOOLEAN set_allocation_size, FileInfo *f_info)
       -> NTSTATUS override;
 
   VOID Unmounted(PVOID host) override;
 
   auto Write(PVOID file_node, PVOID file_desc, PVOID buffer, UINT64 offset,
              ULONG length, BOOLEAN write_to_end, BOOLEAN constrained_io,
-             PULONG bytes_transferred, FileInfo *file_info)
-      -> NTSTATUS override;
+             PULONG bytes_transferred, FileInfo *f_info) -> NTSTATUS override;
 
   void shutdown();
 

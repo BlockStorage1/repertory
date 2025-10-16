@@ -29,11 +29,11 @@ namespace repertory {
 struct provider_invalid_version final : public i_event {
   provider_invalid_version() = default;
   provider_invalid_version(std::string_view function_name_,
-                           std::string required_version_,
-                           std::string returned_version_)
-      : function_name(std::string(function_name_)),
-        required_version(std::move(required_version_)),
-        returned_version(std::move(returned_version_)) {}
+                           std::string_view required_version_,
+                           std::string_view returned_version_)
+      : function_name(function_name_),
+        required_version(required_version_),
+        returned_version(returned_version_) {}
 
   static constexpr event_level level{event_level::error};
   static constexpr std::string_view name{"provider_invalid_version"};

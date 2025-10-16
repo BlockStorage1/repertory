@@ -22,7 +22,7 @@
 #ifndef REPERTORY_INCLUDE_COMMON_HPP_
 #define REPERTORY_INCLUDE_COMMON_HPP_
 
-#if defined(__GNUC__)
+#if defined(__GNUC__) && !defined(PROJECT_IS_DARWIN)
 // clang-format off
 #define REPERTORY_IGNORE_WARNINGS_ENABLE()                                     \
   _Pragma("GCC diagnostic push")                                               \
@@ -58,8 +58,8 @@ inline constexpr std::string_view REPERTORY{"repertory"};
 inline constexpr std::string_view REPERTORY_DATA_NAME{"repertory2"};
 inline constexpr std::wstring_view REPERTORY_W{L"repertory"};
 
-inline constexpr std::uint64_t REPERTORY_CONFIG_VERSION{2ULL};
-inline constexpr std::string_view REPERTORY_MIN_REMOTE_VERSION{"2.0.0"};
+inline constexpr std::uint64_t REPERTORY_CONFIG_VERSION{5ULL};
+inline constexpr std::string_view REPERTORY_MIN_REMOTE_VERSION{"2.1.0"};
 inline constexpr std::string_view RENTERD_MIN_VERSION{"2.0.0"};
 
 #define REPERTORY_INVALID_HANDLE INVALID_HANDLE_VALUE

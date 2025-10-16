@@ -23,6 +23,7 @@
 #define REPERTORY_INCLUDE_COMM_PACKET_PACKET_SERVER_HPP_
 
 #include "comm/packet/client_pool.hpp"
+#include "comm/packet/common.hpp"
 #include "utils/common.hpp"
 
 using namespace boost::asio;
@@ -31,11 +32,11 @@ using boost::asio::ip::tcp;
 namespace repertory {
 class packet_server final {
 public:
-  using closed_callback = std::function<void(const std::string &)>;
+  using closed_callback = std::function<void(std::string)>;
   using message_complete_callback = client_pool::worker_complete_callback;
-  using message_handler_callback = std::function<void(
-      std::uint32_t, const std::string &, std::uint64_t, const std::string &,
-      packet *, packet &, message_complete_callback)>;
+  using message_handler_callback =
+      std::function<void(std::uint32_t, std::string, std::uint64_t, std::string,
+                         packet *, packet &, message_complete_callback)>;
 
 public:
   packet_server(std::uint16_t port, std::string token, std::uint8_t pool_size,
@@ -61,21 +62,25 @@ private:
     std::string client_id;
     std::string nonce;
 
-    void generate_nonce() { nonce = utils::generate_random_string(256U); }
+    void generate_nonce() {
+      nonce = utils::generate_random_string(comm::packet_nonce_size);
+    }
   };
 
 private:
   std::string encryption_token_;
   closed_callback closed_;
   message_handler_callback message_handler_;
-  io_context io_context_;
+  mutable io_context io_context_;
   std::unique_ptr<std::thread> server_thread_;
   std::vector<std::thread> service_threads_;
   std::recursive_mutex connection_mutex_;
   std::unordered_map<std::string, std::uint32_t> connection_lookup_;
 
 private:
-  void add_client(connection &conn, const std::string &client_id);
+  void add_client(connection &conn, std::string client_id);
+
+  [[nodiscard]] auto handshake(std::shared_ptr<connection> conn) const -> bool;
 
   void initialize(const uint16_t &port, uint8_t pool_size);
 

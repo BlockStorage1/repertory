@@ -28,11 +28,12 @@
 namespace repertory {
 struct download_resume_removed final : public i_event {
   download_resume_removed() = default;
-  download_resume_removed(std::string api_path_, std::string dest_path_,
+  download_resume_removed(std::string_view api_path_,
+                          std::string_view dest_path_,
                           std::string_view function_name_)
-      : api_path(std::move(api_path_)),
-        dest_path(std::move(dest_path_)),
-        function_name(std::string(function_name_)) {}
+      : api_path(api_path_),
+        dest_path(dest_path_),
+        function_name(function_name_) {}
 
   static constexpr event_level level{event_level::debug};
   static constexpr std::string_view name{"download_resume_removed"};

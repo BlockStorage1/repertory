@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+   "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+  <dict>
+    <key>CFBundleExecutable</key>
+    <string>@PROJECT_NAME@</string>
+    <key>CFBundleIdentifier</key>
+    <string>@PROJECT_MACOS_BUNDLE_ID@</string>
+    <key>CFBundleName</key>
+    <string>@PROJECT_NAME@</string>
+    <key>CFBundleVersion</key>
+    <string>@PROJECT_MAJOR_VERSION@.@PROJECT_MINOR_VERSION@.@PROJECT_REVISION_VERSION@-@PROJECT_RELEASE_ITER@_@PROJECT_GIT_REV@</string>
+    <key>CFBundleShortVersionString</key>
+    <string>@PROJECT_MAJOR_VERSION@.@PROJECT_MINOR_VERSION@.@PROJECT_REVISION_VERSION@.@PROJECT_RELEASE_NUM@</string>
+    <key>CFBundlePackageType</key>
+    <string>APPL</string>
+    <key>LSUIElement</key>
+    <true />
+    <key>CFBundleIconFile</key>
+    <string>@PROJECT_MACOS_ICNS_NAME@</string>
+  </dict>
+</plist>

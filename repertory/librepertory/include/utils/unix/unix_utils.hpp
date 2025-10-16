@@ -37,16 +37,17 @@ inline const std::array<std::string, 4U> attribute_namespaces = {
 };
 #endif
 
+[[nodiscard]] auto create_daemon(std::function<int()> main_func) -> int;
+
 [[nodiscard]] auto from_api_error(api_error err) -> int;
 
 [[nodiscard]] auto to_api_error(int err) -> api_error;
 
 [[nodiscard]] auto unix_error_to_windows(int err) -> std::uint32_t;
 
-void windows_create_to_unix(const UINT32 &create_options,
-                            const UINT32 &granted_access, std::uint32_t &flags,
-                            remote::file_mode &mode);
+void windows_create_to_unix(UINT32 create_options, UINT32 granted_access,
+                            std::uint32_t &flags, remote::file_mode &mode);
 } // namespace repertory::utils
 
-#endif // !_WIN32
+#endif // !defined(_WIN32)
 #endif // REPERTORY_INCLUDE_UTILS_UNIX_UNIX_UTILS_HPP_

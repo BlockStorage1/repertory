@@ -25,7 +25,7 @@
 #define NOMINMAX
 
 #if defined(_WIN32)
-#define WINVER 0x0602
+#define WINVER 0x0A00
 #define _WIN32_WINNT WINVER
 #define WIN32_LEAN_AND_MEAN
 
@@ -107,7 +107,6 @@
 #include <cerrno>
 #include <chrono>
 #include <climits>
-#include <codecvt>
 #include <condition_variable>
 #include <csignal>
 #include <cstdint>
@@ -148,6 +147,9 @@
 #include <vector>
 #include <version>
 #endif // defined(__cplusplus)
+
+#include <unicode/uchar.h>
+#include <unicode/utf.h>
 
 #if defined(PROJECT_ENABLE_CURL)
 #include "curl/curl.h"
@@ -423,6 +425,8 @@ using vlc_string_t = std::unique_ptr<char, vlc_string_deleter>;
 
 namespace repertory {
 using data_buffer = std::vector<unsigned char>;
+using data_span = std::span<unsigned char>;
+using data_cspan = std::span<const unsigned char>;
 using mutex_lock = std::lock_guard<std::mutex>;
 using recur_mutex_lock = std::lock_guard<std::recursive_mutex>;
 using stop_type = std::atomic_bool;

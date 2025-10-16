@@ -25,6 +25,7 @@
 #include "events/types/event_level_changed.hpp"
 #include "file_manager/cache_size_mgr.hpp"
 #include "platform/platform.hpp"
+#include "types/repertory.hpp"
 #include "types/startup_exception.hpp"
 #include "utils/common.hpp"
 #include "utils/error_utils.hpp"
@@ -34,12 +35,12 @@
 
 namespace {
 template <typename dest>
-auto get_value(const json &data, const std::string &name, dest &dst,
-               bool &found) -> bool {
+auto get_value(const json &data, std::string_view name, dest &dst, bool &found)
+    -> bool {
   REPERTORY_USES_FUNCTION_NAME();
 
   try {
-    if (data.find(name) == data.end()) {
+    if (not data.contains(name)) {
       found = false;
       return false;
     }
@@ -63,13 +64,14 @@ auto app_config::get_stop_requested() -> bool { return stop_requested.load(); }
 
 void app_config::set_stop_requested() { stop_requested.store(true); }
 
-app_config::app_config(const provider_type &prov,
-                       std::string_view data_directory)
+app_config::app_config(provider_type prov, std::string_view data_directory)
     : prov_(prov),
       api_password_(utils::generate_random_string(default_api_password_size)),
-      api_port_(default_rpc_port()),
+      api_port_(default_rpc_port),
       api_user_(std::string{REPERTORY}),
+      cache_directory_(utils::path::combine(data_directory, {"cache"})),
       config_changed_(false),
+      data_directory_(utils::path::absolute(data_directory)),
       download_timeout_secs_(default_download_timeout_secs),
       enable_download_timeout_(true),
       enable_drive_events_(false),
@@ -80,6 +82,7 @@ app_config::app_config(const provider_type &prov,
       eviction_delay_mins_(default_eviction_delay_mins),
       eviction_uses_accessed_time_(false),
       high_freq_interval_secs_(default_high_freq_interval_secs),
+      log_directory_(utils::path::combine(data_directory, {"logs"})),
       low_freq_interval_secs_(default_low_freq_interval_secs),
       max_cache_size_bytes_(default_max_cache_size_bytes),
       max_upload_count_(default_max_upload_count),
@@ -89,12 +92,6 @@ app_config::app_config(const provider_type &prov,
       retry_read_count_(default_retry_read_count),
       ring_buffer_file_size_(default_ring_buffer_file_size),
       task_wait_ms_(default_task_wait_ms) {
-  data_directory_ = data_directory.empty()
-                        ? default_data_directory(prov)
-                        : utils::path::absolute(data_directory);
-  cache_directory_ = utils::path::combine(data_directory_, {"cache"});
-  log_directory_ = utils::path::combine(data_directory_, {"logs"});
-
   auto host_cfg = get_host_config();
   host_cfg.agent_string = default_agent_name(prov_);
   host_cfg.api_port = default_api_port(prov_);
@@ -191,6 +188,10 @@ app_config::app_config(const provider_type &prov,
        }},
       {fmt::format("{}.{}", JSON_REMOTE_CONFIG, JSON_API_PORT),
        [this]() { return std::to_string(get_remote_config().api_port); }},
+      {fmt::format("{}.{}", JSON_REMOTE_CONFIG, JSON_CONNECT_TIMEOUT_MS),
+       [this]() {
+         return std::to_string(get_remote_config().conn_timeout_ms);
+       }},
       {fmt::format("{}.{}", JSON_REMOTE_CONFIG, JSON_ENCRYPTION_TOKEN),
        [this]() { return get_remote_config().encryption_token; }},
       {fmt::format("{}.{}", JSON_REMOTE_CONFIG, JSON_HOST_NAME_OR_IP),
@@ -229,6 +230,11 @@ app_config::app_config(const provider_type &prov,
        [this]() { return get_s3_config().bucket; }},
       {fmt::format("{}.{}", JSON_S3_CONFIG, JSON_ENCRYPTION_TOKEN),
        [this]() { return get_s3_config().encryption_token; }},
+      {fmt::format("{}.{}", JSON_S3_CONFIG, JSON_FORCE_LEGACY_ENCRYPTION),
+       [this]() {
+         return utils::string::from_bool(
+             get_s3_config().force_legacy_encryption);
+       }},
       {fmt::format("{}.{}", JSON_S3_CONFIG, JSON_REGION),
        [this]() { return get_s3_config().region; }},
       {fmt::format("{}.{}", JSON_S3_CONFIG, JSON_SECRET_KEY),
@@ -254,65 +260,68 @@ app_config::app_config(const provider_type &prov,
   value_set_lookup_ = {
       {
           JSON_API_PASSWORD,
-          [this](const std::string &value) {
+          [this](std::string_view value) {
             set_api_password(value);
             return get_api_password();
           },
       },
       {
           JSON_API_PORT,
-          [this](const std::string &value) {
-            set_api_port(utils::string::to_uint16(value));
+          [this](std::string_view value) {
+            set_api_port(utils::string::to_uint16(std::string{value}));
             return std::to_string(get_api_port());
           },
       },
       {
           JSON_API_USER,
-          [this](const std::string &value) {
+          [this](std::string_view value) {
             set_api_user(value);
             return get_api_user();
           },
       },
       {
           JSON_DATABASE_TYPE,
-          [this](const std::string &value) {
+          [this](std::string_view value) {
             set_database_type(database_type_from_string(value));
             return database_type_to_string(db_type_);
           },
       },
       {
           JSON_DOWNLOAD_TIMEOUT_SECS,
-          [this](const std::string &value) {
-            set_download_timeout_secs(utils::string::to_uint8(value));
+          [this](std::string_view value) {
+            set_download_timeout_secs(
+                utils::string::to_uint8(std::string{value}));
             return std::to_string(get_download_timeout_secs());
           },
       },
       {
           JSON_ENABLE_DOWNLOAD_TIMEOUT,
-          [this](const std::string &value) {
-            set_enable_download_timeout(utils::string::to_bool(value));
+          [this](std::string_view value) {
+            set_enable_download_timeout(
+                utils::string::to_bool(std::string{value}));
             return utils::string::from_bool(get_enable_download_timeout());
           },
       },
       {
           JSON_ENABLE_DRIVE_EVENTS,
-          [this](const std::string &value) {
-            set_enable_drive_events(utils::string::to_bool(value));
+          [this](std::string_view value) {
+            set_enable_drive_events(utils::string::to_bool(std::string{value}));
             return utils::string::from_bool(get_enable_drive_events());
           },
       },
 #if defined(_WIN32)
       {
           JSON_ENABLE_MOUNT_MANAGER,
-          [this](const std::string &value) {
-            set_enable_mount_manager(utils::string::to_bool(value));
+          [this](std::string_view value) {
+            set_enable_mount_manager(
+                utils::string::to_bool(std::string{value}));
             return utils::string::from_bool(get_enable_mount_manager());
           },
       },
 #endif // defined(_WIN32)
       {
           fmt::format("{}.{}", JSON_ENCRYPT_CONFIG, JSON_ENCRYPTION_TOKEN),
-          [this](const std::string &value) {
+          [this](std::string_view value) {
             auto cfg = get_encrypt_config();
             cfg.encryption_token = value;
             set_encrypt_config(cfg);
@@ -321,7 +330,7 @@ app_config::app_config(const provider_type &prov,
       },
       {
           fmt::format("{}.{}", JSON_ENCRYPT_CONFIG, JSON_PATH),
-          [this](const std::string &value) {
+          [this](std::string_view value) {
             auto cfg = get_encrypt_config();
             cfg.path = value;
             set_encrypt_config(cfg);
@@ -330,35 +339,38 @@ app_config::app_config(const provider_type &prov,
       },
       {
           JSON_EVENT_LEVEL,
-          [this](const std::string &value) {
+          [this](std::string_view value) {
             set_event_level(event_level_from_string(value));
             return event_level_to_string(get_event_level());
           },
       },
       {
           JSON_EVICTION_DELAY_MINS,
-          [this](const std::string &value) {
-            set_eviction_delay_mins(utils::string::to_uint32(value));
+          [this](std::string_view value) {
+            set_eviction_delay_mins(
+                utils::string::to_uint32(std::string{value}));
             return std::to_string(get_eviction_delay_mins());
           },
       },
       {
           JSON_EVICTION_USE_ACCESS_TIME,
-          [this](const std::string &value) {
-            set_eviction_uses_accessed_time(utils::string::to_bool(value));
+          [this](std::string_view value) {
+            set_eviction_uses_accessed_time(
+                utils::string::to_bool(std::string{value}));
             return utils::string::from_bool(get_eviction_uses_accessed_time());
           },
       },
       {
           JSON_HIGH_FREQ_INTERVAL_SECS,
-          [this](const std::string &value) {
-            set_high_frequency_interval_secs(utils::string::to_uint16(value));
+          [this](std::string_view value) {
+            set_high_frequency_interval_secs(
+                utils::string::to_uint16(std::string{value}));
             return std::to_string(get_high_frequency_interval_secs());
           },
       },
       {
           fmt::format("{}.{}", JSON_HOST_CONFIG, JSON_AGENT_STRING),
-          [this](const std::string &value) {
+          [this](std::string_view value) {
             auto cfg = get_host_config();
             cfg.agent_string = value;
             set_host_config(cfg);
@@ -367,7 +379,7 @@ app_config::app_config(const provider_type &prov,
       },
       {
           fmt::format("{}.{}", JSON_HOST_CONFIG, JSON_API_PASSWORD),
-          [this](const std::string &value) {
+          [this](std::string_view value) {
             auto cfg = get_host_config();
             cfg.api_password = value;
             set_host_config(cfg);
@@ -376,16 +388,16 @@ app_config::app_config(const provider_type &prov,
       },
       {
           fmt::format("{}.{}", JSON_HOST_CONFIG, JSON_API_PORT),
-          [this](const std::string &value) {
+          [this](std::string_view value) {
             auto cfg = get_host_config();
-            cfg.api_port = utils::string::to_uint16(value);
+            cfg.api_port = utils::string::to_uint16(std::string{value});
             set_host_config(cfg);
             return std::to_string(get_host_config().api_port);
           },
       },
       {
           fmt::format("{}.{}", JSON_HOST_CONFIG, JSON_API_USER),
-          [this](const std::string &value) {
+          [this](std::string_view value) {
             auto cfg = get_host_config();
             cfg.api_user = value;
             set_host_config(cfg);
@@ -394,7 +406,7 @@ app_config::app_config(const provider_type &prov,
       },
       {
           fmt::format("{}.{}", JSON_HOST_CONFIG, JSON_HOST_NAME_OR_IP),
-          [this](const std::string &value) {
+          [this](std::string_view value) {
             auto cfg = get_host_config();
             cfg.host_name_or_ip = value;
             set_host_config(cfg);
@@ -403,7 +415,7 @@ app_config::app_config(const provider_type &prov,
       },
       {
           fmt::format("{}.{}", JSON_HOST_CONFIG, JSON_PATH),
-          [this](const std::string &value) {
+          [this](std::string_view value) {
             auto cfg = get_host_config();
             cfg.path = value;
             set_host_config(cfg);
@@ -412,7 +424,7 @@ app_config::app_config(const provider_type &prov,
       },
       {
           fmt::format("{}.{}", JSON_HOST_CONFIG, JSON_PROTOCOL),
-          [this](const std::string &value) {
+          [this](std::string_view value) {
             auto cfg = get_host_config();
             cfg.protocol = value;
             set_host_config(cfg);
@@ -421,67 +433,80 @@ app_config::app_config(const provider_type &prov,
       },
       {
           fmt::format("{}.{}", JSON_HOST_CONFIG, JSON_TIMEOUT_MS),
-          [this](const std::string &value) {
+          [this](std::string_view value) {
             auto cfg = get_host_config();
-            cfg.timeout_ms = utils::string::to_uint32(value);
+            cfg.timeout_ms = utils::string::to_uint32(std::string{value});
             set_host_config(cfg);
             return std::to_string(get_host_config().timeout_ms);
           },
       },
       {
           JSON_LOW_FREQ_INTERVAL_SECS,
-          [this](const std::string &value) {
-            set_low_frequency_interval_secs(utils::string::to_uint16(value));
+          [this](std::string_view value) {
+            set_low_frequency_interval_secs(
+                utils::string::to_uint16(std::string{value}));
             return std::to_string(get_low_frequency_interval_secs());
           },
       },
       {
           JSON_MED_FREQ_INTERVAL_SECS,
-          [this](const std::string &value) {
-            set_med_frequency_interval_secs(utils::string::to_uint16(value));
+          [this](std::string_view value) {
+            set_med_frequency_interval_secs(
+                utils::string::to_uint16(std::string{value}));
             return std::to_string(get_med_frequency_interval_secs());
           },
       },
       {
           JSON_MAX_CACHE_SIZE_BYTES,
-          [this](const std::string &value) {
-            set_max_cache_size_bytes(utils::string::to_uint64(value));
+          [this](std::string_view value) {
+            set_max_cache_size_bytes(
+                utils::string::to_uint64(std::string{value}));
             return std::to_string(get_max_cache_size_bytes());
           },
       },
       {
           JSON_MAX_UPLOAD_COUNT,
-          [this](const std::string &value) {
-            set_max_upload_count(utils::string::to_uint8(value));
+          [this](std::string_view value) {
+            set_max_upload_count(utils::string::to_uint8(std::string{value}));
             return std::to_string(get_max_upload_count());
           },
       },
       {
           JSON_ONLINE_CHECK_RETRY_SECS,
-          [this](const std::string &value) {
-            set_online_check_retry_secs(utils::string::to_uint16(value));
+          [this](std::string_view value) {
+            set_online_check_retry_secs(
+                utils::string::to_uint16(std::string{value}));
             return std::to_string(get_online_check_retry_secs());
           },
       },
       {
           JSON_PREFERRED_DOWNLOAD_TYPE,
-          [this](const std::string &value) {
+          [this](std::string_view value) {
             set_preferred_download_type(download_type_from_string(value));
             return download_type_to_string(get_preferred_download_type());
           },
       },
       {
           fmt::format("{}.{}", JSON_REMOTE_CONFIG, JSON_API_PORT),
-          [this](const std::string &value) {
+          [this](std::string_view value) {
             auto cfg = get_remote_config();
-            cfg.api_port = utils::string::to_uint16(value);
+            cfg.api_port = utils::string::to_uint16(std::string{value});
             set_remote_config(cfg);
             return std::to_string(get_remote_config().api_port);
           },
       },
       {
+          fmt::format("{}.{}", JSON_REMOTE_CONFIG, JSON_CONNECT_TIMEOUT_MS),
+          [this](std::string_view value) {
+            auto cfg = get_remote_config();
+            cfg.conn_timeout_ms = utils::string::to_uint32(std::string{value});
+            set_remote_config(cfg);
+            return std::to_string(get_remote_config().conn_timeout_ms);
+          },
+      },
+      {
           fmt::format("{}.{}", JSON_REMOTE_CONFIG, JSON_ENCRYPTION_TOKEN),
-          [this](const std::string &value) {
+          [this](std::string_view value) {
             auto cfg = get_remote_config();
             cfg.encryption_token = value;
             set_remote_config(cfg);
@@ -490,7 +515,7 @@ app_config::app_config(const provider_type &prov,
       },
       {
           fmt::format("{}.{}", JSON_REMOTE_CONFIG, JSON_HOST_NAME_OR_IP),
-          [this](const std::string &value) {
+          [this](std::string_view value) {
             auto cfg = get_remote_config();
             cfg.host_name_or_ip = value;
             set_remote_config(cfg);
@@ -499,61 +524,61 @@ app_config::app_config(const provider_type &prov,
       },
       {
           fmt::format("{}.{}", JSON_REMOTE_CONFIG, JSON_MAX_CONNECTIONS),
-          [this](const std::string &value) {
+          [this](std::string_view value) {
             auto cfg = get_remote_config();
-            cfg.max_connections = utils::string::to_uint8(value);
+            cfg.max_connections = utils::string::to_uint8(std::string{value});
             set_remote_config(cfg);
             return std::to_string(get_remote_config().max_connections);
           },
       },
       {
           fmt::format("{}.{}", JSON_REMOTE_CONFIG, JSON_RECV_TIMEOUT_MS),
-          [this](const std::string &value) {
+          [this](std::string_view value) {
             auto cfg = get_remote_config();
-            cfg.recv_timeout_ms = utils::string::to_uint32(value);
+            cfg.recv_timeout_ms = utils::string::to_uint32(std::string{value});
             set_remote_config(cfg);
             return std::to_string(get_remote_config().recv_timeout_ms);
           },
       },
       {
           fmt::format("{}.{}", JSON_REMOTE_CONFIG, JSON_SEND_TIMEOUT_MS),
-          [this](const std::string &value) {
+          [this](std::string_view value) {
             auto cfg = get_remote_config();
-            cfg.send_timeout_ms = utils::string::to_uint32(value);
+            cfg.send_timeout_ms = utils::string::to_uint32(std::string{value});
             set_remote_config(cfg);
             return std::to_string(get_remote_config().send_timeout_ms);
           },
       },
       {
           fmt::format("{}.{}", JSON_REMOTE_MOUNT, JSON_API_PORT),
-          [this](const std::string &value) {
+          [this](std::string_view value) {
             auto cfg = get_remote_mount();
-            cfg.api_port = utils::string::to_uint16(value);
+            cfg.api_port = utils::string::to_uint16(std::string{value});
             set_remote_mount(cfg);
             return std::to_string(get_remote_mount().api_port);
           },
       },
       {
           fmt::format("{}.{}", JSON_REMOTE_MOUNT, JSON_CLIENT_POOL_SIZE),
-          [this](const std::string &value) {
+          [this](std::string_view value) {
             auto cfg = get_remote_mount();
-            cfg.client_pool_size = utils::string::to_uint8(value);
+            cfg.client_pool_size = utils::string::to_uint8(std::string{value});
             set_remote_mount(cfg);
             return std::to_string(get_remote_mount().client_pool_size);
           },
       },
       {
           fmt::format("{}.{}", JSON_REMOTE_MOUNT, JSON_ENABLE_REMOTE_MOUNT),
-          [this](const std::string &value) {
+          [this](std::string_view value) {
             auto cfg = get_remote_mount();
-            cfg.enable = utils::string::to_bool(value);
+            cfg.enable = utils::string::to_bool(std::string{value});
             set_remote_mount(cfg);
             return utils::string::from_bool(get_remote_mount().enable);
           },
       },
       {
           fmt::format("{}.{}", JSON_REMOTE_MOUNT, JSON_ENCRYPTION_TOKEN),
-          [this](const std::string &value) {
+          [this](std::string_view value) {
             auto cfg = get_remote_mount();
             cfg.encryption_token = value;
             set_remote_mount(cfg);
@@ -562,21 +587,22 @@ app_config::app_config(const provider_type &prov,
       },
       {
           JSON_RETRY_READ_COUNT,
-          [this](const std::string &value) {
-            set_retry_read_count(utils::string::to_uint16(value));
+          [this](std::string_view value) {
+            set_retry_read_count(utils::string::to_uint16(std::string{value}));
             return std::to_string(get_retry_read_count());
           },
       },
       {
           JSON_RING_BUFFER_FILE_SIZE,
-          [this](const std::string &value) {
-            set_ring_buffer_file_size(utils::string::to_uint16(value));
+          [this](std::string_view value) {
+            set_ring_buffer_file_size(
+                utils::string::to_uint16(std::string{value}));
             return std::to_string(get_ring_buffer_file_size());
           },
       },
       {
           fmt::format("{}.{}", JSON_S3_CONFIG, JSON_ACCESS_KEY),
-          [this](const std::string &value) {
+          [this](std::string_view value) {
             auto cfg = get_s3_config();
             cfg.access_key = value;
             set_s3_config(cfg);
@@ -585,7 +611,7 @@ app_config::app_config(const provider_type &prov,
       },
       {
           fmt::format("{}.{}", JSON_S3_CONFIG, JSON_BUCKET),
-          [this](const std::string &value) {
+          [this](std::string_view value) {
             auto cfg = get_s3_config();
             cfg.bucket = value;
             set_s3_config(cfg);
@@ -594,7 +620,7 @@ app_config::app_config(const provider_type &prov,
       },
       {
           fmt::format("{}.{}", JSON_S3_CONFIG, JSON_ENCRYPTION_TOKEN),
-          [this](const std::string &value) {
+          [this](std::string_view value) {
             auto cfg = get_s3_config();
             cfg.encryption_token = value;
             set_s3_config(cfg);
@@ -602,8 +628,19 @@ app_config::app_config(const provider_type &prov,
           },
       },
       {
+          fmt::format("{}.{}", JSON_S3_CONFIG, JSON_FORCE_LEGACY_ENCRYPTION),
+          [this](std::string_view value) {
+            auto cfg = get_s3_config();
+            cfg.force_legacy_encryption =
+                utils::string::to_bool(std::string{value});
+            set_s3_config(cfg);
+            return utils::string::from_bool(
+                get_s3_config().force_legacy_encryption);
+          },
+      },
+      {
           fmt::format("{}.{}", JSON_S3_CONFIG, JSON_REGION),
-          [this](const std::string &value) {
+          [this](std::string_view value) {
             auto cfg = get_s3_config();
             cfg.region = value;
             set_s3_config(cfg);
@@ -612,7 +649,7 @@ app_config::app_config(const provider_type &prov,
       },
       {
           fmt::format("{}.{}", JSON_S3_CONFIG, JSON_SECRET_KEY),
-          [this](const std::string &value) {
+          [this](std::string_view value) {
             auto cfg = get_s3_config();
             cfg.secret_key = value;
             set_s3_config(cfg);
@@ -621,16 +658,16 @@ app_config::app_config(const provider_type &prov,
       },
       {
           fmt::format("{}.{}", JSON_S3_CONFIG, JSON_TIMEOUT_MS),
-          [this](const std::string &value) {
+          [this](std::string_view value) {
             auto cfg = get_s3_config();
-            cfg.timeout_ms = utils::string::to_uint32(value);
+            cfg.timeout_ms = utils::string::to_uint32(std::string{value});
             set_s3_config(cfg);
             return std::to_string(get_s3_config().timeout_ms);
           },
       },
       {
           fmt::format("{}.{}", JSON_S3_CONFIG, JSON_URL),
-          [this](const std::string &value) {
+          [this](std::string_view value) {
             auto cfg = get_s3_config();
             cfg.url = value;
             set_s3_config(cfg);
@@ -639,25 +676,25 @@ app_config::app_config(const provider_type &prov,
       },
       {
           fmt::format("{}.{}", JSON_S3_CONFIG, JSON_USE_PATH_STYLE),
-          [this](const std::string &value) {
+          [this](std::string_view value) {
             auto cfg = get_s3_config();
-            cfg.use_path_style = utils::string::to_bool(value);
+            cfg.use_path_style = utils::string::to_bool(std::string{value});
             set_s3_config(cfg);
             return utils::string::from_bool(get_s3_config().use_path_style);
           },
       },
       {
           fmt::format("{}.{}", JSON_S3_CONFIG, JSON_USE_REGION_IN_URL),
-          [this](const std::string &value) {
+          [this](std::string_view value) {
             auto cfg = get_s3_config();
-            cfg.use_region_in_url = utils::string::to_bool(value);
+            cfg.use_region_in_url = utils::string::to_bool(std::string{value});
             set_s3_config(cfg);
             return utils::string::from_bool(get_s3_config().use_region_in_url);
           },
       },
       {
           fmt::format("{}.{}", JSON_SIA_CONFIG, JSON_BUCKET),
-          [this](const std::string &value) {
+          [this](std::string_view value) {
             auto cfg = get_sia_config();
             cfg.bucket = value;
             set_sia_config(cfg);
@@ -666,15 +703,15 @@ app_config::app_config(const provider_type &prov,
       },
       {
           JSON_TASK_WAIT_MS,
-          [this](const std::string &value) {
-            set_task_wait_ms(utils::string::to_uint16(value));
+          [this](std::string_view value) {
+            set_task_wait_ms(utils::string::to_uint16(std::string{value}));
             return std::to_string(get_task_wait_ms());
           },
       },
   };
 }
 
-auto app_config::default_agent_name(const provider_type &prov) -> std::string {
+auto app_config::default_agent_name(provider_type prov) -> std::string {
   static const std::array<std::string,
                           static_cast<std::size_t>(provider_type::unknown)>
       PROVIDER_AGENT_NAMES = {
@@ -687,7 +724,7 @@ auto app_config::default_agent_name(const provider_type &prov) -> std::string {
   return PROVIDER_AGENT_NAMES.at(static_cast<std::size_t>(prov));
 }
 
-auto app_config::default_api_port(const provider_type &prov) -> std::uint16_t {
+auto app_config::default_api_port(provider_type prov) -> std::uint16_t {
   static const std::array<std::uint16_t,
                           static_cast<std::size_t>(provider_type::unknown)>
       PROVIDER_API_PORTS = {
@@ -722,16 +759,14 @@ auto app_config::get_root_data_directory() -> std::string {
   return data_directory;
 }
 
-auto app_config::default_data_directory(const provider_type &prov)
-    -> std::string {
+auto app_config::default_data_directory(provider_type prov) -> std::string {
   return utils::path::combine(app_config::get_root_data_directory(),
                               {
                                   app_config::get_provider_name(prov),
                               });
 }
 
-auto app_config::default_remote_api_port(const provider_type &prov)
-    -> std::uint16_t {
+auto app_config::default_remote_api_port(provider_type prov) -> std::uint16_t {
   static const std::array<std::uint16_t,
                           static_cast<std::size_t>(provider_type::unknown)>
       PROVIDER_REMOTE_PORTS = {
@@ -742,8 +777,6 @@ auto app_config::default_remote_api_port(const provider_type &prov)
       };
   return PROVIDER_REMOTE_PORTS.at(static_cast<std::size_t>(prov));
 }
-
-auto app_config::default_rpc_port() -> std::uint16_t { return 10000U; }
 
 auto app_config::get_api_password() const -> std::string {
   return api_password_;
@@ -930,8 +963,7 @@ auto app_config::get_preferred_download_type() const -> download_type {
   return preferred_download_type_;
 }
 
-auto app_config::get_provider_display_name(const provider_type &prov)
-    -> std::string {
+auto app_config::get_provider_display_name(provider_type prov) -> std::string {
   static const std::array<std::string,
                           static_cast<std::size_t>(provider_type::unknown) + 1U>
       PROVIDER_DISPLAY_NAMES = {
@@ -940,7 +972,7 @@ auto app_config::get_provider_display_name(const provider_type &prov)
   return PROVIDER_DISPLAY_NAMES.at(static_cast<std::size_t>(prov));
 }
 
-auto app_config::get_provider_name(const provider_type &prov) -> std::string {
+auto app_config::get_provider_name(provider_type prov) -> std::string {
   static const std::array<std::string,
                           static_cast<std::size_t>(provider_type::unknown) + 1U>
       PROVIDER_NAMES = {
@@ -977,12 +1009,11 @@ auto app_config::get_task_wait_ms() const -> std::uint16_t {
   return std::max(min_task_wait_ms, task_wait_ms_.load());
 }
 
-auto app_config::get_value_by_name(const std::string &name) const
-    -> std::string {
+auto app_config::get_value_by_name(std::string_view name) const -> std::string {
   REPERTORY_USES_FUNCTION_NAME();
 
   try {
-    return value_get_lookup_.at(name)();
+    return value_get_lookup_.at(std::string{name})();
   } catch (const std::exception &e) {
     utils::error::raise_error(function_name, e,
                               fmt::format("value not found|name|{}", name));
@@ -1087,6 +1118,16 @@ auto app_config::load() -> bool {
         }
       }
 
+      if (version_ >= 3U && version_ <= 5U) {
+        if (json_document.contains(JSON_REMOTE_CONFIG)) {
+          auto cfg = get_remote_config();
+          cfg.conn_timeout_ms = default_remote_conn_timeout_ms;
+          cfg.recv_timeout_ms = default_remote_recv_timeout_ms;
+          cfg.send_timeout_ms = default_remote_send_timeout_ms;
+          set_remote_config(cfg);
+        }
+      }
+
       found = false;
     }
 
@@ -1125,7 +1166,7 @@ void app_config::save() {
   });
 }
 
-void app_config::set_api_password(const std::string &value) {
+void app_config::set_api_password(std::string_view value) {
   set_value(api_password_, value);
 }
 
@@ -1133,7 +1174,7 @@ void app_config::set_api_port(std::uint16_t value) {
   set_value(api_port_, value);
 }
 
-void app_config::set_api_user(const std::string &value) {
+void app_config::set_api_user(std::string_view value) {
   set_value(api_user_, value);
 }
 
@@ -1258,12 +1299,18 @@ auto app_config::set_value(dest &dst, const source &src) -> bool {
   return true;
 }
 
-auto app_config::set_value_by_name(const std::string &name,
-                                   const std::string &value) -> std::string {
+auto app_config::set_value(utils::atomic<std::string> &dst,
+                           std::string_view src) -> bool {
+  return set_value<utils::atomic<std::string>, std::string>(dst,
+                                                            std::string{src});
+}
+
+auto app_config::set_value_by_name(std::string_view name,
+                                   std::string_view value) -> std::string {
   REPERTORY_USES_FUNCTION_NAME();
 
   try {
-    return value_set_lookup_.at(name)(value);
+    return value_set_lookup_.at(std::string{name})(value);
   } catch (const std::exception &e) {
     utils::error::raise_error(function_name, e,
                               fmt::format("value not found|name|{}", name));

@@ -42,7 +42,7 @@ inline void create_comm(std::unique_ptr<intf_t> &comm, const config_t &config) {
 } // namespace
 
 namespace repertory {
-auto create_provider(const provider_type &prov,
+auto create_provider(provider_type prov,
                      app_config &config) -> std::unique_ptr<i_provider> {
   static std::mutex mutex;
   mutex_lock lock(mutex);

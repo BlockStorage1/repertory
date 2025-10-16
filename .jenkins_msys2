@@ -1,0 +1,68 @@
+#!groovy
+
+pipeline {
+  agent none
+
+  environment {
+    PROJECT_TEST_CONFIG_DIR = "c:\\.ci\\repertory\\test"
+  }
+
+  options {
+    disableConcurrentBuilds()
+    skipDefaultCheckout()
+    timestamps()
+  }
+
+  stages {
+    stage('Build • Test') {
+      agent any
+      stages {
+        stage('Checkout') {
+          steps {
+            script {
+              int maxAttempts = 6
+              int baseDelay  = 10
+              for (int attempt = 1; attempt <= maxAttempts; attempt++) {
+                try {
+                  checkout scm
+                  break
+                } catch (err) {
+                  if (attempt == maxAttempts) { throw err }
+                  int waitSec = baseDelay * (1 << (attempt - 1))
+                  echo "Checkout failed (attempt ${attempt}/${maxAttempts}). Waiting ${waitSec}s before retry..."
+                  sleep time: waitSec, unit: 'SECONDS'
+                }
+              }
+            }
+          }
+        }
+
+        stage('msys2') {
+          steps {
+            script { retryWithBackoff(2, 5) { bat 'scripts\\make_win32.cmd' } }
+          }
+        }
+
+        // stage('msys2_test') {
+        //   steps {
+        //     script { retryWithBackoff(2, 5) { bat 'scripts\\run_tests.cmd' } }
+        //   }
+        // }
+      }
+    }
+  }
+}
+
+def retryWithBackoff(int maxAttempts, int baseDelaySeconds, Closure body) {
+  for (int attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      body()
+      return
+    } catch (err) {
+      if (attempt == maxAttempts) { throw err }
+      int waitSec = baseDelaySeconds * (1 << (attempt - 1))
+      echo "Step failed (attempt ${attempt}/${maxAttempts}). Waiting ${waitSec}s before retry..."
+      sleep time: waitSec, unit: 'SECONDS'
+    }
+  }
+}

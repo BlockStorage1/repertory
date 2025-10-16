@@ -28,12 +28,9 @@
 namespace repertory {
 struct curl_error final : public i_event {
   curl_error() = default;
-  curl_error(CURLcode code_, std::string_view function_name_, std::string type_,
-             std::string url_)
-      : code(code_),
-        function_name(std::string{function_name_}),
-        type(std::move(type_)),
-        url(std::move(url_)) {}
+  curl_error(CURLcode code_, std::string_view function_name_,
+             std::string_view type_, std::string_view url_)
+      : code(code_), function_name(function_name_), type(type_), url(url_) {}
 
   static constexpr event_level level{event_level::error};
   static constexpr std::string_view name{"curl_error"};

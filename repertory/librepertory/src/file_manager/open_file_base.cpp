@@ -44,7 +44,7 @@ auto open_file_base::download::wait() -> api_error {
 
   unique_mutex_lock lock(mtx_);
   if (not complete_) {
-    notify_.wait(lock);
+    notify_.wait(lock, [this]() { return complete_; });
   }
   notify_.notify_all();
 
@@ -64,7 +64,7 @@ auto open_file_base::io_item::get_result() -> api_error {
     return result_.value();
   }
 
-  notify_.wait(lock);
+  notify_.wait(lock, [this]() { return result_.has_value(); });
   return result_.value_or(api_error::error);
 }
 
@@ -92,11 +92,16 @@ open_file_base::open_file_base(
   }
 }
 
-void open_file_base::add(std::uint64_t handle, open_file_data ofd) {
+void open_file_base::add(std::uint64_t handle, open_file_data ofd,
+                         bool notify) {
   REPERTORY_USES_FUNCTION_NAME();
 
   recur_mutex_lock file_lock(file_mtx_);
   open_data_[handle] = ofd;
+  if (not notify) {
+    return;
+  }
+
   if (open_data_.size() == 1U) {
     event_system::instance().raise<filesystem_item_opened>(
         fsi_.api_path, fsi_.directory, function_name, fsi_.source_path);
@@ -174,7 +179,9 @@ void open_file_base::file_io_thread() {
   const auto process_queue = [&]() {
     io_lock.lock();
     if (not io_stop_requested_ && io_thread_queue_.empty()) {
-      io_thread_notify_.wait(io_lock);
+      io_thread_notify_.wait(io_lock, [this]() {
+        return io_stop_requested_ || not io_thread_queue_.empty();
+      });
     }
 
     while (not io_thread_queue_.empty()) {
@@ -244,6 +251,16 @@ void open_file_base::set_source_path(std::string source_path) {
   fsi_.source_path = std::move(source_path);
 }
 
+void open_file_base::set_unlinked(bool value) {
+  recur_mutex_lock file_lock(file_mtx_);
+  unlinked_ = value;
+}
+
+void open_file_base::set_unlinked_meta(api_meta_map meta) {
+  recur_mutex_lock file_lock(file_mtx_);
+  unlinked_meta_ = std::move(meta);
+}
+
 auto open_file_base::get_filesystem_item() const -> filesystem_item {
   recur_mutex_lock file_lock(file_mtx_);
   return fsi_;
@@ -293,9 +310,14 @@ auto open_file_base::get_source_path() const -> std::string {
   return fsi_.source_path;
 }
 
+auto open_file_base::get_unlinked_meta() const -> api_meta_map {
+  recur_mutex_lock file_lock(file_mtx_);
+  return unlinked_meta_;
+}
+
 auto open_file_base::has_handle(std::uint64_t handle) const -> bool {
   recur_mutex_lock file_lock(file_mtx_);
-  return open_data_.find(handle) != open_data_.end();
+  return open_data_.contains(handle);
 }
 
 auto open_file_base::is_modified() const -> bool {
@@ -308,6 +330,11 @@ auto open_file_base::is_removed() const -> bool {
   return removed_;
 }
 
+auto open_file_base::is_unlinked() const -> bool {
+  recur_mutex_lock file_lock(file_mtx_);
+  return unlinked_;
+}
+
 void open_file_base::notify_io() {
   mutex_lock io_lock(io_thread_mtx_);
   io_thread_notify_.notify_all();
@@ -317,7 +344,7 @@ void open_file_base::remove(std::uint64_t handle) {
   REPERTORY_USES_FUNCTION_NAME();
 
   recur_mutex_lock file_lock(file_mtx_);
-  if (open_data_.find(handle) == open_data_.end()) {
+  if (not open_data_.contains(handle)) {
     return;
   }
 
@@ -373,7 +400,7 @@ auto open_file_base::set_api_error(api_error err) -> api_error {
                          : error_)));
 }
 
-void open_file_base::set_api_path(const std::string &api_path) {
+void open_file_base::set_api_path(std::string_view api_path) {
   recur_mutex_lock file_lock(file_mtx_);
   fsi_.api_path = api_path;
   fsi_.api_parent = utils::path::get_parent_api_path(api_path);
@@ -382,7 +409,9 @@ void open_file_base::set_api_path(const std::string &api_path) {
 void open_file_base::wait_for_io(stop_type_callback stop_requested_cb) {
   unique_mutex_lock io_lock(io_thread_mtx_);
   if (not stop_requested_cb() && io_thread_queue_.empty()) {
-    io_thread_notify_.wait(io_lock);
+    io_thread_notify_.wait(io_lock, [this, &stop_requested_cb]() {
+      return stop_requested_cb() || not io_thread_queue_.empty();
+    });
   }
   io_thread_notify_.notify_all();
   io_lock.unlock();

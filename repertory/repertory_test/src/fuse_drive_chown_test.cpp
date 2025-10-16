@@ -21,26 +21,26 @@
 */
 #if !defined(_WIN32)
 
-#include "fixtures/fuse_fixture.hpp"
+#include "fixtures/drive_fixture.hpp"
 
 namespace repertory {
-TYPED_TEST_CASE(fuse_test, fuse_provider_types);
+TYPED_TEST_SUITE(fuse_test, platform_provider_types);
 
 TYPED_TEST(fuse_test,
            chown_can_chown_group_if_owner_and_a_member_of_the_group) {
   std::string file_name{"chown_test"};
   auto file_path = this->create_file_and_test(file_name);
 
-  struct stat64 unix_st {};
-  EXPECT_EQ(0, stat64(file_path.c_str(), &unix_st));
+  struct stat64 u_stat{};
+  EXPECT_EQ(0, stat64(file_path.c_str(), &u_stat));
 
   EXPECT_EQ(0, chown(file_path.c_str(), static_cast<uid_t>(-1), getgid()));
   std::this_thread::sleep_for(SLEEP_SECONDS);
 
-  struct stat64 unix_st2 {};
-  stat64(file_path.c_str(), &unix_st2);
-  EXPECT_EQ(getgid(), unix_st2.st_gid);
-  EXPECT_EQ(unix_st.st_uid, unix_st2.st_uid);
+  struct stat64 u_stat2{};
+  stat64(file_path.c_str(), &u_stat2);
+  EXPECT_EQ(getgid(), u_stat2.st_gid);
+  EXPECT_EQ(u_stat.st_uid, u_stat2.st_uid);
 
   this->unlink_file_and_test(file_path);
 }
@@ -51,16 +51,16 @@ TYPED_TEST(
   std::string file_name{"chown_test"};
   auto file_path = this->create_file_and_test(file_name);
 
-  struct stat64 unix_st {};
-  EXPECT_EQ(0, stat64(file_path.c_str(), &unix_st));
+  struct stat64 u_stat{};
+  EXPECT_EQ(0, stat64(file_path.c_str(), &u_stat));
 
   EXPECT_EQ(0, chown(file_path.c_str(), getuid(), getgid()));
   std::this_thread::sleep_for(SLEEP_SECONDS);
 
-  struct stat64 unix_st2 {};
-  stat64(file_path.c_str(), &unix_st2);
-  EXPECT_EQ(getgid(), unix_st2.st_gid);
-  EXPECT_EQ(unix_st.st_uid, unix_st2.st_uid);
+  struct stat64 u_stat2{};
+  stat64(file_path.c_str(), &u_stat2);
+  EXPECT_EQ(getgid(), u_stat2.st_gid);
+  EXPECT_EQ(u_stat.st_uid, u_stat2.st_uid);
 
   this->unlink_file_and_test(file_path);
 }
@@ -70,16 +70,16 @@ TYPED_TEST(fuse_test,
   std::string file_name{"chown_test"};
   auto file_path = this->create_file_and_test(file_name);
 
-  struct stat64 unix_st {};
-  EXPECT_EQ(0, stat64(file_path.c_str(), &unix_st));
+  struct stat64 u_stat{};
+  EXPECT_EQ(0, stat64(file_path.c_str(), &u_stat));
 
   EXPECT_EQ(-1, chown(file_path.c_str(), static_cast<uid_t>(-1), 0));
   EXPECT_EQ(EPERM, errno);
 
-  struct stat64 unix_st2 {};
-  stat64(file_path.c_str(), &unix_st2);
-  EXPECT_EQ(unix_st.st_gid, unix_st2.st_gid);
-  EXPECT_EQ(unix_st.st_uid, unix_st2.st_uid);
+  struct stat64 u_stat2{};
+  stat64(file_path.c_str(), &u_stat2);
+  EXPECT_EQ(u_stat.st_gid, u_stat2.st_gid);
+  EXPECT_EQ(u_stat.st_uid, u_stat2.st_uid);
 
   this->unlink_file_and_test(file_path);
 }
@@ -88,16 +88,16 @@ TYPED_TEST(fuse_test, chown_can_not_chown_group_if_not_the_owner) {
   std::string file_name{"chown_test"};
   auto file_path = this->create_root_file(file_name);
 
-  struct stat64 unix_st {};
-  EXPECT_EQ(0, stat64(file_path.c_str(), &unix_st));
+  struct stat64 u_stat{};
+  EXPECT_EQ(0, stat64(file_path.c_str(), &u_stat));
 
   EXPECT_EQ(-1, chown(file_path.c_str(), static_cast<uid_t>(-1), getgid()));
   EXPECT_EQ(EPERM, errno);
 
-  struct stat64 unix_st2 {};
-  stat64(file_path.c_str(), &unix_st2);
-  EXPECT_EQ(unix_st.st_gid, unix_st2.st_gid);
-  EXPECT_EQ(unix_st.st_uid, unix_st2.st_uid);
+  struct stat64 u_stat2{};
+  stat64(file_path.c_str(), &u_stat2);
+  EXPECT_EQ(u_stat.st_gid, u_stat2.st_gid);
+  EXPECT_EQ(u_stat.st_uid, u_stat2.st_uid);
 
   this->unlink_root_file(file_path);
 }
@@ -106,16 +106,16 @@ TYPED_TEST(fuse_test, chown_can_not_chown_user_if_not_root) {
   std::string file_name{"chown_test"};
   auto file_path = this->create_file_and_test(file_name);
 
-  struct stat64 unix_st {};
-  EXPECT_EQ(0, stat64(file_path.c_str(), &unix_st));
+  struct stat64 u_stat{};
+  EXPECT_EQ(0, stat64(file_path.c_str(), &u_stat));
 
   EXPECT_EQ(-1, chown(file_path.c_str(), 0, static_cast<gid_t>(-1)));
   EXPECT_EQ(EPERM, errno);
 
-  struct stat64 unix_st2 {};
-  stat64(file_path.c_str(), &unix_st2);
-  EXPECT_EQ(unix_st.st_gid, unix_st2.st_gid);
-  EXPECT_EQ(unix_st.st_uid, unix_st2.st_uid);
+  struct stat64 u_stat2{};
+  stat64(file_path.c_str(), &u_stat2);
+  EXPECT_EQ(u_stat.st_gid, u_stat2.st_gid);
+  EXPECT_EQ(u_stat.st_uid, u_stat2.st_uid);
 
   this->unlink_file_and_test(file_path);
 }

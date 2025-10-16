@@ -29,10 +29,10 @@
 namespace repertory {
 struct unmount_result final : public i_event {
   unmount_result() = default;
-  unmount_result(std::string_view function_name_, std::string mount_location_,
-                 std::int32_t result_)
-      : function_name(std::string(function_name_)),
-        mount_location(std::move(mount_location_)),
+  unmount_result(std::string_view function_name_,
+                 std::string_view mount_location_, std::int32_t result_)
+      : function_name(function_name_),
+        mount_location(mount_location_),
         result(result_) {}
 
   static constexpr event_level level{event_level::info};

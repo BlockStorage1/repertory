@@ -16,11 +16,7 @@ class MountList with ChangeNotifier {
 
   MountList(this._auth) {
     _auth.mountList = this;
-    _auth.addListener(() {
-      if (_auth.authenticated) {
-        _fetch();
-      }
-    });
+    _auth.addListener(_listener);
   }
 
   List<Mount> _mountList = [];
@@ -38,9 +34,9 @@ class MountList with ChangeNotifier {
     return (excludeName == null
                 ? list
                 : list.whereNot(
-                  (item) =>
-                      item.name.toLowerCase() == excludeName.toLowerCase(),
-                ))
+                    (item) =>
+                        item.name.toLowerCase() == excludeName.toLowerCase(),
+                  ))
             .firstWhereOrNull((Mount item) {
               return item.bucket != null &&
                   item.bucket!.toLowerCase() == bucket.toLowerCase();
@@ -98,7 +94,7 @@ class MountList with ChangeNotifier {
     }
   }
 
-  void _sort(list) {
+  void _sort(List list) {
     list.sort((a, b) {
       final res = a.type.compareTo(b.type);
       if (res != 0) {
@@ -177,25 +173,50 @@ class MountList with ChangeNotifier {
     return ret;
   }
 
-  void clear() {
+  void clear({bool notify = true}) {
     _mountList = [];
+    if (!notify) {
+      return;
+    }
+
+    notifyListeners();
+  }
+
+  void remove(String name, String type) {
+    _mountList.removeWhere((mount) => mount.name == name && mount.type == type);
     notifyListeners();
   }
 
   Future<void> reset() async {
-    if (constants.navigatorKey.currentContext == null ||
-        ModalRoute.of(constants.navigatorKey.currentContext!)?.settings.name !=
-            '/') {
-      await constants.navigatorKey.currentState?.pushReplacementNamed('/');
+    if (_mountList.isEmpty) {
+      return;
     }
+
+    clear();
+
+    Future.delayed(Duration(seconds: 1), () => _fetch());
 
     displayErrorMessage(
       constants.navigatorKey.currentContext!,
       'Mount removed externally. Reloading...',
     );
 
-    clear();
+    if (constants.navigatorKey.currentContext == null ||
+        ModalRoute.of(constants.navigatorKey.currentContext!)?.settings.name !=
+            '/') {
+      await constants.navigatorKey.currentState?.pushReplacementNamed('/');
+    }
+  }
 
-    return _fetch();
+  void _listener() {
+    if (_auth.authenticated) {
+      _fetch();
+    }
+  }
+
+  @override
+  void dispose() {
+    _auth.removeListener(_listener);
+    super.dispose();
   }
 }

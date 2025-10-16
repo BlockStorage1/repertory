@@ -50,17 +50,18 @@ private:
 public:
   [[nodiscard]] auto check() -> packet::error_type;
 
-  [[nodiscard]] auto json_create_directory_snapshot(const std::string &path,
+  [[nodiscard]] auto json_create_directory_snapshot(std::string_view path,
                                                     json &json_data)
       -> packet::error_type override;
 
-  [[nodiscard]] auto json_read_directory_snapshot(
-      const std::string &path, const remote::file_handle &handle,
-      std::uint32_t page, json &json_data) -> packet::error_type override;
+  [[nodiscard]] auto json_read_directory_snapshot(std::string_view path,
+                                                  remote::file_handle handle,
+                                                  std::uint32_t page,
+                                                  json &json_data)
+      -> packet::error_type override;
 
-  [[nodiscard]] auto
-  json_release_directory_snapshot(const std::string &path,
-                                  const remote::file_handle &handle)
+  [[nodiscard]] auto json_release_directory_snapshot(std::string_view path,
+                                                     remote::file_handle handle)
       -> packet::error_type override;
 
   [[nodiscard]] auto winfsp_can_delete(PVOID file_desc, PWSTR file_name)
@@ -76,17 +77,17 @@ public:
   [[nodiscard]] auto
   winfsp_create(PWSTR file_name, UINT32 create_options, UINT32 granted_access,
                 UINT32 attributes, UINT64 allocation_size, PVOID *file_desc,
-                remote::file_info *file_info, std::string &normalized_name,
+                remote::file_info *r_info, std::string &normalized_name,
                 BOOLEAN &exists) -> packet::error_type override;
 
-  [[nodiscard]] auto winfsp_flush(PVOID file_desc, remote::file_info *file_info)
+  [[nodiscard]] auto winfsp_flush(PVOID file_desc, remote::file_info *r_info)
       -> packet::error_type override;
 
   [[nodiscard]] auto winfsp_get_dir_buffer(PVOID file_desc, PVOID *&ptr)
       -> packet::error_type override;
 
   [[nodiscard]] auto winfsp_get_file_info(PVOID file_desc,
-                                          remote::file_info *file_info)
+                                          remote::file_info *r_info)
       -> packet::error_type override;
 
   [[nodiscard]] auto winfsp_get_security_by_name(
@@ -98,19 +99,19 @@ public:
                                             std::string &volume_label)
       -> packet::error_type override;
 
-  [[nodiscard]] auto winfsp_mounted(const std::wstring &location)
+  [[nodiscard]] auto winfsp_mounted(std::wstring_view location)
       -> packet::error_type override;
 
   [[nodiscard]] auto winfsp_open(PWSTR file_name, UINT32 create_options,
                                  UINT32 granted_access, PVOID *file_desc,
-                                 remote::file_info *file_info,
+                                 remote::file_info *r_info,
                                  std::string &normalized_name)
       -> packet::error_type override;
 
   [[nodiscard]] auto winfsp_overwrite(PVOID file_desc, UINT32 attributes,
                                       BOOLEAN replace_attributes,
                                       UINT64 allocation_size,
-                                      remote::file_info *file_info)
+                                      remote::file_info *r_info)
       -> packet::error_type override;
 
   [[nodiscard]] auto winfsp_read(PVOID file_desc, PVOID buffer, UINT64 offset,
@@ -129,20 +130,20 @@ public:
   [[nodiscard]] auto winfsp_set_basic_info(
       PVOID file_desc, UINT32 attributes, UINT64 creation_time,
       UINT64 last_access_time, UINT64 last_write_time, UINT64 change_time,
-      remote::file_info *file_info) -> packet::error_type override;
+      remote::file_info *r_info) -> packet::error_type override;
 
   [[nodiscard]] auto winfsp_set_file_size(PVOID file_desc, UINT64 new_size,
                                           BOOLEAN set_allocation_size,
-                                          remote::file_info *file_info)
+                                          remote::file_info *r_info)
       -> packet::error_type override;
 
-  [[nodiscard]] auto winfsp_unmounted(const std::wstring &location)
+  [[nodiscard]] auto winfsp_unmounted(std::wstring_view location)
       -> packet::error_type override;
 
   [[nodiscard]] auto
   winfsp_write(PVOID file_desc, PVOID buffer, UINT64 offset, UINT32 length,
                BOOLEAN write_to_end, BOOLEAN constrained_io,
-               PUINT32 bytes_transferred, remote::file_info *file_info)
+               PUINT32 bytes_transferred, remote::file_info *r_info)
       -> packet::error_type override;
 };
 } // namespace remote_winfsp

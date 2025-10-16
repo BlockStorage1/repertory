@@ -27,8 +27,12 @@
 #include "utils/string.hpp"
 
 namespace repertory::rpc {
-[[nodiscard]] auto check_authorization(const auto &cfg,
-                                       const httplib::Request &req) -> bool {
+[[nodiscard]] auto create_password_hash(std::string_view password)
+    -> std::string;
+
+[[nodiscard]] inline auto check_authorization(const auto &cfg,
+                                              const httplib::Request &req)
+    -> bool {
   REPERTORY_USES_FUNCTION_NAME();
 
   if (cfg.get_api_password().empty() || cfg.get_api_user().empty()) {
@@ -61,16 +65,15 @@ namespace repertory::rpc {
   auto auth_str = std::string(data.begin(), data.end());
 
   auto auth = utils::string::split(auth_str, ':', false);
-  if (auth.size() < 2U) {
+  if (auth.size() != 2U) {
     utils::error::raise_error(function_name, "authorization data is not valid");
     return false;
   }
 
   auto user = auth.at(0U);
-  auth.erase(auth.begin());
-
-  auto pwd = utils::string::join(auth, ':');
-  if ((user != cfg.get_api_user()) || (pwd != cfg.get_api_password())) {
+  auto pwd = auth.at(1U);
+  if ((user != cfg.get_api_user()) ||
+      (pwd != create_password_hash(cfg.get_api_password()))) {
     utils::error::raise_error(function_name, "authorization failed");
     return false;
   }

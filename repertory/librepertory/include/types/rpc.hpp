@@ -30,13 +30,13 @@ struct rpc_host_info {
   std::string user;
 };
 
-enum class rpc_response_type {
+enum class rpc_response_type : std::uint8_t {
   success,
   config_value_not_found,
   http_error,
 };
 
-struct rpc_response {
+struct rpc_response final {
   rpc_response_type response_type;
   json data;
 };
@@ -45,6 +45,7 @@ namespace rpc_method {
 const std::string get_config = "get_config";
 const std::string get_config_value_by_name = "get_config_value_by_name";
 const std::string get_directory_items = "get_directory_items";
+const std::string get_item_info = "get_item_info";
 const std::string get_drive_information = "get_drive_information";
 const std::string get_open_files = "get_open_files";
 const std::string get_pinned_files = "get_pinned_files";

@@ -147,6 +147,13 @@ void raise_error(std::string_view function, const std::exception &exception,
 }
 
 void raise_api_path_error(std::string_view function, std::string_view api_path,
+                          std::string_view msg) {
+  event_system::instance().raise<repertory_exception>(
+      function, static_cast<std::string>(msg) + "|ap|" +
+                    static_cast<std::string>(api_path));
+}
+
+void raise_api_path_error(std::string_view function, std::string_view api_path,
                           api_error err, std::string_view msg) {
   event_system::instance().raise<repertory_exception>(
       function, static_cast<std::string>(msg) + "|ap|" +

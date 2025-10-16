@@ -4,13 +4,17 @@ set(Boost_USE_STATIC_LIBS ${PROJECT_STATIC_LINK})
 set(CURL_USE_STATIC_LIBS ${PROJECT_STATIC_LINK})
 set(OPENSSL_USE_STATIC_LIBS ${PROJECT_STATIC_LINK})
 set(SFML_STATIC_LIBRARIES ${PROJECT_STATIC_LINK})
-set(ZLIB_USE_STATIC_LIBS ${PROJECT_STATIC_LINK})
+if (PROJECT_IS_DARWIN)
+  set(ZLIB_USE_STATIC_LIBS OFF)
+else()
+  set(ZLIB_USE_STATIC_LIBS ${PROJECT_STATIC_LINK})
+endif()
 set(wxWidgets_USE_STATIC ${PROJECT_STATIC_LINK})
+set(ICU_USE_STATIC_LIBS ${PROJECT_STATIC_LINK})
 
+include(cmake/libraries/icu.cmake)
 include(cmake/libraries/openssl.cmake)
-
 include(cmake/libraries/boost.cmake)
-
 include(cmake/libraries/cpp_httplib.cmake)
 include(cmake/libraries/curl.cmake)
 include(cmake/libraries/fuse.cmake)
@@ -59,7 +63,7 @@ if(PROJECT_BUILD)
       winspool
       ws2_32
   )
-  else()
+  elseif(NOT PROJECT_IS_DARWIN)
     link_libraries(
       uring
     )

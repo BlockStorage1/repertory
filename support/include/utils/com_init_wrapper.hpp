@@ -46,7 +46,7 @@ struct com_init_wrapper final {
   [[nodiscard]] auto is_initialized() const -> bool { return initialized_; }
 
 private:
-  BOOL initialized_;
+  BOOL initialized_{};
 };
 } // namespace repertory::utils
 

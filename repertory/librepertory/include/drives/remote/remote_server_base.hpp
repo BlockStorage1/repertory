@@ -38,6 +38,7 @@
 #include "types/repertory.hpp"
 #include "utils/base64.hpp"
 #include "utils/path.hpp"
+#include "utils/polling.hpp"
 
 namespace repertory {
 template <typename drive>
@@ -46,8 +47,8 @@ class remote_server_base : public remote_open_file_table,
                            public virtual remote_fuse::i_remote_instance {
 public:
   using handler_callback = std::function<packet::error_type(
-      std::uint32_t, const std::string &, std::uint64_t, const std::string &,
-      packet *, packet &)>;
+      std::uint32_t, std::string, std::uint64_t, std::string, packet *,
+      packet &)>;
 
 public:
   remote_server_base(const remote_server_base &) = delete;
@@ -56,11 +57,11 @@ public:
   auto operator=(remote_server_base &&) -> remote_server_base & = delete;
 
 public:
-  remote_server_base(app_config &config, drive &drv, std::string mount_location)
+  remote_server_base(app_config &config, drive &drv,
+                     std::string_view mount_location)
       : config_(config),
         drive_(drv),
-        mount_location_(std::move(mount_location)),
-        client_pool_(config.get_remote_mount().client_pool_size) {
+        mount_location_(std::string(mount_location)) {
     REPERTORY_USES_FUNCTION_NAME();
 
     event_system::instance().raise<service_start_begin>(function_name,
@@ -77,6 +78,13 @@ public:
                                        method, request, response,
                                        message_complete);
         });
+
+    polling::instance().set_callback({
+        "remote_server_expired",
+        polling::frequency::high,
+        [this](auto && /* stop */) { client_pool_.remove_expired(); },
+    });
+
     event_system::instance().raise<service_start_end>(function_name,
                                                       "remote_server_base");
   }
@@ -86,7 +94,10 @@ public:
 
     event_system::instance().raise<service_stop_begin>(function_name,
                                                        "remote_server_base");
+    polling::instance().remove_callback("remote_server_expired");
+
     client_pool_.shutdown();
+
     packet_server_.reset();
     event_system::instance().raise<service_stop_end>(function_name,
                                                      "remote_server_base");
@@ -556,7 +567,7 @@ private:
   };
 
 private:
-  void closed_handler(const std::string &client_id) {
+  void closed_handler(std::string client_id) {
     client_pool_.remove_client(client_id);
     close_all(client_id);
   }
@@ -613,7 +624,7 @@ private:
     return this->fuse_chown(path.c_str(), uid, gid);
   }
 
-  [[nodiscard]] auto handle_fuse_create(const std::string &client_id,
+  [[nodiscard]] auto handle_fuse_create(std::string_view client_id,
                                         packet *request, packet &response)
       -> packet::error_type {
     auto ret{0};
@@ -660,13 +671,13 @@ private:
     remote::group_id gid{};
     DECODE_OR_RETURN(request, gid);
 
-    remote::stat st{};
+    remote::stat r_stat{};
     bool directory = false;
-    ret = this->fuse_fgetattr(path.data(), st, directory, handle);
+    ret = this->fuse_fgetattr(path.data(), r_stat, directory, handle);
     if (ret == 0) {
-      st.st_uid = uid;
-      st.st_gid = gid;
-      response.encode(st);
+      r_stat.st_uid = uid;
+      r_stat.st_gid = gid;
+      response.encode(r_stat);
       response.encode(static_cast<std::uint8_t>(directory));
     }
 
@@ -733,13 +744,13 @@ private:
     remote::group_id gid;
     DECODE_OR_RETURN(request, gid);
 
-    remote::stat st{};
+    remote::stat r_stat{};
     bool directory = false;
-    ret = this->fuse_getattr(path.c_str(), st, directory);
+    ret = this->fuse_getattr(path.c_str(), r_stat, directory);
     if (ret == 0) {
-      st.st_uid = uid;
-      st.st_gid = gid;
-      response.encode(st);
+      r_stat.st_uid = uid;
+      r_stat.st_gid = gid;
+      response.encode(r_stat);
       response.encode(static_cast<std::uint8_t>(directory));
     }
     return ret;
@@ -779,7 +790,7 @@ private:
     return this->fuse_mkdir(path.c_str(), mode);
   }
 
-  [[nodiscard]] auto handle_fuse_open(const std::string &client_id,
+  [[nodiscard]] auto handle_fuse_open(std::string_view client_id,
                                       packet *request, packet &response)
       -> packet::error_type {
     auto ret{0};
@@ -803,7 +814,7 @@ private:
     return ret;
   }
 
-  [[nodiscard]] auto handle_fuse_opendir(const std::string &client_id,
+  [[nodiscard]] auto handle_fuse_opendir(std::string_view client_id,
                                          packet *request, packet &response)
       -> packet::error_type {
     auto ret{0};
@@ -846,7 +857,7 @@ private:
     return ret;
   }
 
-  [[nodiscard]] auto handle_fuse_readdir(const std::string &client_id,
+  [[nodiscard]] auto handle_fuse_readdir(std::string_view client_id,
                                          packet *request, packet &response)
       -> packet::error_type {
     auto ret{0};
@@ -886,7 +897,7 @@ private:
     return this->fuse_release(path.c_str(), handle);
   }
 
-  [[nodiscard]] auto handle_fuse_releasedir(const std::string &client_id,
+  [[nodiscard]] auto handle_fuse_releasedir(std::string_view client_id,
                                             packet *request)
       -> packet::error_type {
     auto ret{0};
@@ -997,10 +1008,10 @@ private:
     std::uint64_t frsize{};
     DECODE_OR_RETURN(request, frsize);
 
-    remote::statfs st{};
-    ret = this->fuse_statfs(path.data(), frsize, st);
+    remote::statfs r_stat{};
+    ret = this->fuse_statfs(path.data(), frsize, r_stat);
     if (ret == 0) {
-      response.encode(st);
+      response.encode(r_stat);
     }
 
     return ret;
@@ -1016,10 +1027,10 @@ private:
     std::uint64_t bsize{};
     DECODE_OR_RETURN(request, bsize);
 
-    remote::statfs_x st{};
-    ret = this->fuse_statfs_x(path.data(), bsize, st);
+    remote::statfs_x r_stat{};
+    ret = this->fuse_statfs_x(path.data(), bsize, r_stat);
     if (ret == 0) {
-      response.encode(st);
+      response.encode(r_stat);
     }
     return ret;
   }
@@ -1131,7 +1142,7 @@ private:
   }
 
   [[nodiscard]] auto
-  handle_json_create_directory_snapshot(const std::string &client_id,
+  handle_json_create_directory_snapshot(std::string_view client_id,
                                         packet *request, packet &response)
       -> packet::error_type {
     std::int32_t ret{};
@@ -1152,7 +1163,7 @@ private:
   }
 
   [[nodiscard]] auto
-  handle_json_read_directory_snapshot(const std::string &client_id,
+  handle_json_read_directory_snapshot(std::string_view client_id,
                                       packet *request, packet &response)
       -> packet::error_type {
     std::int32_t ret{0};
@@ -1181,7 +1192,7 @@ private:
   }
 
   [[nodiscard]] auto handle_json_release_directory_snapshot(
-      const std::string &client_id, packet *request) -> packet::error_type {
+      std::string_view client_id, packet *request) -> packet::error_type {
     std::int32_t ret{0};
 
     std::string path;
@@ -1240,7 +1251,7 @@ private:
     return this->winfsp_close(file_desc);
   }
 
-  [[nodiscard]] auto handle_winfsp_create(const std::string &client_id,
+  [[nodiscard]] auto handle_winfsp_create(std::string_view client_id,
                                           packet *request, packet &response)
       -> packet::error_type {
     auto ret = static_cast<packet::error_type>(STATUS_SUCCESS);
@@ -1261,12 +1272,12 @@ private:
     DECODE_OR_RETURN(request, allocation_size);
 
     BOOLEAN exists{0};
-    remote::file_info file_info{};
+    remote::file_info r_info{};
     std::string normalized_name;
     PVOID file_desc{};
     ret = this->winfsp_create(file_name.data(), create_options, granted_access,
-                              attributes, allocation_size, &file_desc,
-                              &file_info, normalized_name, exists);
+                              attributes, allocation_size, &file_desc, &r_info,
+                              normalized_name, exists);
     if (ret == STATUS_SUCCESS) {
       if (exists == 0U) {
 #if defined(_WIN32)
@@ -1279,7 +1290,7 @@ private:
       }
 
       response.encode(file_desc);
-      response.encode(file_info);
+      response.encode(r_info);
       response.encode(normalized_name);
       response.encode(exists);
     }
@@ -1294,10 +1305,10 @@ private:
     HANDLE file_desc{};
     DECODE_OR_RETURN(request, file_desc);
 
-    remote::file_info file_info{};
-    ret = this->winfsp_flush(file_desc, &file_info);
+    remote::file_info r_info{};
+    ret = this->winfsp_flush(file_desc, &r_info);
     if (ret == STATUS_SUCCESS) {
-      response.encode(file_info);
+      response.encode(r_info);
     }
 
     return ret;
@@ -1311,10 +1322,10 @@ private:
     HANDLE file_desc{};
     DECODE_OR_RETURN(request, file_desc);
 
-    remote::file_info file_info{};
-    ret = this->winfsp_get_file_info(file_desc, &file_info);
+    remote::file_info r_info{};
+    ret = this->winfsp_get_file_info(file_desc, &r_info);
     if (ret == STATUS_SUCCESS) {
-      response.encode(file_info);
+      response.encode(r_info);
     }
     return ret;
   }
@@ -1380,7 +1391,7 @@ private:
     return ret;
   }
 
-  [[nodiscard]] auto handle_winfsp_open(const std::string &client_id,
+  [[nodiscard]] auto handle_winfsp_open(std::string_view client_id,
                                         packet *request, packet &response)
       -> packet::error_type {
     auto ret = static_cast<packet::error_type>(STATUS_SUCCESS);
@@ -1394,11 +1405,11 @@ private:
     UINT32 granted_access{};
     DECODE_OR_RETURN(request, granted_access);
 
-    remote::file_info file_info{};
+    remote::file_info r_info{};
     std::string normalized_name;
     PVOID file_desc{};
     ret = this->winfsp_open(file_name.data(), create_options, granted_access,
-                            &file_desc, &file_info, normalized_name);
+                            &file_desc, &r_info, normalized_name);
     if (ret == STATUS_SUCCESS) {
 #if defined(_WIN32)
       this->set_client_id(file_desc, client_id);
@@ -1408,7 +1419,7 @@ private:
                           client_id);
 #endif // defined(_WIN32)
       response.encode(file_desc);
-      response.encode(file_info);
+      response.encode(r_info);
       response.encode(normalized_name);
     }
 
@@ -1431,11 +1442,11 @@ private:
     UINT64 allocation_size{};
     DECODE_OR_RETURN(request, allocation_size);
 
-    remote::file_info file_info{};
+    remote::file_info r_info{};
     ret = this->winfsp_overwrite(file_desc, attributes, replace_attributes,
-                                 allocation_size, &file_info);
+                                 allocation_size, &r_info);
     if (ret == STATUS_SUCCESS) {
-      response.encode(file_info);
+      response.encode(r_info);
     }
     return ret;
   }
@@ -1536,12 +1547,12 @@ private:
     UINT64 change_time{};
     DECODE_OR_RETURN(request, change_time);
 
-    remote::file_info file_info{};
+    remote::file_info r_info{};
     ret = this->winfsp_set_basic_info(file_desc, attributes, creation_time,
                                       last_access_time, last_write_time,
-                                      change_time, &file_info);
+                                      change_time, &r_info);
     if (ret == STATUS_SUCCESS) {
-      response.encode(file_info);
+      response.encode(r_info);
     }
     return ret;
   }
@@ -1560,11 +1571,11 @@ private:
     BOOLEAN set_allocation_size{};
     DECODE_OR_RETURN(request, set_allocation_size);
 
-    remote::file_info file_info{};
+    remote::file_info r_info{};
     ret = this->winfsp_set_file_size(file_desc, new_size, set_allocation_size,
-                                     &file_info);
+                                     &r_info);
     if (ret == STATUS_SUCCESS) {
-      response.encode(file_info);
+      response.encode(r_info);
     }
     return ret;
   }
@@ -1601,20 +1612,20 @@ private:
     auto *buffer = request->current_pointer();
 
     UINT32 bytes_transferred{0U};
-    remote::file_info file_info{};
+    remote::file_info r_info{};
     ret = this->winfsp_write(file_desc, buffer, offset, length, write_to_end,
-                             constrained_io, &bytes_transferred, &file_info);
+                             constrained_io, &bytes_transferred, &r_info);
     if (ret == STATUS_SUCCESS) {
       response.encode(bytes_transferred);
-      response.encode(file_info);
+      response.encode(r_info);
     }
     return ret;
   }
 
   void
-  message_handler(std::uint32_t service_flags, const std::string &client_id,
-                  std::uint64_t thread_id, const std::string &method,
-                  packet *request, packet &response,
+  message_handler(std::uint32_t service_flags, std::string client_id,
+                  std::uint64_t thread_id, std::string method, packet *request,
+                  packet &response,
                   packet_server::message_complete_callback message_complete) {
     auto idx{method.find_last_of("::")};
     auto lookup_method_name{
@@ -1632,7 +1643,7 @@ private:
           return this->handler_lookup_.at(lookup_method_name)(
               service_flags, client_id, thread_id, method, request, response);
         },
-        message_complete);
+        std::move(message_complete));
   }
 
 protected:

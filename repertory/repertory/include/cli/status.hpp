@@ -26,23 +26,23 @@
 
 namespace repertory::cli::actions {
 [[nodiscard]] inline auto status(std::vector<const char *> /* args */,
-                                 const std::string & /*data_directory*/,
-                                 const provider_type &prov,
-                                 const std::string &unique_id,
+                                 std::string_view data_directory,
+                                 provider_type prov, std::string_view unique_id,
                                  std::string /* user */,
                                  std::string /* password */) -> exit_code {
-  auto ret = exit_code::success;
-  lock_data lock(prov, unique_id);
+  auto ret = cli::check_data_directory(data_directory);
+  if (ret != exit_code::success) {
+    return ret;
+  }
+
+  lock_data lock(data_directory, prov, unique_id);
   [[maybe_unused]] auto status = lock.grab_lock(10U);
   json mount_state;
   if (lock.get_mount_state(mount_state)) {
-    std::cout << mount_state.dump(2) << std::endl;
-  } else {
-    std::cout << "{}" << std::endl;
-    ret = exit_code::failed_to_get_mount_state;
+    return cli::handle_error(exit_code::success, mount_state.dump(2));
   }
 
-  return ret;
+  return cli::handle_error(exit_code::failed_to_get_mount_state, "{}");
 }
 } // namespace repertory::cli::actions
 

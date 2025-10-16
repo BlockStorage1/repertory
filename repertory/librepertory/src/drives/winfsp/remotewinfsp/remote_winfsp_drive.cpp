@@ -131,14 +131,14 @@ auto remote_winfsp_drive::Create(PWSTR file_name, UINT32 create_options,
                                  UINT64 allocation_size, PVOID * /*file_node*/,
                                  PVOID *file_desc, OpenFileInfo *ofi)
     -> NTSTATUS {
-  remote::file_info f_info{};
+  remote::file_info r_info{};
   std::string normalized_name;
   BOOLEAN exists{0};
   auto ret = remote_instance_->winfsp_create(
       file_name, create_options, granted_access, attributes, allocation_size,
-      file_desc, &f_info, normalized_name, exists);
+      file_desc, &r_info, normalized_name, exists);
   if (ret == STATUS_SUCCESS) {
-    set_file_info(ofi->FileInfo, f_info);
+    set_file_info(ofi->FileInfo, r_info);
     auto file_path = utils::string::from_utf8(normalized_name);
     wcsncpy(ofi->NormalizedName, file_path.data(), wcslen(file_path.c_str()));
     ofi->NormalizedNameSize =
@@ -152,18 +152,18 @@ auto remote_winfsp_drive::Create(PWSTR file_name, UINT32 create_options,
 }
 
 auto remote_winfsp_drive::Flush(PVOID /*file_node*/, PVOID file_desc,
-                                FileInfo *file_info) -> NTSTATUS {
-  remote::file_info fi{};
-  auto ret = remote_instance_->winfsp_flush(file_desc, &fi);
-  set_file_info(*file_info, fi);
+                                FileInfo *f_info) -> NTSTATUS {
+  remote::file_info r_info{};
+  auto ret = remote_instance_->winfsp_flush(file_desc, &r_info);
+  set_file_info(*f_info, r_info);
   return ret;
 }
 
 auto remote_winfsp_drive::GetFileInfo(PVOID /*file_node*/, PVOID file_desc,
-                                      FileInfo *file_info) -> NTSTATUS {
-  remote::file_info fi{};
-  auto ret = remote_instance_->winfsp_get_file_info(file_desc, &fi);
-  set_file_info(*file_info, fi);
+                                      FileInfo *f_info) -> NTSTATUS {
+  remote::file_info r_info{};
+  auto ret = remote_instance_->winfsp_get_file_info(file_desc, &r_info);
+  set_file_info(*f_info, r_info);
   return ret;
 }
 
@@ -245,8 +245,10 @@ auto remote_winfsp_drive::Init(PVOID host) -> NTSTATUS {
   return STATUS_SUCCESS;
 }
 
-auto remote_winfsp_drive::mount(const std::vector<std::string> &drive_args)
-    -> int {
+auto remote_winfsp_drive::mount(std::vector<std::string> /* orig_args */,
+                                std::vector<std::string> drive_args,
+                                provider_type /* prov */,
+                                std::string_view /* unique_id */) -> int {
   REPERTORY_USES_FUNCTION_NAME();
 
   std::vector<std::string> parsed_drive_args;
@@ -300,13 +302,13 @@ auto remote_winfsp_drive::Open(PWSTR file_name, UINT32 create_options,
                                UINT32 granted_access, PVOID * /*file_node*/,
                                PVOID *file_desc, OpenFileInfo *ofi)
     -> NTSTATUS {
-  remote::file_info fi{};
+  remote::file_info r_info{};
   std::string normalize_name;
   auto ret =
       remote_instance_->winfsp_open(file_name, create_options, granted_access,
-                                    file_desc, &fi, normalize_name);
+                                    file_desc, &r_info, normalize_name);
   if (ret == STATUS_SUCCESS) {
-    set_file_info(ofi->FileInfo, fi);
+    set_file_info(ofi->FileInfo, r_info);
     auto file_path = utils::string::from_utf8(normalize_name);
     wcsncpy(ofi->NormalizedName, file_path.data(), wcslen(file_path.c_str()));
     ofi->NormalizedNameSize =
@@ -319,31 +321,31 @@ auto remote_winfsp_drive::Open(PWSTR file_name, UINT32 create_options,
 auto remote_winfsp_drive::Overwrite(PVOID /*file_node*/, PVOID file_desc,
                                     UINT32 attributes,
                                     BOOLEAN replace_attributes,
-                                    UINT64 allocation_size, FileInfo *file_info)
+                                    UINT64 allocation_size, FileInfo *f_info)
     -> NTSTATUS {
-  remote::file_info info{};
+  remote::file_info r_info{};
   auto ret = remote_instance_->winfsp_overwrite(
-      file_desc, attributes, replace_attributes, allocation_size, &info);
-  set_file_info(*file_info, info);
+      file_desc, attributes, replace_attributes, allocation_size, &r_info);
+  set_file_info(*f_info, r_info);
   return ret;
 }
 
 void remote_winfsp_drive::populate_file_info(const json &item,
-                                             FSP_FSCTL_FILE_INFO &file_info) {
+                                             FSP_FSCTL_FILE_INFO &f_info) {
   auto dir_item = item.get<directory_item>();
-  file_info.FileSize = dir_item.directory ? 0 : dir_item.size;
-  file_info.AllocationSize =
-      utils::divide_with_ceiling(file_info.FileSize, WINFSP_ALLOCATION_UNIT) *
+  f_info.FileSize = dir_item.directory ? 0 : dir_item.size;
+  f_info.AllocationSize =
+      utils::divide_with_ceiling(f_info.FileSize, WINFSP_ALLOCATION_UNIT) *
       WINFSP_ALLOCATION_UNIT;
-  file_info.ChangeTime = utils::get_changed_time_from_meta(dir_item.meta);
-  file_info.CreationTime = utils::get_creation_time_from_meta(dir_item.meta);
-  file_info.FileAttributes = utils::get_attributes_from_meta(dir_item.meta);
-  file_info.HardLinks = 0;
-  file_info.IndexNumber = 0;
-  file_info.LastAccessTime = utils::get_accessed_time_from_meta(dir_item.meta);
-  file_info.LastWriteTime = utils::get_written_time_from_meta(dir_item.meta);
-  file_info.ReparseTag = 0;
-  file_info.EaSize = 0;
+  f_info.ChangeTime = utils::get_changed_time_from_meta(dir_item.meta);
+  f_info.CreationTime = utils::get_creation_time_from_meta(dir_item.meta);
+  f_info.FileAttributes = utils::get_attributes_from_meta(dir_item.meta);
+  f_info.HardLinks = 0;
+  f_info.IndexNumber = 0;
+  f_info.LastAccessTime = utils::get_accessed_time_from_meta(dir_item.meta);
+  f_info.LastWriteTime = utils::get_written_time_from_meta(dir_item.meta);
+  f_info.ReparseTag = 0;
+  f_info.EaSize = 0;
 }
 
 auto remote_winfsp_drive::Read(PVOID /*file_node*/, PVOID file_desc,
@@ -443,39 +445,39 @@ auto remote_winfsp_drive::SetBasicInfo(PVOID /*file_node*/, PVOID file_desc,
                                        UINT32 attributes, UINT64 creation_time,
                                        UINT64 last_access_time,
                                        UINT64 last_write_time,
-                                       UINT64 change_time, FileInfo *file_info)
+                                       UINT64 change_time, FileInfo *f_info)
     -> NTSTATUS {
-  remote::file_info f_info{};
+  remote::file_info r_info{};
   auto ret = remote_instance_->winfsp_set_basic_info(
       file_desc, attributes, creation_time, last_access_time, last_write_time,
-      change_time, &f_info);
-  set_file_info(*file_info, f_info);
+      change_time, &r_info);
+  set_file_info(*f_info, r_info);
   return ret;
 }
 
-void remote_winfsp_drive::set_file_info(FileInfo &dest,
-                                        const remote::file_info &src) {
-  dest.FileAttributes = src.FileAttributes;
-  dest.ReparseTag = src.ReparseTag;
-  dest.AllocationSize = src.AllocationSize;
-  dest.FileSize = src.FileSize;
-  dest.CreationTime = src.CreationTime;
-  dest.LastAccessTime = src.LastAccessTime;
-  dest.LastWriteTime = src.LastWriteTime;
-  dest.ChangeTime = src.ChangeTime;
-  dest.IndexNumber = src.IndexNumber;
-  dest.HardLinks = src.HardLinks;
-  dest.EaSize = src.EaSize;
+void remote_winfsp_drive::set_file_info(FileInfo &f_info,
+                                        const remote::file_info &r_info) {
+  f_info.FileAttributes = r_info.FileAttributes;
+  f_info.ReparseTag = r_info.ReparseTag;
+  f_info.AllocationSize = r_info.AllocationSize;
+  f_info.FileSize = r_info.FileSize;
+  f_info.CreationTime = r_info.CreationTime;
+  f_info.LastAccessTime = r_info.LastAccessTime;
+  f_info.LastWriteTime = r_info.LastWriteTime;
+  f_info.ChangeTime = r_info.ChangeTime;
+  f_info.IndexNumber = r_info.IndexNumber;
+  f_info.HardLinks = r_info.HardLinks;
+  f_info.EaSize = r_info.EaSize;
 }
 
 auto remote_winfsp_drive::SetFileSize(PVOID /*file_node*/, PVOID file_desc,
                                       UINT64 new_size,
                                       BOOLEAN set_allocation_size,
-                                      FileInfo *file_info) -> NTSTATUS {
-  remote::file_info fi{};
-  auto ret = remote_instance_->winfsp_set_file_size(file_desc, new_size,
-                                                    set_allocation_size, &fi);
-  set_file_info(*file_info, fi);
+                                      FileInfo *f_info) -> NTSTATUS {
+  remote::file_info r_info{};
+  auto ret = remote_instance_->winfsp_set_file_size(
+      file_desc, new_size, set_allocation_size, &r_info);
+  set_file_info(*f_info, r_info);
   return ret;
 }
 
@@ -495,13 +497,13 @@ VOID remote_winfsp_drive::Unmounted(PVOID host) {
 auto remote_winfsp_drive::Write(PVOID /*file_node*/, PVOID file_desc,
                                 PVOID buffer, UINT64 offset, ULONG length,
                                 BOOLEAN write_to_end, BOOLEAN constrained_io,
-                                PULONG bytes_transferred, FileInfo *file_info)
+                                PULONG bytes_transferred, FileInfo *f_info)
     -> NTSTATUS {
-  remote::file_info fi{};
+  remote::file_info r_info{};
   auto ret = remote_instance_->winfsp_write(
       file_desc, buffer, offset, length, write_to_end, constrained_io,
-      reinterpret_cast<PUINT32>(bytes_transferred), &fi);
-  set_file_info(*file_info, fi);
+      reinterpret_cast<PUINT32>(bytes_transferred), &r_info);
+  set_file_info(*f_info, r_info);
   return ret;
 }
 } // namespace repertory::remote_winfsp

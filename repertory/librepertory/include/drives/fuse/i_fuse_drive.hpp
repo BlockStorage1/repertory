@@ -26,35 +26,41 @@
 #include "types/repertory.hpp"
 
 namespace repertory {
+inline constexpr const int repertory_ioctl_fd_command = 0x102010;
+
 class i_fuse_drive {
   INTERFACE_SETUP(i_fuse_drive);
 
 public:
-  [[nodiscard]] virtual auto check_owner(const std::string &api_path) const
+  [[nodiscard]] virtual auto check_owner(std::string_view api_path) const
       -> api_error = 0;
 
-  [[nodiscard]] virtual auto check_parent_access(const std::string &api_path,
+  [[nodiscard]] virtual auto check_parent_access(std::string_view api_path,
                                                  int mask) const
       -> api_error = 0;
 
   [[nodiscard]] virtual auto
-  get_directory_item_count(const std::string &api_path) const
+  get_directory_item_count(std::string_view api_path) const
       -> std::uint64_t = 0;
 
   [[nodiscard]] virtual auto
-  get_directory_items(const std::string &api_path) const
+  get_directory_items(std::string_view api_path) const
       -> directory_item_list = 0;
 
-  [[nodiscard]] virtual auto get_file_size(const std::string &api_path) const
+  [[nodiscard]] virtual auto get_file_size(std::string_view api_path) const
       -> std::uint64_t = 0;
 
-  [[nodiscard]] virtual auto get_item_meta(const std::string &api_path,
+  [[nodiscard]] virtual auto get_item_meta(std::string_view api_path,
                                            api_meta_map &meta) const
       -> api_error = 0;
 
-  [[nodiscard]] virtual auto get_item_meta(const std::string &api_path,
-                                           const std::string &name,
+  [[nodiscard]] virtual auto get_item_meta(std::string_view api_path,
+                                           std::string_view name,
                                            std::string &value) const
+      -> api_error = 0;
+
+  [[nodiscard]] virtual auto get_item_stat(std::uint64_t handle,
+                                           struct stat64 *u_stat) const
       -> api_error = 0;
 
   [[nodiscard]] virtual auto get_total_drive_space() const -> std::uint64_t = 0;
@@ -66,22 +72,21 @@ public:
   virtual void get_volume_info(UINT64 &total_size, UINT64 &free_size,
                                std::string &volume_label) const = 0;
 
-  [[nodiscard]] virtual auto is_processing(const std::string &api_path) const
+  [[nodiscard]] virtual auto is_processing(std::string_view api_path) const
       -> bool = 0;
 
-  [[nodiscard]] virtual auto rename_directory(const std::string &from_api_path,
-                                              const std::string &to_api_path)
+  [[nodiscard]] virtual auto rename_directory(std::string_view from_api_path,
+                                              std::string_view to_api_path)
       -> int = 0;
 
-  [[nodiscard]] virtual auto rename_file(const std::string &from_api_path,
-                                         const std::string &to_api_path,
+  [[nodiscard]] virtual auto rename_file(std::string_view from_api_path,
+                                         std::string_view to_api_path,
                                          bool overwrite) -> int = 0;
 
-  virtual void set_item_meta(const std::string &api_path,
-                             const std::string &key,
-                             const std::string &value) = 0;
+  virtual void set_item_meta(std::string_view api_path, std::string_view key,
+                             std::string_view value) = 0;
 
-  virtual void set_item_meta(const std::string &api_path,
+  virtual void set_item_meta(std::string_view api_path,
                              const api_meta_map &meta) = 0;
 };
 } // namespace repertory

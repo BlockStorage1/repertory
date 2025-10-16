@@ -29,12 +29,15 @@
 namespace repertory {
 class mock_open_file : public virtual i_closeable_open_file {
 public:
-  MOCK_METHOD(void, add, (std::uint64_t handle, open_file_data ofd),
+  MOCK_METHOD(void, add,
+              (std::uint64_t handle, open_file_data ofd, bool notify),
               (override));
 
   MOCK_METHOD(bool, can_close, (), (const, override));
 
   MOCK_METHOD(bool, close, (), (override));
+
+  MOCK_METHOD(void, force_download, (), (override));
 
   MOCK_METHOD(std::string, get_api_path, (), (const, override));
 
@@ -68,6 +71,8 @@ public:
 
   MOCK_METHOD(std::string, get_source_path, (), (const, override));
 
+  MOCK_METHOD(api_meta_map, get_unlinked_meta, (), (const, override));
+
   MOCK_METHOD(bool, has_handle, (std::uint64_t handle), (const, override));
 
   MOCK_METHOD(bool, is_complete, (), (const, override));
@@ -75,6 +80,8 @@ public:
   MOCK_METHOD(bool, is_directory, (), (const, override));
 
   MOCK_METHOD(bool, is_modified, (), (const, override));
+
+  MOCK_METHOD(bool, is_unlinked, (), (const, override));
 
   MOCK_METHOD(bool, is_write_supported, (), (const, override));
 
@@ -96,7 +103,11 @@ public:
 
   MOCK_METHOD(api_error, resize, (std::uint64_t new_file_size), (override));
 
-  MOCK_METHOD(void, set_api_path, (const std::string &api_path), (override));
+  MOCK_METHOD(void, set_api_path, (std::string_view api_path), (override));
+
+  MOCK_METHOD(void, set_unlinked, (bool value), (override));
+
+  MOCK_METHOD(void, set_unlinked_meta, (api_meta_map meta), (override));
 
   MOCK_METHOD(api_error, write,
               (std::uint64_t write_offset, const data_buffer &data,

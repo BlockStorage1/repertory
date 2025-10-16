@@ -77,33 +77,43 @@ file_manager::~file_manager() {
 }
 
 void file_manager::close(std::uint64_t handle) {
+  REPERTORY_USES_FUNCTION_NAME();
+
   unique_recur_mutex_lock file_lock(open_file_mtx_);
-  auto closeable_file = get_open_file_by_handle(handle);
+  bool is_unlinked{};
+  auto closeable_file = get_open_file_by_handle(handle, is_unlinked);
   if (not closeable_file) {
     return;
   }
   file_lock.unlock();
 
   closeable_file->remove(handle);
-}
 
-auto file_manager::close_all(const std::string &api_path) -> bool {
-  REPERTORY_USES_FUNCTION_NAME();
-
-  unique_recur_mutex_lock file_lock(open_file_mtx_);
-  auto file_iter = open_file_lookup_.find(api_path);
-  if (file_iter == open_file_lookup_.end()) {
-    return false;
+  file_lock.lock();
+  if (is_unlinked) {
+    unlinked_file_lookup_.erase(handle);
   }
 
-  auto closeable_file = file_iter->second;
-  open_file_lookup_.erase(api_path);
+  if (not is_unlinked || closeable_file->get_open_file_count() != 0U) {
+    return;
+  }
   file_lock.unlock();
 
-  closeable_file->remove_all();
   closeable_file->close();
 
-  return closeable_file->get_allocated();
+  if (closeable_file->is_directory()) {
+    return;
+  }
+
+  auto file = utils::file::file{closeable_file->get_source_path()};
+  if (file.remove()) {
+    return;
+  }
+
+  utils::error::raise_api_path_error(
+      function_name, closeable_file->get_api_path(),
+      closeable_file->get_source_path(), utils::get_last_error_code(),
+      "failed to delete source");
 }
 
 void file_manager::close_timed_out_files() {
@@ -133,7 +143,7 @@ void file_manager::close_timed_out_files() {
   closeable_list.clear();
 }
 
-auto file_manager::create(const std::string &api_path, api_meta_map &meta,
+auto file_manager::create(std::string_view api_path, api_meta_map &meta,
                           open_file_data ofd, std::uint64_t &handle,
                           std::shared_ptr<i_open_file> &file) -> api_error {
   recur_mutex_lock file_lock(open_file_mtx_);
@@ -151,7 +161,67 @@ auto file_manager::create(const std::string &api_path, api_meta_map &meta,
   return open(api_path, false, ofd, handle, file);
 }
 
-auto file_manager::evict_file(const std::string &api_path) -> bool {
+auto file_manager::download_pinned_file(std::string_view api_path) -> bool {
+  REPERTORY_USES_FUNCTION_NAME();
+
+  recur_mutex_lock file_lock(open_file_mtx_);
+
+  try {
+    if (provider_.is_read_only()) {
+      utils::error::raise_api_path_error(
+          function_name, api_path,
+          fmt::format(
+              "failed to download pinned file-provider is "
+              "read-only|type|{}",
+              app_config::get_provider_name(provider_.get_provider_type())));
+      return false;
+    }
+
+    std::string str_pinned;
+    auto res = provider_.get_item_meta(api_path, META_PINNED, str_pinned);
+    if (res != api_error::success) {
+      utils::error::raise_api_path_error(
+          function_name, api_path, res,
+          "failed to get item meta|key|META_PINNED");
+      return false;
+    }
+    if (not utils::string::to_bool(str_pinned)) {
+      utils::error::raise_api_path_error(
+          function_name, api_path,
+          "failed to download pinned file-file is not pinned");
+      return false;
+    }
+
+    std::uint64_t handle{};
+    std::shared_ptr<i_open_file> open_file;
+    res = open(api_path, false, {}, handle, open_file);
+    if (res != api_error::success) {
+      utils::error::raise_api_path_error(
+          function_name, api_path, res,
+          "failed to download pinned file-file open failed");
+      return false;
+    }
+
+    auto ret = get_open_file(handle, true, open_file);
+    if (ret) {
+      open_file->force_download();
+    } else {
+      utils::error::raise_api_path_error(
+          function_name, api_path,
+          "failed to download pinned file-file open as writeable failed");
+    }
+
+    close(handle);
+    return ret;
+  } catch (const std::exception &ex) {
+    utils::error::raise_api_path_error(function_name, api_path, ex,
+                                       "failed to download pinned file");
+  }
+
+  return false;
+}
+
+auto file_manager::evict_file(std::string_view api_path) -> bool {
   REPERTORY_USES_FUNCTION_NAME();
 
   if (provider_.is_read_only()) {
@@ -190,11 +260,11 @@ auto file_manager::evict_file(const std::string &api_path) -> bool {
   }
 
   std::shared_ptr<i_closeable_open_file> closeable_file;
-  if (open_file_lookup_.contains(api_path)) {
-    closeable_file = open_file_lookup_.at(api_path);
+  if (open_file_lookup_.contains(std::string{api_path})) {
+    closeable_file = open_file_lookup_.at(std::string{api_path});
   }
 
-  open_file_lookup_.erase(api_path);
+  open_file_lookup_.erase(std::string{api_path});
   open_lock.unlock();
 
   auto allocated = closeable_file ? closeable_file->get_allocated() : true;
@@ -210,7 +280,7 @@ auto file_manager::evict_file(const std::string &api_path) -> bool {
   return removed;
 }
 
-auto file_manager::get_directory_items(const std::string &api_path) const
+auto file_manager::get_directory_items(std::string_view api_path) const
     -> directory_item_list {
   REPERTORY_USES_FUNCTION_NAME();
 
@@ -223,6 +293,20 @@ auto file_manager::get_directory_items(const std::string &api_path) const
   return list;
 }
 
+auto file_manager::get_directory_item(std::string_view api_path,
+                                      directory_item &item) const -> api_error {
+  REPERTORY_USES_FUNCTION_NAME();
+
+  auto ret = provider_.get_directory_item(api_path, item);
+  if (ret == api_error::success) {
+    return ret;
+  }
+
+  utils::error::raise_api_path_error(function_name, api_path, ret,
+                                     "failed to get directory item");
+  return ret;
+}
+
 auto file_manager::get_next_handle() -> std::uint64_t {
   if (++next_handle_ == 0U) {
     ++next_handle_;
@@ -231,8 +315,17 @@ auto file_manager::get_next_handle() -> std::uint64_t {
   return next_handle_;
 }
 
-auto file_manager::get_open_file_by_handle(std::uint64_t handle) const
+auto file_manager::get_open_file_by_handle(std::uint64_t handle,
+                                           bool &is_unlinked) const
     -> std::shared_ptr<i_closeable_open_file> {
+  REPERTORY_USES_FUNCTION_NAME();
+
+  if (unlinked_file_lookup_.contains(handle)) {
+    is_unlinked = true;
+    return unlinked_file_lookup_.at(handle);
+  }
+
+  is_unlinked = false;
   auto file_iter =
       std::ranges::find_if(open_file_lookup_, [&handle](auto &&item) -> bool {
         return item.second->has_handle(handle);
@@ -240,22 +333,36 @@ auto file_manager::get_open_file_by_handle(std::uint64_t handle) const
   return (file_iter == open_file_lookup_.end()) ? nullptr : file_iter->second;
 }
 
-auto file_manager::get_open_file_count(const std::string &api_path) const
+auto file_manager::get_open_file_count(std::string_view api_path) const
     -> std::size_t {
-  auto file_iter = open_file_lookup_.find(api_path);
+  auto file_iter = open_file_lookup_.find(std::string{api_path});
   return (file_iter == open_file_lookup_.end())
              ? 0U
              : file_iter->second->get_open_file_count();
 }
 
+auto file_manager::get_open_file(std::string_view api_path,
+                                 std::shared_ptr<i_open_file> &file) -> bool {
+  unique_recur_mutex_lock open_lock(open_file_mtx_);
+  if (open_file_lookup_.contains(std::string{api_path})) {
+    file = open_file_lookup_.at(std::string{api_path});
+    return true;
+  }
+
+  return false;
+}
+
 auto file_manager::get_open_file(std::uint64_t handle, bool write_supported,
                                  std::shared_ptr<i_open_file> &file) -> bool {
+  REPERTORY_USES_FUNCTION_NAME();
+
   if (write_supported && provider_.is_read_only()) {
     return false;
   }
 
   unique_recur_mutex_lock open_lock(open_file_mtx_);
-  auto file_ptr = get_open_file_by_handle(handle);
+  bool is_unlinked{};
+  auto file_ptr = get_open_file_by_handle(handle, is_unlinked);
   if (not file_ptr) {
     return false;
   }
@@ -268,7 +375,15 @@ auto file_manager::get_open_file(std::uint64_t handle, bool write_supported,
             : 0U,
         file_ptr->get_filesystem_item(), file_ptr->get_open_data(), provider_,
         *this);
-    open_file_lookup_[file_ptr->get_api_path()] = writeable_file;
+    writeable_file->set_unlinked(is_unlinked);
+    if (is_unlinked) {
+      writeable_file->set_unlinked_meta(file_ptr->get_unlinked_meta());
+      for (const auto &[sub_handle, ofd] : writeable_file->get_open_data()) {
+        unlinked_file_lookup_[sub_handle] = writeable_file;
+      }
+    } else {
+      open_file_lookup_[file_ptr->get_api_path()] = writeable_file;
+    }
     file = writeable_file;
     return true;
   }
@@ -317,19 +432,20 @@ auto file_manager::get_stored_downloads() const
   return mgr_db_->get_resume_list();
 }
 
-auto file_manager::handle_file_rename(const std::string &from_api_path,
-                                      const std::string &to_api_path)
+auto file_manager::handle_file_rename(std::string_view from_api_path,
+                                      std::string_view to_api_path)
     -> api_error {
   std::string source_path{};
-  auto file_iter = open_file_lookup_.find(from_api_path);
+  auto file_iter = open_file_lookup_.find(std::string{from_api_path});
   if (file_iter != open_file_lookup_.end()) {
     source_path = file_iter->second->get_source_path();
   }
 
-  auto should_upload{upload_lookup_.contains(from_api_path)};
+  auto should_upload{upload_lookup_.contains(std::string{from_api_path})};
   if (should_upload) {
     if (source_path.empty()) {
-      source_path = upload_lookup_.at(from_api_path)->get_source_path();
+      source_path =
+          upload_lookup_.at(std::string{from_api_path})->get_source_path();
     }
   } else {
     auto upload = mgr_db_->get_upload(from_api_path);
@@ -343,7 +459,7 @@ auto file_manager::handle_file_rename(const std::string &from_api_path,
 
   auto ret = provider_.rename_file(from_api_path, to_api_path);
   if (ret != api_error::success) {
-    queue_upload(from_api_path, source_path, false);
+    queue_upload(from_api_path, source_path, false, false);
     return ret;
   }
 
@@ -354,7 +470,7 @@ auto file_manager::handle_file_rename(const std::string &from_api_path,
             : provider_.set_item_meta(to_api_path, META_SOURCE, source_path);
 
   if (should_upload) {
-    queue_upload(to_api_path, source_path, false);
+    queue_upload(to_api_path, source_path, false, false);
   }
 
   return ret;
@@ -364,13 +480,13 @@ auto file_manager::has_no_open_file_handles() const -> bool {
   return get_open_handle_count() == 0U;
 }
 
-auto file_manager::is_processing(const std::string &api_path) const -> bool {
+auto file_manager::is_processing(std::string_view api_path) const -> bool {
   if (provider_.is_read_only()) {
     return false;
   }
 
   unique_mutex_lock upload_lock(upload_mtx_);
-  if (upload_lookup_.contains(api_path)) {
+  if (upload_lookup_.contains(std::string{api_path})) {
     return true;
   }
   upload_lock.unlock();
@@ -381,7 +497,7 @@ auto file_manager::is_processing(const std::string &api_path) const -> bool {
   };
 
   unique_recur_mutex_lock open_lock(open_file_mtx_);
-  auto file_iter = open_file_lookup_.find(api_path);
+  auto file_iter = open_file_lookup_.find(std::string{api_path});
   if (file_iter == open_file_lookup_.end()) {
     return false;
   }
@@ -395,14 +511,14 @@ auto file_manager::is_processing(const std::string &api_path) const -> bool {
              : false;
 }
 
-auto file_manager::open(const std::string &api_path, bool directory,
+auto file_manager::open(std::string_view api_path, bool directory,
                         const open_file_data &ofd, std::uint64_t &handle,
                         std::shared_ptr<i_open_file> &file) -> api_error {
   recur_mutex_lock open_lock(open_file_mtx_);
   return open(api_path, directory, ofd, handle, file, nullptr);
 }
 
-auto file_manager::open(const std::string &api_path, bool directory,
+auto file_manager::open(std::string_view api_path, bool directory,
                         const open_file_data &ofd, std::uint64_t &handle,
                         std::shared_ptr<i_open_file> &file,
                         std::shared_ptr<i_closeable_open_file> closeable_file)
@@ -412,11 +528,11 @@ auto file_manager::open(const std::string &api_path, bool directory,
   const auto create_and_add_handle =
       [&](std::shared_ptr<i_closeable_open_file> cur_file) {
         handle = get_next_handle();
-        cur_file->add(handle, ofd);
+        cur_file->add(handle, ofd, true);
         file = cur_file;
       };
 
-  auto file_iter = open_file_lookup_.find(api_path);
+  auto file_iter = open_file_lookup_.find(std::string{api_path});
   if (file_iter != open_file_lookup_.end()) {
     create_and_add_handle(file_iter->second);
     return api_error::success;
@@ -535,20 +651,22 @@ auto file_manager::open(const std::string &api_path, bool directory,
     }
   }
 
-  open_file_lookup_[api_path] = closeable_file;
+  open_file_lookup_[std::string{api_path}] = closeable_file;
   create_and_add_handle(closeable_file);
   return api_error::success;
 }
 
 void file_manager::queue_upload(const i_open_file &file) {
-  queue_upload(file.get_api_path(), file.get_source_path(), false);
+  queue_upload(file.get_api_path(), file.get_source_path(), file.is_unlinked(),
+               false);
 }
 
-void file_manager::queue_upload(const std::string &api_path,
-                                const std::string &source_path, bool no_lock) {
+void file_manager::queue_upload(std::string_view api_path,
+                                std::string_view source_path, bool is_unlinked,
+                                bool no_lock) {
   REPERTORY_USES_FUNCTION_NAME();
 
-  if (provider_.is_read_only()) {
+  if (provider_.is_read_only() || is_unlinked) {
     return;
   }
 
@@ -560,8 +678,8 @@ void file_manager::queue_upload(const std::string &api_path,
   remove_upload(api_path, true);
 
   if (mgr_db_->add_upload(i_file_mgr_db::upload_entry{
-          api_path,
-          source_path,
+          std::string{api_path},
+          std::string{source_path},
       })) {
     remove_resume(api_path, source_path, true);
     event_system::instance().raise<file_upload_queued>(api_path, function_name,
@@ -576,8 +694,44 @@ void file_manager::queue_upload(const std::string &api_path,
   }
 }
 
-auto file_manager::remove_file(const std::string &api_path) -> api_error {
+auto file_manager::remove_directory(std::string_view api_path) -> api_error {
   REPERTORY_USES_FUNCTION_NAME();
+
+  if (api_path == "/") {
+    return api_error::permission_denied;
+  }
+
+  unique_recur_mutex_lock open_lock(open_file_mtx_);
+  if (provider_.get_directory_item_count(api_path) != 0) {
+    return api_error::directory_not_empty;
+  }
+
+  auto res = provider_.remove_directory(api_path);
+  if (res != api_error::success) {
+    return res;
+  }
+
+  auto file_iter = open_file_lookup_.find(std::string{api_path});
+  if (file_iter == open_file_lookup_.end()) {
+    return api_error::success;
+  }
+
+  auto closed_file = file_iter->second;
+  open_file_lookup_.erase(std::string{api_path});
+
+  closed_file->set_unlinked(true);
+  for (const auto &[handle, ofd] : closed_file->get_open_data()) {
+    unlinked_file_lookup_[handle] = closed_file;
+  }
+  open_lock.unlock();
+
+  return api_error::success;
+}
+
+auto file_manager::remove_file(std::string_view api_path) -> api_error {
+  REPERTORY_USES_FUNCTION_NAME();
+
+  unique_recur_mutex_lock open_lock(open_file_mtx_);
 
   filesystem_item fsi{};
   auto res = provider_.get_filesystem_item(api_path, false, fsi);
@@ -585,7 +739,11 @@ auto file_manager::remove_file(const std::string &api_path) -> api_error {
     return res;
   }
 
-  auto allocated = close_all(api_path);
+  api_meta_map meta{};
+  res = provider_.get_item_meta(api_path, meta);
+  if (res != api_error::success) {
+    return res;
+  }
 
   unique_mutex_lock upload_lock(upload_mtx_);
   remove_upload(api_path, true);
@@ -593,25 +751,49 @@ auto file_manager::remove_file(const std::string &api_path) -> api_error {
   upload_notify_.notify_all();
   upload_lock.unlock();
 
-  recur_mutex_lock open_lock(open_file_mtx_);
-
   res = provider_.remove_file(api_path);
   if (res != api_error::success) {
     return res;
   }
 
-  remove_source_and_shrink_cache(api_path, fsi.source_path, fsi.size,
-                                 allocated);
+  auto file_iter = open_file_lookup_.find(std::string{api_path});
+  if (file_iter == open_file_lookup_.end()) {
+    remove_source_and_shrink_cache(api_path, fsi.source_path, fsi.size, true);
+    return api_error::success;
+  }
+
+  auto closed_file = file_iter->second;
+  open_file_lookup_.erase(std::string{api_path});
+
+  auto allocated = closed_file->get_allocated();
+  closed_file->set_unlinked(true);
+  closed_file->set_unlinked_meta(meta);
+  for (const auto &[handle, ofd] : closed_file->get_open_data()) {
+    unlinked_file_lookup_[handle] = closed_file;
+  }
+  open_lock.unlock();
+
+  if (not allocated) {
+    return api_error::success;
+  }
+
+  res = cache_size_mgr::instance().shrink(closed_file->get_file_size());
+  if (res != api_error::success) {
+    utils::error::raise_api_path_error(function_name, api_path,
+                                       closed_file->get_source_path(), res,
+                                       "failed to shrink cache");
+  }
+
   return api_error::success;
 }
 
-void file_manager::remove_resume(const std::string &api_path,
-                                 const std::string &source_path) {
+void file_manager::remove_resume(std::string_view api_path,
+                                 std::string_view source_path) {
   remove_resume(api_path, source_path, false);
 }
 
-void file_manager::remove_resume(const std::string &api_path,
-                                 const std::string &source_path, bool no_lock) {
+void file_manager::remove_resume(std::string_view api_path,
+                                 std::string_view source_path, bool no_lock) {
   REPERTORY_USES_FUNCTION_NAME();
 
   if (provider_.is_read_only()) {
@@ -633,9 +815,10 @@ void file_manager::remove_resume(const std::string &api_path,
   }
 }
 
-auto file_manager::remove_source_and_shrink_cache(
-    const std::string &api_path, const std::string &source_path,
-    std::uint64_t file_size, bool allocated) -> bool {
+auto file_manager::remove_source_and_shrink_cache(std::string_view api_path,
+                                                  std::string_view source_path,
+                                                  std::uint64_t file_size,
+                                                  bool allocated) -> bool {
   REPERTORY_USES_FUNCTION_NAME();
 
   auto file = utils::file::file{source_path};
@@ -667,11 +850,11 @@ auto file_manager::remove_source_and_shrink_cache(
   return true;
 }
 
-void file_manager::remove_upload(const std::string &api_path) {
+void file_manager::remove_upload(std::string_view api_path) {
   remove_upload(api_path, false);
 }
 
-void file_manager::remove_upload(const std::string &api_path, bool no_lock) {
+void file_manager::remove_upload(std::string_view api_path, bool no_lock) {
   REPERTORY_USES_FUNCTION_NAME();
 
   if (provider_.is_read_only()) {
@@ -695,9 +878,9 @@ void file_manager::remove_upload(const std::string &api_path, bool no_lock) {
                                        "failed to remove active upload");
   }
 
-  if (upload_lookup_.contains(api_path)) {
-    upload_lookup_.at(api_path)->cancel();
-    upload_lookup_.erase(api_path);
+  if (upload_lookup_.contains(std::string{api_path})) {
+    upload_lookup_.at(std::string{api_path})->cancel();
+    upload_lookup_.erase(std::string{api_path});
   }
 
   if (removed) {
@@ -710,9 +893,8 @@ void file_manager::remove_upload(const std::string &api_path, bool no_lock) {
   }
 }
 
-auto file_manager::rename_directory(const std::string &from_api_path,
-                                    const std::string &to_api_path)
-    -> api_error {
+auto file_manager::rename_directory(std::string_view from_api_path,
+                                    std::string_view to_api_path) -> api_error {
   if (not provider_.is_rename_supported()) {
     return api_error::not_implemented;
   }
@@ -786,8 +968,8 @@ auto file_manager::rename_directory(const std::string &from_api_path,
   return api_error::success;
 }
 
-auto file_manager::rename_file(const std::string &from_api_path,
-                               const std::string &to_api_path, bool overwrite)
+auto file_manager::rename_file(std::string_view from_api_path,
+                               std::string_view to_api_path, bool overwrite)
     -> api_error {
   if (not provider_.is_rename_supported()) {
     return api_error::not_implemented;
@@ -887,10 +1069,10 @@ void file_manager::start() {
   }
 
   for (const auto &entry : mgr_db_->get_upload_active_list()) {
-    queue_upload(entry.api_path, entry.source_path, false);
+    queue_upload(entry.api_path, entry.source_path, false, false);
   }
 
-  for (const auto &entry : mgr_db_->get_resume_list()) {
+  for (const auto &entry : get_stored_downloads()) {
     try {
       filesystem_item fsi{};
       auto res = provider_.get_filesystem_item(entry.api_path, false, fsi);
@@ -939,10 +1121,17 @@ void file_manager::start() {
                                           : 0U,
                                       fsi, provider_, entry.read_state, *this);
       open_file_lookup_[entry.api_path] = closeable_file;
+      closeable_file->force_download();
+
       event_system::instance().raise<download_restored>(
           fsi.api_path, fsi.source_path, function_name);
     } catch (const std::exception &ex) {
       utils::error::raise_error(function_name, ex, "query error");
+    }
+  }
+
+  for (const auto &api_path : provider_.get_pinned_files()) {
+    if (not download_pinned_file(api_path)) {
     }
   }
 
@@ -1000,7 +1189,7 @@ void file_manager::stop() {
 void file_manager::store_resume(const i_open_file &file) {
   REPERTORY_USES_FUNCTION_NAME();
 
-  if (provider_.is_read_only()) {
+  if (provider_.is_read_only() || file.is_unlinked()) {
     return;
   }
 
@@ -1020,16 +1209,18 @@ void file_manager::store_resume(const i_open_file &file) {
       function_name);
 }
 
-void file_manager::swap_renamed_items(std::string from_api_path,
-                                      std::string to_api_path, bool directory) {
+void file_manager::swap_renamed_items(std::string_view from_api_path,
+                                      std::string_view to_api_path,
+                                      bool directory) {
   REPERTORY_USES_FUNCTION_NAME();
 
-  auto file_iter = open_file_lookup_.find(from_api_path);
+  auto file_iter = open_file_lookup_.find(std::string{from_api_path});
   if (file_iter != open_file_lookup_.end()) {
-    auto closeable_file = std::move(open_file_lookup_[from_api_path]);
-    open_file_lookup_.erase(from_api_path);
+    auto closeable_file =
+        std::move(open_file_lookup_[std::string{from_api_path}]);
+    open_file_lookup_.erase(std::string{from_api_path});
     closeable_file->set_api_path(to_api_path);
-    open_file_lookup_[to_api_path] = std::move(closeable_file);
+    open_file_lookup_[std::string{to_api_path}] = std::move(closeable_file);
   }
 
   if (directory) {
@@ -1071,7 +1262,7 @@ void file_manager::upload_completed(const file_upload_completed &evt) {
         event_system::instance().raise<file_upload_retry>(
             evt.api_path, evt.error, function_name, evt.source_path);
 
-        queue_upload(evt.api_path, evt.source_path, true);
+        queue_upload(evt.api_path, evt.source_path, false, true);
         upload_notify_.wait_for(upload_lock, queue_wait_secs);
       }
     }
@@ -1126,7 +1317,7 @@ void file_manager::upload_handler() {
           default: {
             event_system::instance().raise<file_upload_retry>(
                 entry->api_path, res, function_name, entry->source_path);
-            queue_upload(entry->api_path, entry->source_path, true);
+            queue_upload(entry->api_path, entry->source_path, false, true);
           } break;
           }
         }

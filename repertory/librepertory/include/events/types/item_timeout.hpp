@@ -28,9 +28,8 @@
 namespace repertory {
 struct item_timeout final : public i_event {
   item_timeout() = default;
-  item_timeout(std::string api_path_, std::string_view function_name_)
-      : api_path(std::move(api_path_)),
-        function_name(std::string(function_name_)) {}
+  item_timeout(std::string_view api_path_, std::string_view function_name_)
+      : api_path(api_path_), function_name(function_name_) {}
 
   static constexpr event_level level{event_level::trace};
   static constexpr std::string_view name{"item_timeout"};

@@ -30,9 +30,17 @@ void create_console();
 
 void free_console();
 
+[[nodiscard]] auto get_available_drive_letter(char first = 'a')
+    -> std::optional<std::string_view>;
+
+[[nodiscard]] auto get_available_drive_letters(char first = 'a')
+    -> std::vector<std::string_view>;
+
 [[nodiscard]] auto get_local_app_data_directory() -> const std::string &;
 
 [[nodiscard]] auto get_last_error_code() -> DWORD;
+
+[[nodiscard]] auto get_startup_folder() -> std::wstring;
 
 [[nodiscard]] auto get_thread_id() -> std::uint64_t;
 
@@ -40,7 +48,24 @@ void free_console();
 
 [[nodiscard]] auto run_process_elevated(std::vector<const char *> args) -> int;
 
-void set_last_error_code(DWORD errorCode);
+struct shortcut_cfg final {
+  std::wstring arguments;
+  std::wstring exe_path;
+  std::wstring icon_path;
+  std::wstring location{get_startup_folder()};
+  std::wstring shortcut_name;
+  std::wstring working_directory;
+};
+
+[[nodiscard]]
+auto create_shortcut(const shortcut_cfg &cfg, bool overwrite_existing = true)
+    -> bool;
+
+[[nodiscard]] auto
+remove_shortcut(std::wstring shortcut_name,
+                const std::wstring &location = get_startup_folder()) -> bool;
+
+void set_last_error_code(DWORD error_code);
 } // namespace repertory::utils
 
 #endif // defined(_WIN32)

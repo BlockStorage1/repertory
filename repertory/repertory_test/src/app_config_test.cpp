@@ -128,7 +128,7 @@ std::atomic<std::uint64_t> app_config_test::idx{0U};
 
 static void defaults_tests(const json &json_data, provider_type prov) {
   json json_defaults = {
-      {JSON_API_PORT, app_config::default_rpc_port()},
+      {JSON_API_PORT, default_rpc_port},
       {JSON_API_USER, std::string{REPERTORY}},
       {JSON_DOWNLOAD_TIMEOUT_SECS, default_download_timeout_secs},
       {JSON_DATABASE_TYPE, database_type::rocksdb},
@@ -197,8 +197,8 @@ static void defaults_tests(const json &json_data, provider_type prov) {
 
 template <typename get_t, typename set_t, typename val_t>
 static void test_getter_setter(app_config &cfg, get_t getter, set_t setter,
-                               val_t val1, val_t val2, const std::string &key,
-                               const std::string &val_str) {
+                               val_t val1, val_t val2, std::string_view key,
+                               std::string_view val_str) {
   (cfg.*setter)(val1);
   ASSERT_TRUE((cfg.*getter)() == val1);
 
@@ -209,7 +209,8 @@ static void test_getter_setter(app_config &cfg, get_t getter, set_t setter,
     return;
   }
 
-  EXPECT_STREQ(val_str.c_str(), cfg.set_value_by_name(key, val_str).c_str());
+  EXPECT_STREQ(std::string{val_str}.c_str(),
+               cfg.set_value_by_name(key, val_str).c_str());
 }
 
 static void common_tests(app_config &config, provider_type prov) {
@@ -484,14 +485,16 @@ static void common_tests(app_config &config, provider_type prov) {
          remote_cfg1.max_connections = 4U;
          remote_cfg1.recv_timeout_ms = 5U;
          remote_cfg1.send_timeout_ms = 6U;
+         remote_cfg1.conn_timeout_ms = 7U;
 
          remote::remote_config remote_cfg2{};
-         remote_cfg1.api_port = 6U;
-         remote_cfg1.encryption_token = "5";
-         remote_cfg1.host_name_or_ip = "4";
-         remote_cfg1.max_connections = 3U;
-         remote_cfg1.recv_timeout_ms = 2U;
-         remote_cfg1.send_timeout_ms = 1U;
+         remote_cfg1.api_port = 7U;
+         remote_cfg1.encryption_token = "6";
+         remote_cfg1.host_name_or_ip = "6";
+         remote_cfg1.max_connections = 4U;
+         remote_cfg1.recv_timeout_ms = 3U;
+         remote_cfg1.send_timeout_ms = 2U;
+         remote_cfg1.conn_timeout_ms = 1U;
 
          ASSERT_NE(remote_cfg1, remote_cfg2);
 
@@ -506,11 +509,18 @@ static void common_tests(app_config &config, provider_type prov) {
          remote_cfg1.max_connections = 10U;
          remote_cfg1.recv_timeout_ms = 11U;
          remote_cfg1.send_timeout_ms = 12U;
+         remote_cfg1.conn_timeout_ms = 13U;
 
          auto value = cfg.set_value_by_name(
              fmt::format("{}.{}", JSON_REMOTE_CONFIG, JSON_API_PORT),
              std::to_string(remote_cfg3.api_port));
          EXPECT_STREQ(std::to_string(remote_cfg3.api_port).c_str(),
+                      value.c_str());
+
+         value = cfg.set_value_by_name(
+             fmt::format("{}.{}", JSON_REMOTE_CONFIG, JSON_CONNECT_TIMEOUT_MS),
+             std::to_string(remote_cfg3.conn_timeout_ms));
+         EXPECT_STREQ(std::to_string(remote_cfg3.conn_timeout_ms).c_str(),
                       value.c_str());
 
          value = cfg.set_value_by_name(
@@ -623,6 +633,7 @@ static void common_tests(app_config &config, provider_type prov) {
          cfg1.url = "7";
          cfg1.use_path_style = false;
          cfg1.use_region_in_url = false;
+         cfg1.force_legacy_encryption = false;
 
          s3_config cfg2{};
          cfg2.access_key = "8";
@@ -634,6 +645,7 @@ static void common_tests(app_config &config, provider_type prov) {
          cfg2.url = "14";
          cfg2.use_path_style = true;
          cfg2.use_region_in_url = true;
+         cfg2.force_legacy_encryption = true;
 
          ASSERT_NE(cfg1, cfg2);
 
@@ -650,6 +662,7 @@ static void common_tests(app_config &config, provider_type prov) {
          cfg3.url = "14";
          cfg3.use_path_style = true;
          cfg3.use_region_in_url = true;
+         cfg3.force_legacy_encryption = true;
 
          auto value = cfg.set_value_by_name(
              fmt::format("{}.{}", JSON_S3_CONFIG, JSON_ACCESS_KEY),
@@ -694,6 +707,13 @@ static void common_tests(app_config &config, provider_type prov) {
              utils::string::from_bool(cfg3.use_region_in_url));
          EXPECT_STREQ(utils::string::from_bool(cfg3.use_region_in_url).c_str(),
                       value.c_str());
+
+         value = cfg.set_value_by_name(
+             fmt::format("{}.{}", JSON_S3_CONFIG, JSON_FORCE_LEGACY_ENCRYPTION),
+             utils::string::from_bool(cfg3.force_legacy_encryption));
+         EXPECT_STREQ(
+             utils::string::from_bool(cfg3.force_legacy_encryption).c_str(),
+             value.c_str());
        }},
       {JSON_SIA_CONFIG,
        [](app_config &cfg) {

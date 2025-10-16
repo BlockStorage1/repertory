@@ -101,6 +101,8 @@ private:
 public:
   auto close() -> bool override;
 
+  void force_download() override;
+
   [[nodiscard]] auto get_allocated() const -> bool override;
 
   [[nodiscard]] auto get_read_state() const -> boost::dynamic_bitset<> override;

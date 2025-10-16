@@ -23,7 +23,9 @@
 
 #include "utils/unix/unix_utils.hpp"
 
-#include "utils/error_utils.hpp"
+#include "utils/common.hpp"
+#include "utils/file.hpp"
+#include "utils/path.hpp"
 
 namespace repertory::utils {
 auto from_api_error(api_error err) -> int {
@@ -74,6 +76,10 @@ auto from_api_error(api_error err) -> int {
     return -ENOTSUP;
   case api_error::not_implemented:
     return -ENOSYS;
+  case api_error::no_tty:
+    return -ENOTTY;
+  case api_error::stale_descriptor:
+    return -ESTALE;
   case api_error::upload_failed:
     return -ENETDOWN;
   case api_error::xattr_buffer_small:
@@ -118,10 +124,10 @@ auto to_api_error(int err) -> api_error {
 #if defined(__APPLE__)
   case EBADMSG:
     return api_error::download_failed;
-#else
+#else  // !defined(__APPLE__)
   case EREMOTEIO:
     return api_error::download_failed;
-#endif
+#endif // defined(__APPLE__)
   case EIO:
     return api_error::error;
   case EEXIST:
@@ -130,8 +136,6 @@ auto to_api_error(int err) -> api_error {
     return api_error::file_in_use;
   case EINVAL:
     return api_error::invalid_operation;
-  case ENAMETOOLONG:
-    return api_error::name_too_long;
   case ENOENT:
     return api_error::item_not_found;
   case ENOMEM:
@@ -144,6 +148,10 @@ auto to_api_error(int err) -> api_error {
     return api_error::not_supported;
   case ENOSYS:
     return api_error::not_implemented;
+  case ESTALE:
+    return api_error::stale_descriptor;
+  case ENOTTY:
+    return api_error::no_tty;
   case ENETDOWN:
     return api_error::upload_failed;
   case ERANGE:
@@ -151,17 +159,19 @@ auto to_api_error(int err) -> api_error {
 #if defined(__APPLE__)
   case ENOATTR:
     return api_error::xattr_not_found;
-#else
+#else  // !defined(__APPLE__)
   case ENODATA:
     return api_error::xattr_not_found;
-#endif
+#endif // defined(__APPLE__)
 #if defined(__APPLE__)
   case ENAMETOOLONG:
     return api_error::xattr_too_big;
-#else
+#else  // !defined(__APPLE__)
+  case ENAMETOOLONG:
+    return api_error::name_too_long;
   case E2BIG:
     return api_error::xattr_too_big;
-#endif
+#endif // defined(__APPLE__)
   default:
     return api_error::error;
   }
@@ -174,6 +184,8 @@ auto unix_error_to_windows(int err) -> std::uint32_t {
   case EACCES:
   case EPERM:
     return STATUS_ACCESS_DENIED;
+  case ESTALE:
+    return STATUS_INVALID_HANDLE;
   case EBADF:
     return STATUS_INVALID_HANDLE;
   case EBUSY:
@@ -207,9 +219,8 @@ auto unix_error_to_windows(int err) -> std::uint32_t {
   }
 }
 
-void windows_create_to_unix(const UINT32 &create_options,
-                            const UINT32 &granted_access, std::uint32_t &flags,
-                            remote::file_mode &mode) {
+void windows_create_to_unix(UINT32 create_options, UINT32 granted_access,
+                            std::uint32_t &flags, remote::file_mode &mode) {
   mode = S_IRUSR | S_IWUSR;
   flags = O_CREAT | O_RDWR;
   if ((create_options & FILE_DIRECTORY_FILE) != 0U) {
@@ -223,6 +234,89 @@ void windows_create_to_unix(const UINT32 &create_options,
     mode |= (S_IXUSR);
   }
 }
+
+auto create_daemon(std::function<int()> main_func) -> int {
+  const auto recreate_handles = []() -> int {
+    close(STDIN_FILENO);
+    close(STDOUT_FILENO);
+    close(STDERR_FILENO);
+
+    auto file_desc = open("/dev/null", O_RDWR);
+    if (file_desc < 0) {
+      return 1;
+    }
+
+    dup2(file_desc, STDIN_FILENO);
+    dup2(file_desc, STDOUT_FILENO);
+    dup2(file_desc, STDERR_FILENO);
+
+    if (file_desc > STDERR_FILENO) {
+      close(file_desc);
+    }
+
+    return 0;
+  };
+
+#if defined(__APPLE__)
+  auto pid = fork();
+  if (pid < 0) {
+    return 1;
+  }
+
+  if (pid > 0) {
+    return 0;
+  }
+
+  if (setsid() < 0) {
+    return 1;
+  }
+
+  pid = fork();
+  if (pid < 0) {
+    return 1;
+  }
+
+  if (pid > 0) {
+    _exit(0);
+  }
+
+  if (recreate_handles() != 0) {
+    return 1;
+  }
+
+  signal(SIGCHLD, SIG_DFL);
+  signal(SIGHUP, SIG_DFL);
+  signal(SIGPIPE, SIG_IGN);
+
+  chdir("/");
+  return main_func();
+#else  // !defined(__APPLE__)
+  auto pid = fork();
+  if (pid < 0) {
+    return 1;
+  }
+
+  if (pid == 0) {
+    signal(SIGCHLD, SIG_DFL);
+
+    if (setsid() < 0) {
+      return 1;
+    }
+
+    if (recreate_handles() != 0) {
+      return 1;
+    }
+
+    chdir("/");
+    return main_func();
+  }
+
+  signal(SIGCHLD, SIG_IGN);
+#endif // defined(__APPLE__)
+
+  return 0;
+}
+
 } // namespace repertory::utils
 
-#endif // !_WIN32
+#endif // !defined(_WIN32)

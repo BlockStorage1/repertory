@@ -44,21 +44,20 @@ private:
   std::unordered_map<std::string, api_meta_map> meta_;
 
 public:
-  auto check_owner(const std::string &) const -> api_error override {
+  auto check_owner(std::string_view) const -> api_error override {
     return api_error::success;
   }
 
-  auto check_parent_access(const std::string &, int) const
-      -> api_error override {
+  auto check_parent_access(std::string_view, int) const -> api_error override {
     return api_error::success;
   }
 
-  auto get_directory_item_count(const std::string &) const
+  auto get_directory_item_count(std::string_view) const
       -> std::uint64_t override {
     return 1;
   }
 
-  auto get_directory_items(const std::string &) const
+  auto get_directory_items(std::string_view) const
       -> directory_item_list override {
     directory_item_list list{};
 
@@ -80,19 +79,20 @@ public:
     return list;
   }
 
-  auto get_file_size(const std::string &) const -> std::uint64_t override {
+  auto get_file_size(std::string_view) const -> std::uint64_t override {
     return 0U;
   }
 
-  auto get_item_meta(const std::string &api_path, api_meta_map &meta) const
+  auto get_item_meta(std::string_view api_path, api_meta_map &meta) const
       -> api_error override {
-    meta = const_cast<mock_fuse_drive *>(this)->meta_[api_path];
+    meta = const_cast<mock_fuse_drive *>(this)->meta_[std::string{api_path}];
     return api_error::success;
   }
 
-  auto get_item_meta(const std::string &api_path, const std::string &name,
+  auto get_item_meta(std::string_view api_path, std::string_view name,
                      std::string &value) const -> api_error override {
-    value = const_cast<mock_fuse_drive *>(this)->meta_[api_path][name];
+    value = const_cast<mock_fuse_drive *>(this)
+                ->meta_[std::string{api_path}][std::string{name}];
     if (value.empty()) {
       value = "0";
     }
@@ -114,8 +114,8 @@ public:
     volume_label = "TestVolumeLabel";
   }
 
-  auto rename_directory(const std::string &from_api_path,
-                        const std::string &to_api_path) -> int override {
+  auto rename_directory(std::string_view from_api_path,
+                        std::string_view to_api_path) -> int override {
     const auto from_file_path =
         utils::path::combine(mount_location_, {from_api_path});
     const auto to_file_path =
@@ -123,9 +123,8 @@ public:
     return rename(from_file_path.c_str(), to_file_path.c_str());
   }
 
-  auto rename_file(const std::string &from_api_path,
-                   const std::string &to_api_path, bool overwrite)
-      -> int override {
+  auto rename_file(std::string_view from_api_path, std::string_view to_api_path,
+                   bool overwrite) -> int override {
     const auto from_file_path =
         utils::path::combine(mount_location_, {from_api_path});
     const auto to_file_path =
@@ -144,21 +143,20 @@ public:
     return rename(from_file_path.c_str(), to_file_path.c_str());
   }
 
-  auto is_processing(const std::string &) const -> bool override {
-    return false;
+  auto is_processing(std::string_view) const -> bool override { return false; }
+
+  void set_item_meta(std::string_view api_path, std::string_view key,
+                     std::string_view value) override {
+    meta_[std::string{api_path}][std::string{key}] = value;
   }
 
-  void set_item_meta(const std::string &api_path, const std::string &key,
-                     const std::string &value) override {
-    meta_[api_path][key] = value;
-  }
-
-  void set_item_meta(const std::string &api_path,
+  void set_item_meta(std::string_view api_path,
                      const api_meta_map &meta) override {
     for (const auto &[key, value] : meta) {
-      meta_[api_path][key] = value;
+      meta_[std::string{api_path}][key] = value;
     }
-  };
+  }
+};
 } // namespace repertory
 
 #endif // !defined(_WIN32)

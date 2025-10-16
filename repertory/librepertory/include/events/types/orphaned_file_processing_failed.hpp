@@ -28,13 +28,14 @@
 namespace repertory {
 struct orphaned_file_processing_failed final : public i_event {
   orphaned_file_processing_failed() = default;
-  orphaned_file_processing_failed(std::string dest_path_, std::string error_,
+  orphaned_file_processing_failed(std::string_view dest_path_,
+                                  std::string_view error_,
                                   std::string_view function_name_,
-                                  std::string source_path_)
-      : dest_path(std::move(dest_path_)),
-        error(std::move(error_)),
-        function_name(std::string(function_name_)),
-        source_path(std::move(source_path_)) {}
+                                  std::string_view source_path_)
+      : dest_path(dest_path_),
+        error(error_),
+        function_name(function_name_),
+        source_path(source_path_) {}
 
   static constexpr event_level level{event_level::error};
   static constexpr std::string_view name{

@@ -71,14 +71,15 @@ auto clean_json_value(std::string_view name, std::string_view data)
   return std::string{data};
 }
 
-auto database_type_from_string(std::string type, database_type default_type)
-    -> database_type {
-  type = utils::string::to_lower(utils::string::trim(type));
-  if (type == "rocksdb") {
+auto database_type_from_string(std::string_view type,
+                               database_type default_type) -> database_type {
+  auto type_lower =
+      utils::string::to_lower(utils::string::trim_copy(std::string{type}));
+  if (type_lower == "rocksdb") {
     return database_type::rocksdb;
   }
 
-  if (type == "sqlite") {
+  if (type_lower == "sqlite") {
     return database_type::sqlite;
   }
 
@@ -96,18 +97,19 @@ auto database_type_to_string(const database_type &type) -> std::string {
   }
 }
 
-auto download_type_from_string(std::string type, download_type default_type)
-    -> download_type {
-  type = utils::string::to_lower(utils::string::trim(type));
-  if (type == "default") {
+auto download_type_from_string(std::string_view type,
+                               download_type default_type) -> download_type {
+  auto type_lower =
+      utils::string::to_lower(utils::string::trim_copy(std::string{type}));
+  if (type_lower == "default") {
     return download_type::default_;
   }
 
-  if (type == "direct") {
+  if (type_lower == "direct") {
     return download_type::direct;
   }
 
-  if (type == "ring_buffer") {
+  if (type_lower == "ring_buffer") {
     return download_type::ring_buffer;
   }
 
@@ -127,30 +129,31 @@ auto download_type_to_string(const download_type &type) -> std::string {
   }
 }
 
-auto event_level_from_string(std::string level, event_level default_level)
+auto event_level_from_string(std::string_view type, event_level default_level)
     -> event_level {
-  level = utils::string::to_lower(level);
-  if (level == "critical" || level == "event_level::critical") {
+  auto type_lower =
+      utils::string::to_lower(utils::string::trim_copy(std::string{type}));
+  if (type_lower == "critical" || type_lower == "event_level::critical") {
     return event_level::critical;
   }
 
-  if (level == "debug" || level == "event_level::debug") {
+  if (type_lower == "debug" || type_lower == "event_level::debug") {
     return event_level::debug;
   }
 
-  if (level == "warn" || level == "event_level::warn") {
+  if (type_lower == "warn" || type_lower == "event_level::warn") {
     return event_level::warn;
   }
 
-  if (level == "info" || level == "event_level::info") {
+  if (type_lower == "info" || type_lower == "event_level::info") {
     return event_level::info;
   }
 
-  if (level == "error" || level == "event_level::error") {
+  if (type_lower == "error" || type_lower == "event_level::error") {
     return event_level::error;
   }
 
-  if (level == "trace" || level == "event_level::trace") {
+  if (type_lower == "trace" || type_lower == "event_level::trace") {
     return event_level::trace;
   }
 
@@ -175,6 +178,7 @@ auto event_level_to_string(event_level level) -> std::string {
     return "info";
   }
 }
+
 static const std::unordered_map<api_error, std::string> LOOKUP = {
     {api_error::success, "success"},
     {api_error::access_denied, "access_denied"},
@@ -210,9 +214,11 @@ static const std::unordered_map<api_error, std::string> LOOKUP = {
     {api_error::no_disk_space, "no_disk_space"},
     {api_error::not_implemented, "not_implemented"},
     {api_error::not_supported, "not_supported"},
+    {api_error::no_tty, "no_tty"},
     {api_error::os_error, "os_error"},
     {api_error::out_of_memory, "out_of_memory"},
     {api_error::permission_denied, "permission_denied"},
+    {api_error::stale_descriptor, "stale_descriptor"},
     {api_error::upload_failed, "upload_failed"},
     {api_error::xattr_buffer_small, "xattr_buffer_small"},
     {api_error::xattr_exists, "xattr_exists"},
@@ -240,7 +246,8 @@ auto api_error_to_string(api_error error) -> const std::string & {
 
 auto provider_type_from_string(std::string_view type,
                                provider_type default_type) -> provider_type {
-  auto type_lower = utils::string::to_lower(std::string{type});
+  auto type_lower =
+      utils::string::to_lower(utils::string::trim_copy(std::string{type}));
   if (type_lower == "encrypt") {
     return provider_type::encrypt;
   }

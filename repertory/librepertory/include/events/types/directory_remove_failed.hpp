@@ -28,11 +28,9 @@
 namespace repertory {
 struct directory_remove_failed final : public i_event {
   directory_remove_failed() = default;
-  directory_remove_failed(std::string api_path_, api_error error_,
+  directory_remove_failed(std::string_view api_path_, api_error error_,
                           std::string_view function_name_)
-      : api_path(std::move(api_path_)),
-        error(error_),
-        function_name(std::string(function_name_)) {}
+      : api_path(api_path_), error(error_), function_name(function_name_) {}
 
   static constexpr event_level level{event_level::error};
   static constexpr std::string_view name{"directory_remove_failed"};

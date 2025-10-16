@@ -518,14 +518,16 @@ void packet::encode_top(remote::file_info val) {
   encode_top(&val, sizeof(val), true);
 }
 
-void packet::encrypt(std::string_view token) {
+void packet::encrypt(std::string_view token, bool include_size) {
   REPERTORY_USES_FUNCTION_NAME();
 
   try {
     data_buffer result;
     utils::encryption::encrypt_data(token, buffer_, result);
     buffer_ = std::move(result);
-    encode_top(static_cast<std::uint32_t>(buffer_.size()));
+    if (include_size) {
+      encode_top(static_cast<std::uint32_t>(buffer_.size()));
+    }
   } catch (const std::exception &e) {
     utils::error::raise_error(function_name, e, "exception occurred");
   }

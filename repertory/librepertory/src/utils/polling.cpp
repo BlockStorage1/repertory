@@ -97,9 +97,9 @@ auto polling::get_stop_requested() const -> bool {
   return stop_requested_ || app_config::get_stop_requested();
 }
 
-void polling::remove_callback(const std::string &name) {
+void polling::remove_callback(std::string_view name) {
   mutex_lock lock(mutex_);
-  items_.erase(name);
+  items_.erase(std::string{name});
 }
 
 void polling::set_callback(const polling_item &item) {

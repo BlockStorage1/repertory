@@ -119,6 +119,8 @@ private:
   };
   bool modified_{false};
   bool removed_{false};
+  bool unlinked_{false};
+  api_meta_map unlinked_meta_;
 
 private:
   void file_io_thread();
@@ -164,7 +166,7 @@ protected:
   void wait_for_io(stop_type_callback stop_requested_cb);
 
 public:
-  void add(std::uint64_t handle, open_file_data ofd) override;
+  void add(std::uint64_t handle, open_file_data ofd, bool notify) override;
 
   [[nodiscard]] auto can_close() const -> bool override;
 
@@ -202,11 +204,15 @@ public:
 
   [[nodiscard]] auto get_source_path() const -> std::string override;
 
+  [[nodiscard]] auto get_unlinked_meta() const -> api_meta_map override;
+
   [[nodiscard]] auto has_handle(std::uint64_t handle) const -> bool override;
 
   [[nodiscard]] auto is_directory() const -> bool override {
     return fsi_.directory;
   }
+
+  [[nodiscard]] auto is_unlinked() const -> bool override;
 
   [[nodiscard]] auto is_modified() const -> bool override;
 
@@ -214,7 +220,11 @@ public:
 
   void remove_all() override;
 
-  void set_api_path(const std::string &api_path) override;
+  void set_api_path(std::string_view api_path) override;
+
+  void set_unlinked(bool value) override;
+
+  void set_unlinked_meta(api_meta_map meta) override;
 };
 } // namespace repertory
 

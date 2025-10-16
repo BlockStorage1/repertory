@@ -29,9 +29,9 @@ namespace repertory {
 struct provider_offline final : public i_event {
   provider_offline() = default;
   provider_offline(std::string_view function_name_,
-                   std::string host_name_or_ip_, std::uint16_t port_)
-      : function_name(std::string(function_name_)),
-        host_name_or_ip(std::move(host_name_or_ip_)),
+                   std::string_view host_name_or_ip_, std::uint16_t port_)
+      : function_name(function_name_),
+        host_name_or_ip(host_name_or_ip_),
         port(port_) {}
 
   static constexpr event_level level{event_level::warn};

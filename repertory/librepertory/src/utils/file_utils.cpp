@@ -99,19 +99,20 @@ auto get_directory_files(std::string_view path, bool oldest_first,
 
     closedir(root);
 
-    const auto add_to_lookup = [&](const std::string &lookup_path) {
-      if (lookup.find(lookup_path) == lookup.end()) {
-        struct stat st {};
-        stat(lookup_path.c_str(), &st);
+    const auto add_to_lookup = [&](std::string_view lookup_path) {
+      if (lookup.find(std::string{lookup_path}) == lookup.end()) {
+        struct stat u_stat{};
+        stat(std::string{lookup_path}.c_str(), &u_stat);
 #if defined(__APPLE__)
-        lookup[lookup_path] =
-            (static_cast<std::uint64_t>(st.st_mtimespec.tv_sec) *
+        lookup[std::string{lookup_path}] =
+            (static_cast<std::uint64_t>(u_stat.st_mtimespec.tv_sec) *
              utils::time::NANOS_PER_SECOND) +
-            static_cast<std::uint64_t>(st.st_mtimespec.tv_nsec);
+            static_cast<std::uint64_t>(u_stat.st_mtimespec.tv_nsec);
 #else  // !defined(__APPLE__)
-        lookup[lookup_path] = (static_cast<std::uint64_t>(st.st_mtim.tv_sec) *
-                               utils::time::NANOS_PER_SECOND) +
-                              static_cast<std::uint64_t>(st.st_mtim.tv_nsec);
+        lookup[std::string{lookup_path}] =
+            (static_cast<std::uint64_t>(u_stat.st_mtim.tv_sec) *
+             utils::time::NANOS_PER_SECOND) +
+            static_cast<std::uint64_t>(u_stat.st_mtim.tv_nsec);
 #endif // defined(__APPLE__)
       }
     };
@@ -127,21 +128,21 @@ auto get_directory_files(std::string_view path, bool oldest_first,
   return ret;
 }
 
-auto read_file_lines(const std::string &path) -> std::vector<std::string> {
+auto read_file_lines(std::string_view path) -> std::vector<std::string> {
   std::vector<std::string> ret;
   if (utils::file::file(path).exists()) {
-    std::ifstream fs(path);
+    std::ifstream stream(std::string{path});
     std::string current_line;
-    while (not fs.eof() && std::getline(fs, current_line)) {
+    while (not stream.eof() && std::getline(stream, current_line)) {
       ret.emplace_back(utils::string::right_trim(current_line, '\r'));
     }
-    fs.close();
+    stream.close();
   }
 
   return ret;
 }
 
-auto reset_modified_time(const std::string &path) -> bool {
+auto reset_modified_time(std::string_view path) -> bool {
   auto ret{false};
 #if defined(_WIN32)
   SYSTEMTIME st{};
@@ -150,7 +151,7 @@ auto reset_modified_time(const std::string &path) -> bool {
   FILETIME ft{};
   if ((ret = !!::SystemTimeToFileTime(&st, &ft))) {
     auto handle = ::CreateFileA(
-        path.c_str(), FILE_READ_ATTRIBUTES | FILE_WRITE_ATTRIBUTES,
+        std::string{path}.c_str(), FILE_READ_ATTRIBUTES | FILE_WRITE_ATTRIBUTES,
         FILE_SHARE_DELETE | FILE_SHARE_READ | FILE_SHARE_WRITE, nullptr,
         OPEN_EXISTING, 0, nullptr);
     if ((ret = (handle != INVALID_HANDLE_VALUE))) {
@@ -159,10 +160,11 @@ auto reset_modified_time(const std::string &path) -> bool {
     }
   }
 #else  // !defined(_WIN32)
-  auto fd = open(path.c_str(), O_RDWR);
-  if ((ret = (fd != -1))) {
-    ret = futimens(fd, nullptr) == 0;
-    close(fd);
+  auto desc = open(std::string{path}.c_str(), O_RDWR);
+  ret = (desc != -1);
+  if (ret) {
+    ret = futimens(desc, nullptr) == 0;
+    close(desc);
   }
 #endif // defined(_WIN32)
 

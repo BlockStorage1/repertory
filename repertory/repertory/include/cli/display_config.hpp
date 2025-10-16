@@ -26,29 +26,40 @@
 
 namespace repertory::cli::actions {
 [[nodiscard]] inline auto display_config(std::vector<const char *> /* args */,
-                                         const std::string &data_directory,
-                                         const provider_type &prov,
-                                         const std::string &unique_id,
-                                         std::string user,
-                                         std::string password) -> exit_code {
-  lock_data lock(prov, unique_id);
-  const auto res = lock.grab_lock(1U);
-  if (res == lock_result::success) {
-    app_config config(prov, data_directory);
-    const auto cfg = config.get_json();
-    std::cout << 0 << std::endl;
-    std::cout << cfg.dump(2) << std::endl;
-  } else if (res == lock_result::locked) {
-    auto port = app_config::default_api_port(prov);
-    utils::cli::get_api_authentication_data(user, password, port, prov,
-                                            data_directory);
-    const auto response =
-        client({"localhost", password, port, user}).get_config();
-    std::cout << static_cast<int>(response.response_type) << std::endl;
-    std::cout << response.data.dump(2) << std::endl;
+                                         std::string_view data_directory,
+                                         provider_type prov,
+                                         std::string_view unique_id,
+                                         std::string user, std::string password)
+    -> exit_code {
+  auto ret = cli::check_data_directory(data_directory);
+  if (ret != exit_code::success) {
+    return ret;
   }
 
-  return exit_code::success;
+  lock_data lock(data_directory, prov, unique_id);
+  auto lock_res = lock.grab_lock(1U);
+  if (lock_res == lock_result::success) {
+    app_config config(prov, data_directory);
+    const auto cfg = config.get_json();
+    return cli::handle_error(exit_code::success, cfg.dump(2));
+  }
+
+  if (lock_res == lock_result::locked) {
+    auto port = app_config::default_api_port(prov);
+    utils::cli::get_api_authentication_data(user, password, port,
+                                            data_directory);
+    auto response = client({
+                               .host = "localhost",
+                               .password = password,
+                               .port = port,
+                               .user = user,
+                           })
+                        .get_config();
+    return cli::handle_error(exit_code::success, response.response_type,
+                             response.data.dump(2));
+  }
+
+  return cli::handle_error(exit_code::lock_failed, "failed to get mount lock");
 }
 } // namespace repertory::cli::actions
 

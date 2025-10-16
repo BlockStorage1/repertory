@@ -21,10 +21,10 @@
 */
 #if !defined(_WIN32)
 
-#include "fixtures/fuse_fixture.hpp"
+#include "fixtures/drive_fixture.hpp"
 
 namespace {
-const auto access_permutations = {
+constexpr const auto access_permutations = {
     // clang-format off
     std::make_tuple(0000, R_OK, -1, EACCES),  // No permissions, R_OK
     std::make_tuple(0000, W_OK, -1, EACCES),  // No permissions, W_OK
@@ -71,7 +71,7 @@ void perform_access_test(auto &&permutation, auto &&item_path) {
 } // namespace
 
 namespace repertory {
-TYPED_TEST_CASE(fuse_test, fuse_provider_types);
+TYPED_TEST_SUITE(fuse_test, platform_provider_types);
 
 TYPED_TEST(fuse_test, access_can_check_if_item_does_not_exist) {
   EXPECT_EQ(

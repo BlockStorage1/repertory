@@ -25,14 +25,14 @@
 #include "utils/file.hpp"
 
 namespace repertory::utils::file {
-[[nodiscard]] auto
-get_directory_files(std::string_view path, bool oldest_first,
-                    bool recursive = false) -> std::deque<std::string>;
+[[nodiscard]] auto get_directory_files(std::string_view path, bool oldest_first,
+                                       bool recursive = false)
+    -> std::deque<std::string>;
 
-[[nodiscard]] auto
-read_file_lines(const std::string &path) -> std::vector<std::string>;
+[[nodiscard]] auto read_file_lines(std::string_view path)
+    -> std::vector<std::string>;
 
-[[nodiscard]] auto reset_modified_time(const std::string &path) -> bool;
+[[nodiscard]] auto reset_modified_time(std::string_view path) -> bool;
 } // namespace repertory::utils::file
 
 #endif // REPERTORY_INCLUDE_UTILS_FILE_UTILS_HPP_

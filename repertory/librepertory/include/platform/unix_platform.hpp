@@ -30,7 +30,8 @@ class i_provider;
 
 class lock_data final {
 public:
-  lock_data(provider_type prov, std::string_view unique_id);
+  lock_data(std::string_view data_directory, provider_type prov,
+            std::string_view unique_id);
 
   lock_data(const lock_data &) = delete;
   lock_data(lock_data &&) = delete;
@@ -41,6 +42,7 @@ public:
   ~lock_data();
 
 private:
+  std::string data_directory_;
   std::string mutex_id_;
 
 private:
@@ -48,11 +50,11 @@ private:
   int lock_status_{EWOULDBLOCK};
 
 private:
-  [[nodiscard]] static auto get_state_directory() -> std::string;
-
   [[nodiscard]] auto get_lock_data_file() const -> std::string;
 
-  [[nodiscard]] auto get_lock_file() const -> std::string;
+  [[nodiscard]] auto get_lock_file(bool create_parent = true) const -> std::string;
+
+  [[nodiscard]] auto get_state_directory() const -> std::string;
 
 private:
   [[nodiscard]] static auto wait_for_lock(int handle,
@@ -71,13 +73,17 @@ public:
       -> bool;
 };
 
-[[nodiscard]] auto create_meta_attributes(
-    std::uint64_t accessed_date, std::uint32_t attributes,
-    std::uint64_t changed_date, std::uint64_t creation_date, bool directory,
-    std::uint32_t gid, const std::string &key, std::uint32_t mode,
-    std::uint64_t modified_date, std::uint32_t osx_backup,
-    std::uint32_t osx_flags, std::uint64_t size, const std::string &source_path,
-    std::uint32_t uid, std::uint64_t written_date) -> api_meta_map;
+[[nodiscard]] auto
+create_meta_attributes(std::uint64_t accessed_date, std::uint32_t attributes,
+                       std::uint64_t changed_date, std::uint64_t creation_date,
+                       bool directory, std::uint32_t gid, std::string_view key,
+                       std::uint32_t mode, std::uint64_t modified_date,
+                       std::uint32_t osx_flags, std::uint64_t size,
+                       std::string_view source_path, std::uint32_t uid,
+                       std::uint64_t written_date) -> api_meta_map;
+
+[[nodiscard]] auto provider_meta_creator(bool directory, const api_file &file)
+    -> api_meta_map;
 
 [[nodiscard]] auto provider_meta_handler(i_provider &provider, bool directory,
                                          const api_file &file) -> api_error;

@@ -53,9 +53,11 @@ auto change_to_process_directory() -> bool {
     }
 #else // !defined(_WIN32)
     std::string path;
-    path.resize(PATH_MAX + 1);
+    path.resize(repertory::max_path_length + 1);
 #if defined(__APPLE__)
-    proc_pidpath(getpid(), path.c_str(), path.size());
+    auto res = proc_pidpath(getpid(), reinterpret_cast<void *>(path.data()),
+                            static_cast<uint32_t>(path.size()));
+    path = path.c_str();
 #else  // !defined(__APPLE__)
     auto res = readlink("/proc/self/exe", path.data(), path.size());
     if (res == -1) {
@@ -133,8 +135,8 @@ auto get_free_drive_space(std::string_view path)
 #endif // defined(_WIN32)
 
 #if defined(__linux__)
-    struct statfs64 st{};
-    if (statfs64(std::string{path}.c_str(), &st) != 0) {
+    struct statfs64 u_stat{};
+    if (statfs64(std::string{path}.c_str(), &u_stat) != 0) {
       throw utils::error::create_exception(
           function_name, {
                              "failed to get free disk space",
@@ -143,12 +145,12 @@ auto get_free_drive_space(std::string_view path)
                          });
     }
 
-    return st.f_bfree * static_cast<std::uint64_t>(st.f_bsize);
+    return u_stat.f_bfree * static_cast<std::uint64_t>(u_stat.f_bsize);
 #endif // defined(__linux__)
 
 #if defined(__APPLE__)
-    struct statvfs st{};
-    if (statvfs(path.c_str(), &st) != 0) {
+    struct statvfs u_stat{};
+    if (statvfs(std::string{path}.c_str(), &u_stat) != 0) {
       throw utils::error::create_exception(
           function_name, {
                              "failed to get free disk space",
@@ -157,7 +159,7 @@ auto get_free_drive_space(std::string_view path)
                          });
     }
 
-    return st.f_bfree * static_cast<std::uint64_t>(st.f_frsize);
+    return u_stat.f_bfree * static_cast<std::uint64_t>(u_stat.f_frsize);
 #endif // defined(__APPLE__)
   } catch (const std::exception &e) {
     utils::error::handle_exception(function_name, e);
@@ -207,6 +209,7 @@ auto get_times(std::string_view path) -> std::optional<file_times> {
       if (res) {
         ret.accessed =
             utils::time::windows_file_time_to_unix_time(times.at(1U));
+        ret.changed = utils::time::windows_file_time_to_unix_time(times.at(2U));
         ret.created = utils::time::windows_file_time_to_unix_time(times.at(0U));
         ret.modified =
             utils::time::windows_file_time_to_unix_time(times.at(2U));
@@ -215,8 +218,8 @@ auto get_times(std::string_view path) -> std::optional<file_times> {
       }
     }
 
-    struct _stat64 st{};
-    if (_stat64(std::string{path}.c_str(), &st) != 0) {
+    struct _stat64 u_stat{};
+    if (_stat64(std::string{path}.c_str(), &u_stat) != 0) {
       throw utils::error::create_exception(
           function_name, {
                              "failed to get file times",
@@ -225,13 +228,14 @@ auto get_times(std::string_view path) -> std::optional<file_times> {
                          });
     }
 
-    ret.accessed = utils::time::windows_time_t_to_unix_time(st.st_atime);
-    ret.created = utils::time::windows_time_t_to_unix_time(st.st_ctime);
-    ret.modified = utils::time::windows_time_t_to_unix_time(st.st_mtime);
-    ret.written = utils::time::windows_time_t_to_unix_time(st.st_mtime);
+    ret.accessed = utils::time::windows_time_t_to_unix_time(u_stat.st_atime);
+    ret.changed = utils::time::windows_time_t_to_unix_time(u_stat.st_ctime);
+    ret.created = utils::time::windows_time_t_to_unix_time(u_stat.st_ctime);
+    ret.modified = utils::time::windows_time_t_to_unix_time(u_stat.st_mtime);
+    ret.written = utils::time::windows_time_t_to_unix_time(u_stat.st_mtime);
 #else // !defined(_WIN32)
-    struct stat64 st{};
-    if (stat64(std::string{path}.c_str(), &st) != 0) {
+    struct stat64 u_stat{};
+    if (stat64(std::string{path}.c_str(), &u_stat) != 0) {
       throw utils::error::create_exception(
           function_name, {
                              "failed to get file times",
@@ -240,19 +244,39 @@ auto get_times(std::string_view path) -> std::optional<file_times> {
                          });
     }
 
-    ret.accessed = static_cast<std::uint64_t>(st.st_atim.tv_nsec) +
-                   static_cast<std::uint64_t>(st.st_atim.tv_sec) *
+#if defined(__APPLE__)
+    ret.accessed = static_cast<std::uint64_t>(u_stat.st_atimespec.tv_nsec) +
+                   static_cast<std::uint64_t>(u_stat.st_atimespec.tv_sec) *
                        utils::time::NANOS_PER_SECOND;
-    ret.created = static_cast<std::uint64_t>(st.st_ctim.tv_nsec) +
-                  static_cast<std::uint64_t>(st.st_ctim.tv_sec) *
+    ret.created = static_cast<std::uint64_t>(u_stat.st_birthtimespec.tv_nsec) +
+                  static_cast<std::uint64_t>(u_stat.st_birthtimespec.tv_sec) *
                       utils::time::NANOS_PER_SECOND;
-    ret.modified = static_cast<std::uint64_t>(st.st_mtim.tv_nsec) +
-                   static_cast<std::uint64_t>(st.st_mtim.tv_sec) *
+    ret.changed = static_cast<std::uint64_t>(u_stat.st_ctimespec.tv_nsec) +
+                  static_cast<std::uint64_t>(u_stat.st_ctimespec.tv_sec) *
+                      utils::time::NANOS_PER_SECOND;
+    ret.modified = static_cast<std::uint64_t>(u_stat.st_mtimespec.tv_nsec) +
+                   static_cast<std::uint64_t>(u_stat.st_mtimespec.tv_sec) *
                        utils::time::NANOS_PER_SECOND;
-    ret.written = static_cast<std::uint64_t>(st.st_mtim.tv_nsec) +
-                  static_cast<std::uint64_t>(st.st_mtim.tv_sec) *
+    ret.written = static_cast<std::uint64_t>(u_stat.st_mtimespec.tv_nsec) +
+                  static_cast<std::uint64_t>(u_stat.st_mtimespec.tv_sec) *
                       utils::time::NANOS_PER_SECOND;
-
+#else  // !defined(__APPLE__)
+    ret.accessed = static_cast<std::uint64_t>(u_stat.st_atim.tv_nsec) +
+                   static_cast<std::uint64_t>(u_stat.st_atim.tv_sec) *
+                       utils::time::NANOS_PER_SECOND;
+    ret.changed = static_cast<std::uint64_t>(u_stat.st_ctim.tv_nsec) +
+                  static_cast<std::uint64_t>(u_stat.st_ctim.tv_sec) *
+                      utils::time::NANOS_PER_SECOND;
+    ret.created = static_cast<std::uint64_t>(u_stat.st_ctim.tv_nsec) +
+                  static_cast<std::uint64_t>(u_stat.st_ctim.tv_sec) *
+                      utils::time::NANOS_PER_SECOND;
+    ret.modified = static_cast<std::uint64_t>(u_stat.st_mtim.tv_nsec) +
+                   static_cast<std::uint64_t>(u_stat.st_mtim.tv_sec) *
+                       utils::time::NANOS_PER_SECOND;
+    ret.written = static_cast<std::uint64_t>(u_stat.st_mtim.tv_nsec) +
+                  static_cast<std::uint64_t>(u_stat.st_mtim.tv_sec) *
+                      utils::time::NANOS_PER_SECOND;
+#endif // defined(__APPLE__)
 #endif // defined(_WIN32)
 
     return ret;
@@ -290,8 +314,8 @@ auto get_total_drive_space(std::string_view path)
 #endif // defined(_WIN32)
 
 #if defined(__linux__)
-    struct statfs64 st{};
-    if (statfs64(std::string{path}.c_str(), &st) != 0) {
+    struct statfs64 u_stat{};
+    if (statfs64(std::string{path}.c_str(), &u_stat) != 0) {
       throw utils::error::create_exception(
           function_name, {
                              "failed to get total disk space",
@@ -300,12 +324,12 @@ auto get_total_drive_space(std::string_view path)
                          });
     }
 
-    return st.f_blocks * static_cast<std::uint64_t>(st.f_bsize);
+    return u_stat.f_blocks * static_cast<std::uint64_t>(u_stat.f_bsize);
 #endif // defined(__linux__)
 
 #if defined(__APPLE__)
-    struct statvfs st{};
-    if (statvfs(path.c_str(), &st) != 0) {
+    struct statvfs u_stat{};
+    if (statvfs(std::string{path}.c_str(), &u_stat) != 0) {
       throw utils::error::create_exception(
           function_name, {
                              "failed to get total disk space",
@@ -314,7 +338,7 @@ auto get_total_drive_space(std::string_view path)
                          });
     }
 
-    return st.f_blocks * static_cast<std::uint64_t>(st.f_frsize);
+    return u_stat.f_blocks * static_cast<std::uint64_t>(u_stat.f_frsize);
 #endif // defined(__APPLE__)
   } catch (const std::exception &e) {
     utils::error::handle_exception(function_name, e);
@@ -498,8 +522,7 @@ auto write_json_file(std::wstring_view path, const nlohmann::json &data)
 #endif // defined(PROJECT_ENABLE_JSON)
 
 #if defined(PROJECT_ENABLE_LIBDSM)
-static constexpr auto validate_smb_path =
-    [](std::string_view path) -> bool {
+static constexpr auto validate_smb_path = [](std::string_view path) -> bool {
   return (not utils::string::begins_with(path, "///") &&
           utils::string::begins_with(path, "//") &&
           // not utils::string::contains(path, " ") &&

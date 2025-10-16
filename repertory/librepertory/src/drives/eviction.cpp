@@ -32,8 +32,7 @@
 #include "utils/utils.hpp"
 
 namespace repertory {
-auto eviction::check_minimum_requirements(const std::string &file_path)
-    -> bool {
+auto eviction::check_minimum_requirements(std::string_view file_path) -> bool {
   REPERTORY_USES_FUNCTION_NAME();
 
   auto file = utils::file::file{file_path};

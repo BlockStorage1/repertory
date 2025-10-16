@@ -27,7 +27,7 @@
 namespace repertory {
 TEST(curl_comm_test, can_create_s3_host_config) {
   s3_config config{};
-  config.bucket = "repertory";
+  config.bucket = REPERTORY;
   config.url = "https://s3.test.com";
   config.region = "any";
   config.use_path_style = false;
@@ -40,7 +40,7 @@ TEST(curl_comm_test, can_create_s3_host_config) {
 
 TEST(curl_comm_test, can_create_s3_host_config_with_path_style) {
   s3_config config{};
-  config.bucket = "repertory";
+  config.bucket = REPERTORY;
   config.url = "https://s3.test.com";
   config.region = "any";
   config.use_path_style = true;
@@ -53,7 +53,7 @@ TEST(curl_comm_test, can_create_s3_host_config_with_path_style) {
 
 TEST(curl_comm_test, can_create_s3_host_config_with_region) {
   s3_config config{};
-  config.bucket = "repertory";
+  config.bucket = REPERTORY;
   config.url = "https://s3.test.com";
   config.region = "any";
   config.use_region_in_url = true;
@@ -67,7 +67,7 @@ TEST(curl_comm_test, can_create_s3_host_config_with_region) {
 
 TEST(curl_comm_test, can_create_s3_host_config_with_region_and_path_style) {
   s3_config config{};
-  config.bucket = "repertory";
+  config.bucket = REPERTORY;
   config.url = "https://s3.test.com";
   config.region = "any";
   config.use_region_in_url = true;

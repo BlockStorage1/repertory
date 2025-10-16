@@ -30,6 +30,7 @@
 namespace repertory::utils::file {
 enum class time_type {
   accessed,
+  changed,
   created,
   modified,
   written,
@@ -37,6 +38,7 @@ enum class time_type {
 
 struct file_times final {
   std::uint64_t accessed{};
+  std::uint64_t changed{};
   std::uint64_t created{};
   std::uint64_t modified{};
   std::uint64_t written{};
@@ -47,6 +49,8 @@ struct file_times final {
     switch (type) {
     case time_type::accessed:
       return accessed;
+    case time_type::changed:
+      return changed;
     case time_type::created:
       return created;
     case time_type::modified:
@@ -70,8 +74,8 @@ struct i_fs_item {
   [[nodiscard]] virtual auto copy_to(std::string_view to_path,
                                      bool overwrite) const -> bool = 0;
 
-  [[nodiscard]] virtual auto copy_to(std::wstring_view new_path,
-                                     bool overwrite) -> bool {
+  [[nodiscard]] virtual auto copy_to(std::wstring_view new_path, bool overwrite)
+      -> bool {
     return copy_to(utils::string::to_utf8(new_path), overwrite);
   }
 
@@ -79,8 +83,8 @@ struct i_fs_item {
 
   [[nodiscard]] virtual auto get_path() const -> std::string = 0;
 
-  [[nodiscard]] virtual auto
-  get_time(time_type type) const -> std::optional<std::uint64_t>;
+  [[nodiscard]] virtual auto get_time(time_type type) const
+      -> std::optional<std::uint64_t>;
 
   [[nodiscard]] virtual auto is_directory_item() const -> bool = 0;
 

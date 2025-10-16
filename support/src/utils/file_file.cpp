@@ -33,13 +33,13 @@ namespace {
   file_size = 0U;
 
 #if defined(_WIN32)
-  struct _stat64 st{};
-  auto res = _stat64(std::string{path}.c_str(), &st);
+  struct _stat64 u_stat{};
+  auto res = _stat64(std::string{path}.c_str(), &u_stat);
   if (res != 0) {
     return false;
   }
 
-  file_size = static_cast<std::uint64_t>(st.st_size);
+  file_size = static_cast<std::uint64_t>(u_stat.st_size);
   return true;
 #else  // !defined(_WIN32)
   std::error_code ec{};
@@ -55,8 +55,9 @@ namespace {
   return ((::PathFileExistsA(abs_path.c_str()) != 0) &&
           (::PathIsDirectoryA(abs_path.c_str()) == 0));
 #else  // !defined(_WIN32)
-  struct stat64 st{};
-  return (stat64(abs_path.c_str(), &st) == 0 && not S_ISDIR(st.st_mode));
+  struct stat64 u_stat{};
+  return (stat64(abs_path.c_str(), &u_stat) == 0 &&
+          not S_ISDIR(u_stat.st_mode));
 #endif // defined(_WIN32)
 }
 } // namespace
@@ -265,7 +266,7 @@ auto file::move_to(std::string_view path) -> bool {
 #if defined(_WIN32)
   success = ::MoveFileExA(path_.c_str(), abs_path.c_str(),
                           MOVEFILE_REPLACE_EXISTING) != 0;
-#else  // !// defined(_WIN32)
+#else  // !defined(_WIN32)
   std::error_code ec{};
   std::filesystem::rename(path_, abs_path, ec);
   success = ec.value() == 0;

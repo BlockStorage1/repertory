@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 DEST_DIR=$1
 DIST_DIR=$2
@@ -35,7 +35,7 @@ fi
 
 pushd "${PROJECT_SOURCE_DIR}"
 BRANCH=$(git branch --show-current)
-RELEASE=$(grep PROJECT_RELEASE_ITER= ./config.sh | sed s/PROJECT_RELEASE_ITER=//g)
+RELEASE=$(grep PROJECT_RELEASE_ITER= ./config.sh | ${SED} s/PROJECT_RELEASE_ITER=//g)
 popd
 
 if [ "${BRANCH}" == "master" ] || [ "${BRANCH}" == "alpha" ] ||
@@ -62,10 +62,41 @@ if [ "${PROJECT_PRIVATE_KEY}" != "" ] && [ ! -f "./${PROJECT_OUT_FILE}.sig" ]; t
   error_exit "failed to find file: ${PROJECT_OUT_FILE}.sig" 1
 fi
 
-cp -f ./${PROJECT_OUT_FILE} ${DEST_DIR} || error_exit "failed to deliver file: ${PROJECT_OUT_FILE}" 1
-cp -f ./${PROJECT_OUT_FILE}.sha256 ${DEST_DIR} || error_exit "failed to deliver file: ${PROJECT_OUT_FILE}.sha256" 1
+cp -f ./${PROJECT_OUT_FILE} ${DEST_DIR} ||
+  error_exit "failed to deliver file: ${PROJECT_OUT_FILE}" 1
+
+cp -f ./${PROJECT_OUT_FILE}.sha256 ${DEST_DIR} ||
+  error_exit "failed to deliver file: ${PROJECT_OUT_FILE}.sha256" 1
+
 if [ "${PROJECT_PRIVATE_KEY}" != "" ]; then
-  cp -f ./${PROJECT_OUT_FILE}.sig ${DEST_DIR} || error_exit "failed to deliver file: ${PROJECT_OUT_FILE}.sig" 1
+  cp -f ./${PROJECT_OUT_FILE}.sig ${DEST_DIR} ||
+    error_exit "failed to deliver file: ${PROJECT_OUT_FILE}.sig" 1
+fi
+
+if [ "${PROJECT_IS_MINGW}" == "1" ] && [ -f "${PROJECT_DIST_DIR}/${PROJECT_FILE_PART}_setup.exe" ]; then
+  cp -f "${PROJECT_DIST_DIR}/${PROJECT_FILE_PART}_setup.exe" ${DEST_DIR} ||
+    error_exit "failed to deliver file: ${PROJECT_DIST_DIR}/${PROJECT_FILE_PART}" 1
+
+  cp -f "${PROJECT_DIST_DIR}/${PROJECT_FILE_PART}_setup.exe.sha256" ${DEST_DIR} ||
+    error_exit "failed to deliver file: ${PROJECT_DIST_DIR}/${PROJECT_FILE_PART}_setup.exe.sha256" 1
+
+  if [ "${PROJECT_PRIVATE_KEY}" != "" ]; then
+    cp -f "${PROJECT_DIST_DIR}/${PROJECT_FILE_PART}_setup.exe.sig" ${DEST_DIR} ||
+      error_exit "failed to deliver file: ${PROJECT_DIST_DIR}/${PROJECT_FILE_PART}_setup.exe.sig" 1
+  fi
+fi
+
+if [ "${PROJECT_IS_DARWIN}" == "1" ] && [ -f "${PROJECT_DIST_DIR}/${PROJECT_FILE_PART}.dmg" ]; then
+  cp -f -X "${PROJECT_DIST_DIR}/${PROJECT_FILE_PART}.dmg" ${DEST_DIR} ||
+    error_exit "failed to deliver file: ${PROJECT_DIST_DIR}/${PROJECT_FILE_PART}.dmg" 1
+
+  cp -f -X "${PROJECT_DIST_DIR}/${PROJECT_FILE_PART}.dmg.sha256" ${DEST_DIR} ||
+    error_exit "failed to deliver file: ${PROJECT_DIST_DIR}/${PROJECT_FILE_PART}.dmg.sha256" 1
+
+  if [ "${PROJECT_PRIVATE_KEY}" != "" ]; then
+    cp -f -X "${PROJECT_DIST_DIR}/${PROJECT_FILE_PART}.dmg.sig" ${DEST_DIR} ||
+      error_exit "failed to deliver file: ${PROJECT_DIST_DIR}/${PROJECT_FILE_PART}.dmg.sig" 1
+  fi
 fi
 popd
 

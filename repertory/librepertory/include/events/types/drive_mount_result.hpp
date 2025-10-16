@@ -29,10 +29,10 @@ namespace repertory {
 struct drive_mount_result final : public i_event {
   drive_mount_result() = default;
   drive_mount_result(std::string_view function_name_,
-                     std::string mount_location_, std::string result_)
-      : function_name(std::string(function_name_)),
-        mount_location(std::move(mount_location_)),
-        result(std::move(result_)) {}
+                     std::string_view mount_location_, std::string result_)
+      : function_name(function_name_),
+        mount_location(mount_location_),
+        result(result_) {}
 
   static constexpr event_level level{event_level::info};
   static constexpr std::string_view name{"drive_mount_result"};

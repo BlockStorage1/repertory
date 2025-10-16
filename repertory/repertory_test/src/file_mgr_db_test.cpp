@@ -24,7 +24,7 @@
 #include "utils/time.hpp"
 
 namespace repertory {
-TYPED_TEST_CASE(file_mgr_db_test, file_mgr_db_types);
+TYPED_TEST_SUITE(file_mgr_db_test, file_mgr_db_types);
 
 TYPED_TEST(file_mgr_db_test, can_add_and_remove_resume) {
   this->file_mgr_db->clear();

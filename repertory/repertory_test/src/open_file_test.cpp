@@ -67,12 +67,13 @@ std::atomic<std::size_t> open_file_test::inst{0U};
 
 static void test_closeable_open_file(const open_file &file, bool directory,
                                      api_error err, std::uint64_t size,
-                                     const std::string &source_path) {
+                                     std::string_view source_path) {
   EXPECT_EQ(directory, file.is_directory());
   EXPECT_EQ(err, file.get_api_error());
   EXPECT_EQ(std::size_t(0U), file.get_open_file_count());
   EXPECT_EQ(std::uint64_t(size), file.get_file_size());
-  EXPECT_STREQ(source_path.c_str(), file.get_source_path().c_str());
+  EXPECT_STREQ(std::string{source_path}.c_str(),
+               file.get_source_path().c_str());
   EXPECT_TRUE(file.can_close());
 }
 
@@ -100,7 +101,7 @@ TEST_F(open_file_test, properly_initializes_state_for_0_byte_file) {
 
   EXPECT_CALL(upload_mgr, remove_resume)
       .WillOnce(
-          [&fsi](const std::string &api_path, const std::string &source_path2) {
+          [&fsi](std::string_view api_path, std::string_view source_path2) {
             EXPECT_EQ(fsi.api_path, api_path);
             EXPECT_EQ(fsi.source_path, source_path2);
           });
@@ -125,7 +126,7 @@ TEST_F(open_file_test, properly_initializes_state_based_on_chunk_size) {
 
   EXPECT_CALL(upload_mgr, remove_resume)
       .WillOnce(
-          [&fsi](const std::string &api_path, const std::string &source_path2) {
+          [&fsi](std::string_view api_path, std::string_view source_path2) {
             EXPECT_EQ(fsi.api_path, api_path);
             EXPECT_EQ(fsi.source_path, source_path2);
           });
@@ -155,7 +156,7 @@ TEST_F(open_file_test, will_not_change_source_path_for_0_byte_file) {
 
   EXPECT_CALL(upload_mgr, remove_resume)
       .WillOnce(
-          [&fsi](const std::string &api_path, const std::string &source_path2) {
+          [&fsi](std::string_view api_path, std::string_view source_path2) {
             EXPECT_EQ(fsi.api_path, api_path);
             EXPECT_EQ(fsi.source_path, source_path2);
           });
@@ -182,15 +183,16 @@ TEST_F(open_file_test, will_change_source_path_if_file_size_is_greater_than_0) {
 
   EXPECT_CALL(upload_mgr, remove_resume)
       .WillOnce(
-          [&fsi](const std::string &api_path, const std::string &source_path2) {
+          [&fsi](std::string_view api_path, std::string_view source_path2) {
             EXPECT_EQ(fsi.api_path, api_path);
             EXPECT_EQ(fsi.source_path, source_path2);
           });
 
   EXPECT_CALL(provider, set_item_meta(fsi.api_path, META_SOURCE, _))
-      .WillOnce([&fsi](const std::string &, const std::string &,
-                       const std::string &source_path2) -> api_error {
-        EXPECT_STRNE(fsi.source_path.c_str(), source_path2.c_str());
+      .WillOnce([&fsi](std::string_view, std::string_view,
+                       std::string_view source_path2) -> api_error {
+        EXPECT_STRNE(fsi.source_path.c_str(),
+                     std::string{source_path2}.c_str());
         return api_error::success;
       });
 
@@ -219,7 +221,7 @@ TEST_F(open_file_test,
 
   EXPECT_CALL(upload_mgr, remove_resume)
       .WillOnce(
-          [&fsi](const std::string &api_path, const std::string &source_path2) {
+          [&fsi](std::string_view api_path, std::string_view source_path2) {
             EXPECT_EQ(fsi.api_path, api_path);
             EXPECT_EQ(fsi.source_path, source_path2);
           });
@@ -250,7 +252,7 @@ TEST_F(open_file_test, write_with_incomplete_download) {
                            test_chunk_size * 2u, source_path);
 
   EXPECT_CALL(provider, set_item_meta(fsi.api_path, _))
-      .WillOnce([](const std::string &, const api_meta_map &meta) -> api_error {
+      .WillOnce([](std::string_view, const api_meta_map &meta) -> api_error {
         EXPECT_NO_THROW(EXPECT_FALSE(meta.at(META_CHANGED).empty()));
         EXPECT_NO_THROW(EXPECT_FALSE(meta.at(META_MODIFIED).empty()));
         EXPECT_NO_THROW(EXPECT_FALSE(meta.at(META_WRITTEN).empty()));
@@ -258,9 +260,8 @@ TEST_F(open_file_test, write_with_incomplete_download) {
       });
 
   EXPECT_CALL(provider, read_file_bytes)
-      .WillRepeatedly([&nf](const std::string & /* api_path */,
-                            std::size_t size, std::uint64_t offset,
-                            data_buffer &data,
+      .WillRepeatedly([&nf](std::string_view /* api_path */, std::size_t size,
+                            std::uint64_t offset, data_buffer &data,
                             stop_type &stop_requested) -> api_error {
         if (stop_requested) {
           return api_error::download_stopped;
@@ -282,7 +283,7 @@ TEST_F(open_file_test, write_with_incomplete_download) {
       });
 
   EXPECT_CALL(upload_mgr, remove_upload)
-      .WillOnce([&fsi](const std::string &api_path) {
+      .WillOnce([&fsi](std::string_view api_path) {
         EXPECT_EQ(fsi.api_path, api_path);
       });
 
@@ -342,7 +343,7 @@ TEST_F(open_file_test, write_new_file) {
   data_buffer data = {10, 9, 8};
 
   EXPECT_CALL(provider, set_item_meta(fsi.api_path, _))
-      .WillOnce([&data](const std::string &,
+      .WillOnce([&data](std::string_view,
                         const api_meta_map &meta) -> api_error {
         EXPECT_NO_THROW(EXPECT_FALSE(meta.at(META_CHANGED).empty()));
         EXPECT_NO_THROW(EXPECT_FALSE(meta.at(META_MODIFIED).empty()));
@@ -351,7 +352,7 @@ TEST_F(open_file_test, write_new_file) {
         EXPECT_EQ(data.size(), utils::string::to_size_t(meta.at(META_SIZE)));
         return api_error::success;
       })
-      .WillOnce([](const std::string &, const api_meta_map &meta) -> api_error {
+      .WillOnce([](std::string_view, const api_meta_map &meta) -> api_error {
         EXPECT_NO_THROW(EXPECT_FALSE(meta.at(META_CHANGED).empty()));
         EXPECT_NO_THROW(EXPECT_FALSE(meta.at(META_MODIFIED).empty()));
         EXPECT_NO_THROW(EXPECT_FALSE(meta.at(META_WRITTEN).empty()));
@@ -359,7 +360,7 @@ TEST_F(open_file_test, write_new_file) {
       });
 
   EXPECT_CALL(upload_mgr, remove_upload)
-      .WillOnce([&fsi](const std::string &api_path) {
+      .WillOnce([&fsi](std::string_view api_path) {
         EXPECT_EQ(fsi.api_path, api_path);
       });
 
@@ -414,7 +415,7 @@ TEST_F(open_file_test, write_new_file_multiple_chunks) {
   data_buffer data = {10, 9, 8};
 
   EXPECT_CALL(provider, set_item_meta(fsi.api_path, _))
-      .WillOnce([&data](const std::string &,
+      .WillOnce([&data](std::string_view,
                         const api_meta_map &meta) -> api_error {
         EXPECT_NO_THROW(EXPECT_FALSE(meta.at(META_CHANGED).empty()));
         EXPECT_NO_THROW(EXPECT_FALSE(meta.at(META_MODIFIED).empty()));
@@ -423,14 +424,14 @@ TEST_F(open_file_test, write_new_file_multiple_chunks) {
         EXPECT_EQ(data.size(), utils::string::to_size_t(meta.at(META_SIZE)));
         return api_error::success;
       })
-      .WillOnce([](const std::string &, const api_meta_map &meta) -> api_error {
+      .WillOnce([](std::string_view, const api_meta_map &meta) -> api_error {
         EXPECT_NO_THROW(EXPECT_FALSE(meta.at(META_CHANGED).empty()));
         EXPECT_NO_THROW(EXPECT_FALSE(meta.at(META_MODIFIED).empty()));
         EXPECT_NO_THROW(EXPECT_FALSE(meta.at(META_WRITTEN).empty()));
         return api_error::success;
       })
       .WillOnce(
-          [&data](const std::string &, const api_meta_map &meta) -> api_error {
+          [&data](std::string_view, const api_meta_map &meta) -> api_error {
             EXPECT_NO_THROW(EXPECT_FALSE(meta.at(META_CHANGED).empty()));
             EXPECT_NO_THROW(EXPECT_FALSE(meta.at(META_MODIFIED).empty()));
             EXPECT_NO_THROW(EXPECT_FALSE(meta.at(META_SIZE).empty()));
@@ -439,7 +440,7 @@ TEST_F(open_file_test, write_new_file_multiple_chunks) {
                       utils::string::to_size_t(meta.at(META_SIZE)));
             return api_error::success;
           })
-      .WillOnce([](const std::string &, const api_meta_map &meta) -> api_error {
+      .WillOnce([](std::string_view, const api_meta_map &meta) -> api_error {
         EXPECT_NO_THROW(EXPECT_FALSE(meta.at(META_CHANGED).empty()));
         EXPECT_NO_THROW(EXPECT_FALSE(meta.at(META_MODIFIED).empty()));
         EXPECT_NO_THROW(EXPECT_FALSE(meta.at(META_WRITTEN).empty()));
@@ -447,7 +448,7 @@ TEST_F(open_file_test, write_new_file_multiple_chunks) {
       });
 
   EXPECT_CALL(upload_mgr, remove_upload)
-      .WillOnce([&fsi](const std::string &api_path) {
+      .WillOnce([&fsi](std::string_view api_path) {
         EXPECT_EQ(fsi.api_path, api_path);
       });
 
@@ -504,7 +505,7 @@ TEST_F(open_file_test, resize_file_to_0_bytes) {
   test_closeable_open_file(file, false, api_error::success, fsi.size,
                            source_path);
   EXPECT_CALL(provider, set_item_meta(fsi.api_path, _))
-      .WillOnce([](const std::string &, const api_meta_map &meta) -> api_error {
+      .WillOnce([](std::string_view, const api_meta_map &meta) -> api_error {
         EXPECT_NO_THROW(EXPECT_FALSE(meta.at(META_CHANGED).empty()));
         EXPECT_NO_THROW(EXPECT_FALSE(meta.at(META_MODIFIED).empty()));
         EXPECT_NO_THROW(EXPECT_FALSE(meta.at(META_SIZE).empty()));
@@ -515,7 +516,7 @@ TEST_F(open_file_test, resize_file_to_0_bytes) {
       });
 
   EXPECT_CALL(upload_mgr, remove_upload)
-      .WillOnce([&fsi](const std ::string &api_path) {
+      .WillOnce([&fsi](std::string_view api_path) {
         EXPECT_EQ(fsi.api_path, api_path);
       });
 
@@ -563,7 +564,7 @@ TEST_F(open_file_test, resize_file_by_full_chunk) {
   test_closeable_open_file(file, false, api_error::success, fsi.size,
                            source_path);
   EXPECT_CALL(provider, set_item_meta(fsi.api_path, _))
-      .WillOnce([](const std::string &, const api_meta_map &meta) -> api_error {
+      .WillOnce([](std::string_view, const api_meta_map &meta) -> api_error {
         EXPECT_NO_THROW(EXPECT_FALSE(meta.at(META_CHANGED).empty()));
         EXPECT_NO_THROW(EXPECT_FALSE(meta.at(META_MODIFIED).empty()));
         EXPECT_NO_THROW(EXPECT_FALSE(meta.at(META_SIZE).empty()));
@@ -574,7 +575,7 @@ TEST_F(open_file_test, resize_file_by_full_chunk) {
       });
 
   EXPECT_CALL(upload_mgr, remove_upload)
-      .WillOnce([&fsi](const std::string &api_path) {
+      .WillOnce([&fsi](std::string_view api_path) {
         EXPECT_EQ(fsi.api_path, api_path);
       });
 
@@ -625,7 +626,7 @@ TEST_F(open_file_test, can_add_handle) {
       .WillOnce(Return(api_error::success));
   EXPECT_CALL(upload_mgr, remove_resume)
       .WillOnce(
-          [&fsi](const std::string &api_path, const std::string &source_path2) {
+          [&fsi](std::string_view api_path, std::string_view source_path2) {
             EXPECT_EQ(fsi.api_path, api_path);
             EXPECT_EQ(fsi.source_path, source_path2);
           });
@@ -637,10 +638,10 @@ TEST_F(open_file_test, can_add_handle) {
 
   open_file o(test_chunk_size, 0U, fsi, provider, upload_mgr);
 #if defined(_WIN32)
-  o.add(1u, {});
+  o.add(1u, {}, true);
   EXPECT_EQ(nullptr, o.get_open_data(1u).directory_buffer);
 #else
-  o.add(1u, O_RDWR | O_SYNC);
+  o.add(1u, O_RDWR | O_SYNC, true);
   EXPECT_EQ(O_RDWR | O_SYNC, o.get_open_data(1u));
 #endif
 
@@ -682,7 +683,7 @@ TEST_F(open_file_test, can_remove_handle) {
 
   EXPECT_CALL(upload_mgr, remove_resume)
       .WillOnce(
-          [&fsi](const std::string &api_path, const std::string &source_path2) {
+          [&fsi](std::string_view api_path, std::string_view source_path2) {
             EXPECT_EQ(fsi.api_path, api_path);
             EXPECT_EQ(fsi.source_path, source_path2);
           });
@@ -698,9 +699,9 @@ TEST_F(open_file_test, can_remove_handle) {
 
   open_file o(test_chunk_size, 0U, fsi, provider, upload_mgr);
 #if defined(_WIN32)
-  o.add(1u, {});
+  o.add(1u, {}, true);
 #else
-  o.add(1u, O_RDWR | O_SYNC);
+  o.add(1u, O_RDWR | O_SYNC, true);
 #endif
   o.remove(1u);
 

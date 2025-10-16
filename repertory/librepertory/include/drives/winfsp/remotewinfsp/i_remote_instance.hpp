@@ -42,19 +42,19 @@ public:
   [[nodiscard]] virtual auto
   winfsp_create(PWSTR file_name, UINT32 create_options, UINT32 granted_access,
                 UINT32 file_attributes, UINT64 allocation_size,
-                PVOID *file_desc, remote::file_info *file_info,
+                PVOID *file_desc, remote::file_info *r_info,
                 std::string &normalized_name, BOOLEAN &exists)
       -> packet::error_type = 0;
 
   [[nodiscard]] virtual auto winfsp_flush(PVOID file_desc,
-                                          remote::file_info *file_info)
+                                          remote::file_info *r_info)
       -> packet::error_type = 0;
 
   [[nodiscard]] virtual auto winfsp_get_dir_buffer(PVOID file_desc, PVOID *&ptr)
       -> packet::error_type = 0;
 
   [[nodiscard]] virtual auto winfsp_get_file_info(PVOID file_desc,
-                                                  remote::file_info *file_info)
+                                                  remote::file_info *r_info)
       -> packet::error_type = 0;
 
   [[nodiscard]] virtual auto
@@ -68,18 +68,18 @@ public:
                                                     std::string &volume_label)
       -> packet::error_type = 0;
 
-  [[nodiscard]] virtual auto winfsp_mounted(const std::wstring &location)
+  [[nodiscard]] virtual auto winfsp_mounted(std::wstring_view location)
       -> packet::error_type = 0;
 
   [[nodiscard]] virtual auto
   winfsp_open(PWSTR file_name, UINT32 create_options, UINT32 granted_access,
-              PVOID *file_desc, remote::file_info *file_info,
+              PVOID *file_desc, remote::file_info *r_info,
               std::string &normalized_name) -> packet::error_type = 0;
 
   [[nodiscard]] virtual auto
   winfsp_overwrite(PVOID file_desc, UINT32 file_attributes,
                    BOOLEAN replace_file_attributes, UINT64 allocation_size,
-                   remote::file_info *file_info) -> packet::error_type = 0;
+                   remote::file_info *r_info) -> packet::error_type = 0;
 
   [[nodiscard]] virtual auto winfsp_read(PVOID file_desc, PVOID buffer,
                                          UINT64 offset, UINT32 length,
@@ -100,21 +100,20 @@ public:
   winfsp_set_basic_info(PVOID file_desc, UINT32 file_attributes,
                         UINT64 creation_time, UINT64 last_access_time,
                         UINT64 last_write_time, UINT64 change_time,
-                        remote::file_info *file_info) -> packet::error_type = 0;
+                        remote::file_info *r_info) -> packet::error_type = 0;
 
-  [[nodiscard]] virtual auto winfsp_set_file_size(PVOID file_desc,
-                                                  UINT64 new_size,
-                                                  BOOLEAN set_allocation_size,
-                                                  remote::file_info *file_info)
+  [[nodiscard]] virtual auto
+  winfsp_set_file_size(PVOID file_desc, UINT64 new_size,
+                       BOOLEAN set_allocation_size, remote::file_info *r_info)
       -> packet::error_type = 0;
 
-  [[nodiscard]] virtual auto winfsp_unmounted(const std::wstring &location)
+  [[nodiscard]] virtual auto winfsp_unmounted(std::wstring_view location)
       -> packet::error_type = 0;
 
   [[nodiscard]] virtual auto
   winfsp_write(PVOID file_desc, PVOID buffer, UINT64 offset, UINT32 length,
                BOOLEAN write_to_end, BOOLEAN constrained_io,
-               PUINT32 bytes_transferred, remote::file_info *file_info)
+               PUINT32 bytes_transferred, remote::file_info *r_info)
       -> packet::error_type = 0;
 };
 

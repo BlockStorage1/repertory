@@ -22,7 +22,6 @@
 #include "comm/curl/requests/http_put_file.hpp"
 
 #include "utils/error_utils.hpp"
-#include "utils/string.hpp"
 
 namespace repertory::curl::requests {
 auto http_put_file::set_method(CURL *curl, stop_type &stop_requested) const
@@ -52,7 +51,7 @@ auto http_put_file::set_method(CURL *curl, stop_type &stop_requested) const
       utils::file::file::open_or_create_file(source_path),
   });
 
-  if (not*read_info->file) {
+  if (not *read_info->file) {
     utils::error::raise_url_error(function_name, get_path(), source_path,
                                   std::runtime_error("failed to open file"));
     return false;

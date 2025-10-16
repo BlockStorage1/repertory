@@ -11,4 +11,4 @@ namespace repertory {
   auto project_get_git_rev() -> std::string_view { return git_rev; }
 
   auto project_get_version() -> std::string_view { return version; }
-} // namespace %PROJECT_NAME %
+} // namespace repertory

@@ -21,9 +21,10 @@
 */
 #if !defined(_WIN32)
 
-#include "fixtures/fuse_fixture.hpp"
+#include "fixtures/drive_fixture.hpp"
+
 namespace repertory {
-TYPED_TEST_CASE(fuse_test, fuse_provider_types);
+TYPED_TEST_SUITE(fuse_test, platform_provider_types);
 
 TYPED_TEST(fuse_test, create_can_create_and_remove_directory) {
   std::string dir_name{"create_test"};
@@ -41,9 +42,9 @@ TYPED_TEST(fuse_test, create_can_create_directory_with_specific_perms) {
   std::string dir_name{"create_test"};
   auto dir_path = this->create_directory_and_test(dir_name, S_IRUSR);
 
-  struct stat64 unix_st{};
-  EXPECT_EQ(0, stat64(dir_path.c_str(), &unix_st));
-  EXPECT_EQ(S_IRUSR, unix_st.st_mode & ACCESSPERMS);
+  struct stat64 u_stat{};
+  EXPECT_EQ(0, stat64(dir_path.c_str(), &u_stat));
+  EXPECT_EQ(S_IRUSR, u_stat.st_mode & ACCESSPERMS);
 
   this->rmdir_and_test(dir_path);
 }
@@ -52,9 +53,9 @@ TYPED_TEST(fuse_test, create_can_create_file_with_specific_perms) {
   std::string file_name{"create_test"};
   auto file_path = this->create_file_and_test(file_name, S_IRUSR);
 
-  struct stat64 unix_st{};
-  EXPECT_EQ(0, stat64(file_path.c_str(), &unix_st));
-  EXPECT_EQ(S_IRUSR, unix_st.st_mode & ACCESSPERMS);
+  struct stat64 u_stat{};
+  EXPECT_EQ(0, stat64(file_path.c_str(), &u_stat));
+  EXPECT_EQ(S_IRUSR, u_stat.st_mode & ACCESSPERMS);
 
   this->unlink_file_and_test(file_path);
 }
@@ -379,8 +380,11 @@ TYPED_TEST(fuse_test, create_fails_with_excl_if_path_is_directory) {
   for (const auto &flags : ops) {
     auto handle = open(dir_path.c_str(), flags, ACCESSPERMS);
     EXPECT_EQ(-1, handle);
-
     EXPECT_EQ(EEXIST, errno);
+
+    if (handle != -1) {
+      close(handle);
+    }
   }
 
   this->rmdir_and_test(dir_path);
@@ -399,8 +403,11 @@ TYPED_TEST(fuse_test, create_fails_with_excl_if_file_exists) {
   for (const auto &flags : ops) {
     auto handle = open(file_path.c_str(), flags, ACCESSPERMS);
     EXPECT_EQ(-1, handle);
-
     EXPECT_EQ(EEXIST, errno);
+
+    if (handle != -1) {
+      close(handle);
+    }
   }
 
   this->unlink_file_and_test(file_path);
@@ -408,23 +415,40 @@ TYPED_TEST(fuse_test, create_fails_with_excl_if_file_exists) {
 
 TYPED_TEST(fuse_test, create_fails_if_path_is_directory) {
   std::array<int, 7U> ops{
+      O_CREAT,
       O_CREAT | O_APPEND,
       O_CREAT | O_RDWR,
       O_CREAT | O_TRUNC | O_RDWR,
       O_CREAT | O_TRUNC | O_WRONLY,
       O_CREAT | O_TRUNC,
       O_CREAT | O_WRONLY,
-      O_CREAT,
   };
 
   std::string dir_name{"create_test"};
   auto dir_path = this->create_directory_and_test(dir_name);
 
-  for (const auto &flags : ops) {
+  for (std::size_t idx{0U}; idx < ops.size(); ++idx) {
+    auto flags = ops.at(idx);
     auto handle = open(dir_path.c_str(), flags, ACCESSPERMS);
+#if defined(__APPLE__)
+    if (handle == -1) {
+      EXPECT_EQ(EISDIR, errno);
+    } else {
+      if (idx > 1U) {
+        std::cerr << "create flags should return invalid handle|idx|" << idx
+                  << "|flags|" << std::hex << flags << std::endl;
+        EXPECT_EQ(-1, handle);
+      }
+      close(handle);
+    }
+#else  // !defined(__APPLE__)
     EXPECT_EQ(-1, handle);
-
     EXPECT_EQ(EISDIR, errno);
+
+    if (handle != -1) {
+      close(handle);
+    }
+#endif //! defined(__APPLE__)
   }
 
   this->rmdir_and_test(dir_path);
@@ -450,11 +474,15 @@ TYPED_TEST(fuse_test, create_fails_if_parent_path_does_not_exist) {
   for (const auto &flags : ops) {
     auto handle = open(file_path.c_str(), flags, ACCESSPERMS);
     EXPECT_EQ(-1, handle);
-
     EXPECT_EQ(ENOENT, errno);
+
+    if (handle != -1) {
+      close(handle);
+    }
   }
 }
 
+#if !defined(__APPLE__)
 TYPED_TEST(fuse_test, create_fails_if_invalid) {
   std::array<int, 1U> ops{
       O_CREAT | O_TRUNC | O_APPEND,
@@ -466,10 +494,14 @@ TYPED_TEST(fuse_test, create_fails_if_invalid) {
   for (const auto &flags : ops) {
     auto handle = open(file_path.c_str(), flags, ACCESSPERMS);
     EXPECT_EQ(-1, handle);
-
     EXPECT_EQ(EINVAL, errno);
+
+    if (handle != -1) {
+      close(handle);
+    }
   }
 }
+#endif // !defined(__APPLE__)
 
 TYPED_TEST(fuse_test, create_open_fails_if_path_is_directory) {
   std::array<int, 9U> ops{
@@ -481,13 +513,28 @@ TYPED_TEST(fuse_test, create_open_fails_if_path_is_directory) {
   std::string dir_name{"create_test"};
   auto dir_path = this->create_directory_and_test(dir_name);
 
-  for (const auto &flags : ops) {
+  for (std::size_t idx{0U}; idx < ops.size(); ++idx) {
+    auto flags = ops.at(idx);
     auto handle = open(dir_path.c_str(), flags);
-    EXPECT_EQ(-1, handle);
+#if defined(__APPLE__)
     if (handle != -1) {
-      std::cout << std::oct << flags << std::endl;
+      if (idx != 0U) {
+        std::cerr << "open flags should return invalid handle|idx|" << idx
+                  << "|flags|" << std::hex << flags << std::endl;
+        EXPECT_EQ(-1, handle);
+      }
+
+      close(handle);
+      continue;
     }
+#endif // defined(__APPLE_)
+
+    EXPECT_EQ(-1, handle);
     EXPECT_EQ(EISDIR, errno);
+
+    if (handle != -1) {
+      close(handle);
+    }
   }
 
   this->rmdir_and_test(dir_path);
@@ -507,13 +554,17 @@ TYPED_TEST(fuse_test, create_open_fails_if_path_does_not_exist) {
       O_WRONLY,
   };
 
-  std::string file_name{"create_test"};
+  std::string file_name{"create_test_not_found"};
   auto file_path = this->create_file_path(file_name);
 
   for (const auto &flags : ops) {
     auto handle = open(file_path.c_str(), flags);
     EXPECT_EQ(-1, handle);
     EXPECT_EQ(ENOENT, errno);
+
+    if (handle != -1) {
+      close(handle);
+    }
   }
 }
 } // namespace repertory

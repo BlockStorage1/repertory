@@ -36,10 +36,49 @@ auto from_dynamic_bitset(const boost::dynamic_bitset<> &bitset) -> std::string {
 #endif // defined(PROJECT_ENABLE_BOOST)
 
 auto from_utf8(std::string_view str) -> std::wstring {
-  return str.empty()
-             ? L""
-             : std::wstring_convert<std::codecvt_utf8<wchar_t>, wchar_t>()
-                   .from_bytes(std::string{str});
+  if (str.empty()) {
+    return L"";
+  }
+
+  std::wstring out;
+
+  const auto *str_ptr = reinterpret_cast<const std::uint8_t *>(str.data());
+  std::int32_t idx{};
+  auto len{static_cast<std::int32_t>(str.size())};
+
+#if WCHAR_MAX <= 0xFFFF
+  out.reserve((str.size() + 1U) / 2U);
+  while (idx < len) {
+    UChar32 uni_ch{};
+    U8_NEXT(str_ptr, idx, len, uni_ch);
+    if (uni_ch < 0 || not U_IS_UNICODE_CHAR(uni_ch)) {
+      throw std::runtime_error("from_utf8: invalid UTF-8 sequence");
+    }
+    std::array<UChar, 2U> units{};
+    std::int32_t off{};
+    auto err{false};
+    U16_APPEND(units.data(), off, 2, uni_ch, err);
+    if (err || off <= 0) {
+      throw std::runtime_error("from_utf8: U16_APPEND failed");
+    }
+    out.push_back(static_cast<wchar_t>(units[0U]));
+    if (off == 2) {
+      out.push_back(static_cast<wchar_t>(units[1U]));
+    }
+  }
+#else  // WCHAR_MAX > 0xFFFF
+  out.reserve(str.size());
+  while (idx < len) {
+    UChar32 uni_ch{};
+    U8_NEXT(str_ptr, idx, len, uni_ch);
+    if (uni_ch < 0 || not U_IS_UNICODE_CHAR(uni_ch)) {
+      throw std::runtime_error("from_utf8: invalid UTF-8 sequence");
+    }
+    out.push_back(static_cast<wchar_t>(uni_ch));
+  }
+#endif // WCHAR_MAX <= 0xFFFF
+
+  return out;
 }
 
 #if defined(PROJECT_ENABLE_SFML)
@@ -55,8 +94,8 @@ auto replace_sf(sf::String &src, const sf::String &find, const sf::String &with,
   return src;
 }
 
-auto split_sf(sf::String str, wchar_t delim,
-              bool should_trim) -> std::vector<sf::String> {
+auto split_sf(sf::String str, wchar_t delim, bool should_trim)
+    -> std::vector<sf::String> {
   auto result = std::views::split(str.toWideString(), delim);
 
   std::vector<sf::String> ret{};
@@ -130,9 +169,51 @@ auto to_uint64(const std::string &val) -> std::uint64_t {
 auto to_utf8(std::string_view str) -> std::string { return std::string{str}; }
 
 auto to_utf8(std::wstring_view str) -> std::string {
-  return str.empty()
-             ? ""
-             : std::wstring_convert<std::codecvt_utf8<wchar_t>, wchar_t>()
-                   .to_bytes(std::wstring{str});
+  if (str.empty()) {
+    return "";
+  }
+
+  std::string out;
+  out.reserve(static_cast<size_t>(str.size()) * 4);
+
+#if WCHAR_MAX <= 0xFFFF
+  const auto *u16 = reinterpret_cast<const UChar *>(str.data());
+  std::int32_t idx{};
+  auto len{static_cast<int32_t>(str.size())};
+  while (idx < len) {
+    UChar32 uni_ch{};
+    U16_NEXT(u16, idx, len, uni_ch);
+    if (uni_ch < 0 || not U_IS_UNICODE_CHAR(uni_ch)) {
+      throw std::runtime_error("to_utf8: invalid UTF-16 sequence");
+    }
+    std::array<std::uint8_t, U8_MAX_LENGTH> buf{};
+    std::int32_t off{0};
+    auto err{false};
+    U8_APPEND(buf, off, U8_MAX_LENGTH, uni_ch, err);
+    if (err || off <= 0) {
+      throw std::runtime_error("to_utf8: U8_APPEND failed");
+    }
+    out.append(reinterpret_cast<const char *>(buf.data()),
+               static_cast<std::size_t>(off));
+  }
+#else  // WCHAR_MAX > 0xFFFF
+  for (const auto &cur_ch : str) {
+    auto uni_char{static_cast<UChar32>(cur_ch)};
+    if (not U_IS_UNICODE_CHAR(uni_char)) {
+      throw std::runtime_error("to_utf8: invalid Unicode scalar value");
+    }
+    std::array<std::uint8_t, U8_MAX_LENGTH> buf{};
+    std::int32_t off{0};
+    auto err{false};
+    U8_APPEND(buf, off, U8_MAX_LENGTH, uni_char, err);
+    if (err || off <= 0) {
+      throw std::runtime_error("to_utf8: U8_APPEND failed");
+    }
+    out.append(reinterpret_cast<const char *>(buf.data()),
+               static_cast<std::size_t>(off));
+  }
+#endif // WCHAR_MAX <= 0xFFFF
+
+  return out;
 }
 } // namespace repertory::utils::string

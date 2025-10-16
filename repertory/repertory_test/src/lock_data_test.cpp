@@ -23,86 +23,93 @@
 
 #include "platform/platform.hpp"
 
+namespace {
+[[nodiscard]] auto get_lock_test_dir() -> std::string {
+  return repertory::utils::path::combine(repertory::test::get_test_output_dir(),
+                                         {"lock"});
+}
+} // namespace
+
 namespace repertory {
 TEST(lock_data_test, lock_and_unlock) {
   {
-    lock_data l(provider_type::sia, "1");
-    EXPECT_EQ(lock_result::success, l.grab_lock());
+    lock_data lock(get_lock_test_dir(), provider_type::sia, "1");
+    EXPECT_EQ(lock_result::success, lock.grab_lock());
 
     std::thread([]() {
-      lock_data l2(provider_type::sia, "1");
-      EXPECT_EQ(lock_result::locked, l2.grab_lock(10));
+      lock_data lock2(get_lock_test_dir(), provider_type::sia, "1");
+      EXPECT_EQ(lock_result::locked, lock2.grab_lock(10));
     }).join();
   }
 
   std::thread([]() {
-    lock_data l(provider_type::sia, "1");
-    EXPECT_EQ(lock_result::success, l.grab_lock(10));
+    lock_data lock(get_lock_test_dir(), provider_type::sia, "1");
+    EXPECT_EQ(lock_result::success, lock.grab_lock(10));
   }).join();
 
 #if defined(_WIN32)
-  lock_data l2(provider_type::remote, "1");
-  EXPECT_EQ(lock_result::success, l2.grab_lock());
+  lock_data lock2(get_lock_test_dir(), provider_type::remote, "1");
+  EXPECT_EQ(lock_result::success, lock2.grab_lock());
 
-  lock_data l3(provider_type::remote, "2");
-  EXPECT_EQ(lock_result::success, l3.grab_lock());
+  lock_data lock3(get_lock_test_dir(), provider_type::remote, "2");
+  EXPECT_EQ(lock_result::success, lock3.grab_lock());
 #endif
 }
 
 #if defined(_WIN32)
 TEST(lock_data_test, set_and_unset_mount_state) {
-  lock_data l(provider_type::sia, "1");
-  EXPECT_TRUE(l.set_mount_state(true, "C:", 99));
+  lock_data lock(get_lock_test_dir(), provider_type::sia, "1");
+  EXPECT_TRUE(lock.set_mount_state(true, "C:", 99));
 
-  lock_data l2(provider_type::remote, "1");
-  EXPECT_TRUE(l2.set_mount_state(true, "D:", 97));
+  lock_data lock2(get_lock_test_dir(), provider_type::remote, "1");
+  EXPECT_TRUE(lock2.set_mount_state(true, "D:", 97));
 
-  lock_data l3(provider_type::remote, "2");
-  EXPECT_TRUE(l3.set_mount_state(true, "E:", 96));
+  lock_data lock3(get_lock_test_dir(), provider_type::remote, "2");
+  EXPECT_TRUE(lock3.set_mount_state(true, "E:", 96));
 
   json mount_state;
-  EXPECT_TRUE(l.get_mount_state(mount_state));
+  EXPECT_TRUE(lock.get_mount_state(mount_state));
   EXPECT_STREQ(R"({"Active":true,"Location":"C:","PID":99})",
                mount_state.dump().c_str());
 
-  EXPECT_TRUE(l2.get_mount_state(mount_state));
+  EXPECT_TRUE(lock2.get_mount_state(mount_state));
   EXPECT_STREQ(R"({"Active":true,"Location":"D:","PID":97})",
                mount_state.dump().c_str());
 
-  EXPECT_TRUE(l3.get_mount_state(mount_state));
+  EXPECT_TRUE(lock3.get_mount_state(mount_state));
   EXPECT_STREQ(R"({"Active":true,"Location":"E:","PID":96})",
                mount_state.dump().c_str());
 
-  EXPECT_TRUE(l.set_mount_state(false, "C:", 99));
-  EXPECT_TRUE(l2.set_mount_state(false, "D:", 98));
-  EXPECT_TRUE(l3.set_mount_state(false, "E:", 97));
+  EXPECT_TRUE(lock.set_mount_state(false, "C:", 99));
+  EXPECT_TRUE(lock2.set_mount_state(false, "D:", 98));
+  EXPECT_TRUE(lock3.set_mount_state(false, "E:", 97));
 
-  EXPECT_TRUE(l.get_mount_state(mount_state));
+  EXPECT_TRUE(lock.get_mount_state(mount_state));
   EXPECT_STREQ(R"({"Active":false,"Location":"","PID":-1})",
                mount_state.dump().c_str());
 
-  EXPECT_TRUE(l2.get_mount_state(mount_state));
+  EXPECT_TRUE(lock2.get_mount_state(mount_state));
   EXPECT_STREQ(R"({"Active":false,"Location":"","PID":-1})",
                mount_state.dump().c_str());
 
-  EXPECT_TRUE(l3.get_mount_state(mount_state));
+  EXPECT_TRUE(lock3.get_mount_state(mount_state));
   EXPECT_STREQ(R"({"Active":false,"Location":"","PID":-1})",
                mount_state.dump().c_str());
 }
 #else
 TEST(lock_data_test, set_and_unset_mount_state) {
-  lock_data l(provider_type::sia, "1");
-  EXPECT_TRUE(l.set_mount_state(true, "/mnt/1", 99));
+  lock_data lock(get_lock_test_dir(), provider_type::sia, "1");
+  EXPECT_TRUE(lock.set_mount_state(true, "/mnt/1", 99));
 
   json mount_state;
-  EXPECT_TRUE(l.get_mount_state(mount_state));
+  EXPECT_TRUE(lock.get_mount_state(mount_state));
 
   EXPECT_STREQ(R"({"Active":true,"Location":"/mnt/1","PID":99})",
                mount_state.dump().c_str());
 
-  EXPECT_TRUE(l.set_mount_state(false, "/mnt/1", 99));
+  EXPECT_TRUE(lock.set_mount_state(false, "/mnt/1", 99));
 
-  EXPECT_TRUE(l.get_mount_state(mount_state));
+  EXPECT_TRUE(lock.get_mount_state(mount_state));
   EXPECT_STREQ(R"({"Active":false,"Location":"","PID":-1})",
                mount_state.dump().c_str());
 }

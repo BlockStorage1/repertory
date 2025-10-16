@@ -42,8 +42,8 @@ private:
   utils::db::sqlite::db3_t db_;
 
 public:
-  [[nodiscard]] auto add_directory(const std::string &api_path,
-                                   const std::string &source_path)
+  [[nodiscard]] auto
+  add_or_update_directory(const i_file_db::directory_data &data)
       -> api_error override;
 
   [[nodiscard]] auto add_or_update_file(const i_file_db::file_data &data)
@@ -57,38 +57,42 @@ public:
       std::function<void(const std::vector<i_file_db::file_info> &)> callback,
       stop_type_callback stop_requested_cb) const override;
 
-  [[nodiscard]] auto get_api_path(const std::string &source_path,
+  [[nodiscard]] auto get_api_path(std::string_view source_path,
                                   std::string &api_path) const
       -> api_error override;
 
-  [[nodiscard]] auto get_directory_api_path(const std::string &source_path,
+  [[nodiscard]] auto get_directory_api_path(std::string_view source_path,
                                             std::string &api_path) const
       -> api_error override;
 
-  [[nodiscard]] auto get_directory_source_path(const std::string &api_path,
+  [[nodiscard]] auto get_directory_data(std::string_view api_path,
+                                        i_file_db::directory_data &data) const
+      -> api_error override;
+
+  [[nodiscard]] auto get_directory_source_path(std::string_view api_path,
                                                std::string &source_path) const
       -> api_error override;
 
-  [[nodiscard]] auto get_file_api_path(const std::string &source_path,
+  [[nodiscard]] auto get_file_api_path(std::string_view source_path,
                                        std::string &api_path) const
       -> api_error override;
 
-  [[nodiscard]] auto get_file_data(const std::string &api_path,
+  [[nodiscard]] auto get_file_data(std::string_view api_path,
                                    i_file_db::file_data &data) const
       -> api_error override;
 
-  [[nodiscard]] auto get_file_source_path(const std::string &api_path,
+  [[nodiscard]] auto get_file_source_path(std::string_view api_path,
                                           std::string &source_path) const
       -> api_error override;
 
   [[nodiscard]] auto get_item_list(stop_type_callback stop_requested_cb) const
       -> std::vector<i_file_db::file_info> override;
 
-  [[nodiscard]] auto get_source_path(const std::string &api_path,
+  [[nodiscard]] auto get_source_path(std::string_view api_path,
                                      std::string &source_path) const
       -> api_error override;
 
-  [[nodiscard]] auto remove_item(const std::string &api_path)
+  [[nodiscard]] auto remove_item(std::string_view api_path)
       -> api_error override;
 };
 } // namespace repertory

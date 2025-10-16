@@ -27,28 +27,30 @@
 namespace repertory::cli::actions {
 [[nodiscard]] inline auto
 drive_information(std::vector<const char *> /* args */,
-                  const std::string &data_directory, const provider_type &prov,
-                  const std::string &unique_id, std::string user,
+                  std::string_view data_directory, provider_type prov,
+                  std::string_view unique_id, std::string user,
                   std::string password) -> exit_code {
-  auto ret = exit_code::success;
-
-  lock_data lock(prov, unique_id);
-  const auto res = lock.grab_lock(1U);
-  if (res == lock_result::locked) {
+  lock_data lock(data_directory, prov, unique_id);
+  auto lock_res = lock.grab_lock(1U);
+  if (lock_res == lock_result::locked) {
     auto port = app_config::default_api_port(prov);
-    utils::cli::get_api_authentication_data(user, password, port, prov,
+    utils::cli::get_api_authentication_data(user, password, port,
                                             data_directory);
-    const auto response =
-        client({"localhost", password, port, user}).get_drive_information();
-    std::cout << static_cast<int>(response.response_type) << std::endl;
-    std::cout << response.data.dump(2) << std::endl;
-  } else {
-    std::cerr << app_config::get_provider_display_name(prov)
-              << " is not mounted." << std::endl;
-    ret = exit_code::not_mounted;
+    auto response = client({
+                               .host = "localhost",
+                               .password = password,
+                               .port = port,
+                               .user = user,
+                           })
+                        .get_drive_information();
+    return cli::handle_error(exit_code::success, response.response_type,
+                             response.data.dump(2));
   }
 
-  return ret;
+  return cli::handle_error(
+      exit_code::not_mounted,
+      fmt::format("{} is not mounted",
+                  app_config::get_provider_display_name(prov)));
 }
 } // namespace repertory::cli::actions
 

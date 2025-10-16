@@ -53,7 +53,7 @@ auto remote_client::winfsp_can_delete(PVOID file_desc, PWSTR file_name)
   return packet_client_.send(function_name, request, service_flags);
 }
 
-auto remote_client::json_create_directory_snapshot(const std::string &path,
+auto remote_client::json_create_directory_snapshot(std::string_view path,
                                                    json &json_data)
     -> packet::error_type {
   REPERTORY_USES_FUNCTION_NAME();
@@ -73,9 +73,11 @@ auto remote_client::json_create_directory_snapshot(const std::string &path,
   return ret;
 }
 
-auto remote_client::json_read_directory_snapshot(
-    const std::string &path, const remote::file_handle &handle,
-    std::uint32_t page, json &json_data) -> packet::error_type {
+auto remote_client::json_read_directory_snapshot(std::string_view path,
+                                                 remote::file_handle handle,
+                                                 std::uint32_t page,
+                                                 json &json_data)
+    -> packet::error_type {
   REPERTORY_USES_FUNCTION_NAME();
 
   packet request;
@@ -95,8 +97,8 @@ auto remote_client::json_read_directory_snapshot(
   return ret;
 }
 
-auto remote_client::json_release_directory_snapshot(
-    const std::string &path, const remote::file_handle &handle)
+auto remote_client::json_release_directory_snapshot(std::string_view path,
+                                                    remote::file_handle handle)
     -> packet::error_type {
   REPERTORY_USES_FUNCTION_NAME();
 
@@ -172,7 +174,7 @@ auto remote_client::winfsp_close(PVOID file_desc) -> packet::error_type {
 auto remote_client::winfsp_create(PWSTR file_name, UINT32 create_options,
                                   UINT32 granted_access, UINT32 attributes,
                                   UINT64 allocation_size, PVOID *file_desc,
-                                  remote::file_info *file_info,
+                                  remote::file_info *r_info,
                                   std::string &normalized_name, BOOLEAN &exists)
     -> packet::error_type {
   REPERTORY_USES_FUNCTION_NAME();
@@ -192,7 +194,7 @@ auto remote_client::winfsp_create(PWSTR file_name, UINT32 create_options,
   if (ret == STATUS_SUCCESS) {
     HANDLE handle{};
     DECODE_OR_IGNORE(&response, handle);
-    DECODE_OR_IGNORE(&response, *file_info);
+    DECODE_OR_IGNORE(&response, *r_info);
     DECODE_OR_IGNORE(&response, normalized_name);
     DECODE_OR_IGNORE(&response, exists);
 
@@ -200,10 +202,10 @@ auto remote_client::winfsp_create(PWSTR file_name, UINT32 create_options,
       *file_desc = reinterpret_cast<PVOID>(handle);
       set_open_info(to_handle(*file_desc),
                     open_info{
-                        "",
-                        nullptr,
-                        {},
-                        utils::string::to_utf8(file_name),
+                        .client_id = "",
+                        .directory_buffer = nullptr,
+                        .handles = {},
+                        .path = utils::string::to_utf8(file_name),
                     });
     }
   }
@@ -211,7 +213,7 @@ auto remote_client::winfsp_create(PWSTR file_name, UINT32 create_options,
   return ret;
 }
 
-auto remote_client::winfsp_flush(PVOID file_desc, remote::file_info *file_info)
+auto remote_client::winfsp_flush(PVOID file_desc, remote::file_info *r_info)
     -> packet::error_type {
   REPERTORY_USES_FUNCTION_NAME();
 
@@ -223,7 +225,7 @@ auto remote_client::winfsp_flush(PVOID file_desc, remote::file_info *file_info)
   auto ret{
       packet_client_.send(function_name, request, response, service_flags),
   };
-  DECODE_OR_IGNORE(&response, *file_info);
+  DECODE_OR_IGNORE(&response, *r_info);
 
   return ret;
 }
@@ -241,7 +243,7 @@ auto remote_client::winfsp_get_dir_buffer([[maybe_unused]] PVOID file_desc,
 }
 
 auto remote_client::winfsp_get_file_info(PVOID file_desc,
-                                         remote::file_info *file_info)
+                                         remote::file_info *r_info)
     -> packet::error_type {
   REPERTORY_USES_FUNCTION_NAME();
 
@@ -253,7 +255,7 @@ auto remote_client::winfsp_get_file_info(PVOID file_desc,
   auto ret{
       packet_client_.send(function_name, request, response, service_flags),
   };
-  DECODE_OR_IGNORE(&response, *file_info);
+  DECODE_OR_IGNORE(&response, *r_info);
 
   return ret;
 }
@@ -309,7 +311,7 @@ auto remote_client::winfsp_get_volume_info(UINT64 &total_size,
   return ret;
 }
 
-auto remote_client::winfsp_mounted(const std::wstring &location)
+auto remote_client::winfsp_mounted(std::wstring_view location)
     -> packet::error_type {
   REPERTORY_USES_FUNCTION_NAME();
 
@@ -332,7 +334,7 @@ auto remote_client::winfsp_mounted(const std::wstring &location)
 
 auto remote_client::winfsp_open(PWSTR file_name, UINT32 create_options,
                                 UINT32 granted_access, PVOID *file_desc,
-                                remote::file_info *file_info,
+                                remote::file_info *r_info,
                                 std::string &normalized_name)
     -> packet::error_type {
   REPERTORY_USES_FUNCTION_NAME();
@@ -350,7 +352,7 @@ auto remote_client::winfsp_open(PWSTR file_name, UINT32 create_options,
   if (ret == STATUS_SUCCESS) {
     HANDLE handle{};
     DECODE_OR_IGNORE(&response, handle);
-    DECODE_OR_IGNORE(&response, *file_info);
+    DECODE_OR_IGNORE(&response, *r_info);
     DECODE_OR_IGNORE(&response, normalized_name);
 
     if (ret == STATUS_SUCCESS) {
@@ -371,7 +373,7 @@ auto remote_client::winfsp_open(PWSTR file_name, UINT32 create_options,
 auto remote_client::winfsp_overwrite(PVOID file_desc, UINT32 attributes,
                                      BOOLEAN replace_attributes,
                                      UINT64 allocation_size,
-                                     remote::file_info *file_info)
+                                     remote::file_info *r_info)
     -> packet::error_type {
   REPERTORY_USES_FUNCTION_NAME();
 
@@ -386,7 +388,7 @@ auto remote_client::winfsp_overwrite(PVOID file_desc, UINT32 attributes,
   auto ret{
       packet_client_.send(function_name, request, response, service_flags),
   };
-  DECODE_OR_IGNORE(&response, *file_info);
+  DECODE_OR_IGNORE(&response, *r_info);
 
   return ret;
 }
@@ -457,7 +459,7 @@ auto remote_client::winfsp_rename(PVOID file_desc, PWSTR file_name,
 auto remote_client::winfsp_set_basic_info(
     PVOID file_desc, UINT32 attributes, UINT64 creation_time,
     UINT64 last_access_time, UINT64 last_write_time, UINT64 change_time,
-    remote::file_info *file_info) -> packet::error_type {
+    remote::file_info *r_info) -> packet::error_type {
   REPERTORY_USES_FUNCTION_NAME();
 
   packet request;
@@ -473,14 +475,14 @@ auto remote_client::winfsp_set_basic_info(
   auto ret{
       packet_client_.send(function_name, request, response, service_flags),
   };
-  DECODE_OR_IGNORE(&response, *file_info);
+  DECODE_OR_IGNORE(&response, *r_info);
 
   return ret;
 }
 
 auto remote_client::winfsp_set_file_size(PVOID file_desc, UINT64 new_size,
                                          BOOLEAN set_allocation_size,
-                                         remote::file_info *file_info)
+                                         remote::file_info *r_info)
     -> packet::error_type {
   REPERTORY_USES_FUNCTION_NAME();
 
@@ -494,12 +496,12 @@ auto remote_client::winfsp_set_file_size(PVOID file_desc, UINT64 new_size,
   auto ret{
       packet_client_.send(function_name, request, response, service_flags),
   };
-  DECODE_OR_IGNORE(&response, *file_info);
+  DECODE_OR_IGNORE(&response, *r_info);
 
   return ret;
 }
 
-auto remote_client::winfsp_unmounted(const std::wstring &location)
+auto remote_client::winfsp_unmounted(std::wstring_view location)
     -> packet::error_type {
   REPERTORY_USES_FUNCTION_NAME();
 
@@ -525,7 +527,7 @@ auto remote_client::winfsp_write(PVOID file_desc, PVOID buffer, UINT64 offset,
                                  UINT32 length, BOOLEAN write_to_end,
                                  BOOLEAN constrained_io,
                                  PUINT32 bytes_transferred,
-                                 remote::file_info *file_info)
+                                 remote::file_info *r_info)
     -> packet::error_type {
   REPERTORY_USES_FUNCTION_NAME();
 
@@ -547,7 +549,7 @@ auto remote_client::winfsp_write(PVOID file_desc, PVOID buffer, UINT64 offset,
       packet_client_.send(function_name, request, response, service_flags),
   };
   DECODE_OR_IGNORE(&response, *bytes_transferred);
-  DECODE_OR_IGNORE(&response, *file_info);
+  DECODE_OR_IGNORE(&response, *r_info);
 
   return ret;
 }

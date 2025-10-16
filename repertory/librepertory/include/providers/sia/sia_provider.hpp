@@ -28,7 +28,7 @@
 namespace repertory {
 class app_config;
 class i_file_manager;
-class i_http_comm;
+struct i_http_comm;
 
 class sia_provider : public base_provider {
 public:
@@ -49,17 +49,17 @@ private:
   sia_config sia_config_;
 
 private:
-  [[nodiscard]] auto create_directory_key(const std::string &api_path) const
+  [[nodiscard]] auto create_directory_key(std::string_view api_path) const
       -> repertory::api_error;
 
-  [[nodiscard]] auto ensure_directory_exists(const std::string &api_path) const
+  [[nodiscard]] auto ensure_directory_exists(std::string_view api_path) const
       -> api_error;
 
-  [[nodiscard]] auto get_object_info(const std::string &api_path,
+  [[nodiscard]] auto get_object_info(std::string_view api_path,
                                      json &object_info) const -> api_error;
 
   [[nodiscard]] auto
-  get_object_list(const std::string &api_path, nlohmann::json &object_list,
+  get_object_list(std::string_view api_path, nlohmann::json &object_list,
                   std::optional<std::string> marker = std::nullopt) const
       -> bool;
 
@@ -68,26 +68,26 @@ private:
   }
 
   void iterate_objects(
-      const std::string &api_path, const json &object_list,
-      std::function<void(const std::string &, bool, json)> handle_entry) const;
+      std::string_view api_path, const json &object_list,
+      std::function<void(std::string_view, bool, json)> handle_entry) const;
 
 protected:
-  [[nodiscard]] auto create_directory_impl(const std::string &api_path,
+  [[nodiscard]] auto create_directory_impl(std::string_view api_path,
                                            api_meta_map &meta)
       -> api_error override;
 
-  [[nodiscard]] auto get_directory_items_impl(const std::string &api_path,
+  [[nodiscard]] auto get_directory_items_impl(std::string_view api_path,
                                               directory_item_list &list) const
       -> api_error override;
 
-  [[nodiscard]] auto remove_directory_impl(const std::string &api_path)
+  [[nodiscard]] auto remove_directory_impl(std::string_view api_path)
       -> api_error override;
 
-  [[nodiscard]] auto remove_file_impl(const std::string &api_path)
+  [[nodiscard]] auto remove_file_impl(std::string_view api_path)
       -> api_error override;
 
-  [[nodiscard]] auto upload_file_impl(const std::string &api_path,
-                                      const std::string &source_path,
+  [[nodiscard]] auto upload_file_impl(std::string_view api_path,
+                                      std::string_view source_path,
                                       stop_type &stop_requested)
       -> api_error override;
 
@@ -96,10 +96,10 @@ public:
                                    std::string &returned_version) const
       -> bool override;
 
-  [[nodiscard]] auto get_directory_item_count(const std::string &api_path) const
+  [[nodiscard]] auto get_directory_item_count(std::string_view api_path) const
       -> std::uint64_t override;
 
-  [[nodiscard]] auto get_file(const std::string &api_path, api_file &file) const
+  [[nodiscard]] auto get_file(std::string_view api_path, api_file &file) const
       -> api_error override;
 
   [[nodiscard]] auto get_file_list(api_file_list &list,
@@ -112,10 +112,10 @@ public:
 
   [[nodiscard]] auto get_total_drive_space() const -> std::uint64_t override;
 
-  [[nodiscard]] auto is_directory(const std::string &api_path,
-                                  bool &exists) const -> api_error override;
+  [[nodiscard]] auto is_directory(std::string_view api_path, bool &exists) const
+      -> api_error override;
 
-  [[nodiscard]] auto is_file(const std::string &api_path, bool &exists) const
+  [[nodiscard]] auto is_file(std::string_view api_path, bool &exists) const
       -> api_error override;
 
   [[nodiscard]] auto is_online() const -> bool override;
@@ -124,14 +124,14 @@ public:
     return true;
   }
 
-  [[nodiscard]] auto read_file_bytes(const std::string &api_path,
+  [[nodiscard]] auto read_file_bytes(std::string_view api_path,
                                      std::size_t size, std::uint64_t offset,
                                      data_buffer &buffer,
                                      stop_type &stop_requested)
       -> api_error override;
 
-  [[nodiscard]] auto rename_file(const std::string &from_api_path,
-                                 const std::string &to_api_path)
+  [[nodiscard]] auto rename_file(std::string_view from_api_path,
+                                 std::string_view to_api_path)
       -> api_error override;
 
   [[nodiscard]] auto start(api_item_added_callback api_item_added,

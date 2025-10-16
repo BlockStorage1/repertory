@@ -31,16 +31,16 @@ namespace repertory {
 using get_key_callback = std::function<std::string()>;
 
 using get_api_file_token_callback =
-    std::function<std::string(const std::string &api_path)>;
+    std::function<std::string(std::string_view api_path)>;
 
 using get_name_callback = std::function<std::string(
-    const std::string &key, const std::string &object_name)>;
+    std::string_view key, std::string_view object_name)>;
 
 using get_size_callback = std::function<std::uint64_t()>;
 
 using get_token_callback = std::function<std::string()>;
 
-using set_key_callback = std::function<api_error(const std::string &key)>;
+using set_key_callback = std::function<api_error(std::string_view key)>;
 
 using list_directories_result = api_file_list;
 

@@ -67,8 +67,6 @@ auto rdb_file_mgr_db::add_resume(const resume_entry &entry) -> bool {
 
 auto rdb_file_mgr_db::add_resume(const resume_entry &entry,
                                  rocksdb::Transaction *txn) -> rocksdb::Status {
-  REPERTORY_USES_FUNCTION_NAME();
-
   auto data = json({
       {"chunk_size", entry.chunk_size},
       {"read_state", utils::string::from_dynamic_bitset(entry.read_state)},
@@ -145,7 +143,7 @@ auto rdb_file_mgr_db::get_resume_list() const -> std::vector<resume_entry> {
   return ret;
 }
 
-auto rdb_file_mgr_db::get_upload(const std::string &api_path) const
+auto rdb_file_mgr_db::get_upload(std::string_view api_path) const
     -> std::optional<upload_entry> {
   auto iter = create_iterator(upload_family_);
   for (iter->SeekToFirst(); iter->Valid(); iter->Next()) {
@@ -157,7 +155,7 @@ auto rdb_file_mgr_db::get_upload(const std::string &api_path) const
     }
 
     return upload_entry{
-        api_path,
+        std::string{api_path},
         iter->value().ToString(),
     };
   }
@@ -231,7 +229,7 @@ auto rdb_file_mgr_db::perform_action(
   return false;
 }
 
-auto rdb_file_mgr_db::remove_resume(const std::string &api_path) -> bool {
+auto rdb_file_mgr_db::remove_resume(std::string_view api_path) -> bool {
   REPERTORY_USES_FUNCTION_NAME();
 
   return perform_action(
@@ -241,12 +239,13 @@ auto rdb_file_mgr_db::remove_resume(const std::string &api_path) -> bool {
       });
 }
 
-auto rdb_file_mgr_db::remove_resume(
-    const std::string &api_path, rocksdb::Transaction *txn) -> rocksdb::Status {
+auto rdb_file_mgr_db::remove_resume(std::string_view api_path,
+                                    rocksdb::Transaction *txn)
+    -> rocksdb::Status {
   return txn->Delete(resume_family_, api_path);
 }
 
-auto rdb_file_mgr_db::remove_upload(const std::string &api_path) -> bool {
+auto rdb_file_mgr_db::remove_upload(std::string_view api_path) -> bool {
   REPERTORY_USES_FUNCTION_NAME();
 
   auto iter = create_iterator(upload_family_);
@@ -268,8 +267,7 @@ auto rdb_file_mgr_db::remove_upload(const std::string &api_path) -> bool {
   return true;
 }
 
-auto rdb_file_mgr_db::remove_upload_active(const std::string &api_path)
-    -> bool {
+auto rdb_file_mgr_db::remove_upload_active(std::string_view api_path) -> bool {
   REPERTORY_USES_FUNCTION_NAME();
 
   return perform_action(
@@ -279,8 +277,8 @@ auto rdb_file_mgr_db::remove_upload_active(const std::string &api_path)
       });
 }
 
-auto rdb_file_mgr_db::rename_resume(const std::string &from_api_path,
-                                    const std::string &to_api_path) -> bool {
+auto rdb_file_mgr_db::rename_resume(std::string_view from_api_path,
+                                    std::string_view to_api_path) -> bool {
   REPERTORY_USES_FUNCTION_NAME();
 
   bool not_found{false};
@@ -306,7 +304,7 @@ auto rdb_file_mgr_db::rename_resume(const std::string &from_api_path,
 
   auto data = json::parse(value);
   resume_entry entry{
-      to_api_path,
+      std::string{to_api_path},
       data.at("chunk_size").get<std::uint64_t>(),
       utils::string::to_dynamic_bitset(
           data.at("read_state").get<std::string>()),

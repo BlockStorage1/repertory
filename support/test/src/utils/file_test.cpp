@@ -510,6 +510,7 @@ TEST(utils_file, get_times) {
         utils::file::get_times(test::create_random_file(1U).get_path());
     EXPECT_TRUE(times.has_value());
     EXPECT_LT(0U, times->get(utils::file::time_type::accessed));
+    EXPECT_LT(0U, times->get(utils::file::time_type::changed));
     EXPECT_LT(0U, times->get(utils::file::time_type::created));
     EXPECT_LT(0U, times->get(utils::file::time_type::modified));
     EXPECT_LT(0U, times->get(utils::file::time_type::written));
@@ -520,6 +521,7 @@ TEST(utils_file, get_times) {
         utils::string::from_utf8(test::create_random_file(1U).get_path()));
     EXPECT_TRUE(times.has_value());
     EXPECT_LT(0U, times->get(utils::file::time_type::accessed));
+    EXPECT_LT(0U, times->get(utils::file::time_type::changed));
     EXPECT_LT(0U, times->get(utils::file::time_type::created));
     EXPECT_LT(0U, times->get(utils::file::time_type::modified));
     EXPECT_LT(0U, times->get(utils::file::time_type::written));
@@ -537,6 +539,11 @@ TEST(utils_file, get_time) {
     auto file_path = test::create_random_file(1U).get_path();
     auto file_time =
         utils::file::get_time(file_path, utils::file::time_type::accessed);
+    EXPECT_TRUE(file_time.has_value());
+    EXPECT_LT(0U, file_time.value());
+
+    file_time =
+        utils::file::get_time(file_path, utils::file::time_type::changed);
     EXPECT_TRUE(file_time.has_value());
     EXPECT_LT(0U, file_time.value());
 
@@ -562,6 +569,11 @@ TEST(utils_file, get_time) {
 
     auto file_time =
         utils::file::get_time(file_path, utils::file::time_type::accessed);
+    EXPECT_TRUE(file_time.has_value());
+    EXPECT_LT(0U, file_time.value());
+
+    file_time =
+        utils::file::get_time(file_path, utils::file::time_type::changed);
     EXPECT_TRUE(file_time.has_value());
     EXPECT_LT(0U, file_time.value());
 

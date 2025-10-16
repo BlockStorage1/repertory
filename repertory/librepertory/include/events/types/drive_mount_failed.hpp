@@ -30,9 +30,9 @@ namespace repertory {
 struct drive_mount_failed final : public i_event {
   drive_mount_failed() = default;
   drive_mount_failed(NTSTATUS error_, std::string_view function_name_,
-                     std::string mount_location_)
+                     std::string_view mount_location_)
       : error(error_),
-        function_name(std::string(function_name_)),
+        function_name(function_name_),
         mount_location(std::move(mount_location_)) {}
 
   static constexpr event_level level{event_level::error};

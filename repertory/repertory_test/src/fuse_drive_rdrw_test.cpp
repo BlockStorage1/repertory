@@ -21,10 +21,10 @@
 */
 #if !defined(_WIN32)
 
-#include "fixtures/fuse_fixture.hpp"
+#include "fixtures/drive_fixture.hpp"
 
 namespace repertory {
-TYPED_TEST_CASE(fuse_test, fuse_provider_types);
+TYPED_TEST_SUITE(fuse_test, platform_provider_types);
 
 TYPED_TEST(fuse_test, rdrw_can_read_and_write_file) {
   std::string file_name{"create_test"};
@@ -204,6 +204,38 @@ TYPED_TEST(fuse_test, rdrw_can_append_to_file) {
   close(handle);
 
   this->unlink_file_and_test(file_path);
+}
+
+TYPED_TEST(fuse_test, rdrw_open_with_o_trunc_resets_size) {
+  std::string name{"trunc_test"};
+  auto path = this->create_file_and_test(name, 0644);
+
+  this->overwrite_text(path, "ABCDEFG");
+  EXPECT_GT(this->stat_size(path), 0);
+
+  auto desc = ::open(path.c_str(), O_WRONLY | O_TRUNC);
+  ASSERT_NE(desc, -1);
+  ::close(desc);
+
+  EXPECT_EQ(0, this->stat_size(path));
+  this->unlink_file_and_test(path);
+}
+
+TYPED_TEST(fuse_test, rdrw_o_append_writes_at_eof) {
+  std::string name{"append_test"};
+  auto path = this->create_file_and_test(name, 0644);
+
+  this->overwrite_text(path, "HEAD");
+
+  auto desc = ::open(path.c_str(), O_WRONLY | O_APPEND);
+  ASSERT_NE(desc, -1);
+
+  ASSERT_NE(-1, ::lseek(desc, 0, SEEK_SET));
+  this->write_all(desc, "TAIL");
+  ::close(desc);
+
+  EXPECT_EQ("HEADTAIL", this->slurp(path));
+  this->unlink_file_and_test(path);
 }
 } // namespace repertory
 

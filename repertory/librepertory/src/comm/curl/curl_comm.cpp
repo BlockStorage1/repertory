@@ -60,7 +60,7 @@ curl_comm::curl_comm(host_config cfg)
 curl_comm::curl_comm(s3_config cfg)
     : host_config_(std::nullopt), s3_config_(std::move(cfg)) {}
 
-auto curl_comm::construct_url(CURL *curl, const std::string &relative_path,
+auto curl_comm::construct_url(CURL *curl, std::string_view relative_path,
                               const host_config &cfg) -> std::string {
   static constexpr auto http{80U};
   static constexpr auto https{443U};
@@ -74,8 +74,8 @@ auto curl_comm::construct_url(CURL *curl, const std::string &relative_path,
   auto url = cfg.protocol + "://" +
              utils::string::trim_copy(cfg.host_name_or_ip) + custom_port;
 
-  static const auto complete_url = [](const std::string &current_path,
-                                      const std::string &parent_path,
+  static const auto complete_url = [](std::string_view current_path,
+                                      std::string_view parent_path,
                                       std::string &final_url) -> std::string & {
     final_url += utils::path::create_api_path(current_path);
     if (utils::string::ends_with(parent_path, "/")) {
@@ -174,10 +174,10 @@ auto curl_comm::make_request(const curl::requests::http_put_file &put_file,
                       put_file, response_code, stop_requested);
 }
 
-auto curl_comm::url_encode(CURL *curl, const std::string &data,
-                           bool allow_slash) -> std::string {
-  auto *value =
-      curl_easy_escape(curl, data.c_str(), static_cast<int>(data.size()));
+auto curl_comm::url_encode(CURL *curl, std::string_view data, bool allow_slash)
+    -> std::string {
+  auto *value = curl_easy_escape(curl, std::string{data}.c_str(),
+                                 static_cast<int>(data.size()));
   std::string ret = value;
   curl_free(value);
 

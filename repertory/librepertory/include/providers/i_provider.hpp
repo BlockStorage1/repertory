@@ -35,61 +35,61 @@ public:
                                            std::string &returned_version) const
       -> bool = 0;
 
-  [[nodiscard]] virtual auto create_directory(const std::string &api_path,
+  [[nodiscard]] virtual auto create_directory(std::string_view api_path,
                                               api_meta_map &meta)
       -> api_error = 0;
 
   [[nodiscard]] virtual auto
-  create_directory_clone_source_meta(const std::string &source_api_path,
-                                     const std::string &api_path)
+  create_directory_clone_source_meta(std::string_view source_api_path,
+                                     std::string_view api_path)
       -> api_error = 0;
 
-  [[nodiscard]] virtual auto create_file(const std::string &api_path,
+  [[nodiscard]] virtual auto create_file(std::string_view api_path,
                                          api_meta_map &meta) -> api_error = 0;
 
   [[nodiscard]] virtual auto
-  get_api_path_from_source(const std::string &source_path,
+  get_api_path_from_source(std::string_view source_path,
                            std::string &api_path) const -> api_error = 0;
 
   [[nodiscard]] virtual auto
-  get_directory_item_count(const std::string &api_path) const
+  get_directory_item_count(std::string_view api_path) const
       -> std::uint64_t = 0;
 
+  [[nodiscard]] virtual auto get_directory_item(std::string_view api_path,
+                                                directory_item &list) const
+      -> api_error = 0;
+
   [[nodiscard]] virtual auto
-  get_directory_items(const std::string &api_path,
+  get_directory_items(std::string_view api_path,
                       directory_item_list &list) const -> api_error = 0;
 
-  [[nodiscard]] virtual auto get_file(const std::string &api_path,
+  [[nodiscard]] virtual auto get_file(std::string_view api_path,
                                       api_file &file) const -> api_error = 0;
 
   [[nodiscard]] virtual auto get_file_list(api_file_list &list,
                                            std::string &marker) const
       -> api_error = 0;
 
-  [[nodiscard]] virtual auto get_file_size(const std::string &api_path,
+  [[nodiscard]] virtual auto get_file_size(std::string_view api_path,
                                            std::uint64_t &file_size) const
       -> api_error = 0;
 
-  [[nodiscard]] virtual auto get_filesystem_item(const std::string &api_path,
+  [[nodiscard]] virtual auto get_filesystem_item(std::string_view api_path,
                                                  bool directory,
                                                  filesystem_item &fsi) const
       -> api_error = 0;
 
   [[nodiscard]] virtual auto
-  get_filesystem_item_and_file(const std::string &api_path, api_file &file,
-                               filesystem_item &fsi) const -> api_error = 0;
-
-  [[nodiscard]] virtual auto
-  get_filesystem_item_from_source_path(const std::string &source_path,
+  get_filesystem_item_from_source_path(std::string_view source_path,
                                        filesystem_item &fsi) const
       -> api_error = 0;
 
-  [[nodiscard]] virtual auto get_item_meta(const std::string &api_path,
+  [[nodiscard]] virtual auto get_item_meta(std::string_view api_path,
                                            api_meta_map &meta) const
       -> api_error = 0;
 
-  [[nodiscard]] virtual auto get_item_meta(const std::string &api_path,
-                                           const std::string &key,
+  [[nodiscard]] virtual auto get_item_meta(std::string_view api_path,
+                                           std::string_view key,
                                            std::string &value) const
       -> api_error = 0;
 
@@ -104,14 +104,11 @@ public:
 
   [[nodiscard]] virtual auto get_used_drive_space() const -> std::uint64_t = 0;
 
-  [[nodiscard]] virtual auto is_directory(const std::string &api_path,
+  [[nodiscard]] virtual auto is_directory(std::string_view api_path,
                                           bool &exists) const -> api_error = 0;
 
-  [[nodiscard]] virtual auto is_file(const std::string &api_path,
+  [[nodiscard]] virtual auto is_file(std::string_view api_path,
                                      bool &exists) const -> api_error = 0;
-
-  [[nodiscard]] virtual auto
-  is_file_writeable(const std::string &api_path) const -> bool = 0;
 
   [[nodiscard]] virtual auto is_online() const -> bool = 0;
 
@@ -120,40 +117,39 @@ public:
   [[nodiscard]] virtual auto is_rename_supported() const -> bool = 0;
 
   [[nodiscard]] virtual auto
-  read_file_bytes(const std::string &api_path, std::size_t size,
+  read_file_bytes(std::string_view api_path, std::size_t size,
                   std::uint64_t offset, data_buffer &data,
                   stop_type &stop_requested) -> api_error = 0;
 
-  [[nodiscard]] virtual auto remove_directory(const std::string &api_path)
+  [[nodiscard]] virtual auto remove_directory(std::string_view api_path)
       -> api_error = 0;
 
-  [[nodiscard]] virtual auto remove_file(const std::string &api_path)
+  [[nodiscard]] virtual auto remove_file(std::string_view api_path)
       -> api_error = 0;
 
-  [[nodiscard]] virtual auto remove_item_meta(const std::string &api_path,
-                                              const std::string &key)
+  [[nodiscard]] virtual auto remove_item_meta(std::string_view api_path,
+                                              std::string_view key)
       -> api_error = 0;
 
-  [[nodiscard]] virtual auto rename_file(const std::string &from_api_path,
-                                         const std::string &to_api_path)
+  [[nodiscard]] virtual auto rename_file(std::string_view from_api_path,
+                                         std::string_view to_api_path)
       -> api_error = 0;
 
-  [[nodiscard]] virtual auto set_item_meta(const std::string &api_path,
-                                           const std::string &key,
-                                           const std::string &value)
+  [[nodiscard]] virtual auto set_item_meta(std::string_view api_path,
+                                           std::string_view key,
+                                           std::string_view value)
       -> api_error = 0;
 
-  [[nodiscard]] virtual auto set_item_meta(const std::string &api_path,
-                                           const api_meta_map &meta)
-      -> api_error = 0;
+  [[nodiscard]] virtual auto set_item_meta(std::string_view api_path,
+                                           api_meta_map meta) -> api_error = 0;
 
   [[nodiscard]] virtual auto start(api_item_added_callback api_item_added,
                                    i_file_manager *mgr) -> bool = 0;
 
   virtual void stop() = 0;
 
-  [[nodiscard]] virtual auto upload_file(const std::string &api_path,
-                                         const std::string &source_path,
+  [[nodiscard]] virtual auto upload_file(std::string_view api_path,
+                                         std::string_view source_path,
                                          stop_type &stop_requested)
       -> api_error = 0;
 };

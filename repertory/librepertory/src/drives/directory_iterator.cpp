@@ -26,7 +26,7 @@
 
 namespace repertory {
 #if !defined(_WIN32)
-auto directory_iterator::fill_buffer(const remote::file_offset &offset,
+auto directory_iterator::fill_buffer(remote::file_offset offset,
                                      fuse_fill_dir_t filler_function,
                                      void *buffer,
                                      populate_stat_callback populate_stat)
@@ -101,7 +101,7 @@ auto directory_iterator::get_directory_item(std::size_t offset,
   return api_error::success;
 }
 
-auto directory_iterator::get_directory_item(const std::string &api_path,
+auto directory_iterator::get_directory_item(std::string_view api_path,
                                             directory_item &di) -> api_error {
   auto iter = std::ranges::find_if(items_, [&api_path](auto &&item) -> bool {
     return api_path == item.api_path;
@@ -125,7 +125,7 @@ auto directory_iterator::get_json(std::size_t offset, json &item) -> int {
 }
 
 auto directory_iterator::get_next_directory_offset(
-    const std::string &api_path) const -> std::size_t {
+    std::string_view api_path) const -> std::size_t {
   const auto iter =
       std::ranges::find_if(items_, [&api_path](auto &&dir_item) -> bool {
         return api_path == dir_item.api_path;

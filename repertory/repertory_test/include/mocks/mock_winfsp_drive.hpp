@@ -42,12 +42,13 @@ private:
   std::string mount_location_;
 
 public:
-  [[nodiscard]] auto get_directory_item_count(
-      const std::string & /*api_path*/) const -> std::uint64_t override {
+  [[nodiscard]] auto
+  get_directory_item_count(std::string_view /*api_path*/) const
+      -> std::uint64_t override {
     return 1;
   }
 
-  [[nodiscard]] auto get_directory_items(const std::string & /*api_path*/) const
+  [[nodiscard]] auto get_directory_items(std::string_view /*api_path*/) const
       -> directory_item_list override {
     directory_item_list list{};
 
@@ -59,7 +60,7 @@ public:
                {META_MODIFIED, std::to_string(utils::time::get_time_now())},
                {META_WRITTEN, std::to_string(utils::time::get_time_now())},
                {META_ACCESSED, std::to_string(utils::time::get_time_now())},
-               {META_CREATION, std::to_string(utils::time::get_time_now())}};
+               {META_CHANGED, std::to_string(utils::time::get_time_now())}};
     list.emplace_back(di);
 
     di.api_path = "..";
@@ -68,26 +69,25 @@ public:
     return list;
   }
 
-  [[nodiscard]] auto get_file_size(const std::string & /*api_path*/) const
+  [[nodiscard]] auto get_file_size(std::string_view /*api_path*/) const
       -> std::uint64_t override {
     return 0;
   }
 
-  auto get_item_meta(const std::string & /*api_path*/,
+  auto get_item_meta(std::string_view /*api_path*/,
                      api_meta_map & /* meta */) const -> api_error override {
     return api_error::error;
   }
 
-  auto get_item_meta(const std::string & /*api_path*/,
-                     const std::string & /*name*/,
+  auto get_item_meta(std::string_view /*api_path*/, std::string_view /*name*/,
                      std::string & /*value*/) const -> api_error override {
     return api_error::error;
   }
 
-  auto
-  get_security_by_name(PWSTR /*file_name*/, PUINT32 attributes,
-                       PSECURITY_DESCRIPTOR descriptor,
-                       std::uint64_t *descriptor_size) -> NTSTATUS override {
+  auto get_security_by_name(PWSTR /*file_name*/, PUINT32 attributes,
+                            PSECURITY_DESCRIPTOR descriptor,
+                            std::uint64_t *descriptor_size)
+      -> NTSTATUS override {
     auto ret = STATUS_SUCCESS;
 
     if (attributes != nullptr) {
@@ -134,9 +134,9 @@ public:
     volume_label = "TestVolumeLabel";
   }
 
-  auto
-  populate_file_info(const std::string &api_path,
-                     remote::file_info &file_info) const -> api_error override {
+  auto populate_file_info(std::string_view api_path,
+                          remote::file_info &r_info) const
+      -> api_error override {
     auto file_path = utils::path::combine(mount_location_, {api_path});
     auto directory = utils::file::directory(file_path).exists();
     auto attributes =
@@ -155,21 +155,20 @@ public:
         return api_error::os_error;
       }
 
-      file_info.FileSize = opt_size.value();
+      r_info.FileSize = opt_size.value();
     }
 
-    file_info.AllocationSize =
+    r_info.AllocationSize =
         directory ? 0
-                  : utils::divide_with_ceiling(file_info.FileSize,
+                  : utils::divide_with_ceiling(r_info.FileSize,
                                                WINFSP_ALLOCATION_UNIT) *
                         WINFSP_ALLOCATION_UNIT;
-    file_info.FileAttributes = basic_info.FileAttributes;
-    file_info.ChangeTime = static_cast<UINT64>(basic_info.ChangeTime.QuadPart);
-    file_info.CreationTime =
-        static_cast<UINT64>(basic_info.CreationTime.QuadPart);
-    file_info.LastAccessTime =
+    r_info.FileAttributes = basic_info.FileAttributes;
+    r_info.ChangeTime = static_cast<UINT64>(basic_info.ChangeTime.QuadPart);
+    r_info.CreationTime = static_cast<UINT64>(basic_info.CreationTime.QuadPart);
+    r_info.LastAccessTime =
         static_cast<UINT64>(basic_info.LastAccessTime.QuadPart);
-    file_info.LastWriteTime =
+    r_info.LastWriteTime =
         static_cast<UINT64>(basic_info.LastWriteTime.QuadPart);
     ::CloseHandle(handle);
     return api_error::success;

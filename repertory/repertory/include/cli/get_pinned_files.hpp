@@ -26,25 +26,22 @@
 
 namespace repertory::cli::actions {
 [[nodiscard]] inline auto get_pinned_files(std::vector<const char *> /* args */,
-                                           const std::string &data_directory,
-                                           const provider_type &prov,
-                                           const std::string & /* unique_id */,
+                                           std::string_view data_directory,
+                                           provider_type prov,
+                                           std::string_view /* unique_id */,
                                            std::string user,
                                            std::string password) -> exit_code {
-  auto ret = exit_code::success;
   auto port = app_config::default_api_port(prov);
-  utils::cli::get_api_authentication_data(user, password, port, prov,
-                                          data_directory);
-  const auto response =
-      client({"localhost", password, port, user}).get_pinned_files();
-  if (response.response_type == rpc_response_type::success) {
-    std::cout << response.data.dump(2) << std::endl;
-  } else {
-    std::cerr << response.data.dump(2) << std::endl;
-    ret = exit_code::export_failed;
-  }
-
-  return ret;
+  utils::cli::get_api_authentication_data(user, password, port, data_directory);
+  auto response = client({
+                             .host = "localhost",
+                             .password = password,
+                             .port = port,
+                             .user = user,
+                         })
+                      .get_pinned_files();
+  return cli::handle_error(exit_code::success, response.response_type,
+                           response.data.dump(2));
 }
 } // namespace repertory::cli::actions
 

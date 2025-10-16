@@ -1,10 +1,43 @@
+// helpers.dart
+
 import 'package:convert/convert.dart';
 import 'package:collection/collection.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:repertory/constants.dart' as constants;
 import 'package:repertory/models/auth.dart';
+import 'package:repertory/widgets/app_dropdown.dart';
+import 'package:flutter_settings_ui/flutter_settings_ui.dart';
 import 'package:sodium_libs/sodium_libs.dart' show SecureKey, StringX;
+
+Future doShowDialog(BuildContext context, Widget child) => showDialog(
+  context: context,
+  builder: (context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    return Theme(
+      data: theme.copyWith(
+        dialogTheme: DialogThemeData(
+          backgroundColor: darken(
+            scheme.primary,
+            0.95,
+          ).withValues(alpha: constants.dropDownAlpha),
+          surfaceTintColor: Colors.transparent,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(constants.borderRadius),
+            side: BorderSide(
+              color: scheme.outlineVariant.withValues(
+                alpha: constants.outlineAlpha,
+              ),
+              width: 1,
+            ),
+          ),
+        ),
+      ),
+      child: child,
+    );
+  },
+);
 
 typedef Validator = bool Function(String);
 
@@ -62,7 +95,7 @@ createUriValidator<Validator>({host, port}) {
       Uri.tryParse('http://${host ?? value}:${port ?? value}/') != null;
 }
 
-createHostNameOrIpValidators() => <Validator>[
+List<Validator> createHostNameOrIpValidators() => <Validator>[
   trimNotEmptyValidator,
   createUriValidator(port: 9000),
 ];
@@ -86,6 +119,7 @@ Map<String, dynamic> createDefaultSettings(String mountType) {
         'S3Config': {
           'AccessKey': '',
           'Bucket': '',
+          'ForceLegacyEncryption': false,
           'Region': 'any',
           'SecretKey': '',
           'URL': '',
@@ -100,7 +134,7 @@ Map<String, dynamic> createDefaultSettings(String mountType) {
           'ApiPort': 9980,
           'HostNameOrIp': 'localhost',
         },
-        'SiaConfig': {'Bucket': 'default'},
+        'SiaConfig': {'Bucket': ''},
       };
   }
 
@@ -119,7 +153,11 @@ void displayAuthError(Auth auth) {
   );
 }
 
-void displayErrorMessage(context, String text, {bool clear = false}) {
+void displayErrorMessage(
+  BuildContext context,
+  String text, {
+  bool clear = false,
+}) {
   if (!context.mounted) {
     return;
   }
@@ -158,6 +196,8 @@ String? getSettingDescription(String settingPath) {
       return "HTTP authentication user";
     case 'HostConfig.ApiPassword':
       return "RENTERD_API_PASSWORD";
+    case 'S3Config.ForceLegacyEncryption':
+      return "Effectively disables Argon2id KDF";
     default:
       return null;
   }
@@ -338,65 +378,129 @@ Map<String, dynamic> getChanged(
 }
 
 Future<String?> editMountLocation(
-  context,
+  BuildContext context,
   List<String> available, {
   bool allowEmpty = false,
   String? location,
 }) async {
+  if (!context.mounted) {
+    return location;
+  }
+
   String? currentLocation = location;
   final controller = TextEditingController(text: currentLocation);
-  return await showDialog(
-    context: context,
-    builder: (context) {
-      return StatefulBuilder(
-        builder: (context, setState) {
-          return AlertDialog(
-            actions: [
-              TextButton(
-                child: const Text('Cancel'),
-                onPressed: () => Navigator.of(context).pop(null),
-              ),
-              TextButton(
-                child: const Text('OK'),
-                onPressed: () {
-                  final result = getSettingValidators('Path').firstWhereOrNull(
-                    (validator) => !validator(currentLocation ?? ''),
+  return await doShowDialog(
+    context,
+    StatefulBuilder(
+      builder: (context, setState) {
+        return AlertDialog(
+          actions: [
+            TextButton(
+              child: const Text('Cancel'),
+              onPressed: () => Navigator.of(context).pop(null),
+            ),
+            TextButton(
+              child: const Text('OK'),
+              onPressed: () {
+                final result = getSettingValidators('Path').firstWhereOrNull(
+                  (validator) => !validator(currentLocation ?? ''),
+                );
+                if (result != null) {
+                  return displayErrorMessage(
+                    context,
+                    "Mount location is not valid",
                   );
-                  if (result != null) {
-                    return displayErrorMessage(
-                      context,
-                      "Mount location is not valid",
-                    );
-                  }
-                  Navigator.of(context).pop(currentLocation);
-                },
-              ),
-            ],
-            content:
-                available.isEmpty
-                    ? TextField(
-                      autofocus: true,
-                      controller: controller,
-                      onChanged:
-                          (value) => setState(() => currentLocation = value),
-                    )
-                    : DropdownButton<String>(
-                      hint: const Text("Select drive"),
-                      value: currentLocation,
-                      onChanged:
-                          (value) => setState(() => currentLocation = value),
-                      items:
-                          available.map<DropdownMenuItem<String>>((item) {
-                            return DropdownMenuItem<String>(
-                              value: item,
-                              child: Text(item),
-                            );
-                          }).toList(),
-                    ),
-            title: const Text('Mount Location', textAlign: TextAlign.center),
-          );
-        },
-      );
-    },
+                }
+                Navigator.of(context).pop(currentLocation);
+              },
+            ),
+          ],
+          content: available.isEmpty
+              ? TextField(
+                  autofocus: true,
+                  controller: controller,
+                  onChanged: (value) => setState(() => currentLocation = value),
+                )
+              : AppDropdown<String>(
+                  labelOf: (s) => s,
+                  labelText: "Select drive",
+                  onChanged: (value) => setState(() => currentLocation = value),
+                  prefixIcon: Icons.computer,
+                  value: currentLocation,
+                  values: available.toList(),
+                ),
+          title: const Text('Mount Location', textAlign: TextAlign.center),
+        );
+      },
+    ),
   );
+}
+
+InputDecoration createCommonDecoration(
+  ColorScheme colorScheme,
+  String label, {
+  bool filled = true,
+  String? hintText,
+  IconData? icon,
+}) => InputDecoration(
+  labelText: label,
+  prefixIcon: icon == null ? null : Icon(icon),
+  filled: filled,
+  fillColor: colorScheme.primary.withValues(alpha: constants.primaryAlpha),
+  hintText: hintText,
+  border: OutlineInputBorder(
+    borderRadius: BorderRadius.circular(constants.borderRadiusSmall),
+    borderSide: BorderSide.none,
+  ),
+  focusedBorder: OutlineInputBorder(
+    borderRadius: BorderRadius.circular(constants.borderRadiusSmall),
+    borderSide: BorderSide(color: colorScheme.primary, width: 2),
+  ),
+  contentPadding: const EdgeInsets.all(constants.paddingSmall),
+);
+
+IconData getProviderTypeIcon(String mountType) {
+  switch (mountType.toLowerCase()) {
+    case "encrypt":
+      return Icons.key_outlined;
+    case "remote":
+      return Icons.network_ping_outlined;
+    default:
+      return Icons.cloud_outlined;
+  }
+}
+
+SettingsThemeData createSettingsTheme(ColorScheme scheme) {
+  return SettingsThemeData(
+    settingsListBackground: Colors.transparent,
+    settingsSectionBackground: scheme.primary.withValues(
+      alpha: constants.primaryAlpha,
+    ),
+    titleTextColor: scheme.onSurface.withValues(
+      alpha: constants.primarySurfaceAlpha,
+    ),
+    trailingTextColor: scheme.onSurface.withValues(
+      alpha: constants.primarySurfaceAlpha,
+    ),
+    tileDescriptionTextColor: scheme.onSurface.withValues(
+      alpha: constants.secondarySurfaceAlpha,
+    ),
+    leadingIconsColor: scheme.onSurface.withValues(
+      alpha: constants.primarySurfaceAlpha,
+    ),
+    dividerColor: scheme.outlineVariant.withValues(
+      alpha: constants.outlineAlpha,
+    ),
+    tileHighlightColor: scheme.primary.withValues(
+      alpha: constants.highlightAlpha,
+    ),
+  );
+}
+
+Color darken(Color color, [double percentage = 0.1]) {
+  final hsl = HSLColor.fromColor(color);
+  final hslDark = hsl.withLightness(
+    (hsl.lightness - (hsl.lightness * percentage)).clamp(0.0, 1.0),
+  );
+  return hslDark.toColor();
 }

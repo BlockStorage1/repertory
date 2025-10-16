@@ -43,8 +43,8 @@ public:
   ring_buffer_open_file() = delete;
   ring_buffer_open_file(const ring_buffer_open_file &) noexcept = delete;
   ring_buffer_open_file(ring_buffer_open_file &&) noexcept = delete;
-  auto operator=(ring_buffer_open_file &&) noexcept -> ring_buffer_open_file & =
-                                                           delete;
+  auto operator=(ring_buffer_open_file &&) noexcept
+      -> ring_buffer_open_file & = delete;
   auto operator=(const ring_buffer_open_file &) noexcept
       -> ring_buffer_open_file & = delete;
 
@@ -57,14 +57,14 @@ private:
 protected:
   [[nodiscard]] auto on_check_start() -> bool override;
 
-  [[nodiscard]] auto
-  on_chunk_downloaded(std::size_t chunk,
-                      const data_buffer &buffer) -> api_error override;
+  [[nodiscard]] auto on_chunk_downloaded(std::size_t chunk,
+                                         const data_buffer &buffer)
+      -> api_error override;
 
-  [[nodiscard]] auto
-  on_read_chunk(std::size_t chunk, std::size_t read_size,
-                std::uint64_t read_offset, data_buffer &data,
-                std::size_t &bytes_read) -> api_error override;
+  [[nodiscard]] auto on_read_chunk(std::size_t chunk, std::size_t read_size,
+                                   std::uint64_t read_offset, data_buffer &data,
+                                   std::size_t &bytes_read)
+      -> api_error override;
 
   [[nodiscard]] auto use_buffer(std::size_t chunk,
                                 std::function<api_error(data_buffer &)> func)
@@ -75,8 +75,10 @@ public:
                                             std::size_t chunk_size,
                                             std::size_t ring_size) -> bool;
 
-  [[nodiscard]] auto
-  native_operation(native_operation_callback callback) -> api_error override;
+  void force_download() override {}
+
+  [[nodiscard]] auto native_operation(native_operation_callback callback)
+      -> api_error override;
 
   [[nodiscard]] auto native_operation(std::uint64_t /* new_file_size */,
                                       native_operation_callback /* callback */)

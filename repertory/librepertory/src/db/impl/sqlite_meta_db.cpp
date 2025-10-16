@@ -23,6 +23,7 @@
 
 #include "app_config.hpp"
 #include "types/startup_exception.hpp"
+#include "utils/collection.hpp"
 #include "utils/db/sqlite/db_common.hpp"
 #include "utils/db/sqlite/db_delete.hpp"
 #include "utils/db/sqlite/db_insert.hpp"
@@ -101,12 +102,12 @@ void sqlite_meta_db::enumerate_api_path_list(
   }
 }
 
-auto sqlite_meta_db::get_api_path(const std::string &source_path,
+auto sqlite_meta_db::get_api_path(std::string_view source_path,
                                   std::string &api_path) const -> api_error {
   auto result = utils::db::sqlite::db_select{*db_, table_name}
                     .column("api_path")
                     .where("source_path")
-                    .equals(source_path)
+                    .equals(std::string{source_path})
                     .op()
                     .limit(1)
                     .go();
@@ -135,14 +136,14 @@ auto sqlite_meta_db::get_api_path_list() const -> std::vector<std::string> {
   return ret;
 }
 
-auto sqlite_meta_db::get_item_meta(const std::string &api_path,
+auto sqlite_meta_db::get_item_meta(std::string_view api_path,
                                    api_meta_map &meta) const -> api_error {
   REPERTORY_USES_FUNCTION_NAME();
 
   auto result = utils::db::sqlite::db_select{*db_, table_name}
                     .column("*")
                     .where("api_path")
-                    .equals(api_path)
+                    .equals(std::string{api_path})
                     .op()
                     .limit(1)
                     .go();
@@ -175,15 +176,15 @@ auto sqlite_meta_db::get_item_meta(const std::string &api_path,
   return api_error::error;
 }
 
-auto sqlite_meta_db::get_item_meta(const std::string &api_path,
-                                   const std::string &key,
+auto sqlite_meta_db::get_item_meta(std::string_view api_path,
+                                   std::string_view key,
                                    std::string &value) const -> api_error {
   REPERTORY_USES_FUNCTION_NAME();
 
   auto result = utils::db::sqlite::db_select{*db_, table_name}
                     .column("*")
                     .where("api_path")
-                    .equals(api_path)
+                    .equals(std::string{api_path})
                     .op()
                     .limit(1)
                     .go();
@@ -290,12 +291,12 @@ auto sqlite_meta_db::get_total_size() const -> std::uint64_t {
   return 0U;
 }
 
-void sqlite_meta_db::remove_api_path(const std::string &api_path) {
+void sqlite_meta_db::remove_api_path(std::string_view api_path) {
   REPERTORY_USES_FUNCTION_NAME();
 
   auto result = utils::db::sqlite::db_delete{*db_, table_name}
                     .where("api_path")
-                    .equals(api_path)
+                    .equals(std::string{api_path})
                     .go();
   if (not result.ok()) {
     utils::error::raise_api_path_error(
@@ -303,12 +304,16 @@ void sqlite_meta_db::remove_api_path(const std::string &api_path) {
   }
 }
 
-auto sqlite_meta_db::remove_item_meta(const std::string &api_path,
-                                      const std::string &key) -> api_error {
-  if (key == META_DIRECTORY || key == META_PINNED || key == META_SIZE ||
-      key == META_SOURCE) {
-    // TODO log warning for unsupported attributes
-    return api_error::success;
+auto sqlite_meta_db::remove_item_meta(std::string_view api_path,
+                                      std::string_view key) -> api_error {
+  REPERTORY_USES_FUNCTION_NAME();
+
+  if (utils::collection::includes(META_USED_NAMES, std::string{key})) {
+    utils::error::raise_api_path_error(
+        function_name, api_path,
+        fmt::format("failed to remove item meta-key is restricted|key|{}",
+                    key));
+    return api_error::permission_denied;
   }
 
   api_meta_map meta{};
@@ -317,12 +322,12 @@ auto sqlite_meta_db::remove_item_meta(const std::string &api_path,
     return res;
   }
 
-  meta.erase(key);
+  meta.erase(std::string{key});
   return update_item_meta(api_path, meta);
 }
 
-auto sqlite_meta_db::rename_item_meta(const std::string &from_api_path,
-                                      const std::string &to_api_path)
+auto sqlite_meta_db::rename_item_meta(std::string_view from_api_path,
+                                      std::string_view to_api_path)
     -> api_error {
   api_meta_map meta{};
   auto res = get_item_meta(from_api_path, meta);
@@ -334,17 +339,21 @@ auto sqlite_meta_db::rename_item_meta(const std::string &from_api_path,
   return update_item_meta(to_api_path, meta);
 }
 
-auto sqlite_meta_db::set_item_meta(const std::string &api_path,
-                                   const std::string &key,
-                                   const std::string &value) -> api_error {
-  return set_item_meta(api_path, {{key, value}});
+auto sqlite_meta_db::set_item_meta(std::string_view api_path,
+                                   std::string_view key, std::string_view value)
+    -> api_error {
+  return set_item_meta(api_path, {{std::string{key}, std::string{value}}});
 }
 
-auto sqlite_meta_db::set_item_meta(const std::string &api_path,
+auto sqlite_meta_db::set_item_meta(std::string_view api_path,
                                    const api_meta_map &meta) -> api_error {
+  REPERTORY_USES_FUNCTION_NAME();
+
   api_meta_map existing_meta{};
-  if (get_item_meta(api_path, existing_meta) != api_error::success) {
-    // TODO handle error
+  auto res = get_item_meta(api_path, existing_meta);
+  if (res != api_error::success && res != api_error::item_not_found) {
+    utils::error::raise_api_path_error(function_name, api_path, res,
+                                       "failed to get item meta");
   }
 
   for (const auto &item : meta) {
@@ -354,7 +363,7 @@ auto sqlite_meta_db::set_item_meta(const std::string &api_path,
   return update_item_meta(api_path, existing_meta);
 }
 
-auto sqlite_meta_db::update_item_meta(const std::string &api_path,
+auto sqlite_meta_db::update_item_meta(std::string_view api_path,
                                       api_meta_map meta) -> api_error {
   REPERTORY_USES_FUNCTION_NAME();
 
@@ -383,7 +392,7 @@ auto sqlite_meta_db::update_item_meta(const std::string &api_path,
 
     auto result = utils::db::sqlite::db_insert{*db_, table_name}
                       .or_replace()
-                      .column_value("api_path", api_path)
+                      .column_value("api_path", std::string{api_path})
                       .column_value("data", nlohmann::json(meta).dump())
                       .column_value("directory", directory ? 1 : 0)
                       .column_value("pinned", pinned ? 1 : 0)

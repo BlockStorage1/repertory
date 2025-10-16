@@ -27,16 +27,17 @@
 #include "utils/utils.hpp"
 
 namespace repertory {
-void remote_open_file_table::add_directory(const std::string &client_id,
+void remote_open_file_table::add_directory(std::string_view client_id,
                                            std::uint64_t handle) {
+  auto str_id = std::string{client_id};
   recur_mutex_lock lock(file_mutex_);
-  auto &list = directory_lookup_[client_id];
+  auto &list = directory_lookup_[str_id];
   if (utils::collection::excludes(list, handle)) {
-    directory_lookup_[client_id].emplace_back(handle);
+    directory_lookup_[str_id].emplace_back(handle);
   }
 }
 
-void remote_open_file_table::close_all(const std::string &client_id) {
+void remote_open_file_table::close_all(std::string_view client_id) {
   unique_recur_mutex_lock lock(file_mutex_);
   auto compat_handles =
       std::accumulate(compat_file_lookup_.begin(), compat_file_lookup_.end(),
@@ -110,13 +111,13 @@ auto remote_open_file_table::get_directory_buffer(const native_handle &handle,
 #endif // defined(_WIN32)
 
 auto remote_open_file_table::get_open_file_count(
-    const std::string &file_path) const -> std::size_t {
+    std::string_view file_path) const -> std::size_t {
   recur_mutex_lock lock(file_mutex_);
-  return (file_lookup_.contains(file_path)
-              ? file_lookup_.at(file_path)->handles.size()
+  return (file_lookup_.contains(std::string{file_path})
+              ? file_lookup_.at(std::string{file_path})->handles.size()
               : 0ULL) +
-         (compat_file_lookup_.contains(file_path)
-              ? compat_file_lookup_.at(file_path)->handles.size()
+         (compat_file_lookup_.contains(std::string{file_path})
+              ? compat_file_lookup_.at(std::string{file_path})->handles.size()
               : 0ULL);
 }
 
@@ -141,14 +142,15 @@ auto remote_open_file_table::get_open_file_path(const native_handle &handle)
   return file_lookup_.at(handle_lookup_.at(handle))->path;
 }
 
-auto remote_open_file_table::has_open_directory(const std::string &client_id,
+auto remote_open_file_table::has_open_directory(std::string_view client_id,
                                                 std::uint64_t handle) -> bool {
   recur_mutex_lock lock(file_mutex_);
-  return (utils::collection::includes(directory_lookup_[client_id], handle));
+  return (utils::collection::includes(directory_lookup_[std::string{client_id}],
+                                      handle));
 }
 
-auto remote_open_file_table::has_compat_open_info(
-    const remote::file_handle &handle, int error_return) -> int {
+auto remote_open_file_table::has_compat_open_info(remote::file_handle handle,
+                                                  int error_return) -> int {
   recur_mutex_lock compat_lock(file_mutex_);
   auto res = compat_handle_lookup_.contains(handle) ? 0 : -1;
   if (res == -1) {
@@ -158,7 +160,7 @@ auto remote_open_file_table::has_compat_open_info(
   return res;
 }
 
-void remote_open_file_table::remove_all(const std::string &file_path) {
+void remote_open_file_table::remove_all(std::string_view file_path) {
   unique_recur_mutex_lock lock(file_mutex_);
   auto compat_open_list =
       std::accumulate(compat_file_lookup_.begin(), compat_file_lookup_.end(),
@@ -194,7 +196,7 @@ void remote_open_file_table::remove_all(const std::string &file_path) {
 }
 
 void remote_open_file_table::remove_compat_open_info(
-    const remote::file_handle &handle) {
+    remote::file_handle handle) {
   recur_mutex_lock compat_lock(file_mutex_);
   if (not compat_handle_lookup_.contains(handle)) {
     return;
@@ -213,14 +215,15 @@ void remote_open_file_table::remove_compat_open_info(
   compat_file_lookup_.erase(path);
 }
 
-auto remote_open_file_table::remove_directory(const std::string &client_id,
+auto remote_open_file_table::remove_directory(std::string_view client_id,
                                               std::uint64_t handle) -> bool {
+  auto str_id = std::string{client_id};
   recur_mutex_lock lock(file_mutex_);
-  auto &list = directory_lookup_[client_id];
+  auto &list = directory_lookup_[str_id];
   if (utils::collection::includes(list, handle)) {
     utils::collection::remove_element(list, handle);
-    if (directory_lookup_[client_id].empty()) {
-      directory_lookup_.erase(client_id);
+    if (directory_lookup_[str_id].empty()) {
+      directory_lookup_.erase(str_id);
     }
     return true;
   }
@@ -267,41 +270,42 @@ void remote_open_file_table::remove_and_close_all(const native_handle &handle) {
 #else  // !defined(_WIN32)
     close(open_handle);
 #endif // defined(_WIN32)
+
     remove_open_info(open_handle);
   }
 }
 
-void remote_open_file_table::set_compat_client_id(
-    const remote::file_handle &handle, const std::string &client_id) {
+void remote_open_file_table::set_compat_client_id(remote::file_handle handle,
+                                                  std::string_view client_id) {
   recur_mutex_lock compat_lock(file_mutex_);
   compat_file_lookup_.at(compat_handle_lookup_.at(handle))->client_id =
       client_id;
 }
 
 void remote_open_file_table::set_client_id(const native_handle &handle,
-                                           const std::string &client_id) {
+                                           std::string_view client_id) {
   recur_mutex_lock lock(file_mutex_);
   file_lookup_.at(handle_lookup_.at(handle))->client_id = client_id;
 }
 
-void remote_open_file_table::set_compat_open_info(
-    const remote::file_handle &handle, const std::string &file_path) {
+void remote_open_file_table::set_compat_open_info(remote::file_handle handle,
+                                                  std::string_view file_path) {
   recur_mutex_lock compat_lock(file_mutex_);
   if (compat_handle_lookup_.contains(handle)) {
     return;
   }
 
-  if (not compat_file_lookup_.contains(file_path)) {
-    compat_file_lookup_[file_path] =
+  if (not compat_file_lookup_.contains(std::string{file_path})) {
+    compat_file_lookup_[std::string{file_path}] =
         std::make_unique<compat_open_info>(compat_open_info{
             "",
             {},
-            file_path,
+            std::string{file_path},
         });
   }
 
-  compat_handle_lookup_[handle] = file_path;
-  compat_file_lookup_.at(file_path)->handles.emplace_back(handle);
+  compat_handle_lookup_[handle] = std::string{file_path};
+  compat_file_lookup_.at(std::string{file_path})->handles.emplace_back(handle);
 }
 
 void remote_open_file_table::set_open_info(const native_handle &handle,

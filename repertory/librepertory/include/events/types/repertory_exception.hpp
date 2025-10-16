@@ -28,8 +28,8 @@
 namespace repertory {
 struct repertory_exception final : public i_event {
   repertory_exception() = default;
-  repertory_exception(std::string_view function_name_, std::string msg_)
-      : function_name(std::string(function_name_)), msg(std::move(msg_)) {}
+  repertory_exception(std::string_view function_name_, std::string_view msg_)
+      : function_name(function_name_), msg(msg_) {}
 
   static constexpr event_level level{event_level::error};
   static constexpr std::string_view name{"repertory_exception"};

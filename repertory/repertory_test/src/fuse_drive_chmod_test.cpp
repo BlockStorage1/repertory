@@ -21,10 +21,10 @@
 */
 #if !defined(_WIN32)
 
-#include "fixtures/fuse_fixture.hpp"
+#include "fixtures/drive_fixture.hpp"
 
 namespace repertory {
-TYPED_TEST_CASE(fuse_test, fuse_provider_types);
+TYPED_TEST_SUITE(fuse_test, platform_provider_types);
 
 TYPED_TEST(fuse_test, chmod_can_not_chmod_set_sticky_if_not_root) {
   std::string file_name{"chmod_test"};
@@ -43,10 +43,10 @@ TYPED_TEST(fuse_test, chmod_can_chmod_if_owner) {
   EXPECT_EQ(0, chmod(file_path.c_str(), S_IRUSR | S_IWUSR));
   std::this_thread::sleep_for(SLEEP_SECONDS);
 
-  struct stat64 unix_st {};
-  stat64(file_path.c_str(), &unix_st);
+  struct stat64 u_stat{};
+  stat64(file_path.c_str(), &u_stat);
   EXPECT_EQ(static_cast<std::uint32_t>(S_IRUSR | S_IWUSR),
-            ACCESSPERMS & unix_st.st_mode);
+            ACCESSPERMS & u_stat.st_mode);
 
   this->unlink_file_and_test(file_path);
 }
@@ -65,8 +65,17 @@ TYPED_TEST(fuse_test, chmod_can_not_chmod_setgid_if_not_root) {
   std::string file_name{"chmod_test"};
   auto file_path = this->create_file_and_test(file_name);
 
+#if defined(__APPLE__)
+  EXPECT_EQ(0, chmod(file_path.c_str(), S_IRUSR | S_IWUSR | S_ISGID));
+  std::this_thread::sleep_for(SLEEP_SECONDS);
+
+  struct stat64 u_stat{};
+  stat64(file_path.c_str(), &u_stat);
+  EXPECT_EQ(0, S_ISGID & u_stat.st_mode);
+#else  // !defined(__APPLE__)
   EXPECT_EQ(-1, chmod(file_path.c_str(), S_IRUSR | S_IWUSR | S_ISGID));
   EXPECT_EQ(EPERM, errno);
+#endif // defined(__APPLE__)
 
   this->unlink_file_and_test(file_path);
 }
@@ -75,8 +84,17 @@ TYPED_TEST(fuse_test, chmod_can_not_chmod_setuid_if_not_root) {
   std::string file_name{"chmod_test"};
   auto file_path = this->create_file_and_test(file_name);
 
+#if defined(__APPLE__)
+  EXPECT_EQ(0, chmod(file_path.c_str(), S_IRUSR | S_IWUSR | S_ISUID));
+  std::this_thread::sleep_for(SLEEP_SECONDS);
+
+  struct stat64 u_stat{};
+  stat64(file_path.c_str(), &u_stat);
+  EXPECT_EQ(0, S_ISUID & u_stat.st_mode);
+#else  // !defined(__APPLE__)
   EXPECT_EQ(-1, chmod(file_path.c_str(), S_IRUSR | S_IWUSR | S_ISUID));
   EXPECT_EQ(EPERM, errno);
+#endif // defined(__APPLE__)
 
   this->unlink_file_and_test(file_path);
 }

@@ -30,8 +30,8 @@ class directory_iterator final {
 public:
 #if !defined(_WIN32)
   using populate_stat_callback =
-      std::function<void(const std::string &, std::uint64_t,
-                         const api_meta_map &, bool, struct stat *)>;
+      std::function<void(std::string_view, std::uint64_t, const api_meta_map &,
+                         bool, struct stat *)>;
 #endif
 public:
   explicit directory_iterator(directory_item_list list)
@@ -47,7 +47,7 @@ private:
 
 public:
 #if !defined(_WIN32)
-  [[nodiscard]] auto fill_buffer(const remote::file_offset &offset,
+  [[nodiscard]] auto fill_buffer(remote::file_offset offset,
                                  fuse_fill_dir_t filler_function, void *buffer,
                                  populate_stat_callback populate_stat) -> int;
 #endif // !defined(_WIN32)
@@ -59,13 +59,13 @@ public:
   [[nodiscard]] auto get_directory_item(std::size_t offset, directory_item &di)
       -> api_error;
 
-  [[nodiscard]] auto get_directory_item(const std::string &api_path,
+  [[nodiscard]] auto get_directory_item(std::string_view api_path,
                                         directory_item &di) -> api_error;
 
   [[nodiscard]] auto get_json(std::size_t offset, json &item) -> int;
 
-  [[nodiscard]] auto
-  get_next_directory_offset(const std::string &api_path) const -> std::size_t;
+  [[nodiscard]] auto get_next_directory_offset(std::string_view api_path) const
+      -> std::size_t;
 
 public:
   auto operator=(const directory_iterator &iterator) noexcept

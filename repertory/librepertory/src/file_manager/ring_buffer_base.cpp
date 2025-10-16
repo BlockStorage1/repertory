@@ -70,8 +70,10 @@ auto ring_buffer_base::check_start() -> api_error {
 
     event_system::instance().raise<download_begin>(
         get_api_path(), get_source_path(), function_name);
-    reader_thread_ =
-        std::make_unique<std::thread>([this]() { reader_thread(); });
+    forward_reader_thread_ =
+        std::make_unique<std::thread>([this]() { reader_thread(true); });
+    reverse_reader_thread_ =
+        std::make_unique<std::thread>([this]() { reader_thread(false); });
     return api_error::success;
   } catch (const std::exception &ex) {
     utils::error::raise_api_path_error(function_name, get_api_path(),
@@ -84,15 +86,25 @@ auto ring_buffer_base::check_start() -> api_error {
 auto ring_buffer_base::close() -> bool {
   stop_requested_ = true;
 
+  std::unique_ptr<std::thread> forward_reader_thread{nullptr};
+  std::unique_ptr<std::thread> reverse_reader_thread{nullptr};
+
   unique_mutex_lock chunk_lock(chunk_mtx_);
   chunk_notify_.notify_all();
+  std::swap(forward_reader_thread, forward_reader_thread_);
+  std::swap(reverse_reader_thread, reverse_reader_thread_);
   chunk_lock.unlock();
 
   auto res = open_file_base::close();
 
-  if (reader_thread_) {
-    reader_thread_->join();
-    reader_thread_.reset();
+  if (forward_reader_thread) {
+    forward_reader_thread->join();
+    forward_reader_thread.reset();
+  }
+
+  if (reverse_reader_thread) {
+    reverse_reader_thread->join();
+    reverse_reader_thread.reset();
   }
 
   return res;
@@ -264,7 +276,7 @@ auto ring_buffer_base::read(std::size_t read_size, std::uint64_t read_offset,
   return get_stop_requested() ? api_error::download_stopped : res;
 }
 
-void ring_buffer_base::reader_thread() {
+void ring_buffer_base::reader_thread(bool is_forward) {
   REPERTORY_USES_FUNCTION_NAME();
 
   unique_mutex_lock chunk_lock(chunk_mtx_);
@@ -273,34 +285,74 @@ void ring_buffer_base::reader_thread() {
     chunk_lock.unlock();
   };
 
-  auto last_pos = ring_pos_;
+  const auto has_unread_forward = [this]() -> bool {
+    auto ring_size = read_state_.size();
+    if (ring_pos_ >= ring_end_) {
+      return false;
+    }
+
+    for (auto idx = ring_pos_ + 1U; idx <= ring_end_; ++idx) {
+      if (not read_state_[idx % ring_size]) {
+        return true;
+      }
+    }
+    return false;
+  };
+
+  const auto has_unread_reverse = [this]() -> bool {
+    auto ring_size = read_state_.size();
+    for (auto idx = ring_pos_; idx-- > ring_begin_;) {
+      if (not read_state_[idx % ring_size]) {
+        return true;
+      }
+    }
+    return false;
+  };
+
+  auto last_marker = is_forward ? ring_pos_ : ring_begin_;
   auto next_chunk = ring_pos_;
   notify_and_unlock();
 
   while (not get_stop_requested()) {
     chunk_lock.lock();
 
-    if (last_pos == ring_pos_) {
-      ++next_chunk;
-    } else {
-      next_chunk = ring_pos_ + 1U;
-      last_pos = ring_pos_;
+    if (is_forward) {
+      if (last_marker == ring_pos_) {
+        ++next_chunk;
+      } else {
+        next_chunk = ring_pos_ + 1U;
+        last_marker = ring_pos_;
+      }
+
+      if (next_chunk > ring_end_) {
+        next_chunk = ring_pos_;
+      }
+    } else if (last_marker != ring_begin_) {
+      last_marker = ring_begin_;
+      next_chunk = ring_pos_;
     }
 
-    if (next_chunk > ring_end_) {
-      next_chunk = ring_begin_;
+    if (next_chunk > ring_begin_) {
+      --next_chunk;
     }
 
     if (read_state_[next_chunk % read_state_.size()]) {
       if (get_stop_requested()) {
         notify_and_unlock();
-        return;
+        break;
       }
 
-      if (get_read_state().all()) {
+      auto has_unread =
+          is_forward ? has_unread_forward() : has_unread_reverse();
+      if (not has_unread) {
         chunk_notify_.wait(chunk_lock);
-        last_pos = ring_pos_;
-        next_chunk = ring_pos_;
+        if (is_forward) {
+          last_marker = ring_pos_;
+          next_chunk = ring_pos_;
+        } else {
+          last_marker = ring_begin_;
+          next_chunk = ring_pos_;
+        }
       }
 
       notify_and_unlock();
@@ -311,9 +363,11 @@ void ring_buffer_base::reader_thread() {
     download_chunk(next_chunk, true);
   }
 
-  event_system::instance().raise<download_end>(
-      get_api_path(), get_source_path(), api_error::download_stopped,
-      function_name);
+  if (is_forward) {
+    event_system::instance().raise<download_end>(
+        get_api_path(), get_source_path(), api_error::download_stopped,
+        function_name);
+  }
 }
 
 void ring_buffer_base::reverse(std::size_t count) {
@@ -343,14 +397,40 @@ void ring_buffer_base::set(std::size_t first_chunk, std::size_t current_chunk) {
   chunk_notify_.notify_all();
 }
 
-void ring_buffer_base::set_api_path(const std::string &api_path) {
+void ring_buffer_base::set_api_path(std::string_view api_path) {
   mutex_lock chunk_lock(chunk_mtx_);
   open_file_base::set_api_path(api_path);
   chunk_notify_.notify_all();
 }
 
 void ring_buffer_base::update_position(std::size_t count, bool is_forward) {
+  if (count == 0U) {
+    return;
+  }
+
   mutex_lock chunk_lock(chunk_mtx_);
+  const auto center_ring = [this]() -> void {
+    auto ring_size = static_cast<std::size_t>(read_state_.size());
+    auto half_ring_size = ring_size / 2U;
+
+    auto offset = ring_pos_ - ring_begin_;
+    if (offset > half_ring_size) {
+      auto steps = offset - half_ring_size;
+
+      auto max_steps = (total_chunks_ - 1U) - ring_end_;
+      if (steps > max_steps) {
+        steps = max_steps;
+      }
+
+      while (steps-- != 0U) {
+        ++ring_begin_;
+        ++ring_end_;
+        read_state_[ring_end_ % ring_size] = false;
+      }
+    }
+
+    chunk_notify_.notify_all();
+  };
 
   if (is_forward) {
     if ((ring_pos_ + count) > (total_chunks_ - 1U)) {
@@ -363,7 +443,7 @@ void ring_buffer_base::update_position(std::size_t count, bool is_forward) {
   if (is_forward ? (ring_pos_ + count) <= ring_end_
                  : (ring_pos_ - count) >= ring_begin_) {
     ring_pos_ += is_forward ? count : -count;
-    chunk_notify_.notify_all();
+    center_ring();
     return;
   }
 
@@ -387,7 +467,6 @@ void ring_buffer_base::update_position(std::size_t count, bool is_forward) {
 
   ring_end_ =
       std::min(total_chunks_ - 1U, ring_begin_ + read_state_.size() - 1U);
-
-  chunk_notify_.notify_all();
+  center_ring();
 }
 } // namespace repertory

@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 PROJECT_SCRIPTS_DIR=$(realpath "$0")
 PROJECT_SCRIPTS_DIR=$(dirname "${PROJECT_SCRIPTS_DIR}")
@@ -11,7 +11,7 @@ fi
 
 "${PROJECT_SOURCE_DIR}/scripts/make_flutter.sh" "${PROJECT_BUILD_ARCH}" "${PROJECT_CMAKE_BUILD_TYPE}" "${PROJECT_BUILD_CLEAN}" 0 0 || exit 1
 
-if [ "${PROJECT_REQUIRE_ALPINE}" == "ON" ] || [ "${PROJECT_IS_ARM64}" == "1" ]; then
+if [[ "${PROJECT_IS_DARWIN}" == "0" && ("${PROJECT_REQUIRE_ALPINE}" == "ON" || "${PROJECT_IS_ARM64}" == "1") ]]; then
   DOCKER_NAME=alpine
   DOCKER_CONTAINER=${PROJECT_NAME}_${DOCKER_NAME}_${PROJECT_BUILD_ARCH}
   DOCKER_TAG=${PROJECT_NAME}:${DOCKER_NAME}

@@ -1,14 +1,55 @@
 # Changelog
 
-## v2.0.7-release
+## v2.1.0-rc
+
+### BREAKING CHANGES
+
+* Mount state has been moved into the configuration directory
+  * Unmount all active mounts prior to upgrade
+* Remote mounts must be upgraded to v2.1.0+ to support new authentication scheme
+  * Protocol handshake added for DoS protection
 
 ### Issues
+
+* \#12 [unit test] Complete all providers unit tests
+* \#22 [unit test] Complete FUSE unit tests
+* \#33 Complete initial v2.0 documentation
+* \#34 Add macOS support
+* \#38 Pinning a file should automatically initiate a download to cache
+* \#51 [ui] UI console window should close after launch
+* \#52 [ui] Add auto-mount on first launch functionality
+* \#53 Create Windows installer
+* \#54 Remove 'default' as initial bucket name for Sia
+* \#58 Create macOS bundle for simplified installation
+* \#59 [bug] [ui] UI is hanging after launching repertory mount in background
+* \#60 Implement secure key via KDF for transparent data encryption/decryption
+* \#61 [ui] UI theme should match repertory blue
+
+### Changes from v2.0.7-release
+
+* Added check version support to remote mounts
+* Fixed directory item count bug on S3 provider
+* Fixed handling of `FALLOC_FL_KEEP_SIZE` on Linux
+* Fixed intermittent client hang on remote mount server disconnect
+* Implemented POSIX-compliant `unlink()` with FUSE `hard_remove`
+  * Open handles remain valid after `unlink()`
+* Refactored CLI messages and error handling to use common methods
+* Enhanced remote mount client thread mapping
+  * Threads are now mapped 1-1 from client to server instead of being tied to a fixed-size thread pool
+
+## v2.0.7-release
+
+<!-- markdownlint-disable-next-line -->
+### Issues
+
 * \#55 [bug] UI is unable to launch `repertory.exe` on Windows when absolute path contains spaces
 * \#57 [bug] Directory entries . and .. are incorrectly being reported as files in Linux remote mounts
 
 ## v2.0.6-release
 
+<!-- markdownlint-disable-next-line -->
 ### Issues
+
 * \#42 [bug] Remote mount directory listing on Windows connected to Linux is failing
 * \#43 [bug] Directories are not importing properly for Sia
 * \#44 [bug] Windows-to-Linux remote mount ignores `CREATE_NEW`

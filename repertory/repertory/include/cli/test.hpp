@@ -26,20 +26,24 @@
 
 namespace repertory::cli::actions {
 [[nodiscard]] inline auto
-test(std::vector<const char *> /* args */, const std::string &data_directory,
-     const provider_type &prov, const std::string & /*unique_id*/,
-     std::string /*user*/, std::string /*password*/) -> exit_code {
-  app_config config(prov, data_directory);
+test(std::vector<const char *> /* args */, std::string_view data_directory,
+     provider_type prov, std::string_view /* unique_id */, std::string /*user*/,
+     std::string /*password*/) -> exit_code {
+  auto ret = cli::check_data_directory(data_directory);
+  if (ret != exit_code::success) {
+    return ret;
+  }
 
+  app_config config(prov, data_directory);
   auto is_online{
       (prov == provider_type::remote)
           ? remote_client(config).check() == 0
           : create_provider(prov, config)->is_online(),
   };
 
-  fmt::println("{}\nProvider is {}!", utils::string::from_bool(not is_online),
-               is_online ? "online" : "offline");
-  return is_online ? exit_code::success : exit_code::provider_offline;
+  return cli::handle_error(
+      is_online ? exit_code::success : exit_code::provider_offline,
+      fmt::format("provider is {}", is_online ? "online" : "offline"));
 }
 } // namespace repertory::cli::actions
 

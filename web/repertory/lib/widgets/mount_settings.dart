@@ -1,4 +1,8 @@
+// mount_settings.dart
+
 import 'package:flutter/material.dart';
+import 'package:flutter_settings_ui/flutter_settings_ui.dart'
+    show SettingsTile, SettingsList, DevicePlatform;
 import 'package:provider/provider.dart';
 import 'package:repertory/constants.dart' as constants;
 import 'package:repertory/helpers.dart'
@@ -6,12 +10,13 @@ import 'package:repertory/helpers.dart'
         convertAllToString,
         getChanged,
         getSettingDescription,
-        getSettingValidators;
+        getSettingValidators,
+        createSettingsTheme;
 import 'package:repertory/models/auth.dart';
 import 'package:repertory/models/mount.dart';
 import 'package:repertory/models/mount_list.dart';
 import 'package:repertory/settings.dart';
-import 'package:settings_ui/settings_ui.dart';
+import 'package:repertory/widgets/settings/settings_section.dart';
 
 class MountSettingsWidget extends StatefulWidget {
   final bool isAdd;
@@ -35,6 +40,10 @@ class MountSettingsWidget extends StatefulWidget {
 class _MountSettingsWidgetState extends State<MountSettingsWidget> {
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final settingsTheme = createSettingsTheme(scheme);
+
     List<SettingsTile> commonSettings = [];
     List<SettingsTile> encryptConfigSettings = [];
     List<SettingsTile> hostConfigSettings = [];
@@ -363,11 +372,8 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
                   description: getSettingDescription('$key.$subKey'),
                   validators: [
                     ...getSettingValidators('$key.$subKey'),
-                    (value) =>
-                        !Provider.of<MountList>(
-                          context,
-                          listen: false,
-                        ).hasBucketName(
+                    (value) => !Provider.of<MountList>(context, listen: false)
+                        .hasBucketName(
                           widget.mount.type,
                           value,
                           excludeName: widget.mount.name,
@@ -381,44 +387,54 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
       }
     });
 
+    final titleStyle = theme.textTheme.titleLarge?.copyWith(
+      fontWeight: FontWeight.w700,
+      color: scheme.onSurface,
+    );
+
     return SettingsList(
       shrinkWrap: false,
+      platform: DevicePlatform.web,
+      lightTheme: settingsTheme,
+      darkTheme: settingsTheme,
       sections: [
         if (encryptConfigSettings.isNotEmpty)
           SettingsSection(
-            title: const Text('Encrypt Config'),
+            title: Text('Encrypt Config', style: titleStyle),
             tiles: encryptConfigSettings,
           ),
         if (hostConfigSettings.isNotEmpty)
           SettingsSection(
-            title: const Text('Host Config'),
+            title: Text('Host Config', style: titleStyle),
             tiles: hostConfigSettings,
           ),
         if (remoteConfigSettings.isNotEmpty)
           SettingsSection(
-            title: const Text('Remote Config'),
+            title: Text('Remote Config', style: titleStyle),
             tiles: remoteConfigSettings,
           ),
         if (s3ConfigSettings.isNotEmpty)
           SettingsSection(
-            title: const Text('S3 Config'),
+            title: Text('S3 Config', style: titleStyle),
             tiles: s3ConfigSettings,
           ),
         if (siaConfigSettings.isNotEmpty)
           SettingsSection(
-            title: const Text('Sia Config'),
+            title: Text('Sia Config', style: titleStyle),
             tiles: siaConfigSettings,
           ),
         if (remoteMountSettings.isNotEmpty)
           SettingsSection(
-            title: const Text('Remote Mount'),
-            tiles:
-                widget.settings['RemoteMount']['Enable'] as bool
-                    ? remoteMountSettings
-                    : [remoteMountSettings[0]],
+            title: Text('Remote Mount', style: titleStyle),
+            tiles: (widget.settings['RemoteMount']['Enable'] as bool)
+                ? remoteMountSettings
+                : [remoteMountSettings[0]],
           ),
         if (commonSettings.isNotEmpty)
-          SettingsSection(title: const Text('Settings'), tiles: commonSettings),
+          SettingsSection(
+            title: Text('Settings', style: titleStyle),
+            tiles: commonSettings,
+          ),
       ],
     );
   }
@@ -617,38 +633,6 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
     });
   }
 
-  @override
-  void dispose() {
-    if (!widget.isAdd) {
-      final settings = getChanged(
-        widget.mount.mountConfig.settings,
-        widget.settings,
-      );
-      if (settings.isNotEmpty) {
-        final mount = widget.mount;
-        final key =
-            Provider.of<Auth>(
-              constants.navigatorKey.currentContext!,
-              listen: false,
-            ).key;
-        convertAllToString(settings, key).then((map) {
-          map.forEach((key, value) {
-            if (value is Map<String, dynamic>) {
-              value.forEach((subKey, subValue) {
-                mount.setValue('$key.$subKey', subValue);
-              });
-              return;
-            }
-
-            mount.setValue(key, value);
-          });
-        });
-      }
-    }
-
-    super.dispose();
-  }
-
   void _parseS3Config(List<SettingsTile> s3ConfigSettings, String key, value) {
     value.forEach((subKey, subValue) {
       switch (subKey) {
@@ -686,11 +670,8 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
               description: getSettingDescription('$key.$subKey'),
               validators: [
                 ...getSettingValidators('$key.$subKey'),
-                (value) =>
-                    !Provider.of<MountList>(
-                      context,
-                      listen: false,
-                    ).hasBucketName(
+                (value) => !Provider.of<MountList>(context, listen: false)
+                    .hasBucketName(
                       widget.mount.type,
                       value,
                       excludeName: widget.mount.name,
@@ -713,6 +694,22 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
               setState,
               description: getSettingDescription('$key.$subKey'),
               validators: getSettingValidators('$key.$subKey'),
+            );
+          }
+          break;
+        case 'ForceLegacyEncryption':
+          {
+            createBooleanSetting(
+              context,
+              s3ConfigSettings,
+              widget.settings[key],
+              subKey,
+              subValue,
+              false,
+              widget.showAdvanced,
+              widget,
+              setState,
+              description: getSettingDescription('$key.$subKey'),
             );
           }
           break;
@@ -926,6 +923,23 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
             );
           }
           break;
+        case 'ConnectTimeoutMs':
+          {
+            createIntSetting(
+              context,
+              remoteConfigSettings,
+              widget.settings[key],
+              subKey,
+              subValue,
+              true,
+              widget.showAdvanced,
+              widget,
+              setState,
+              description: getSettingDescription('$key.$subKey'),
+              validators: getSettingValidators('$key.$subKey'),
+            );
+          }
+          break;
         case 'EncryptionToken':
           {
             createPasswordSetting(
@@ -1014,6 +1028,35 @@ class _MountSettingsWidgetState extends State<MountSettingsWidget> {
           break;
       }
     });
+  }
+
+  @override
+  void dispose() {
+    if (!widget.isAdd) {
+      final settings = getChanged(
+        widget.mount.mountConfig.settings,
+        widget.settings,
+      );
+      if (settings.isNotEmpty) {
+        final mount = widget.mount;
+        final key = Provider.of<Auth>(
+          constants.navigatorKey.currentContext!,
+          listen: false,
+        ).key;
+        convertAllToString(settings, key).then((map) {
+          map.forEach((key, value) {
+            if (value is Map<String, dynamic>) {
+              value.forEach((subKey, subValue) {
+                mount.setValue('$key.$subKey', subValue);
+              });
+              return;
+            }
+            mount.setValue(key, value);
+          });
+        });
+      }
+    }
+    super.dispose();
   }
 
   @override

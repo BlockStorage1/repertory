@@ -43,6 +43,9 @@ private:
   void handle_get_directory_items(const httplib::Request &req,
                                   httplib::Response &res);
 
+  void handle_get_item_info(const httplib::Request &req,
+                            httplib::Response &res);
+
   void handle_get_drive_information(const httplib::Request &req,
                                     httplib::Response &res);
 

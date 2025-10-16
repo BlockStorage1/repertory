@@ -1,8 +1,13 @@
+auro
+aurosweep
 autofocus
+autovalidatemode
 canvaskit
 cupertino
 cupertinoicons
+entrypoint
 fromargb
 onetwothree
 renterd
 rocksdb
+vsync

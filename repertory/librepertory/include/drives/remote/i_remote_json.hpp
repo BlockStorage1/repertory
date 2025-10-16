@@ -30,16 +30,18 @@ class i_remote_json {
 
 public:
   [[nodiscard]] virtual auto
-  json_create_directory_snapshot(const std::string &path,
-                                 json &json_data) -> packet::error_type = 0;
+  json_create_directory_snapshot(std::string_view path, json &json_data)
+      -> packet::error_type = 0;
 
-  [[nodiscard]] virtual auto json_read_directory_snapshot(
-      const std::string &path, const remote::file_handle &handle,
-      std::uint32_t page, json &json_data) -> packet::error_type = 0;
+  [[nodiscard]] virtual auto
+  json_read_directory_snapshot(std::string_view path,
+                               remote::file_handle handle, std::uint32_t page,
+                               json &json_data) -> packet::error_type = 0;
 
-  [[nodiscard]] virtual auto json_release_directory_snapshot(
-      const std::string &path,
-      const remote::file_handle &handle) -> packet::error_type = 0;
+  [[nodiscard]] virtual auto
+  json_release_directory_snapshot(std::string_view path,
+                                  remote::file_handle handle)
+      -> packet::error_type = 0;
 };
 } // namespace repertory
 

@@ -24,6 +24,10 @@
 #if defined(PROJECT_ENABLE_LIBSODIUM)
 
 namespace {
+#if defined(PROJECT_ENABLE_BOOST)
+const std::string buffer = "cow moose dog chicken";
+#endif // defined(PROJECT_ENABLE_BOOST)
+
 const auto get_stop_requested = []() -> bool { return false; };
 } // namespace
 
@@ -32,24 +36,21 @@ static constexpr std::string_view token{"moose"};
 static constexpr std::wstring_view token_w{L"moose"};
 
 TEST(utils_encryption, generate_key) {
-  auto key1 =
-      utils::encryption::generate_key<utils::encryption::hash_256_t>(token);
+  auto key1 = utils::encryption::generate_key<utils::hash::hash_256_t>(token);
   EXPECT_STREQ(
       "ab4a0b004e824962913f7c0f79582b6ec7a3b8726426ca61d1a0a28ce5049e96",
       utils::collection::to_hex_string(key1).c_str());
 
-  auto key2 =
-      utils::encryption::generate_key<utils::encryption::hash_256_t>("moose");
-  auto key3 =
-      utils::encryption::generate_key<utils::encryption::hash_256_t>("moose");
+  auto key2 = utils::encryption::generate_key<utils::hash::hash_256_t>("moose");
+  auto key3 = utils::encryption::generate_key<utils::hash::hash_256_t>("moose");
   EXPECT_EQ(key2, key3);
 
   auto key4 =
-      utils::encryption::generate_key<utils::encryption::hash_256_t>("moose2");
+      utils::encryption::generate_key<utils::hash::hash_256_t>("moose2");
   EXPECT_NE(key2, key4);
 
   auto key1_w =
-      utils::encryption::generate_key<utils::encryption::hash_256_t>(token_w);
+      utils::encryption::generate_key<utils::hash::hash_256_t>(token_w);
   EXPECT_NE(key1, key1_w);
 #if defined(_WIN32)
   EXPECT_STREQ(
@@ -62,34 +63,33 @@ TEST(utils_encryption, generate_key) {
 #endif
 
   auto key2_w =
-      utils::encryption::generate_key<utils::encryption::hash_256_t>(L"moose");
+      utils::encryption::generate_key<utils::hash::hash_256_t>(L"moose");
   auto key3_w =
-      utils::encryption::generate_key<utils::encryption::hash_256_t>(L"moose");
+      utils::encryption::generate_key<utils::hash::hash_256_t>(L"moose");
   EXPECT_EQ(key2_w, key3_w);
   EXPECT_NE(key2_w, key2);
   EXPECT_NE(key3_w, key3);
 
   auto key4_w =
-      utils::encryption::generate_key<utils::encryption::hash_256_t>(L"moose2");
+      utils::encryption::generate_key<utils::hash::hash_256_t>(L"moose2");
   EXPECT_NE(key2_w, key4_w);
   EXPECT_NE(key4_w, key4);
 }
 
 TEST(utils_encryption, generate_key_default_hasher_is_blake2b_256) {
-  auto key1 =
-      utils::encryption::generate_key<utils::encryption::hash_256_t>(token);
-  auto key2 = utils::encryption::generate_key<utils::encryption::hash_256_t>(
+  auto key1 = utils::encryption::generate_key<utils::hash::hash_256_t>(token);
+  auto key2 = utils::encryption::generate_key<utils::hash::hash_256_t>(
       token, [](auto &&data, auto &&size) -> auto {
-        return utils::encryption::create_hash_blake2b_256(
+        return utils::hash::create_hash_blake2b_256(
             std::string_view(reinterpret_cast<const char *>(data), size));
       });
   EXPECT_EQ(key1, key2);
 
   auto key1_w =
-      utils::encryption::generate_key<utils::encryption::hash_256_t>(token_w);
-  auto key2_w = utils::encryption::generate_key<utils::encryption::hash_256_t>(
+      utils::encryption::generate_key<utils::hash::hash_256_t>(token_w);
+  auto key2_w = utils::encryption::generate_key<utils::hash::hash_256_t>(
       token_w, [](auto &&data, auto &&size) -> auto {
-        return utils::encryption::create_hash_blake2b_256(std::wstring_view(
+        return utils::hash::create_hash_blake2b_256(std::wstring_view(
             reinterpret_cast<const wchar_t *>(data), size / sizeof(wchar_t)));
       });
   EXPECT_EQ(key1_w, key2_w);
@@ -99,22 +99,22 @@ TEST(utils_encryption, generate_key_default_hasher_is_blake2b_256) {
 }
 
 TEST(utils_encryption, generate_key_with_hasher) {
-  auto key1 = utils::encryption::generate_key<utils::encryption::hash_256_t>(
-      token, utils::encryption::blake2b_256_hasher);
+  auto key1 = utils::encryption::generate_key<utils::hash::hash_256_t>(
+      token, utils::hash::blake2b_256_hasher);
   EXPECT_STREQ(
       "ab4a0b004e824962913f7c0f79582b6ec7a3b8726426ca61d1a0a28ce5049e96",
       utils::collection::to_hex_string(key1).c_str());
 
-  auto key2 = utils::encryption::generate_key<utils::encryption::hash_256_t>(
-      token, utils::encryption::sha256_hasher);
+  auto key2 = utils::encryption::generate_key<utils::hash::hash_256_t>(
+      token, utils::hash::sha256_hasher);
   EXPECT_NE(key1, key2);
 
   EXPECT_STREQ(
       "182072537ada59e4d6b18034a80302ebae935f66adbdf0f271d3d36309c2d481",
       utils::collection::to_hex_string(key2).c_str());
 
-  auto key1_w = utils::encryption::generate_key<utils::encryption::hash_256_t>(
-      token_w, utils::encryption::blake2b_256_hasher);
+  auto key1_w = utils::encryption::generate_key<utils::hash::hash_256_t>(
+      token_w, utils::hash::blake2b_256_hasher);
 #if defined(_WIN32)
   EXPECT_STREQ(
       L"4f5eb2a2ab34e3777b230465283923080b9ba59311e74058ccd74185131d11fe",
@@ -125,8 +125,8 @@ TEST(utils_encryption, generate_key_with_hasher) {
       utils::collection::to_hex_wstring(key1_w).c_str());
 #endif
 
-  auto key2_w = utils::encryption::generate_key<utils::encryption::hash_256_t>(
-      token_w, utils::encryption::sha256_hasher);
+  auto key2_w = utils::encryption::generate_key<utils::hash::hash_256_t>(
+      token_w, utils::hash::sha256_hasher);
   EXPECT_NE(key1_w, key2_w);
 
 #if defined(_WIN32)
@@ -144,13 +144,86 @@ TEST(utils_encryption, generate_key_with_hasher) {
 }
 
 #if defined(PROJECT_ENABLE_BOOST)
-static const std::string buffer = "cow moose dog chicken";
+TEST(utils_encryption, generate_argon2id_key) {
+  utils::encryption::kdf_config cfg;
+
+  {
+    auto key1 =
+        utils::encryption::generate_key<utils::hash::hash_256_t>(token, cfg);
+
+    auto key2 =
+        utils::encryption::generate_key<utils::hash::hash_256_t>(token, cfg);
+    EXPECT_NE(key1, key2);
+
+    auto key3 =
+        utils::encryption::generate_key<utils::hash::hash_256_t>(token, cfg);
+    EXPECT_NE(key3, key1);
+
+    auto key4 =
+        utils::encryption::generate_key<utils::hash::hash_256_t>(token, cfg);
+    EXPECT_NE(key4, key2);
+
+    EXPECT_NE(key3, key4);
+  }
+
+  {
+    auto key1 =
+        utils::encryption::generate_key<utils::hash::hash_256_t>(token_w, cfg);
+
+    auto key2 =
+        utils::encryption::generate_key<utils::hash::hash_256_t>(token_w, cfg);
+    EXPECT_NE(key1, key2);
+
+    auto key3 =
+        utils::encryption::generate_key<utils::hash::hash_256_t>(token_w, cfg);
+    EXPECT_NE(key3, key1);
+
+    auto key4 =
+        utils::encryption::generate_key<utils::hash::hash_256_t>(token_w, cfg);
+    EXPECT_NE(key4, key2);
+
+    EXPECT_NE(key3, key4);
+  }
+}
+
+TEST(utils_encryption, recreate_argon2id_key) {
+  utils::encryption::kdf_config cfg;
+
+  {
+    auto key1 =
+        utils::encryption::generate_key<utils::hash::hash_256_t>(token, cfg);
+
+    auto key2 =
+        utils::encryption::recreate_key<utils::hash::hash_256_t>(token, cfg);
+    EXPECT_EQ(key1, key2);
+  }
+
+  {
+    auto key1 =
+        utils::encryption::generate_key<utils::hash::hash_256_t>(token_w, cfg);
+
+    auto key2 =
+        utils::encryption::recreate_key<utils::hash::hash_256_t>(token_w, cfg);
+    EXPECT_EQ(key1, key2);
+  }
+}
 
 static void test_encrypted_result(const data_buffer &result) {
   EXPECT_EQ(buffer.size() + utils::encryption::encryption_header_size,
             result.size());
   std::string data;
   EXPECT_TRUE(utils::encryption::decrypt_data(token, result, data));
+  EXPECT_EQ(buffer.size(), data.size());
+  EXPECT_STREQ(buffer.c_str(), data.c_str());
+}
+
+static void
+test_encrypted_result_using_argon2id(const data_buffer &result,
+                                     const utils::encryption::kdf_config &cfg) {
+  EXPECT_EQ(buffer.size() + utils::encryption::encryption_header_size,
+            result.size());
+  std::string data;
+  EXPECT_TRUE(utils::encryption::decrypt_data(token, cfg, result, data));
   EXPECT_EQ(buffer.size(), data.size());
   EXPECT_STREQ(buffer.c_str(), data.c_str());
 }
@@ -163,7 +236,7 @@ TEST(utils_encryption, encrypt_data_buffer) {
 
 TEST(utils_encryption, encrypt_data_buffer_with_key) {
   const auto key =
-      utils::encryption::generate_key<utils::encryption::hash_256_t>(token);
+      utils::encryption::generate_key<utils::hash::hash_256_t>(token);
   data_buffer result;
   utils::encryption::encrypt_data(key, buffer, result);
   test_encrypted_result(result);
@@ -179,7 +252,7 @@ TEST(utils_encryption, encrypt_data_pointer) {
 
 TEST(utils_encryption, encrypt_data_pointer_with_key) {
   const auto key =
-      utils::encryption::generate_key<utils::encryption::hash_256_t>(token);
+      utils::encryption::generate_key<utils::hash::hash_256_t>(token);
   data_buffer result;
   utils::encryption::encrypt_data(
       key, reinterpret_cast<const unsigned char *>(buffer.data()),
@@ -189,7 +262,7 @@ TEST(utils_encryption, encrypt_data_pointer_with_key) {
 
 TEST(utils_encryption, decrypt_data_pointer) {
   const auto key =
-      utils::encryption::generate_key<utils::encryption::hash_256_t>(token);
+      utils::encryption::generate_key<utils::hash::hash_256_t>(token);
   data_buffer result;
   utils::encryption::encrypt_data(
       key, reinterpret_cast<const unsigned char *>(buffer.data()),
@@ -205,7 +278,7 @@ TEST(utils_encryption, decrypt_data_pointer) {
 
 TEST(utils_encryption, decrypt_data_buffer_with_key) {
   const auto key =
-      utils::encryption::generate_key<utils::encryption::hash_256_t>(token);
+      utils::encryption::generate_key<utils::hash::hash_256_t>(token);
   data_buffer result;
   utils::encryption::encrypt_data(
       key, reinterpret_cast<const unsigned char *>(buffer.data()),
@@ -220,7 +293,7 @@ TEST(utils_encryption, decrypt_data_buffer_with_key) {
 
 TEST(utils_encryption, decrypt_data_pointer_with_key) {
   const auto key =
-      utils::encryption::generate_key<utils::encryption::hash_256_t>(token);
+      utils::encryption::generate_key<utils::hash::hash_256_t>(token);
   data_buffer result;
   utils::encryption::encrypt_data(
       key, reinterpret_cast<const unsigned char *>(buffer.data()),
@@ -236,7 +309,7 @@ TEST(utils_encryption, decrypt_data_pointer_with_key) {
 
 TEST(utils_encryption, decryption_failure) {
   const auto key =
-      utils::encryption::generate_key<utils::encryption::hash_256_t>(token);
+      utils::encryption::generate_key<utils::hash::hash_256_t>(token);
   data_buffer result;
   utils::encryption::encrypt_data(
       key, reinterpret_cast<const unsigned char *>(buffer.data()),
@@ -280,6 +353,32 @@ TEST(utils_encryption, decrypt_file_path) {
     EXPECT_STREQ("/moose/cow/test.dat", file_path.c_str());
   }
 }
+
+TEST(utils_encryption, encrypt_data_buffer_using_argon2id) {
+  utils::encryption::kdf_config cfg;
+
+  data_buffer result;
+  utils::encryption::encrypt_data(token, cfg, buffer, result);
+  test_encrypted_result_using_argon2id(result, cfg);
+}
+
+TEST(utils_encryption, encrypt_data_pointer_using_argon2id) {
+  utils::encryption::kdf_config cfg;
+
+  data_buffer result;
+  utils::encryption::encrypt_data(
+      token, cfg, reinterpret_cast<const unsigned char *>(buffer.data()),
+      buffer.size(), result);
+  test_encrypted_result_using_argon2id(result, cfg);
+}
+
+// TEST(utils_encryption, decrypt_file_name_using_argon2id) {}
+
+// TEST(utils_encryption, decrypt_file_path_using_argon2id) {}
+//
+// TEST(utils_encryption, decrypt_file_name_using_argon2id_master_key) {}
+
+// TEST(utils_encryption, decrypt_file_path_using_argon2id_master_key) {}
 #endif // defined(PROJECT_ENABLE_BOOST)
 } // namespace repertory
 

@@ -28,9 +28,9 @@
 namespace repertory {
 struct service_stop_begin final : public i_event {
   service_stop_begin() = default;
-  service_stop_begin(std::string_view function_name_, std::string service_name_)
-      : function_name(std::string(function_name_)),
-        service_name(std::move(service_name_)) {}
+  service_stop_begin(std::string_view function_name_,
+                     std::string_view service_name_)
+      : function_name(function_name_), service_name(service_name_) {}
 
   static constexpr event_level level{event_level::debug};
   static constexpr std::string_view name{"service_stop_begin"};

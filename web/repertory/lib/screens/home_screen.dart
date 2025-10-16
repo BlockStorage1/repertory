@@ -1,7 +1,8 @@
+// home_screen.dart
+
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import 'package:repertory/constants.dart' as constants;
-import 'package:repertory/models/auth.dart';
+import 'package:repertory/widgets/app_scaffold.dart';
 import 'package:repertory/widgets/mount_list_widget.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -15,43 +16,62 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreeState extends State<HomeScreen> {
   @override
   Widget build(context) {
-    return Scaffold(
-      appBar: AppBar(
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-        leading: IconButton(
-          onPressed: () => Navigator.pushNamed(context, '/settings'),
-          icon: const Icon(Icons.storage),
-        ),
-        title: Text(widget.title),
-        actions: [
-          Consumer<Auth>(
-            builder: (context, auth, _) {
-              return IconButton(
-                icon: const Icon(Icons.logout),
-                onPressed: () => auth.logoff(),
-              );
-            },
-          ),
-        ],
-      ),
-      body: Padding(
+    final scheme = Theme.of(context).colorScheme;
+
+    return AppScaffold(
+      title: widget.title,
+      floatingActionButton: Padding(
         padding: const EdgeInsets.all(constants.padding),
-        child: MountListWidget(),
+        child: Hero(
+          tag: 'add_mount_fab',
+          child: Material(
+            color: scheme.primary.withValues(alpha: constants.secondaryAlpha),
+            elevation: 12,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(constants.borderRadius),
+            ),
+            child: Ink(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(constants.borderRadius),
+                border: Border.all(
+                  color: scheme.outlineVariant.withValues(
+                    alpha: constants.outlineAlpha,
+                  ),
+                  width: 1,
+                ),
+                gradient: const LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: constants.gradientColors2,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(
+                      alpha: constants.boxShadowAlpha,
+                    ),
+                    blurRadius: constants.borderRadius,
+                    offset: Offset(0, constants.borderRadius),
+                  ),
+                ],
+              ),
+              child: InkWell(
+                borderRadius: BorderRadius.circular(constants.borderRadius),
+                onTap: () {
+                  Navigator.pushNamed(context, '/add');
+                },
+                child: const SizedBox(
+                  width: 56,
+                  height: 56,
+                  child: Center(
+                    child: Icon(Icons.add, size: constants.largeIconSize),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => Navigator.pushNamed(context, '/add'),
-        tooltip: 'Add Mount',
-        child: const Icon(Icons.add),
-      ),
+      children: [Expanded(child: const MountListWidget())],
     );
-  }
-
-  @override
-  void setState(VoidCallback fn) {
-    if (!mounted) {
-      return;
-    }
-
-    super.setState(fn);
   }
 }

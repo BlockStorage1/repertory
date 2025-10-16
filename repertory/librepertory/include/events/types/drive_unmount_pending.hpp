@@ -29,9 +29,8 @@ namespace repertory {
 struct drive_unmount_pending final : public i_event {
   drive_unmount_pending() = default;
   drive_unmount_pending(std::string_view function_name_,
-                        std::string mount_location_)
-      : function_name(std::string(function_name_)),
-        mount_location(std::move(mount_location_)) {}
+                        std::string_view mount_location_)
+      : function_name(function_name_), mount_location(mount_location_) {}
 
   static constexpr event_level level{event_level::info};
   static constexpr std::string_view name{"drive_unmount_pending"};

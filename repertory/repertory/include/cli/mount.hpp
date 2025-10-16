@@ -23,13 +23,30 @@
 #define REPERTORY_INCLUDE_CLI_MOUNT_HPP_
 
 #include "cli/common.hpp"
+#include "initialize.hpp"
 
 namespace repertory::cli::actions {
 [[nodiscard]] inline auto
 mount(std::vector<const char *> args, std::string data_directory,
-      int &mount_result, provider_type prov, const std::string &remote_host,
-      std::uint16_t remote_port, const std::string &unique_id) -> exit_code {
-  lock_data global_lock(provider_type::unknown, "global");
+      int &mount_result, provider_type prov, std::string_view remote_host,
+      std::uint16_t remote_port, std::string_view unique_id) -> exit_code {
+  std::vector<std::string> orig_args;
+  args.reserve(args.size());
+  for (const auto *arg : args) {
+    orig_args.emplace_back(arg);
+  }
+
+  auto has_gc_option =
+      utils::cli::has_option(args, utils::cli::options::generate_config_option);
+  if (not has_gc_option) {
+    auto res = cli::check_data_directory(data_directory);
+    if (res != exit_code::success) {
+      return res;
+    }
+  }
+
+  lock_data global_lock(app_config::get_root_data_directory(),
+                        provider_type::unknown, "global");
   {
     auto lock_result = global_lock.grab_lock(100U);
     if (lock_result != lock_result::success) {
@@ -38,7 +55,7 @@ mount(std::vector<const char *> args, std::string data_directory,
     }
   }
 
-  lock_data lock(prov, unique_id);
+  lock_data lock(data_directory, prov, unique_id);
   auto lock_result = lock.grab_lock();
   if (lock_result == lock_result::locked) {
     std::cerr << app_config::get_provider_display_name(prov)
@@ -51,8 +68,7 @@ mount(std::vector<const char *> args, std::string data_directory,
     return exit_code::lock_failed;
   }
 
-  if (utils::cli::has_option(args,
-                             utils::cli::options::generate_config_option)) {
+  if (has_gc_option) {
     app_config config(prov, data_directory);
     if (prov == provider_type::remote) {
       auto remote_config = config.get_remote_config();
@@ -92,7 +108,6 @@ mount(std::vector<const char *> args, std::string data_directory,
 
 #if defined(_WIN32)
   if (config.get_enable_mount_manager() && not utils::is_process_elevated()) {
-    utils::com_init_wrapper wrapper;
     if (not lock.set_mount_state(true, "elevating", -1)) {
       std::cerr << "failed to set mount state" << std::endl;
     }
@@ -100,7 +115,7 @@ mount(std::vector<const char *> args, std::string data_directory,
     global_lock.release();
 
     mount_result = utils::run_process_elevated(args);
-    lock_data prov_lock(prov, unique_id);
+    lock_data prov_lock(data_directory, prov, unique_id);
     if (prov_lock.grab_lock() == lock_result::success) {
       if (not prov_lock.set_mount_state(false, "", -1)) {
         std::cerr << "failed to set mount state" << std::endl;
@@ -115,9 +130,9 @@ mount(std::vector<const char *> args, std::string data_directory,
   std::cout << "Initializing " << app_config::get_provider_display_name(prov)
             << (unique_id.empty() ? ""
                 : (prov == provider_type::remote)
-                    ? " [" + remote_host + ':' + std::to_string(remote_port) +
-                          ']'
-                    : " [" + unique_id + ']')
+                    ? " [" + std::string{remote_host} + ':' +
+                          std::to_string(remote_port) + ']'
+                    : " [" + std::string{unique_id} + ']')
             << " Drive" << std::endl;
   if (prov == provider_type::remote) {
     try {
@@ -125,6 +140,26 @@ mount(std::vector<const char *> args, std::string data_directory,
       remote_cfg.host_name_or_ip = remote_host;
       remote_cfg.api_port = remote_port;
       config.set_remote_config(remote_cfg);
+
+      constexpr const std::uint8_t retry_count{30U};
+      std::cout << "Connecting to remote [" << remote_host << ':' << remote_port
+                << "]..." << std::flush;
+      auto online{false};
+      for (std::uint8_t retry{0U}; not online && retry < retry_count; ++retry) {
+        online = remote_client(config).check() == 0;
+        if (online) {
+          continue;
+        }
+        std::cout << "." << std::flush;
+        std::this_thread::sleep_for(1s);
+      }
+
+      if (not online) {
+        std::cerr << " failed! remote host is offline." << std::endl;
+        return exit_code::communication_error;
+      }
+
+      std::cout << " done!" << std::endl;
 
       remote_drive drive(
           config,
@@ -137,7 +172,7 @@ mount(std::vector<const char *> args, std::string data_directory,
       }
 
       global_lock.release();
-      mount_result = drive.mount(drive_args);
+      mount_result = drive.mount(orig_args, drive_args, prov, unique_id);
       return exit_code::mount_result;
     } catch (const std::exception &e) {
       std::cerr << "FATAL: " << e.what() << std::endl;
@@ -159,7 +194,7 @@ mount(std::vector<const char *> args, std::string data_directory,
     }
 
     global_lock.release();
-    mount_result = drive.mount(drive_args);
+    mount_result = drive.mount(orig_args, drive_args, prov, unique_id);
     return exit_code::mount_result;
   } catch (const std::exception &e) {
     std::cerr << "FATAL: " << e.what() << std::endl;

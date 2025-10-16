@@ -78,7 +78,7 @@ private:
   [[nodiscard]] auto get_stop_requested() const -> bool;
 
 public:
-  void remove_callback(const std::string &name);
+  void remove_callback(std::string_view name);
 
   void set_callback(const polling_item &item);
 

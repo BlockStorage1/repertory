@@ -41,13 +41,13 @@ namespace repertory::utils::file {
 [[nodiscard]] auto create_temp_name(std::string_view file_part) -> std::string;
 
 // INFO: has test
-[[nodiscard]] auto
-create_temp_name(std::wstring_view file_part) -> std::wstring;
+[[nodiscard]] auto create_temp_name(std::wstring_view file_part)
+    -> std::wstring;
 
 // INFO: has test
 [[nodiscard]] inline auto
-directory_exists_in_path(std::string_view path,
-                         std::string_view sub_directory) -> bool;
+directory_exists_in_path(std::string_view path, std::string_view sub_directory)
+    -> bool;
 
 // INFO: has test
 [[nodiscard]] inline auto
@@ -55,45 +55,46 @@ directory_exists_in_path(std::wstring_view path,
                          std::wstring_view sub_directory) -> bool;
 
 // INFO: has test
-[[nodiscard]] inline auto
-file_exists_in_path(std::string_view path, std::string_view file_name) -> bool;
+[[nodiscard]] inline auto file_exists_in_path(std::string_view path,
+                                              std::string_view file_name)
+    -> bool;
 
 // INFO: has test
-[[nodiscard]] inline auto
-file_exists_in_path(std::wstring_view path,
-                    std::wstring_view file_name) -> bool;
+[[nodiscard]] inline auto file_exists_in_path(std::wstring_view path,
+                                              std::wstring_view file_name)
+    -> bool;
 
 // INFO: has test
-[[nodiscard]] auto
-get_free_drive_space(std::string_view path) -> std::optional<std::uint64_t>;
+[[nodiscard]] auto get_free_drive_space(std::string_view path)
+    -> std::optional<std::uint64_t>;
 
 // INFO: has test
-[[nodiscard]] auto
-get_free_drive_space(std::wstring_view path) -> std::optional<std::uint64_t>;
+[[nodiscard]] auto get_free_drive_space(std::wstring_view path)
+    -> std::optional<std::uint64_t>;
 
 // INFO: has test
-[[nodiscard]] auto get_time(std::string_view path,
-                            time_type type) -> std::optional<std::uint64_t>;
+[[nodiscard]] auto get_time(std::string_view path, time_type type)
+    -> std::optional<std::uint64_t>;
 
 // INFO: has test
-[[nodiscard]] auto get_time(std::wstring_view path,
-                            time_type type) -> std::optional<std::uint64_t>;
+[[nodiscard]] auto get_time(std::wstring_view path, time_type type)
+    -> std::optional<std::uint64_t>;
 
 // INFO: has test
-[[nodiscard]] auto
-get_times(std::string_view path) -> std::optional<file_times>;
+[[nodiscard]] auto get_times(std::string_view path)
+    -> std::optional<file_times>;
 
 // INFO: has test
-[[nodiscard]] auto
-get_times(std::wstring_view path) -> std::optional<file_times>;
+[[nodiscard]] auto get_times(std::wstring_view path)
+    -> std::optional<file_times>;
 
 // INFO: has test
-[[nodiscard]] auto
-get_total_drive_space(std::string_view path) -> std::optional<std::uint64_t>;
+[[nodiscard]] auto get_total_drive_space(std::string_view path)
+    -> std::optional<std::uint64_t>;
 
 // INFO: has test
-[[nodiscard]] auto
-get_total_drive_space(std::wstring_view path) -> std::optional<std::uint64_t>;
+[[nodiscard]] auto get_total_drive_space(std::wstring_view path)
+    -> std::optional<std::uint64_t>;
 
 #if defined(PROJECT_ENABLE_LIBDSM)
 [[nodiscard]] auto
@@ -101,20 +102,20 @@ smb_create_and_validate_relative_path(std::string_view smb_path,
                                       std::string_view rel_path) -> std::string;
 
 // INFO: has test
-[[nodiscard]] auto
-smb_create_relative_path(std::string_view smb_path) -> std::string;
+[[nodiscard]] auto smb_create_relative_path(std::string_view smb_path)
+    -> std::string;
 
 // INFO: has test
-[[nodiscard]] auto
-smb_create_search_path(std::string_view smb_path) -> std::string;
+[[nodiscard]] auto smb_create_search_path(std::string_view smb_path)
+    -> std::string;
 
 // INFO: has test
-[[nodiscard]] auto
-smb_create_smb_path(std::string_view smb_path,
-                    std::string_view rel_path) -> std::string;
+[[nodiscard]] auto smb_create_smb_path(std::string_view smb_path,
+                                       std::string_view rel_path)
+    -> std::string;
 
-[[nodiscard]] auto
-smb_get_parent_path(std::string_view smb_path) -> std::string;
+[[nodiscard]] auto smb_get_parent_path(std::string_view smb_path)
+    -> std::string;
 
 [[nodiscard]] auto smb_get_root_path(std::string_view smb_path) -> std::string;
 
@@ -143,27 +144,30 @@ read_json_file(std::string_view path, nlohmann::json &data,
                std::optional<std::string_view> password = std::nullopt) -> bool;
 
 // INFO: has test
-[[nodiscard]] auto read_json_file(
-    std::wstring_view path, nlohmann::json &data,
-    std::optional<std::wstring_view> password = std::nullopt) -> bool;
+[[nodiscard]] auto
+read_json_file(std::wstring_view path, nlohmann::json &data,
+               std::optional<std::wstring_view> password = std::nullopt)
+    -> bool;
 
 // INFO: has test
-[[nodiscard]] auto write_json_file(
-    std::string_view path, const nlohmann::json &data,
-    std::optional<std::string_view> password = std::nullopt) -> bool;
+[[nodiscard]] auto
+write_json_file(std::string_view path, const nlohmann::json &data,
+                std::optional<std::string_view> password = std::nullopt)
+    -> bool;
 
 // INFO: has test
-[[nodiscard]] auto write_json_file(
-    std::wstring_view path, const nlohmann::json &data,
-    std::optional<std::wstring_view> password = std::nullopt) -> bool;
+[[nodiscard]] auto
+write_json_file(std::wstring_view path, const nlohmann::json &data,
+                std::optional<std::wstring_view> password = std::nullopt)
+    -> bool;
 #else  // !defined(PROJECT_ENABLE_LIBSODIUM) && defined(PROJECT_ENABLE_BOOST)
 // INFO: has test
-[[nodiscard]] auto read_json_file(std::string_view path,
-                                  nlohmann::json &data) -> bool;
+[[nodiscard]] auto read_json_file(std::string_view path, nlohmann::json &data)
+    -> bool;
 
 // INFO: has test
-[[nodiscard]] auto read_json_file(std::wstring_view path,
-                                  nlohmann::json &data) -> bool;
+[[nodiscard]] auto read_json_file(std::wstring_view path, nlohmann::json &data)
+    -> bool;
 
 // INFO: has test
 [[nodiscard]] auto write_json_file(std::string_view path,

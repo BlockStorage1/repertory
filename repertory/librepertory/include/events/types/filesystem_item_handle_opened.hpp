@@ -28,14 +28,15 @@
 namespace repertory {
 struct filesystem_item_handle_opened final : public i_event {
   filesystem_item_handle_opened() = default;
-  filesystem_item_handle_opened(std::string api_path_, bool directory_,
+  filesystem_item_handle_opened(std::string_view api_path_, bool directory_,
                                 std::string_view function_name_,
-                                std::uint64_t handle_, std::string source_path_)
-      : api_path(std::move(api_path_)),
+                                std::uint64_t handle_,
+                                std::string_view source_path_)
+      : api_path(api_path_),
         directory(directory_),
-        function_name(std::string(function_name_)),
+        function_name(function_name_),
         handle(handle_),
-        source_path(std::move(source_path_)) {}
+        source_path(source_path_) {}
 
   static constexpr event_level level{event_level::trace};
   static constexpr std::string_view name{"filesystem_item_handle_opened"};

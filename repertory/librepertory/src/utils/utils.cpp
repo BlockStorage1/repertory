@@ -19,8 +19,6 @@
   OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
   SOFTWARE.
 */
-#include "rocksdb/table.h"
-
 #include "utils/utils.hpp"
 
 #include "app_config.hpp"
@@ -48,7 +46,7 @@ void calculate_allocation_size(bool directory, std::uint64_t file_size,
 }
 
 auto create_rocksdb(
-    const app_config &cfg, const std::string &name,
+    const app_config &cfg, std::string_view name,
     const std::vector<rocksdb::ColumnFamilyDescriptor> &families,
     std::vector<rocksdb::ColumnFamilyHandle *> &handles, bool clear)
     -> std::unique_ptr<rocksdb::TransactionDB> {
@@ -62,8 +60,9 @@ auto create_rocksdb(
 
   auto path = utils::path::combine(db_dir, {name});
   if (clear && not utils::file::directory{path}.remove_recursively()) {
-    utils::error::raise_error(function_name,
-                              "failed to remove " + name + " db|" + path);
+    utils::error::raise_error(
+        function_name,
+        fmt::format("failed to remove|name|{}|path|{}", name, path));
   }
 
   rocksdb::Options options{};
@@ -83,11 +82,20 @@ auto create_rocksdb(
   return std::unique_ptr<rocksdb::TransactionDB>(ptr);
 }
 
-auto create_volume_label(const provider_type &prov) -> std::string {
+auto create_volume_label(provider_type prov) -> std::string {
   return "repertory_" + app_config::get_provider_name(prov);
 }
 
 auto get_attributes_from_meta(const api_meta_map &meta) -> DWORD {
   return static_cast<DWORD>(utils::string::to_uint32(meta.at(META_ATTRIBUTES)));
+}
+
+auto get_version_number(std::string_view version) -> std::uint32_t {
+  auto parts = utils::string::split(version, '-', false);
+  parts = utils::string::split(parts.at(0U), '.', false);
+
+  return (utils::string::to_uint32(parts.at(0U)) << 24U) |
+         (utils::string::to_uint32(parts.at(1U)) << 16U) |
+         (utils::string::to_uint32(parts.at(2U)) << 8U);
 }
 } // namespace repertory::utils

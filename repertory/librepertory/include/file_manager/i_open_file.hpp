@@ -32,6 +32,8 @@ public:
   using native_operation_callback = std::function<api_error(native_handle)>;
 
 public:
+  virtual void force_download() = 0;
+
   [[nodiscard]] virtual auto get_api_path() const -> std::string = 0;
 
   [[nodiscard]] virtual auto get_chunk_size() const -> std::size_t = 0;
@@ -62,13 +64,17 @@ public:
 
   [[nodiscard]] virtual auto get_source_path() const -> std::string = 0;
 
+  [[nodiscard]] virtual auto get_unlinked_meta() const -> api_meta_map = 0;
+
+  [[nodiscard]] virtual auto has_handle(std::uint64_t handle) const -> bool = 0;
+
   [[nodiscard]] virtual auto is_complete() const -> bool = 0;
 
   [[nodiscard]] virtual auto is_directory() const -> bool = 0;
 
-  [[nodiscard]] virtual auto is_write_supported() const -> bool = 0;
+  [[nodiscard]] virtual auto is_unlinked() const -> bool = 0;
 
-  [[nodiscard]] virtual auto has_handle(std::uint64_t handle) const -> bool = 0;
+  [[nodiscard]] virtual auto is_write_supported() const -> bool = 0;
 
   [[nodiscard]] virtual auto
   native_operation(native_operation_callback callback) -> api_error = 0;
@@ -84,7 +90,7 @@ public:
   [[nodiscard]] virtual auto resize(std::uint64_t new_file_size)
       -> api_error = 0;
 
-  virtual void set_api_path(const std::string &api_path) = 0;
+  virtual void set_api_path(std::string_view api_path) = 0;
 
   [[nodiscard]] virtual auto write(std::uint64_t write_offset,
                                    const data_buffer &data,
@@ -95,13 +101,13 @@ class i_closeable_open_file : public i_open_file {
   INTERFACE_SETUP(i_closeable_open_file);
 
 public:
-  virtual void add(std::uint64_t handle, open_file_data ofd) = 0;
-
-  [[nodiscard]] virtual auto get_allocated() const -> bool = 0;
+  virtual void add(std::uint64_t handle, open_file_data ofd, bool notify) = 0;
 
   [[nodiscard]] virtual auto can_close() const -> bool = 0;
 
   virtual auto close() -> bool = 0;
+
+  [[nodiscard]] virtual auto get_allocated() const -> bool = 0;
 
   [[nodiscard]] virtual auto get_handles() const
       -> std::vector<std::uint64_t> = 0;
@@ -111,6 +117,10 @@ public:
   virtual void remove(std::uint64_t handle) = 0;
 
   virtual void remove_all() = 0;
+
+  virtual void set_unlinked(bool value) = 0;
+
+  virtual void set_unlinked_meta(api_meta_map meta) = 0;
 };
 } // namespace repertory
 

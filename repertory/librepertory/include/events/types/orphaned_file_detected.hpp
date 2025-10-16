@@ -29,9 +29,8 @@ namespace repertory {
 struct orphaned_file_detected final : public i_event {
   orphaned_file_detected() = default;
   orphaned_file_detected(std::string_view function_name_,
-                         std::string source_path_)
-      : function_name(std::string(function_name_)),
-        source_path(std::move(source_path_)) {}
+                         std::string_view source_path_)
+      : function_name(function_name_), source_path(source_path_) {}
 
   static constexpr event_level level{event_level::warn};
   static constexpr std::string_view name{"orphaned_file_detected"};

@@ -26,27 +26,29 @@
 
 namespace repertory::cli::actions {
 [[nodiscard]] inline auto
-unpin_file(std::vector<const char *> args, const std::string &data_directory,
-           const provider_type &prov, const std::string & /*unique_id*/,
+unpin_file(std::vector<const char *> args, std::string_view data_directory,
+           provider_type prov, std::string_view /* unique_id */,
            std::string user, std::string password) -> exit_code {
   std::string data;
   auto ret = utils::cli::parse_string_option(
       args, repertory::utils::cli::options::unpin_file_option, data);
-  if (ret == exit_code::success) {
-    auto port = app_config::default_api_port(prov);
-    utils::cli::get_api_authentication_data(user, password, port, prov,
-                                            data_directory);
-    const auto response =
-        client({"localhost", password, port, user}).unpin_file(data);
-    if (response.response_type == rpc_response_type::success) {
-      std::cout << response.data.dump(2) << std::endl;
-    } else {
-      std::cerr << response.data.dump(2) << std::endl;
-      ret = exit_code::unpin_failed;
-    }
+  if (ret != exit_code::success) {
+    return cli::handle_error(exit_code::invalid_syntax, "missing api path");
   }
 
-  return ret;
+  auto port = app_config::default_api_port(prov);
+  utils::cli::get_api_authentication_data(user, password, port, data_directory);
+  auto response = client({
+                             .host = "localhost",
+                             .password = password,
+                             .port = port,
+                             .user = user,
+                         })
+                      .unpin_file(data);
+  return cli::handle_error(response.response_type == rpc_response_type::success
+                               ? exit_code::success
+                               : exit_code::unpin_failed,
+                           response.data.dump(2));
 }
 } // namespace repertory::cli::actions
 

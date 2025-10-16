@@ -38,8 +38,8 @@ template <typename drive> inline void help(std::vector<const char *> args) {
   std::cout << "    -di,--drive_information           Display mounted drive "
                "information"
             << std::endl;
-  std::cout << "    -na,--name                        Unique configuration "
-               "name [Required for Encrypt, S3 and Sia]"
+  std::cout << "    -na,--name [name]                 Unique configuration "
+               "name [Required for Encrypt, S3 and Sia providers]"
             << std::endl;
   std::cout << "    -s3,--s3                          Enables S3 mode"
             << std::endl;
@@ -49,6 +49,10 @@ template <typename drive> inline void help(std::vector<const char *> args) {
   std::cout << "    -get,--get [name]                 Get configuration value"
             << std::endl;
   std::cout << "    -gdi,--get_directory_items        Get directory list in "
+               "json format"
+            << std::endl
+            << "       [API path]" << std::endl;
+  std::cout << "    -gi,--get_item_info               Get item information in "
                "json format"
             << std::endl
             << "       [API path]" << std::endl;
@@ -63,13 +67,16 @@ template <typename drive> inline void help(std::vector<const char *> args) {
       << std::endl;
   std::cout << "    -rm,--remote_mount [host/ip:port] Enables remote mount mode"
             << std::endl;
+  std::cout << "    -rp,--remove                Remove existing provider "
+               "configuration"
+            << std::endl;
   std::cout << "    -pf,--pin_file     [API path]     Pin a file to cache to "
                "prevent eviction"
             << std::endl;
   std::cout
       << "    -ps,--pinned_status [API path]    Return pinned status for a file"
       << std::endl;
-  std::cout << "    -pw,--password                    Specify API password"
+  std::cout << "    -pw,--password [password]   Specify API password"
             << std::endl;
 #if !defined(_WIN32)
   std::cout << "    -o s3                             Enables S3 mode for "
@@ -91,7 +98,7 @@ template <typename drive> inline void help(std::vector<const char *> args) {
   std::cout << "    -uf,--unpin_file [API path]       Unpin a file from cache "
                "to allow eviction"
             << std::endl;
-  std::cout << "    -us,--user                        Specify API user name"
+  std::cout << "    -us,--user [user]                 Specify API user name"
             << std::endl;
 }
 } // namespace repertory::cli::actions

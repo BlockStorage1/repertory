@@ -44,6 +44,7 @@
 #include "utils/base64.hpp"
 #include "utils/collection.hpp"
 #include "utils/common.hpp"
+#include "utils/config.hpp"
 #include "utils/error_utils.hpp"
 #include "utils/polling.hpp"
 #include "utils/time.hpp"
@@ -55,7 +56,8 @@ fuse_drive::fuse_drive(app_config &config, lock_data &lock_data,
     : fuse_drive_base(config), lock_data_(lock_data), provider_(provider) {}
 
 #if defined(__APPLE__)
-api_error fuse_drive::chflags_impl(std::string api_path, uint32_t flags) {
+auto fuse_drive::chflags_impl(std::string api_path, uint32_t flags)
+    -> api_error {
   return check_and_perform(api_path, X_OK, [&](api_meta_map &) -> api_error {
     return provider_.set_item_meta(api_path, META_OSXFLAGS,
                                    std::to_string(flags));
@@ -65,8 +67,7 @@ api_error fuse_drive::chflags_impl(std::string api_path, uint32_t flags) {
 
 #if FUSE_USE_VERSION >= 30
 auto fuse_drive::chmod_impl(std::string api_path, mode_t mode,
-                            struct fuse_file_info * /*file_info*/)
-    -> api_error {
+                            struct fuse_file_info * /*f_info*/) -> api_error {
 #else  // FUSE_USE_VERSION < 30
 auto fuse_drive::chmod_impl(std::string api_path, mode_t mode) -> api_error {
 #endif // FUSE_USE_VERSION >= 30
@@ -82,17 +83,21 @@ auto fuse_drive::chmod_impl(std::string api_path, mode_t mode) -> api_error {
 
 #if FUSE_USE_VERSION >= 30
 auto fuse_drive::chown_impl(std::string api_path, uid_t uid, gid_t gid,
-                            struct fuse_file_info * /*file_info*/)
-    -> api_error {
+                            struct fuse_file_info * /*f_info*/) -> api_error {
 #else
 auto fuse_drive::chown_impl(std::string api_path, uid_t uid, gid_t gid)
     -> api_error {
 #endif
+  REPERTORY_USES_FUNCTION_NAME();
+
   return check_and_perform(
       api_path, X_OK, [&](api_meta_map &meta) -> api_error {
         meta.clear();
         if (uid != static_cast<uid_t>(-1)) {
           if (get_effective_uid() != 0 && get_effective_uid() != uid) {
+            utils::error::raise_error(
+                function_name, fmt::format("failed user|{}|{}",
+                                           get_effective_uid(), getuid()));
             return api_error::permission_denied;
           }
 
@@ -102,6 +107,9 @@ auto fuse_drive::chown_impl(std::string api_path, uid_t uid, gid_t gid)
         if (gid != static_cast<gid_t>(-1)) {
           if (get_effective_uid() != 0 &&
               not utils::is_uid_member_of_group(get_effective_uid(), gid)) {
+            utils::error::raise_error(
+                function_name, fmt::format("failed group|{}|{}",
+                                           get_effective_gid(), getgid()));
             return api_error::permission_denied;
           }
 
@@ -117,16 +125,16 @@ auto fuse_drive::chown_impl(std::string api_path, uid_t uid, gid_t gid)
 }
 
 auto fuse_drive::create_impl(std::string api_path, mode_t mode,
-                             struct fuse_file_info *file_info) -> api_error {
-  file_info->fh = 0U;
+                             struct fuse_file_info *f_info) -> api_error {
+  f_info->fh = static_cast<std::uint64_t>(INVALID_HANDLE_VALUE);
 
-  auto is_append_op = ((file_info->flags & O_APPEND) == O_APPEND);
-  auto is_create_op = ((file_info->flags & O_CREAT) == O_CREAT);
-  auto is_directory_op = ((file_info->flags & O_DIRECTORY) == O_DIRECTORY);
-  auto is_exclusive = ((file_info->flags & O_EXCL) == O_EXCL);
-  auto is_read_write_op = ((file_info->flags & O_RDWR) == O_RDWR);
-  auto is_truncate_op = ((file_info->flags & O_TRUNC) == O_TRUNC);
-  auto is_write_only_op = ((file_info->flags & O_WRONLY) == O_WRONLY);
+  auto is_append_op = ((f_info->flags & O_APPEND) == O_APPEND);
+  auto is_create_op = ((f_info->flags & O_CREAT) == O_CREAT);
+  auto is_directory_op = ((f_info->flags & O_DIRECTORY) == O_DIRECTORY);
+  auto is_exclusive = ((f_info->flags & O_EXCL) == O_EXCL);
+  auto is_read_write_op = ((f_info->flags & O_RDWR) == O_RDWR);
+  auto is_truncate_op = ((f_info->flags & O_TRUNC) == O_TRUNC);
+  auto is_write_only_op = ((f_info->flags & O_WRONLY) == O_WRONLY);
 
   if (is_create_op && is_append_op && is_truncate_op) {
     return api_error::invalid_operation;
@@ -153,8 +161,7 @@ auto fuse_drive::create_impl(std::string api_path, mode_t mode,
     return res;
   }
 
-  if ((is_write_only_op || is_read_write_op) &&
-      not provider_.is_file_writeable(api_path)) {
+  if ((is_write_only_op || is_read_write_op) && provider_.is_read_only()) {
     return api_error::permission_denied;
   }
 
@@ -206,24 +213,24 @@ auto fuse_drive::create_impl(std::string api_path, mode_t mode,
     if (is_create_op) {
       auto now = utils::time::get_time_now();
 #if defined(__APPLE__)
-      auto osx_flags = static_cast<std::uint32_t>(file_info->flags);
+      auto osx_flags = static_cast<std::uint32_t>(f_info->flags);
 #else  // !defined(__APPLE__)
       auto osx_flags = 0U;
 #endif // defined(__APPLE__)
 
       auto meta = create_meta_attributes(
           now, FILE_ATTRIBUTE_ARCHIVE, now, now, is_directory_op,
-          get_effective_gid(), "", mode, now, 0U, osx_flags, 0U,
+          get_effective_gid(), "", mode, now, osx_flags, 0U,
           utils::path::combine(config_.get_cache_directory(),
                                {utils::create_uuid_string()}),
           get_effective_uid(), now);
 
-      res = fm_->create(api_path, meta, file_info->flags, handle, open_file);
+      res = fm_->create(api_path, meta, f_info->flags, handle, open_file);
       if ((res != api_error::item_exists) && (res != api_error::success)) {
         return res;
       }
     } else {
-      res = fm_->open(api_path, is_directory_op, file_info->flags, handle,
+      res = fm_->open(api_path, is_directory_op, f_info->flags, handle,
                       open_file);
       if (res != api_error::success) {
         return res;
@@ -231,17 +238,17 @@ auto fuse_drive::create_impl(std::string api_path, mode_t mode,
     }
   }
 
-  file_info->fh = handle;
+  f_info->fh = handle;
   if (is_truncate_op) {
 #if FUSE_USE_VERSION >= 30
-    res = truncate_impl(api_path, 0, file_info);
+    res = truncate_impl(api_path, 0, f_info);
     if (res != api_error::success) {
 #else  // FUSE_USE_VERSION < 30
-    res = ftruncate_impl(api_path, 0, file_info);
+    res = ftruncate_impl(api_path, 0, f_info);
     if (res != api_error::success) {
 #endif // FUSE_USE_VERSION >= 30
       fm_->close(handle);
-      file_info->fh = 0U;
+      f_info->fh = static_cast<std::uint64_t>(INVALID_HANDLE_VALUE);
       errno = std::abs(utils::from_api_error(res));
       return res;
     }
@@ -310,19 +317,19 @@ void fuse_drive::destroy_impl(void *ptr) {
 
 auto fuse_drive::fallocate_impl(std::string /*api_path*/, int mode,
                                 off_t offset, off_t length,
-                                struct fuse_file_info *file_info) -> api_error {
+                                struct fuse_file_info *f_info) -> api_error {
   std::shared_ptr<i_open_file> open_file;
-  if (not fm_->get_open_file(file_info->fh, true, open_file)) {
+  if (not fm_->get_open_file(f_info->fh, true, open_file)) {
     return api_error::invalid_handle;
   }
 
-  auto res = check_writeable(open_file->get_open_data(file_info->fh),
+  auto res = check_writeable(open_file->get_open_data(f_info->fh),
                              api_error::invalid_handle);
   if (res != api_error::success) {
     return res;
   }
 
-  res = check_open_flags(open_file->get_open_data(file_info->fh),
+  res = check_open_flags(open_file->get_open_data(f_info->fh),
                          O_WRONLY | O_APPEND, api_error::invalid_handle);
   if (res != api_error::success) {
     return res;
@@ -330,6 +337,7 @@ auto fuse_drive::fallocate_impl(std::string /*api_path*/, int mode,
 
   i_open_file::native_operation_callback allocator;
 
+  auto new_file_size = static_cast<std::uint64_t>(offset + length);
 #if defined(__APPLE__)
   fstore_t fstore = {0};
   if (not(mode & PREALLOCATE)) {
@@ -362,37 +370,50 @@ auto fuse_drive::fallocate_impl(std::string /*api_path*/, int mode,
     return (fallocate(handle, mode, offset, length) == -1) ? api_error::os_error
                                                            : api_error::success;
   };
+
+  if ((mode & FALLOC_FL_KEEP_SIZE) == FALLOC_FL_KEEP_SIZE) {
+    new_file_size = open_file->get_file_size();
+  }
 #endif // __APPLE__
 
-  return open_file->native_operation(
-      static_cast<std::uint64_t>(offset + length), allocator);
+  return open_file->native_operation(new_file_size, allocator);
 }
 
-auto fuse_drive::fgetattr_impl(std::string api_path, struct stat *unix_st,
-                               struct fuse_file_info *file_info) -> api_error {
+auto fuse_drive::fgetattr_impl(std::string api_path, struct stat *u_stat,
+                               struct fuse_file_info *f_info) -> api_error {
   std::shared_ptr<i_open_file> open_file;
-  if (not fm_->get_open_file(file_info->fh, false, open_file)) {
+  if (not fm_->get_open_file(f_info->fh, false, open_file)) {
     return api_error::invalid_handle;
   }
 
+  auto is_unlinked{
+      not open_file->is_directory() && open_file->is_unlinked(),
+  };
+
   api_meta_map meta{};
-  auto res = provider_.get_item_meta(api_path, meta);
-  if (res != api_error::success) {
-    return res;
+  if (is_unlinked) {
+    meta = open_file->get_unlinked_meta();
+  } else {
+    auto res = provider_.get_item_meta(api_path, meta);
+    if (res != api_error::success) {
+      return res;
+    }
   }
 
   fuse_drive_base::populate_stat(api_path, open_file->get_file_size(), meta,
-                                 open_file->is_directory(), provider_, unix_st);
+                                 open_file->is_directory(), provider_, u_stat);
+  if (is_unlinked) {
+    u_stat->st_nlink = 0;
+  }
 
   return api_error::success;
 }
 
 #if defined(__APPLE__)
 auto fuse_drive::fsetattr_x_impl(std::string api_path, struct setattr_x *attr,
-                                 struct fuse_file_info *file_info)
-    -> api_error {
+                                 struct fuse_file_info *f_info) -> api_error {
   std::shared_ptr<i_open_file> f;
-  if (not fm_->get_open_file(file_info->fh, false, f)) {
+  if (not fm_->get_open_file(f_info->fh, false, f)) {
     return api_error::invalid_handle;
   }
 
@@ -401,9 +422,9 @@ auto fuse_drive::fsetattr_x_impl(std::string api_path, struct setattr_x *attr,
 #endif // __APPLE__
 
 auto fuse_drive::fsync_impl(std::string /*api_path*/, int datasync,
-                            struct fuse_file_info *file_info) -> api_error {
+                            struct fuse_file_info *f_info) -> api_error {
   std::shared_ptr<i_open_file> open_file;
-  if (not fm_->get_open_file(file_info->fh, false, open_file)) {
+  if (not fm_->get_open_file(f_info->fh, false, open_file)) {
     return api_error::invalid_handle;
   }
 
@@ -422,15 +443,15 @@ auto fuse_drive::fsync_impl(std::string /*api_path*/, int datasync,
 }
 
 #if FUSE_USE_VERSION < 30
-api_error fuse_drive::ftruncate_impl(std::string /*api_path*/, off_t size,
-                                     struct fuse_file_info *file_info) {
+auto fuse_drive::ftruncate_impl(std::string /*api_path*/, off_t size,
+                                struct fuse_file_info *f_info) -> api_error {
   std::shared_ptr<i_open_file> f;
-  if (not fm_->get_open_file(file_info->fh, true, f)) {
+  if (not fm_->get_open_file(f_info->fh, true, f)) {
     return api_error::invalid_handle;
   }
 
-  auto res = check_writeable(f->get_open_data(file_info->fh),
-                             api_error::invalid_handle);
+  auto res =
+      check_writeable(f->get_open_data(f_info->fh), api_error::invalid_handle);
   if (res != api_error::success) {
     return res;
   }
@@ -439,12 +460,12 @@ api_error fuse_drive::ftruncate_impl(std::string /*api_path*/, off_t size,
 }
 #endif
 
-auto fuse_drive::get_directory_item_count(const std::string &api_path) const
+auto fuse_drive::get_directory_item_count(std::string_view api_path) const
     -> std::uint64_t {
   return provider_.get_directory_item_count(api_path);
 }
 
-auto fuse_drive::get_directory_items(const std::string &api_path) const
+auto fuse_drive::get_directory_items(std::string_view api_path) const
     -> directory_item_list {
   REPERTORY_USES_FUNCTION_NAME();
 
@@ -458,7 +479,7 @@ auto fuse_drive::get_directory_items(const std::string &api_path) const
   return list;
 }
 
-auto fuse_drive::get_file_size(const std::string &api_path) const
+auto fuse_drive::get_file_size(std::string_view api_path) const
     -> std::uint64_t {
   REPERTORY_USES_FUNCTION_NAME();
 
@@ -472,33 +493,56 @@ auto fuse_drive::get_file_size(const std::string &api_path) const
   return file_size;
 }
 
-auto fuse_drive::get_item_meta(const std::string &api_path,
+auto fuse_drive::get_item_meta(std::string_view api_path,
                                api_meta_map &meta) const -> api_error {
   return provider_.get_item_meta(api_path, meta);
 }
 
-auto fuse_drive::get_item_meta(const std::string &api_path,
-                               const std::string &name,
+auto fuse_drive::get_item_meta(std::string_view api_path, std::string_view name,
                                std::string &value) const -> api_error {
   api_meta_map meta{};
   auto ret = get_item_meta(api_path, meta);
   if (ret == api_error::success) {
-    value = meta[name];
+    value = meta[std::string{name}];
   }
 
   return ret;
 }
 
+auto fuse_drive::get_item_stat(std::uint64_t handle,
+                               struct stat64 *u_stat) const -> api_error {
+  std::shared_ptr<i_open_file> open_file;
+  if (not fm_->get_open_file(handle, false, open_file)) {
+    return api_error::invalid_handle;
+  }
+
+  api_meta_map meta{};
+  if (open_file->is_unlinked()) {
+    meta = open_file->get_unlinked_meta();
+  } else {
+    auto ret = provider_.get_item_meta(open_file->get_api_path(), meta);
+    if (ret != api_error::success) {
+      return ret;
+    }
+  }
+
+  fuse_drive_base::populate_stat(open_file->get_api_path(),
+                                 open_file->get_file_size(), meta,
+                                 open_file->is_directory(), provider_, u_stat);
+  return api_error::success;
+}
+
 #if FUSE_USE_VERSION >= 30
-auto fuse_drive::getattr_impl(std::string api_path, struct stat *unix_st,
-                              struct fuse_file_info * /*file_info*/)
-    -> api_error {
+auto fuse_drive::getattr_impl(std::string api_path, struct stat *u_stat,
+                              struct fuse_file_info *f_info) -> api_error {
+  if (f_info != nullptr && f_info->fh != 0 &&
+      f_info->fh != static_cast<std::uint64_t>(REPERTORY_INVALID_HANDLE)) {
+    return fgetattr_impl(api_path, u_stat, f_info);
+  }
 #else
-auto fuse_drive::getattr_impl(std::string api_path, struct stat *unix_st)
+auto fuse_drive::getattr_impl(std::string api_path, struct stat *u_stat)
     -> api_error {
 #endif
-  auto parent = utils::path::get_parent_api_path(api_path);
-
   auto res = check_parent_access(api_path, X_OK);
   if (res != api_error::success) {
     return res;
@@ -512,7 +556,7 @@ auto fuse_drive::getattr_impl(std::string api_path, struct stat *unix_st)
 
   fuse_drive_base::populate_stat(
       api_path, utils::string::to_uint64(meta[META_SIZE]), meta,
-      utils::string::to_bool(meta[META_DIRECTORY]), provider_, unix_st);
+      utils::string::to_bool(meta[META_DIRECTORY]), provider_, u_stat);
 
   return api_error::success;
 }
@@ -549,7 +593,8 @@ auto fuse_drive::getxtimes_impl(std::string api_path, struct timespec *bkuptime,
   }
 
   api_meta_map meta{};
-  if ((res = provider_.get_item_meta(api_path, meta)) != api_error::success) {
+  res = provider_.get_item_meta(api_path, meta);
+  if (res != api_error::success) {
     return res;
   }
 
@@ -564,7 +609,7 @@ auto fuse_drive::getxtimes_impl(std::string api_path, struct timespec *bkuptime,
 auto fuse_drive::init_impl(struct fuse_conn_info *conn, struct fuse_config *cfg)
     -> void * {
 #else
-void *fuse_drive::init_impl(struct fuse_conn_info *conn) {
+auto fuse_drive::init_impl(struct fuse_conn_info *conn) -> void * {
 #endif
   REPERTORY_USES_FUNCTION_NAME();
 
@@ -631,7 +676,21 @@ void *fuse_drive::init_impl(struct fuse_conn_info *conn) {
   return ret;
 }
 
-auto fuse_drive::is_processing(const std::string &api_path) const -> bool {
+auto fuse_drive::ioctl_impl(std::string /* api_path */, int cmd, void *arg,
+                            struct fuse_file_info *f_info) -> api_error {
+  if (cmd == repertory_ioctl_fd_command) {
+    if (arg == nullptr) {
+      return api_error::invalid_operation;
+    }
+
+    std::memcpy(arg, &f_info->fh, sizeof(f_info->fh));
+    return api_error::success;
+  }
+
+  return api_error::no_tty;
+}
+
+auto fuse_drive::is_processing(std::string_view api_path) const -> bool {
   return fm_->is_processing(api_path);
 }
 
@@ -646,7 +705,7 @@ auto fuse_drive::mkdir_impl(std::string api_path, mode_t mode) -> api_error {
   auto now = utils::time::get_time_now();
   auto meta = create_meta_attributes(now, FILE_ATTRIBUTE_DIRECTORY, now, now,
                                      true, get_effective_gid(), "", mode, now,
-                                     0U, 0U, 0U, "", get_effective_uid(), now);
+                                     0U, 0U, "", get_effective_uid(), now);
   res = provider_.create_directory(api_path, meta);
   if (res != api_error::success) {
     return res;
@@ -679,16 +738,18 @@ void fuse_drive::notify_fuse_main_exit(int &ret) {
   console_consumer_.reset();
 }
 
-auto fuse_drive::open_impl(std::string api_path,
-                           struct fuse_file_info *file_info) -> api_error {
+auto fuse_drive::open_impl(std::string api_path, struct fuse_file_info *f_info)
+    -> api_error {
 
-  file_info->flags &= (~O_CREAT);
-  return create_impl(api_path, 0, file_info);
+  f_info->flags &= (~O_CREAT);
+  return create_impl(api_path, 0, f_info);
 }
 
 auto fuse_drive::opendir_impl(std::string api_path,
-                              struct fuse_file_info *file_info) -> api_error {
-  auto mask = (O_RDONLY != (file_info->flags & O_ACCMODE) ? W_OK : R_OK) | X_OK;
+                              struct fuse_file_info *f_info) -> api_error {
+  f_info->fh = static_cast<std::uint64_t>(INVALID_HANDLE_VALUE);
+
+  auto mask = (O_RDONLY != (f_info->flags & O_ACCMODE) ? W_OK : R_OK) | X_OK;
   auto res = check_access(api_path, mask);
   if (res != api_error::success) {
     return res;
@@ -708,8 +769,8 @@ auto fuse_drive::opendir_impl(std::string api_path,
     return api_error::directory_not_found;
   }
 
-  if ((file_info->flags & O_APPEND) == O_APPEND ||
-      (file_info->flags & O_EXCL) == O_EXCL) {
+  if ((f_info->flags & O_APPEND) == O_APPEND ||
+      (f_info->flags & O_EXCL) == O_EXCL) {
     return api_error::directory_exists;
   }
 
@@ -720,24 +781,24 @@ auto fuse_drive::opendir_impl(std::string api_path,
   }
 
   auto iter = std::make_shared<directory_iterator>(std::move(list));
-  file_info->fh = fm_->get_next_handle();
-  directory_cache_->set_directory(api_path, file_info->fh, iter);
+  f_info->fh = fm_->get_next_handle();
+  directory_cache_->set_directory(api_path, f_info->fh, iter);
 
   return api_error::success;
 }
 
 auto fuse_drive::read_impl(std::string api_path, char *buffer, size_t read_size,
-                           off_t read_offset, struct fuse_file_info *file_info,
+                           off_t read_offset, struct fuse_file_info *f_info,
                            std::size_t &bytes_read) -> api_error {
   std::shared_ptr<i_open_file> open_file;
-  if (not fm_->get_open_file(file_info->fh, false, open_file)) {
+  if (not fm_->get_open_file(f_info->fh, false, open_file)) {
     return api_error::item_not_found;
   }
   if (open_file->is_directory()) {
     return api_error::directory_exists;
   }
 
-  auto res = check_readable(open_file->get_open_data(file_info->fh),
+  auto res = check_readable(open_file->get_open_data(f_info->fh),
                             api_error::invalid_handle);
   if (res != api_error::success) {
     return res;
@@ -759,19 +820,19 @@ auto fuse_drive::read_impl(std::string api_path, char *buffer, size_t read_size,
 #if FUSE_USE_VERSION >= 30
 auto fuse_drive::readdir_impl(std::string api_path, void *buf,
                               fuse_fill_dir_t fuse_fill_dir, off_t offset,
-                              struct fuse_file_info *file_info,
+                              struct fuse_file_info *f_info,
                               fuse_readdir_flags /*flags*/) -> api_error {
 #else
 auto fuse_drive::readdir_impl(std::string api_path, void *buf,
                               fuse_fill_dir_t fuse_fill_dir, off_t offset,
-                              struct fuse_file_info *file_info) -> api_error {
+                              struct fuse_file_info *f_info) -> api_error {
 #endif
   auto res = check_access(api_path, X_OK);
   if (res != api_error::success) {
     return res;
   }
 
-  auto iter = directory_cache_->get_directory(file_info->fh);
+  auto iter = directory_cache_->get_directory(f_info->fh);
   if (iter == nullptr) {
     return api_error::invalid_handle;
   }
@@ -780,11 +841,11 @@ auto fuse_drive::readdir_impl(std::string api_path, void *buf,
     res =
         (iter->fill_buffer(
              static_cast<remote::file_offset>(offset++), fuse_fill_dir, buf,
-             [this](const std::string &cur_api_path,
-                    std::uint64_t cur_file_size, const api_meta_map &meta,
-                    bool directory, struct stat *unix_st) {
+             [this](std::string_view cur_api_path, std::uint64_t cur_file_size,
+                    const api_meta_map &meta, bool directory,
+                    struct stat *u_stat) {
                fuse_drive_base::populate_stat(cur_api_path, cur_file_size, meta,
-                                              directory, provider_, unix_st);
+                                              directory, provider_, u_stat);
              }) == 0)
             ? api_error::success
             : api_error::os_error;
@@ -799,32 +860,31 @@ auto fuse_drive::readdir_impl(std::string api_path, void *buf,
 }
 
 auto fuse_drive::release_impl(std::string /*api_path*/,
-                              struct fuse_file_info *file_info) -> api_error {
-  fm_->close(file_info->fh);
+                              struct fuse_file_info *f_info) -> api_error {
+  fm_->close(f_info->fh);
   return api_error::success;
 }
 
 auto fuse_drive::releasedir_impl(std::string /*api_path*/,
-                                 struct fuse_file_info *file_info)
-    -> api_error {
-  auto iter = directory_cache_->get_directory(file_info->fh);
+                                 struct fuse_file_info *f_info) -> api_error {
+  auto iter = directory_cache_->get_directory(f_info->fh);
   if (iter == nullptr) {
     return api_error::invalid_handle;
   }
 
-  directory_cache_->remove_directory(file_info->fh);
+  directory_cache_->remove_directory(f_info->fh);
   return api_error::success;
 }
 
-auto fuse_drive::rename_directory(const std::string &from_api_path,
-                                  const std::string &to_api_path) -> int {
+auto fuse_drive::rename_directory(std::string_view from_api_path,
+                                  std::string_view to_api_path) -> int {
   auto res = fm_->rename_directory(from_api_path, to_api_path);
   errno = std::abs(utils::from_api_error(res));
   return (res == api_error::success) ? 0 : -1;
 }
 
-auto fuse_drive::rename_file(const std::string &from_api_path,
-                             const std::string &to_api_path, bool overwrite)
+auto fuse_drive::rename_file(std::string_view from_api_path,
+                             std::string_view to_api_path, bool overwrite)
     -> int {
   auto res = fm_->rename_file(from_api_path, to_api_path, overwrite);
   errno = std::abs(utils::from_api_error(res));
@@ -866,17 +926,20 @@ auto fuse_drive::rename_impl(std::string from_api_path, std::string to_api_path)
 }
 
 auto fuse_drive::rmdir_impl(std::string api_path) -> api_error {
+  REPERTORY_USES_FUNCTION_NAME();
+  utils::error::handle_info(function_name, "called");
+
   auto res = check_parent_access(api_path, W_OK | X_OK);
   if (res != api_error::success) {
     return res;
   }
 
-  res = provider_.remove_directory(api_path);
+  res = fm_->remove_directory(api_path);
   if (res != api_error::success) {
     return res;
   }
 
-  auto iter = directory_cache_->remove_directory(api_path);
+  directory_cache_->remove_directory(api_path);
   return api_error::success;
 }
 
@@ -1081,9 +1144,8 @@ auto fuse_drive::setxattr_impl(std::string api_path, const char *name,
 }
 #endif // HAS_SETXATTR
 
-void fuse_drive::set_item_meta(const std::string &api_path,
-                               const std::string &key,
-                               const std::string &value) {
+void fuse_drive::set_item_meta(std::string_view api_path, std::string_view key,
+                               std::string_view value) {
   REPERTORY_USES_FUNCTION_NAME();
 
   auto res = provider_.set_item_meta(api_path, key, value);
@@ -1094,7 +1156,7 @@ void fuse_drive::set_item_meta(const std::string &api_path,
   }
 }
 
-void fuse_drive::set_item_meta(const std::string &api_path,
+void fuse_drive::set_item_meta(std::string_view api_path,
                                const api_meta_map &meta) {
   REPERTORY_USES_FUNCTION_NAME();
 
@@ -1158,11 +1220,19 @@ auto fuse_drive::setattr_x_impl(std::string api_path, struct setattr_x *attr)
   if (SETATTR_WANTS_MODTIME(attr)) {
     struct timespec ts[2];
     if (SETATTR_WANTS_ACCTIME(attr)) {
+      if (not fuse_drive_base::validate_timespec(attr->acctime)) {
+        return api_error::invalid_operation;
+      }
+
       ts[0].tv_sec = attr->acctime.tv_sec;
       ts[0].tv_nsec = attr->acctime.tv_nsec;
     } else {
+      if (not fuse_drive_base::validate_timespec(attr->modtime)) {
+        return api_error::invalid_operation;
+      }
+
       struct timeval tv{};
-      gettimeofday(&tv, NULL);
+      gettimeofday(&tv, nullptr);
       ts[0].tv_sec = tv.tv_sec;
       ts[0].tv_nsec = tv.tv_usec * 1000;
     }
@@ -1292,14 +1362,13 @@ auto fuse_drive::statfs_impl(std::string /*api_path*/, struct statvfs *stbuf)
 
 #if FUSE_USE_VERSION >= 30
 auto fuse_drive::truncate_impl(std::string api_path, off_t size,
-                               struct fuse_file_info * /*file_info*/)
+                               struct fuse_file_info * /*f_info*/)
     -> api_error {
 #else
 auto fuse_drive::truncate_impl(std::string api_path, off_t size) -> api_error {
 #endif
-  auto res = provider_.is_file_writeable(api_path)
-                 ? api_error::success
-                 : api_error::permission_denied;
+  auto res = provider_.is_read_only() ? api_error::permission_denied
+                                      : api_error::success;
   if (res != api_error::success) {
     return res;
   }
@@ -1352,12 +1421,15 @@ auto fuse_drive::unlink_impl(std::string api_path) -> api_error {
 
 #if FUSE_USE_VERSION >= 30
 auto fuse_drive::utimens_impl(std::string api_path, const struct timespec tv[2],
-                              struct fuse_file_info * /*file_info*/)
-    -> api_error {
+                              struct fuse_file_info * /*f_info*/) -> api_error {
 #else
 auto fuse_drive::utimens_impl(std::string api_path, const struct timespec tv[2])
     -> api_error {
 #endif
+  if (not validate_timespec(tv[0]) || not validate_timespec(tv[1])) {
+    return api_error::invalid_operation;
+  }
+
   api_meta_map meta;
   auto res = provider_.get_item_meta(api_path, meta);
   if (res != api_error::success) {
@@ -1399,11 +1471,12 @@ auto fuse_drive::utimens_impl(std::string api_path, const struct timespec tv[2])
 auto fuse_drive::write_impl(std::string /*api_path*/
                             ,
                             const char *buffer, size_t write_size,
-                            off_t write_offset,
-                            struct fuse_file_info *file_info,
+                            off_t write_offset, struct fuse_file_info *f_info,
                             std::size_t &bytes_written) -> api_error {
+  REPERTORY_USES_FUNCTION_NAME();
+
   std::shared_ptr<i_open_file> open_file;
-  if (not fm_->get_open_file(file_info->fh, true, open_file)) {
+  if (not fm_->get_open_file(f_info->fh, true, open_file)) {
     return api_error::item_not_found;
   }
 
@@ -1411,14 +1484,14 @@ auto fuse_drive::write_impl(std::string /*api_path*/
     return api_error::directory_exists;
   }
 
-  auto res = check_writeable(open_file->get_open_data(file_info->fh),
+  auto res = check_writeable(open_file->get_open_data(f_info->fh),
                              api_error::invalid_handle);
   if (res != api_error::success) {
     return res;
   }
 
   if (write_size > 0) {
-    if ((open_file->get_open_data(file_info->fh) & O_APPEND) != 0) {
+    if ((open_file->get_open_data(f_info->fh) & O_APPEND) != 0) {
       write_offset = static_cast<off_t>(open_file->get_file_size());
     }
 
@@ -1431,7 +1504,7 @@ auto fuse_drive::write_impl(std::string /*api_path*/
   return api_error::success;
 }
 
-void fuse_drive::update_accessed_time(const std::string &api_path) {
+void fuse_drive::update_accessed_time(std::string_view api_path) {
   REPERTORY_USES_FUNCTION_NAME();
 
   if (atime_enabled_) {

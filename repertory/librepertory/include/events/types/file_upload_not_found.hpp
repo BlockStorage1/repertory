@@ -28,11 +28,12 @@
 namespace repertory {
 struct file_upload_not_found final : public i_event {
   file_upload_not_found() = default;
-  file_upload_not_found(std::string api_path_, std::string_view function_name_,
-                        std::string source_path_)
-      : api_path(std::move(api_path_)),
-        function_name(std::string(function_name_)),
-        source_path(std::move(source_path_)) {}
+  file_upload_not_found(std::string_view api_path_,
+                        std::string_view function_name_,
+                        std::string_view source_path_)
+      : api_path(api_path_),
+        function_name(function_name_),
+        source_path(source_path_) {}
 
   static constexpr event_level level{event_level::warn};
   static constexpr std::string_view name{"file_upload_not_found"};

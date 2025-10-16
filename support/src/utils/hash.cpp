@@ -25,7 +25,58 @@
 
 #include "utils/error.hpp"
 
-namespace repertory::utils::encryption {
+namespace repertory::utils::hash {
+auto create_hash_blake2b_32(std::string_view data) -> hash_32_t {
+  return create_hash_blake2b_t<hash_32_t>(
+      reinterpret_cast<const unsigned char *>(data.data()), data.size());
+}
+
+auto create_hash_blake2b_32(std::wstring_view data) -> hash_32_t {
+  return create_hash_blake2b_t<hash_32_t>(
+      reinterpret_cast<const unsigned char *>(data.data()),
+      data.size() * sizeof(wchar_t));
+}
+
+auto create_hash_blake2b_32(const data_buffer &data) -> hash_32_t {
+  return create_hash_blake2b_t<hash_32_t>(
+      reinterpret_cast<const unsigned char *>(data.data()),
+      data.size() * sizeof(data_buffer::value_type));
+}
+
+auto create_hash_blake2b_64(std::string_view data) -> hash_64_t {
+  return create_hash_blake2b_t<hash_64_t>(
+      reinterpret_cast<const unsigned char *>(data.data()), data.size());
+}
+
+auto create_hash_blake2b_64(std::wstring_view data) -> hash_64_t {
+  return create_hash_blake2b_t<hash_64_t>(
+      reinterpret_cast<const unsigned char *>(data.data()),
+      data.size() * sizeof(wchar_t));
+}
+
+auto create_hash_blake2b_64(const data_buffer &data) -> hash_64_t {
+  return create_hash_blake2b_t<hash_64_t>(
+      reinterpret_cast<const unsigned char *>(data.data()),
+      data.size() * sizeof(data_buffer::value_type));
+}
+
+auto create_hash_blake2b_128(std::string_view data) -> hash_128_t {
+  return create_hash_blake2b_t<hash_128_t>(
+      reinterpret_cast<const unsigned char *>(data.data()), data.size());
+}
+
+auto create_hash_blake2b_128(std::wstring_view data) -> hash_128_t {
+  return create_hash_blake2b_t<hash_128_t>(
+      reinterpret_cast<const unsigned char *>(data.data()),
+      data.size() * sizeof(wchar_t));
+}
+
+auto create_hash_blake2b_128(const data_buffer &data) -> hash_128_t {
+  return create_hash_blake2b_t<hash_128_t>(
+      reinterpret_cast<const unsigned char *>(data.data()),
+      data.size() * sizeof(data_buffer::value_type));
+}
+
 auto create_hash_blake2b_256(std::string_view data) -> hash_256_t {
   return create_hash_blake2b_t<hash_256_t>(
       reinterpret_cast<const unsigned char *>(data.data()), data.size());
@@ -111,8 +162,8 @@ auto create_hash_sha512(const data_buffer &data) -> hash_512_t {
       data.size() * sizeof(data_buffer::value_type));
 }
 
-auto create_hash_sha512(const unsigned char *data,
-                        std::size_t data_size) -> hash_512_t {
+auto create_hash_sha512(const unsigned char *data, std::size_t data_size)
+    -> hash_512_t {
   REPERTORY_USES_FUNCTION_NAME();
 
   hash_512_t hash{};
@@ -148,8 +199,8 @@ auto create_hash_sha512(const unsigned char *data,
   return hash;
 }
 
-auto create_hash_sha256(const unsigned char *data,
-                        std::size_t data_size) -> hash_256_t {
+auto create_hash_sha256(const unsigned char *data, std::size_t data_size)
+    -> hash_256_t {
   REPERTORY_USES_FUNCTION_NAME();
 
   hash_256_t hash{};
@@ -184,6 +235,6 @@ auto create_hash_sha256(const unsigned char *data,
 
   return hash;
 }
-} // namespace repertory::utils::encryption
+} // namespace repertory::utils::hash
 
 #endif // defined(PROJECT_ENABLE_LIBSODIUM)

@@ -23,10 +23,13 @@
 #define REPERTORY_INCLUDE_COMM_PACKET_CLIENT_POOL_HPP_
 
 #include "comm/packet/packet.hpp"
-#include "types/repertory.hpp"
 
 namespace repertory {
 class client_pool final {
+public:
+  static constexpr const std::uint16_t default_expired_seconds{120U};
+  static constexpr const std::uint16_t min_expired_seconds{5U};
+
 public:
   using worker_callback = std::function<packet::error_type()>;
   using worker_complete_callback =
@@ -46,15 +49,32 @@ private:
     };
 
     struct work_queue final {
+      work_queue();
+      ~work_queue();
+
+      work_queue(const work_queue &) = delete;
+      work_queue(work_queue &&) = delete;
+
+      std::deque<std::shared_ptr<work_item>> actions;
+      std::atomic<std::chrono::steady_clock::time_point> modified{
+          std::chrono::steady_clock::now(),
+      };
       std::mutex mutex;
       std::condition_variable notify;
-      std::deque<std::shared_ptr<work_item>> queue;
+      stop_type shutdown{false};
+      std::unique_ptr<std::thread> thread;
+
+      auto operator=(const work_queue &) -> work_queue & = delete;
+      auto operator=(work_queue &&) -> work_queue & = delete;
+
+    private:
+      void work_thread();
     };
 
   public:
-    explicit pool(std::uint8_t pool_size);
+    pool() noexcept = default;
 
-    ~pool() { shutdown(); }
+    ~pool();
 
   public:
     pool(const pool &) = delete;
@@ -63,21 +83,20 @@ private:
     auto operator=(pool &&) -> pool & = delete;
 
   private:
-    std::vector<std::unique_ptr<work_queue>> pool_queues_;
-    std::vector<std::thread> pool_threads_;
-    bool shutdown_{false};
-    std::atomic<std::uint8_t> thread_index_{};
+    std::mutex pool_mtx_;
+    std::unordered_map<std::uint64_t, std::shared_ptr<work_queue>> pool_queues_;
 
   public:
-    void execute(std::uint64_t thread_id, const worker_callback &worker,
-                 const worker_complete_callback &worker_complete);
+    void execute(std::uint64_t thread_id, worker_callback worker,
+                 worker_complete_callback worker_complete);
+
+    void remove_expired(std::uint16_t seconds);
 
     void shutdown();
   };
 
 public:
-  explicit client_pool(std::uint8_t pool_size = min_pool_size)
-      : pool_size_(pool_size == 0U ? min_pool_size : pool_size) {}
+  client_pool() noexcept;
 
   ~client_pool() { shutdown(); }
 
@@ -88,20 +107,23 @@ public:
   auto operator=(client_pool &&) -> client_pool & = delete;
 
 private:
-  std::uint8_t pool_size_;
-  std::unordered_map<std::string, std::shared_ptr<pool>> pool_lookup_;
+  std::unordered_map<std::string, std::unique_ptr<pool>> pool_lookup_;
   std::mutex pool_mutex_;
-  bool shutdown_ = false;
-
-private:
-  static constexpr auto min_pool_size = 10U;
+  stop_type shutdown_{false};
+  std::atomic<std::uint16_t> expired_seconds_{default_expired_seconds};
 
 public:
-  void execute(const std::string &client_id, std::uint64_t thread_id,
-               const worker_callback &worker,
-               const worker_complete_callback &worker_complete);
+  [[nodiscard]] auto get_expired_seconds() const -> std::uint16_t;
 
-  void remove_client(const std::string &client_id);
+  void execute(std::string client_id, std::uint64_t thread_id,
+               worker_callback worker,
+               worker_complete_callback worker_complete);
+
+  void remove_client(std::string client_id);
+
+  void remove_expired();
+
+  void set_expired_seconds(std::uint16_t seconds);
 
   void shutdown();
 };

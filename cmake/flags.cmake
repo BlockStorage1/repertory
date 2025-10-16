@@ -35,13 +35,9 @@ list(APPEND PROJECT_CXXFLAGS_LIST
   -Wcast-align
   -Wconversion
   -Wdouble-promotion
-  -Wduplicated-branches
-  -Wduplicated-cond
   -Wextra
   -Wformat=2
-  -Wlogical-op
   -Wmisleading-indentation
-  -Wno-useless-cast
   -Wnon-virtual-dtor
   -Wnull-dereference
   -Wold-style-cast
@@ -51,6 +47,15 @@ list(APPEND PROJECT_CXXFLAGS_LIST
   -Wsign-conversion
   -Wunused
 )
+
+if (NOT PROJECT_IS_DARWIN)
+  list(APPEND PROJECT_CXXFLAGS_LIST 
+    -Wduplicated-branches
+    -Wduplicated-cond
+    -Wlogical-op
+    -Wno-useless-cast
+  )
+endif()
 
 list(APPEND PROJECT_CFLAGS_LIST
   ${PROJECT_COMMON_FLAG_LIST}
@@ -62,7 +67,7 @@ list(APPEND PROJECT_CXXFLAGS_LIST
   -std=gnu++${CMAKE_CXX_STANDARD}
 )
 
-if(PROJECT_STATIC_LINK)
+if(NOT PROJECT_IS_DARWIN AND PROJECT_STATIC_LINK)
   list(APPEND PROJECT_CMAKE_EXE_LINKER_FLAGS
     -static-libgcc
     -static-libstdc++
@@ -89,7 +94,11 @@ set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} ${PROJECT_RELEASE_FLAG_L
 
 set(CMAKE_EXE_LINKER_FLAGS "${PROJECT_CMAKE_EXE_LINKER_FLAGS}")
 
-set(EXTERNAL_CMAKE_CXX_FLAGS "-include cstdint -include utility -fext-numeric-literals ${PROJECT_COMMON_FLAG_LIST}")
+set(EXTERNAL_CMAKE_CXX_FLAGS "-include cstdint -include utility ${PROJECT_COMMON_FLAG_LIST}")
+if (NOT PROJECT_IS_DARWIN)
+  set(EXTERNAL_CMAKE_CXX_FLAGS "-fext-numeric-literals ${EXTERNAL_CMAKE_CXX_FLAGS}")
+endif()
+
 list(APPEND PROJECT_EXTERNAL_CMAKE_FLAGS
   -DCMAKE_BUILD_TYPE=${PROJECT_CMAKE_BUILD_TYPE}
   -DCMAKE_COLOR_MAKEFILE=${CMAKE_COLOR_MAKEFILE}

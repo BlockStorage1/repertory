@@ -55,7 +55,7 @@ TEST(upload_test, can_upload_a_valid_file) {
       });
 
   EXPECT_CALL(mock_prov, upload_file(fsi.api_path, fsi.source_path, _))
-      .WillOnce([](const std::string &, const std::string &,
+      .WillOnce([](std::string_view, std::string_view,
                    stop_type &stop_requested) -> api_error {
         EXPECT_FALSE(stop_requested);
         return api_error::success;
@@ -100,7 +100,7 @@ TEST(upload_test, can_cancel_upload) {
   std::condition_variable notify;
 
   EXPECT_CALL(mock_provider, upload_file(fsi.api_path, fsi.source_path, _))
-      .WillOnce([&notify, &mtx](const std::string &, const std::string &,
+      .WillOnce([&notify, &mtx](std::string_view, std::string_view,
                                 stop_type &stop_requested) -> api_error {
         EXPECT_FALSE(stop_requested);
 
@@ -161,7 +161,7 @@ TEST(upload_test, can_stop_upload) {
       });
 
   EXPECT_CALL(mock_provider, upload_file(fsi.api_path, fsi.source_path, _))
-      .WillOnce([](const std::string &, const std::string &,
+      .WillOnce([](std::string_view, std::string_view,
                    stop_type &stop_requested) -> api_error {
         std::this_thread::sleep_for(3s);
         EXPECT_TRUE(stop_requested);

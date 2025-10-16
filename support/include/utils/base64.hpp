@@ -1,10 +1,11 @@
 // NOLINTBEGIN
-#ifndef _MACARON_BASE64_H_
-#define _MACARON_BASE64_H_
+#ifndef MACARON_BASE64_H_
+#define MACARON_BASE64_H_
 
 /**
  * The MIT License (MIT)
  * Copyright (c) 2016 tomykaira
+ * Copyright (c) 2025 scott.e.graves@protonmail.com
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files (the
@@ -39,121 +40,272 @@
 #endif
 
 #include <array>
+#include <stdexcept>
 #include <string>
+#include <string_view>
 #include <vector>
 
 namespace macaron::Base64 {
-static std::string Encode(const unsigned char *data, std::size_t len) {
-  static constexpr std::array<unsigned char, 64U> sEncodingTable{
-      'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M',
-      'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z',
-      'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm',
-      'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z',
-      '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '+', '/',
-  };
 
-  auto in_len{len};
-  std::string ret;
-  if (in_len > 0) {
-    std::size_t out_len{4U * ((in_len + 2U) / 3U)};
-    ret = std::string(out_len, '\0');
-    std::size_t i;
-    auto *p = reinterpret_cast<unsigned char *>(ret.data());
+// --- Alphabets --------------------------------------------------------------
 
-    for (i = 0U; i < in_len - 2U; i += 3U) {
-      *p++ = sEncodingTable[(data[i] >> 2U) & 0x3F];
-      *p++ = sEncodingTable[((data[i] & 0x3) << 4U) |
-                            ((int)(data[i + 1U] & 0xF0) >> 4U)];
-      *p++ = sEncodingTable[((data[i + 1] & 0xF) << 2) |
-                            ((int)(data[i + 2U] & 0xC0) >> 6U)];
-      *p++ = sEncodingTable[data[i + 2U] & 0x3F];
+static constexpr std::array<unsigned char, 64U> kStdAlphabet{
+    'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M',
+    'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z',
+    'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm',
+    'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z',
+    '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '+', '/',
+};
+
+static constexpr std::array<unsigned char, 64U> kUrlAlphabet{
+    'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M',
+    'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z',
+    'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm',
+    'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z',
+    '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '-', '_',
+};
+
+// Decoding table that accepts BOTH standard and URL-safe alphabets.
+static constexpr std::array<unsigned char, 256U> kDecodingTable = [] {
+  std::array<unsigned char, 256U> t{};
+  t.fill(64U);
+  // 'A'-'Z'
+  for (unsigned char c = 'A'; c <= 'Z'; ++c)
+    t[c] = static_cast<unsigned char>(c - 'A');
+  // 'a'-'z'
+  for (unsigned char c = 'a'; c <= 'z'; ++c)
+    t[c] = static_cast<unsigned char>(26 + c - 'a');
+  // '0'-'9'
+  for (unsigned char c = '0'; c <= '9'; ++c)
+    t[c] = static_cast<unsigned char>(52 + c - '0');
+  // Standard extras
+  t[static_cast<unsigned char>('+')] = 62U;
+  t[static_cast<unsigned char>('/')] = 63U;
+  // URL-safe extras
+  t[static_cast<unsigned char>('-')] = 62U;
+  t[static_cast<unsigned char>('_')] = 63U;
+  return t;
+}();
+
+// --- Encoding ---------------------------------------------------------------
+
+/**
+ * Encode to Base64.
+ * @param data     pointer to bytes
+ * @param len      number of bytes
+ * @param url_safe if true, use URL-safe alphabet ("-","_") instead of ("+","/")
+ * @param pad      if true, add '=' padding; if false, omit padding (RFC 4648
+ * §5)
+ */
+static std::string Encode(const unsigned char *data, std::size_t len,
+                          bool url_safe = false, bool pad = true) {
+  const auto &alpha = url_safe ? kUrlAlphabet : kStdAlphabet;
+
+  std::string out;
+  if (len == 0U) {
+    return out;
+  }
+
+  const std::size_t full_blocks = len / 3U;
+  const std::size_t rem = len % 3U;
+
+  std::size_t out_len{};
+  if (pad) {
+    out_len = 4U * ((len + 2U) / 3U);
+  } else {
+    // Unpadded length per RFC 4648 §5
+    out_len = 4U * full_blocks + (rem == 0U ? 0U : (rem == 1U ? 2U : 3U));
+  }
+  out.assign(out_len, '\0');
+
+  auto *p = reinterpret_cast<unsigned char *>(out.data());
+  std::size_t i = 0;
+
+  // Full 3-byte blocks -> 4 chars
+  for (; i + 2U < len; i += 3U) {
+    const unsigned char b0 = data[i + 0U];
+    const unsigned char b1 = data[i + 1U];
+    const unsigned char b2 = data[i + 2U];
+
+    *p++ = alpha[(b0 >> 2U) & 0x3F];
+    *p++ = alpha[((b0 & 0x03U) << 4U) | ((b1 >> 4U) & 0x0FU)];
+    *p++ = alpha[((b1 & 0x0FU) << 2U) | ((b2 >> 6U) & 0x03U)];
+    *p++ = alpha[b2 & 0x3FU];
+  }
+
+  // Remainder
+  if (rem == 1U) {
+    const unsigned char b0 = data[i];
+    *p++ = alpha[(b0 >> 2U) & 0x3F];
+    *p++ = alpha[(b0 & 0x03U) << 4U];
+    if (pad) {
+      *p++ = '=';
+      *p++ = '=';
     }
-    if (i < in_len) {
-      *p++ = sEncodingTable[(data[i] >> 2U) & 0x3F];
-      if (i == (in_len - 1U)) {
-        *p++ = sEncodingTable[((data[i] & 0x3) << 4U)];
-        *p++ = '=';
-      } else {
-        *p++ = sEncodingTable[((data[i] & 0x3) << 4U) |
-                              ((int)(data[i + 1U] & 0xF0) >> 4U)];
-        *p++ = sEncodingTable[((data[i + 1U] & 0xF) << 2U)];
-      }
+  } else if (rem == 2U) {
+    const unsigned char b0 = data[i + 0U];
+    const unsigned char b1 = data[i + 1U];
+    *p++ = alpha[(b0 >> 2U) & 0x3F];
+    *p++ = alpha[((b0 & 0x03U) << 4U) | ((b1 >> 4U) & 0x0FU)];
+    *p++ = alpha[(b1 & 0x0FU) << 2U];
+    if (pad) {
       *p++ = '=';
     }
   }
 
-  return ret;
+  return out;
 }
 
-[[maybe_unused]] static std::string Encode(std::string_view data) {
+[[maybe_unused]] static std::string
+Encode(std::string_view data, bool url_safe = false, bool pad = true) {
   return Encode(reinterpret_cast<const unsigned char *>(data.data()),
-                data.size());
+                data.size(), url_safe, pad);
 }
 
+[[maybe_unused]] static std::string
+EncodeUrlSafe(const unsigned char *data, std::size_t len, bool pad = false) {
+  return Encode(data, len, /*url_safe=*/true, /*pad=*/pad);
+}
+
+[[maybe_unused]] static std::string EncodeUrlSafe(std::string_view data,
+                                                  bool pad = false) {
+  return Encode(reinterpret_cast<const unsigned char *>(data.data()),
+                data.size(), /*url_safe=*/true, /*pad=*/pad);
+}
+
+// --- Decoding ---------------------------------------------------------------
+
+/**
+ * Decode standard OR URL-safe Base64.
+ * Accepts inputs with or without '=' padding.
+ * Throws std::runtime_error on malformed input.
+ */
 [[maybe_unused]] static std::vector<unsigned char>
 Decode(std::string_view input) {
-  static constexpr std::array<unsigned char, 256> kDecodingTable{
-      64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64,
-      64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64,
-      64, 64, 64, 64, 64, 64, 64, 62, 64, 64, 64, 63, 52, 53, 54, 55, 56, 57,
-      58, 59, 60, 61, 64, 64, 64, 64, 64, 64, 64, 0,  1,  2,  3,  4,  5,  6,
-      7,  8,  9,  10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24,
-      25, 64, 64, 64, 64, 64, 64, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36,
-      37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 64, 64, 64,
-      64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64,
-      64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64,
-      64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64,
-      64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64,
-      64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64,
-      64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64,
-      64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64,
-      64, 64, 64, 64,
+  std::vector<unsigned char> out;
+  if (input.empty()) {
+    return out;
+  }
+
+  std::size_t inLen = input.size();
+  std::size_t rem = inLen % 4U;
+
+  // padded if multiple of 4 and last char is '='
+  bool hasPadding = (rem == 0U) && (inLen >= 4U) && (input[inLen - 1U] == '=');
+
+  // compute output length
+  std::size_t outLen{};
+  if (hasPadding) {
+    outLen = (inLen / 4U) * 3U;
+    if (input[inLen - 1U] == '=')
+      outLen--;
+    if (input[inLen - 2U] == '=')
+      outLen--;
+  } else {
+    if (rem == 1U) {
+      throw std::runtime_error("Invalid Base64 length (mod 4 == 1)");
+    }
+    outLen = (inLen / 4U) * 3U + (rem == 0U ? 0U : (rem == 2U ? 1U : 2U));
+  }
+
+  out.resize(outLen);
+
+  auto readVal = [](unsigned char c) -> unsigned char {
+    unsigned char v = kDecodingTable[c];
+    if (v == 64U) {
+      throw std::runtime_error("Invalid Base64 character");
+    }
+    return v;
   };
 
-  std::vector<unsigned char> out;
-  if (not input.empty()) {
-    auto in_len{input.size()};
-    if (in_len % 4U != 0U) {
-      throw std::runtime_error("Input data size is not a multiple of 4");
-    }
+  std::size_t i = 0U;
+  std::size_t j = 0U;
 
-    std::size_t out_len{in_len / 4U * 3U};
-    if (input[in_len - 1U] == '=') {
-      out_len--;
-    }
-    if (input[in_len - 2U] == '=') {
-      out_len--;
-    }
+  // process all full unpadded quartets
+  std::size_t lastFull =
+      hasPadding ? (inLen - 4U) : (rem == 0U ? inLen : (inLen - rem));
 
-    out.resize(out_len);
+  while (i + 4U <= lastFull) {
+    unsigned char a = readVal(static_cast<unsigned char>(input[i + 0U]));
+    unsigned char b = readVal(static_cast<unsigned char>(input[i + 1U]));
+    unsigned char c = readVal(static_cast<unsigned char>(input[i + 2U]));
+    unsigned char d = readVal(static_cast<unsigned char>(input[i + 3U]));
+    i += 4U;
 
-    for (std::size_t i = 0U, j = 0U; i < in_len;) {
-      std::uint32_t a =
-          input.at(i) == '='
-              ? 0U & i++
-              : kDecodingTable[static_cast<unsigned char>(input.at(i++))];
-      std::uint32_t b =
-          input.at(i) == '='
-              ? 0U & i++
-              : kDecodingTable[static_cast<unsigned char>(input.at(i++))];
-      std::uint32_t c =
-          input.at(i) == '='
-              ? 0U & i++
-              : kDecodingTable[static_cast<unsigned char>(input.at(i++))];
-      std::uint32_t d =
-          input.at(i) == '='
-              ? 0U & i++
-              : kDecodingTable[static_cast<unsigned char>(input.at(i++))];
+    std::uint32_t triple = (static_cast<std::uint32_t>(a) << 18U) |
+                           (static_cast<std::uint32_t>(b) << 12U) |
+                           (static_cast<std::uint32_t>(c) << 6U) |
+                           (static_cast<std::uint32_t>(d));
 
-      std::uint32_t triple =
-          (a << 3U * 6U) + (b << 2U * 6U) + (c << 1U * 6U) + (d << 0U * 6U);
+    if (j < outLen)
+      out[j++] = static_cast<unsigned char>((triple >> 16U) & 0xFFU);
+    if (j < outLen)
+      out[j++] = static_cast<unsigned char>((triple >> 8U) & 0xFFU);
+    if (j < outLen)
+      out[j++] = static_cast<unsigned char>(triple & 0xFFU);
+  }
 
-      if (j < out_len)
-        out[j++] = (triple >> 2U * 8U) & 0xFF;
-      if (j < out_len)
-        out[j++] = (triple >> 1U * 8U) & 0xFF;
-      if (j < out_len)
-        out[j++] = (triple >> 0U * 8U) & 0xFF;
+  // tail: padded quartet or unpadded remainder
+  if (i < inLen) {
+    std::size_t left = inLen - i;
+
+    if (left == 4U) {
+      bool thirdIsPad = (input[i + 2U] == '=');
+      bool fourthIsPad = (input[i + 3U] == '=');
+
+      // '=' is never allowed in positions 1 or 2 of any quartet
+      if (input[i + 0U] == '=' || input[i + 1U] == '=') {
+        throw std::runtime_error("Invalid Base64 padding placement");
+      }
+
+      unsigned char a = readVal(static_cast<unsigned char>(input[i + 0U]));
+      unsigned char b = readVal(static_cast<unsigned char>(input[i + 1U]));
+      unsigned char c = 0U;
+      unsigned char d = 0U;
+
+      if (!thirdIsPad) {
+        c = readVal(static_cast<unsigned char>(input[i + 2U]));
+        if (!fourthIsPad) {
+          d = readVal(static_cast<unsigned char>(input[i + 3U]));
+        }
+      } else {
+        // if the 3rd is '=', the 4th must also be '='
+        if (!fourthIsPad) {
+          throw std::runtime_error("Invalid Base64 padding placement");
+        }
+      }
+      i += 4U;
+
+      std::uint32_t triple = (static_cast<std::uint32_t>(a) << 18U) |
+                             (static_cast<std::uint32_t>(b) << 12U) |
+                             (static_cast<std::uint32_t>(c) << 6U) |
+                             (static_cast<std::uint32_t>(d));
+
+      if (j < outLen)
+        out[j++] = static_cast<unsigned char>((triple >> 16U) & 0xFFU);
+      if (!thirdIsPad && j < outLen)
+        out[j++] = static_cast<unsigned char>((triple >> 8U) & 0xFFU);
+      if (!fourthIsPad && !thirdIsPad && j < outLen)
+        out[j++] = static_cast<unsigned char>(triple & 0xFFU);
+
+    } else if (left == 2U || left == 3U) {
+      unsigned char a = readVal(static_cast<unsigned char>(input[i + 0U]));
+      unsigned char b = readVal(static_cast<unsigned char>(input[i + 1U]));
+      unsigned char c = (left == 3U)
+                            ? readVal(static_cast<unsigned char>(input[i + 2U]))
+                            : 0U;
+      i += left;
+
+      std::uint32_t triple = (static_cast<std::uint32_t>(a) << 18U) |
+                             (static_cast<std::uint32_t>(b) << 12U) |
+                             (static_cast<std::uint32_t>(c) << 6U);
+
+      if (j < outLen)
+        out[j++] = static_cast<unsigned char>((triple >> 16U) & 0xFFU);
+      if (left == 3U && j < outLen)
+        out[j++] = static_cast<unsigned char>((triple >> 8U) & 0xFFU);
+    } else {
+      throw std::runtime_error("Invalid Base64 length (mod 4 == 1)");
     }
   }
 
@@ -169,6 +321,5 @@ Decode(std::string_view input) {
 #pragma clang diagnostic pop
 #endif
 
-#endif /* _MACARON_BASE64_H_ */
-
-// NOLINTEND
+#endif /* MACARON_BASE64_H_ */
+       // NOLINTEND

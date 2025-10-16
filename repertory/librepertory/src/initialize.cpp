@@ -49,14 +49,31 @@
 #include "comm/curl/curl_shared.hpp"
 #endif // defined(PROJECT_ENABLE_CURL)
 
+#if defined(__APPLE__)
+#include <csignal>
+#endif // defined(__APPLE__)
+
 namespace {
+#if defined(PROJECT_ENABLE_CURL)
 bool curl_initialized{false};
+#endif // defined(PROJECT_ENABLE_CURL)
+
+#if defined(PROJECT_ENABLE_SPDLOG)
+bool spdlog_initialized{false};
+#endif // defined(PROJECT_ENABLE_SPDLOG)
+
+#if defined(PROJECT_ENABLE_SQLITE)
 bool sqlite3_initialized{false};
+#endif // defined(PROJECT_ENABLE_SQLITE)
 } // namespace
 
 namespace repertory {
 auto project_initialize() -> bool {
   REPERTORY_USES_FUNCTION_NAME();
+
+#if defined(__APPLE__)
+  std::signal(SIGPIPE, SIG_IGN);
+#endif // defined(__APPLE__)
 
 #if defined(PROJECT_REQUIRE_ALPINE) && !defined(PROJECT_IS_MINGW)
   {
@@ -67,14 +84,15 @@ auto project_initialize() -> bool {
     pthread_attr_setstacksize(&attr, stack_size);
     pthread_attr_setguardsize(&attr, guard_size);
     pthread_setattr_default_np(&attr);
-
-    setenv("ICU_DATA", utils::path::combine(".", {"/icu"}).c_str(), 1);
   }
 #endif // defined(PROJECT_REQUIRE_ALPINE) && !defined (PROJECT_IS_MINGW)
 
+#if defined(PROJECT_ENABLE_SPDLOG)
   spdlog::drop_all();
   spdlog::flush_every(std::chrono::seconds(5));
   spdlog::set_pattern("%Y-%m-%d|%T.%e|%^%l%$|%v");
+  spdlog_initialized = true;
+#endif // defined(PROJECT_ENABLE_SPDLOG)
 
 #if defined(PROJECT_ENABLE_LIBSODIUM)
   if (sodium_init() == -1) {
@@ -116,15 +134,22 @@ void project_cleanup() {
 #if defined(PROJECT_ENABLE_CURL)
   if (curl_initialized) {
     curl_shared::cleanup();
+    curl_initialized = false;
   }
 #endif // defined(PROJECT_ENABLE_CURL)
 
 #if defined(PROJECT_ENABLE_SQLITE)
   if (sqlite3_initialized) {
     sqlite3_shutdown();
+    sqlite3_initialized = false;
   }
 #endif // defined(PROJECT_ENABLE_SQLITE)
 
-  spdlog::shutdown();
+#if defined(PROJECT_ENABLE_SPDLOG)
+  if (spdlog_initialized) {
+    spdlog::shutdown();
+    spdlog_initialized = false;
+  }
+#endif // defined(PROJECT_ENABLE_SPDLOG)
 }
 } // namespace repertory

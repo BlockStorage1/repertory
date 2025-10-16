@@ -26,23 +26,51 @@
 
 namespace repertory::cli::actions {
 [[nodiscard]] inline auto
-unmount(std::vector<const char *> /* args */, const std::string &data_directory,
-        const provider_type &prov, const std::string & /*unique_id*/,
-        std::string user, std::string password) -> exit_code {
-  auto ret = exit_code::success;
-  auto port = app_config::default_api_port(prov);
-  utils::cli::get_api_authentication_data(user, password, port, prov,
-                                          data_directory);
-  const auto response = client({"localhost", password, port, user}).unmount();
-  std::cout << static_cast<int>(response.response_type) << std::endl;
+unmount(std::vector<const char *> /* args */, std::string_view data_directory,
+        provider_type prov, std::string_view /* unique_id */, std::string user,
+        std::string password) -> exit_code {
+  constexpr const std::uint8_t retry_count{30U};
+
+  auto port{app_config::default_api_port(prov)};
+  utils::cli::get_api_authentication_data(user, password, port, data_directory);
+  auto response = client({
+                             .host = "localhost",
+                             .password = password,
+                             .port = port,
+                             .user = user,
+                         })
+                      .unmount();
   if (response.response_type == rpc_response_type::success) {
-    std::cout << response.data.dump(2) << std::endl;
-  } else {
-    std::cerr << response.data.dump(2) << std::endl;
-    ret = exit_code::communication_error;
+    auto orig_response{response};
+    std::cout << "Waiting for unmount..." << std::flush;
+    for (std::uint8_t retry{0U};
+         retry < retry_count &&
+         response.response_type == rpc_response_type::success;
+         ++retry) {
+      std::this_thread::sleep_for(1s);
+      response = client({
+                            .host = "localhost",
+                            .password = password,
+                            .port = port,
+                            .user = user,
+                        })
+                     .unmount();
+      std::cout << "." << std::flush;
+    }
+
+    if (response.response_type == rpc_response_type::success) {
+      std::cout << "failed!" << std::endl;
+      return cli::handle_error(exit_code::mount_active,
+                               "mount is still active");
+    }
+
+    std::cout << " done!" << std::endl;
+    return cli::handle_error(exit_code::success, orig_response.response_type,
+                             orig_response.data.dump(2));
   }
 
-  return ret;
+  return cli::handle_error(exit_code::communication_error,
+                           response.response_type, response.data.dump(2));
 }
 } // namespace repertory::cli::actions
 

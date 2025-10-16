@@ -30,7 +30,7 @@ namespace repertory {
 struct fuse_args_parsed final : public i_event {
   fuse_args_parsed() = default;
   fuse_args_parsed(std::string_view args_, std::string_view function_name_)
-      : args(std::move(args_)), function_name(std::string{function_name_}) {}
+      : args(args_), function_name(function_name_) {}
 
   static constexpr event_level level{event_level::info};
   static constexpr std::string_view name{"fuse_args_parsed"};

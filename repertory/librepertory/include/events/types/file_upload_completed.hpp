@@ -28,14 +28,14 @@
 namespace repertory {
 struct file_upload_completed final : public i_event {
   file_upload_completed() = default;
-  file_upload_completed(std::string api_path_, bool cancelled_,
+  file_upload_completed(std::string_view api_path_, bool cancelled_,
                         api_error error_, std::string_view function_name_,
-                        std::string source_path_)
-      : api_path(std::move(api_path_)),
+                        std::string_view source_path_)
+      : api_path(api_path_),
         cancelled(cancelled_),
         error(error_),
-        function_name(std::string(function_name_)),
-        source_path(std::move(source_path_)) {}
+        function_name(function_name_),
+        source_path(source_path_) {}
 
   static constexpr event_level level{event_level::info};
   static constexpr std::string_view name{"file_upload_completed"};

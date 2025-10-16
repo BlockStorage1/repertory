@@ -3,13 +3,17 @@ import 'package:repertory/helpers.dart' show initialCaps;
 
 class MountConfig {
   bool? mounted;
+  bool autoStart = false;
   final String _name;
   String path = '';
   Map<String, dynamic> _settings = {};
   final String _type;
-  MountConfig({required name, required type, Map<String, dynamic>? settings})
-    : _name = name,
-      _type = type {
+  MountConfig({
+    required String name,
+    required String type,
+    Map<String, dynamic>? settings,
+  }) : _name = name,
+       _type = type {
     if (settings != null) {
       _settings = settings;
     }
@@ -27,6 +31,9 @@ class MountConfig {
   }
 
   void updateStatus(Map<String, dynamic> status) {
+    autoStart = status.containsKey('AutoStart')
+        ? status['AutoStart'] as bool
+        : false;
     path = status['Location'] as String;
     mounted = status['Active'] as bool;
   }

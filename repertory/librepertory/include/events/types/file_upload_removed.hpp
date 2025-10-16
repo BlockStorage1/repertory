@@ -28,9 +28,9 @@
 namespace repertory {
 struct file_upload_removed final : public i_event {
   file_upload_removed() = default;
-  file_upload_removed(std::string api_path_, std::string_view function_name_)
-      : api_path(std::move(api_path_)),
-        function_name(std::string(function_name_)) {}
+  file_upload_removed(std::string_view api_path_,
+                      std::string_view function_name_)
+      : api_path(api_path_), function_name(function_name_) {}
 
   static constexpr event_level level{event_level::debug};
   static constexpr std::string_view name{"file_upload_removed"};

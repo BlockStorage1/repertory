@@ -48,19 +48,19 @@ namespace repertory::remote_fuse {
   event_system::instance().raise<remote_server_event>(file, ret, func)
 
 remote_server::remote_server(app_config &config, i_fuse_drive &drive,
-                             const std::string &mount_location)
+                             std::string_view mount_location)
     : remote_server_base(config, drive, mount_location) {}
 
-auto remote_server::construct_path(std::string path) -> std::string {
-  path = utils::path::combine(mount_location_, {path});
-  if (path == mount_location_) {
-    path += '/';
+auto remote_server::construct_path(std::string_view path) -> std::string {
+  auto ret = utils::path::combine(mount_location_, {path});
+  if (ret == mount_location_) {
+    ret += '/';
   }
 
-  return path;
+  return ret;
 }
 
-auto remote_server::construct_path(const std::wstring &path) -> std::string {
+auto remote_server::construct_path(std::wstring_view path) -> std::string {
   return construct_path(utils::string::to_utf8(path));
 }
 
@@ -79,8 +79,8 @@ auto remote_server::get_next_handle() -> std::uint64_t {
   return next_handle_;
 }
 
-auto remote_server::populate_file_info(const std::string &api_path,
-                                       remote::file_info &file_info)
+auto remote_server::populate_file_info(std::string_view api_path,
+                                       remote::file_info &r_info)
     -> packet::error_type {
   REPERTORY_USES_FUNCTION_NAME();
 
@@ -97,17 +97,16 @@ auto remote_server::populate_file_info(const std::string &api_path,
 
     auto attributes = utils::string::to_uint32(meta_attributes);
     auto file_size = directory ? 0U : drive_.get_file_size(api_path);
-    populate_file_info(api_path, file_size, attributes, file_info);
+    populate_file_info(api_path, file_size, attributes, r_info);
     return STATUS_SUCCESS;
   }
 
   return static_cast<packet::error_type>(STATUS_OBJECT_NAME_NOT_FOUND);
 }
 
-void remote_server::populate_file_info(const std::string &api_path,
-                                       const UINT64 &file_size,
-                                       const UINT32 &attributes,
-                                       remote::file_info &file_info) {
+void remote_server::populate_file_info(std::string_view api_path,
+                                       UINT64 file_size, UINT32 attributes,
+                                       remote::file_info &r_info) {
   REPERTORY_USES_FUNCTION_NAME();
 
   api_meta_map meta{};
@@ -116,82 +115,79 @@ void remote_server::populate_file_info(const std::string &api_path,
     utils::error::raise_api_path_error(function_name, api_path, res,
                                        "get item meta failed");
   }
-  file_info.AllocationSize =
+  r_info.AllocationSize =
       utils::divide_with_ceiling(file_size, WINFSP_ALLOCATION_UNIT) *
       WINFSP_ALLOCATION_UNIT;
-  file_info.ChangeTime = utils::time::unix_time_to_windows_time(
-      utils::string::to_uint64(empty_as_zero(meta[META_MODIFIED])));
-  file_info.CreationTime = utils::time::unix_time_to_windows_time(
+  r_info.ChangeTime = utils::time::unix_time_to_windows_time(
+      utils::string::to_uint64(empty_as_zero(meta[META_CHANGED])));
+  r_info.CreationTime = utils::time::unix_time_to_windows_time(
       utils::string::to_uint64(empty_as_zero(meta[META_CREATION])));
-  file_info.EaSize = 0;
-  file_info.FileAttributes = attributes;
-  file_info.FileSize = file_size;
-  file_info.HardLinks = 0;
-  file_info.IndexNumber = 0;
-  file_info.LastAccessTime = utils::time::unix_time_to_windows_time(
+  r_info.EaSize = 0;
+  r_info.FileAttributes = attributes;
+  r_info.FileSize = file_size;
+  r_info.HardLinks = 0;
+  r_info.IndexNumber = 0;
+  r_info.LastAccessTime = utils::time::unix_time_to_windows_time(
       utils::string::to_uint64(empty_as_zero(meta[META_ACCESSED])));
-  file_info.LastWriteTime = utils::time::unix_time_to_windows_time(
+  r_info.LastWriteTime = utils::time::unix_time_to_windows_time(
       utils::string::to_uint64(empty_as_zero(meta[META_WRITTEN])));
   if (meta[META_WRITTEN].empty() || (meta[META_WRITTEN] == "0") ||
       (meta[META_WRITTEN] == "116444736000000000")) {
     drive_.set_item_meta(api_path, META_WRITTEN, meta[META_MODIFIED]);
-    file_info.LastWriteTime = file_info.ChangeTime;
+    r_info.LastWriteTime = r_info.ChangeTime;
   }
-  file_info.ReparseTag = 0;
+  r_info.ReparseTag = 0;
 }
 
-void remote_server::populate_stat(const struct stat64 &unix_st,
+void remote_server::populate_stat(const struct stat64 &u_stat,
                                   remote::stat &r_stat) {
   r_stat = {};
 
 #if defined(__APPLE__)
-  r_stat.st_flags = unix_st.st_flags;
+  r_stat.st_flags = u_stat.st_flags;
 
   r_stat.st_atimespec =
-      unix_st.st_atimespec.tv_nsec +
-      (unix_st.st_atimespec.tv_sec * utils::time::NANOS_PER_SECOND);
+      u_stat.st_atimespec.tv_nsec +
+      (u_stat.st_atimespec.tv_sec * utils::time::NANOS_PER_SECOND);
   r_stat.st_birthtimespec =
-      unix_st.st_birthtimespec.tv_nsec +
-      (unix_st.st_birthtimespec.tv_sec * utils::time::NANOS_PER_SECOND);
+      u_stat.st_birthtimespec.tv_nsec +
+      (u_stat.st_birthtimespec.tv_sec * utils::time::NANOS_PER_SECOND);
   r_stat.st_ctimespec =
-      unix_st.st_ctimespec.tv_nsec +
-      (unix_st.st_ctimespec.tv_sec * utils::time::NANOS_PER_SECOND);
+      u_stat.st_ctimespec.tv_nsec +
+      (u_stat.st_ctimespec.tv_sec * utils::time::NANOS_PER_SECOND);
   r_stat.st_mtimespec =
-      unix_st.st_mtimespec.tv_nsec +
-      (unix_st.st_mtimespec.tv_sec * utils::time::NANOS_PER_SECOND);
+      u_stat.st_mtimespec.tv_nsec +
+      (u_stat.st_mtimespec.tv_sec * utils::time::NANOS_PER_SECOND);
 #else  // !defined(__APPLE__)
   r_stat.st_flags = 0;
 
-  r_stat.st_atimespec =
-      static_cast<remote::file_time>(unix_st.st_atim.tv_nsec) +
-      (static_cast<remote::file_time>(unix_st.st_atim.tv_sec) *
-       utils::time::NANOS_PER_SECOND);
+  r_stat.st_atimespec = static_cast<remote::file_time>(u_stat.st_atim.tv_nsec) +
+                        (static_cast<remote::file_time>(u_stat.st_atim.tv_sec) *
+                         utils::time::NANOS_PER_SECOND);
 
   r_stat.st_birthtimespec =
-      static_cast<remote::file_time>(unix_st.st_ctim.tv_nsec) +
-      (static_cast<remote::file_time>(unix_st.st_ctim.tv_sec) *
+      static_cast<remote::file_time>(u_stat.st_ctim.tv_nsec) +
+      (static_cast<remote::file_time>(u_stat.st_ctim.tv_sec) *
        utils::time::NANOS_PER_SECOND);
 
-  r_stat.st_ctimespec =
-      static_cast<remote::file_time>(unix_st.st_ctim.tv_nsec) +
-      (static_cast<remote::file_time>(unix_st.st_ctim.tv_sec) *
-       utils::time::NANOS_PER_SECOND);
+  r_stat.st_ctimespec = static_cast<remote::file_time>(u_stat.st_ctim.tv_nsec) +
+                        (static_cast<remote::file_time>(u_stat.st_ctim.tv_sec) *
+                         utils::time::NANOS_PER_SECOND);
 
-  r_stat.st_mtimespec =
-      static_cast<remote::file_time>(unix_st.st_mtim.tv_nsec) +
-      (static_cast<remote::file_time>(unix_st.st_mtim.tv_sec) *
-       utils::time::NANOS_PER_SECOND);
+  r_stat.st_mtimespec = static_cast<remote::file_time>(u_stat.st_mtim.tv_nsec) +
+                        (static_cast<remote::file_time>(u_stat.st_mtim.tv_sec) *
+                         utils::time::NANOS_PER_SECOND);
 #endif // defined(__APPLE__)
-  r_stat.st_blksize = static_cast<remote::block_size>(unix_st.st_blksize);
-  r_stat.st_blocks = static_cast<remote::block_count>(unix_st.st_blocks);
-  r_stat.st_gid = unix_st.st_gid;
-  r_stat.st_mode = static_cast<remote::file_mode>(unix_st.st_mode);
-  r_stat.st_nlink = static_cast<remote::file_nlink>(unix_st.st_nlink);
-  r_stat.st_size = static_cast<remote::file_size>(unix_st.st_size);
-  r_stat.st_uid = unix_st.st_uid;
+  r_stat.st_blksize = static_cast<remote::block_size>(u_stat.st_blksize);
+  r_stat.st_blocks = static_cast<remote::block_count>(u_stat.st_blocks);
+  r_stat.st_gid = u_stat.st_gid;
+  r_stat.st_mode = static_cast<remote::file_mode>(u_stat.st_mode);
+  r_stat.st_nlink = static_cast<remote::file_nlink>(u_stat.st_nlink);
+  r_stat.st_size = static_cast<remote::file_size>(u_stat.st_size);
+  r_stat.st_uid = u_stat.st_uid;
 }
 
-auto remote_server::fuse_access(const char *path, const std::int32_t &mask)
+auto remote_server::fuse_access(const char *path, std::int32_t mask)
     -> packet::error_type {
   REPERTORY_USES_FUNCTION_NAME();
 
@@ -224,7 +220,7 @@ auto remote_server::fuse_chflags(const char *path, std::uint32_t flags)
   return ret;
 }
 
-auto remote_server::fuse_chmod(const char *path, const remote::file_mode &mode)
+auto remote_server::fuse_chmod(const char *path, remote::file_mode mode)
     -> packet::error_type {
   REPERTORY_USES_FUNCTION_NAME();
 
@@ -235,9 +231,8 @@ auto remote_server::fuse_chmod(const char *path, const remote::file_mode &mode)
   return ret;
 }
 
-auto remote_server::fuse_chown(const char *path, const remote::user_id &uid,
-                               const remote::group_id &gid)
-    -> packet::error_type {
+auto remote_server::fuse_chown(const char *path, remote::user_id uid,
+                               remote::group_id gid) -> packet::error_type {
   REPERTORY_USES_FUNCTION_NAME();
 
   auto file_path = construct_path(path);
@@ -247,7 +242,7 @@ auto remote_server::fuse_chown(const char *path, const remote::user_id &uid,
   return ret;
 }
 
-auto remote_server::fuse_create(const char *path, const remote::file_mode &mode,
+auto remote_server::fuse_create(const char *path, remote::file_mode mode,
                                 const remote::open_flags &flags,
                                 remote::file_handle &handle)
     -> packet::error_type {
@@ -259,10 +254,10 @@ auto remote_server::fuse_create(const char *path, const remote::file_mode &mode,
   if (res >= 0) {
     handle = static_cast<remote::file_handle>(res);
     set_open_info(res, open_info{
-                           "",
-                           nullptr,
-                           {},
-                           file_path,
+                           .client_id = "",
+                           .directory_buffer = nullptr,
+                           .handles = {},
+                           .path = file_path,
                        });
   }
 
@@ -279,8 +274,8 @@ auto remote_server::fuse_destroy() -> packet::error_type {
 }
 
 /*packet::error_type remote_server::fuse_fallocate(const char *path, const
-std::int32_t &mode, const remote::file_offset &offset, const remote::file_offset
-&length, const remote::file_handle &handle) { const auto file_path =
+std::int32_t &mode, remote::file_offset offset, const remote::file_offset
+&length, remote::file_handle handle) { const auto file_path =
 ConstructPath(path); auto ret = HasOpenFileInfo(handle, -EBADF); if (ret == 0) {
 #if defined(__APPLE__)
     ret = STATUS_NOT_IMPLEMENTED;
@@ -316,23 +311,36 @@ length); ret = ((res < 0) ? -errno : 0); #endif
   return ret;
 }*/
 
-auto remote_server::fuse_fgetattr(const char *path, remote::stat &r_stat,
-                                  bool &directory,
-                                  const remote::file_handle &handle)
+auto remote_server::fuse_fgetattr(const char * /* path */, remote::stat &r_stat,
+                                  bool &directory, remote::file_handle handle)
     -> packet::error_type {
   REPERTORY_USES_FUNCTION_NAME();
 
   r_stat = {};
 
-  auto file_path = construct_path(path);
+  auto res = -1;
+  auto file_path = get_open_file_path(static_cast<native_handle>(handle));
+  if (file_path.empty()) {
+    errno = EBADF;
+  } else {
+    struct stat64 u_stat{};
+    res = fstat64(static_cast<native_handle>(handle), &u_stat);
+    if (res == -1 && errno == ESTALE) {
+      std::uint64_t internal_handle{};
+      res = ioctl(static_cast<native_handle>(handle),
+                  repertory_ioctl_fd_command, &internal_handle);
+      if (res == 0) {
+        auto err = drive_.get_item_stat(internal_handle, &u_stat);
+        if (err != api_error::success) {
+          res = -1;
+          errno = std::abs(utils::from_api_error(err));
+        }
+      }
+    }
 
-  auto res = has_open_info(static_cast<native_handle>(handle), EBADF);
-  if (res == 0) {
-    directory = utils::file::directory(file_path).exists();
-    struct stat64 unix_st{};
-    res = fstat64(static_cast<native_handle>(handle), &unix_st);
     if (res == 0) {
-      populate_stat(unix_st, r_stat);
+      directory = S_ISDIR(u_stat.st_mode);
+      populate_stat(u_stat, r_stat);
     }
   }
 
@@ -343,7 +351,7 @@ auto remote_server::fuse_fgetattr(const char *path, remote::stat &r_stat,
 
 auto remote_server::fuse_fsetattr_x(const char *path,
                                     const remote::setattr_x &attr,
-                                    const remote::file_handle &handle)
+                                    remote::file_handle handle)
     -> packet::error_type {
   REPERTORY_USES_FUNCTION_NAME();
 
@@ -437,42 +445,34 @@ auto remote_server::fuse_fsetattr_x(const char *path,
   return ret;
 }
 
-auto remote_server::fuse_fsync(const char *path, const std::int32_t &datasync,
-                               const remote::file_handle &handle)
+auto remote_server::fuse_fsync(const char *path, std::int32_t datasync,
+                               remote::file_handle handle)
     -> packet::error_type {
   REPERTORY_USES_FUNCTION_NAME();
 
   auto file_path = construct_path(path);
 
-  auto res = has_open_info(static_cast<native_handle>(handle), EBADF);
-  if (res == 0) {
 #if defined(__APPLE__)
-    res = datasync ? fcntl(static_cast<native_handle>(handle), F_FULLFSYNC)
-                   : fsync(static_cast<native_handle>(handle));
+  auto res = datasync ? fcntl(static_cast<native_handle>(handle), F_FULLFSYNC)
+                      : fsync(static_cast<native_handle>(handle));
 #else  // !defined(__APPLE__)
-    res = datasync ? fdatasync(static_cast<native_handle>(handle))
-                   : fsync(static_cast<native_handle>(handle));
+  auto res = datasync ? fdatasync(static_cast<native_handle>(handle))
+                      : fsync(static_cast<native_handle>(handle));
 #endif // defined(__APPLE__)
-  }
 
   auto ret = ((res < 0) ? -errno : 0);
   RAISE_REMOTE_FUSE_SERVER_EVENT(function_name, file_path, ret);
   return ret;
 }
 
-auto remote_server::fuse_ftruncate(const char *path,
-                                   const remote::file_offset &size,
-                                   const remote::file_handle &handle)
+auto remote_server::fuse_ftruncate(const char *path, remote::file_offset size,
+                                   remote::file_handle handle)
     -> packet::error_type {
   REPERTORY_USES_FUNCTION_NAME();
 
   auto file_path = construct_path(path);
-
-  auto res = has_open_info(static_cast<native_handle>(handle), EBADF);
-  if (res == 0) {
-    res =
-        ftruncate(static_cast<native_handle>(handle), static_cast<off_t>(size));
-  }
+  auto res =
+      ftruncate(static_cast<native_handle>(handle), static_cast<off_t>(size));
 
   auto ret = ((res < 0) ? -errno : 0);
   RAISE_REMOTE_FUSE_SERVER_EVENT(function_name, file_path, ret);
@@ -485,16 +485,14 @@ auto remote_server::fuse_getattr(const char *path, remote::stat &r_stat,
 
   auto api_path = utils::path::create_api_path(path);
   auto file_path = construct_path(api_path);
-  auto parent_api_path = utils::path::get_parent_api_path(api_path);
 
   r_stat = {};
 
-  directory = utils::file::directory(file_path).exists();
-
-  struct stat64 unix_st{};
-  auto res = stat64(file_path.c_str(), &unix_st);
+  struct stat64 u_stat{};
+  auto res = stat64(file_path.c_str(), &u_stat);
   if (res == 0) {
-    populate_stat(unix_st, r_stat);
+    directory = S_ISDIR(u_stat.st_mode);
+    populate_stat(u_stat, r_stat);
   }
 
   auto ret = ((res < 0) ? -errno : 0);
@@ -503,7 +501,7 @@ auto remote_server::fuse_getattr(const char *path, remote::stat &r_stat,
 }
 
 /*packet::error_type remote_server::fuse_getxattr(const char *path, const char
-*name, char *value, const remote::file_size &size) { const auto api_path =
+*name, char *value, remote::file_size size) { const auto api_path =
 utils::path::create_api_path(path); const auto file_path =
 ConstructPath(api_path); const auto parentApiPath =
 utils::path::get_parent_api_path(api_path);
@@ -545,7 +543,7 @@ filePath, ret); return ret;
 }
 
 packet::error_type remote_server::fuse_getxattrOSX(const char *path, const char
-*name, char *value, const remote::file_size &size, std::uint32_t position) {
+*name, char *value, remote::file_size size, std::uint32_t position) {
 const auto file_path = ConstructPath(path); #if defined(__APPLE__) &&
 defined(HAS_SETXATTR)
   // TODO: CheckParentAccess(api_path, X_OK)
@@ -597,7 +595,7 @@ auto remote_server::fuse_init() -> packet::error_type {
 }
 
 /*packet::error_type remote_server::fuse_listxattr(const char *path, char
-*buffer, const remote::file_size &size) { const auto file_path =
+*buffer, remote::file_size size) { const auto file_path =
 ConstructPath(path); #if defined(HAS_SETXATTR) #if defined(__APPLE__) const auto
 res = listxattr(file_path.c_str(), buffer, size, FSOPT_NOFOLLOW); #else const
 auto res = listxattr(file_path.c_str(), buffer, size); #endif auto ret = ((res <
@@ -606,7 +604,7 @@ auto res = listxattr(file_path.c_str(), buffer, size); #endif auto ret = ((res <
   return ret;
 }*/
 
-auto remote_server::fuse_mkdir(const char *path, const remote::file_mode &mode)
+auto remote_server::fuse_mkdir(const char *path, remote::file_mode mode)
     -> packet::error_type {
   REPERTORY_USES_FUNCTION_NAME();
 
@@ -628,12 +626,13 @@ auto remote_server::fuse_open(const char *path, const remote::open_flags &flags,
   if (res >= 0) {
     handle = static_cast<remote::file_handle>(res);
     set_open_info(res, open_info{
-                           "",
-                           nullptr,
-                           {},
-                           file_path,
+                           .client_id = "",
+                           .directory_buffer = nullptr,
+                           .handles = {},
+                           .path = file_path,
                        });
   }
+
   auto ret = ((res < 0) ? -errno : 0);
   RAISE_REMOTE_FUSE_SERVER_EVENT(function_name, file_path, ret);
   return ret;
@@ -665,21 +664,18 @@ auto remote_server::fuse_opendir(const char *path, remote::file_handle &handle)
 }
 
 auto remote_server::fuse_read(const char *path, char *buffer,
-                              const remote::file_size &read_size,
-                              const remote::file_offset &read_offset,
-                              const remote::file_handle &handle)
+                              remote::file_size read_size,
+                              remote::file_offset read_offset,
+                              remote::file_handle handle)
     -> packet::error_type {
   REPERTORY_USES_FUNCTION_NAME();
 
   auto file_path = construct_path(path);
   auto &data = *reinterpret_cast<data_buffer *>(buffer);
 
-  ssize_t bytes_read{has_open_info(static_cast<native_handle>(handle), EBADF)};
-  if (bytes_read == 0) {
-    data.resize(read_size);
-    bytes_read = pread64(static_cast<native_handle>(handle), data.data(),
-                         read_size, static_cast<off_t>(read_offset));
-  }
+  data.resize(read_size);
+  auto bytes_read = pread64(static_cast<native_handle>(handle), data.data(),
+                            read_size, static_cast<off_t>(read_offset));
 
   auto ret = ((bytes_read < 0) ? -errno : bytes_read);
   if (ret < 0) {
@@ -702,9 +698,8 @@ auto remote_server::fuse_rename(const char *from, const char *to)
   return ret;
 }
 
-auto remote_server::fuse_readdir(const char *path,
-                                 const remote::file_offset &offset,
-                                 const remote::file_handle &handle,
+auto remote_server::fuse_readdir(const char *path, remote::file_offset offset,
+                                 remote::file_handle handle,
                                  std::string &item_path) -> packet::error_type {
   REPERTORY_USES_FUNCTION_NAME();
 
@@ -728,19 +723,15 @@ auto remote_server::fuse_readdir(const char *path,
   return ret;
 }
 
-auto remote_server::fuse_release(const char *path,
-                                 const remote::file_handle &handle)
+auto remote_server::fuse_release(const char *path, remote::file_handle handle)
     -> packet::error_type {
   REPERTORY_USES_FUNCTION_NAME();
 
   packet::error_type ret = 0;
 
   auto file_path = construct_path(path);
-  auto res = has_open_info(static_cast<native_handle>(handle), EBADF);
-  if (res == 0) {
-    res = close(static_cast<native_handle>(handle));
-    remove_open_info(static_cast<native_handle>(handle));
-  }
+  auto res = close(static_cast<native_handle>(handle));
+  remove_open_info(static_cast<native_handle>(handle));
 
   ret = ((res < 0) ? -errno : 0);
   RAISE_REMOTE_FUSE_SERVER_EVENT(function_name, file_path, ret);
@@ -748,7 +739,7 @@ auto remote_server::fuse_release(const char *path,
 }
 
 auto remote_server::fuse_releasedir(const char *path,
-                                    const remote::file_handle &handle)
+                                    remote::file_handle handle)
     -> packet::error_type {
   REPERTORY_USES_FUNCTION_NAME();
 
@@ -795,7 +786,7 @@ auto remote_server::fuse_setattr_x(const char *path, remote::setattr_x &attr)
 }
 
 auto remote_server::fuse_setbkuptime(const char *path,
-                                     const remote::file_time &bkuptime)
+                                     remote::file_time bkuptime)
     -> packet::error_type {
   REPERTORY_USES_FUNCTION_NAME();
 
@@ -815,8 +806,7 @@ auto remote_server::fuse_setbkuptime(const char *path,
   return ret;
 }
 
-auto remote_server::fuse_setchgtime(const char *path,
-                                    const remote::file_time &chgtime)
+auto remote_server::fuse_setchgtime(const char *path, remote::file_time chgtime)
     -> packet::error_type {
   REPERTORY_USES_FUNCTION_NAME();
 
@@ -836,8 +826,7 @@ auto remote_server::fuse_setchgtime(const char *path,
   return ret;
 }
 
-auto remote_server::fuse_setcrtime(const char *path,
-                                   const remote::file_time &crtime)
+auto remote_server::fuse_setcrtime(const char *path, remote::file_time crtime)
     -> packet::error_type {
   REPERTORY_USES_FUNCTION_NAME();
 
@@ -865,7 +854,7 @@ auto remote_server::fuse_setvolname(const char *volname) -> packet::error_type {
 }
 
 /*packet::error_type remote_server::fuse_setxattr(const char *path, const char
-*name, const char *value, const remote::file_size &size, const std::int32_t
+*name, const char *value, remote::file_size size, const std::int32_t
 &flags) { const auto file_path = ConstructPath(path); #if defined(__APPLE__{} ||
 !defined(HAS_SETXATTR) auto ret = STATUS_NOT_IMPLEMENTED; #else const auto res =
 setxattr(file_path.c_str(), name, value, size, flags); auto ret = ((res < 0) ?
@@ -874,7 +863,7 @@ ret); return ret;
 }
 
 packet::error_type remote_server::fuse_setxattrOSX(const char *path, const char
-*name, const char *value, const remote::file_size &size, const std::int32_t
+*name, const char *value, remote::file_size size, const std::int32_t
 &flags, const std::uint32_t &position) { const auto file_path =
 ConstructPath(path); #if defined(__APPLE__) && defined(HAS_SETXATTR) const auto
 res = setxattr(file_path.c_str(), name, value, size, position, flags); auto ret
@@ -929,8 +918,7 @@ auto remote_server::fuse_statfs_x(const char *path, std::uint64_t bsize,
   return 0;
 }
 
-auto remote_server::fuse_truncate(const char *path,
-                                  const remote::file_offset &size)
+auto remote_server::fuse_truncate(const char *path, remote::file_offset size)
     -> packet::error_type {
   REPERTORY_USES_FUNCTION_NAME();
 
@@ -958,10 +946,10 @@ auto remote_server::fuse_utimens(const char *path, const remote::file_time *tv,
 
   auto file_path = construct_path(path);
 
-  struct timespec tv2[2] = {{0, 0}};
-  const auto process_timespec = [](auto op, const auto &src, auto &dst) {
-    if ((op == UTIME_NOW) || (op == UTIME_OMIT)) {
-      dst.tv_nsec = static_cast<time_t>(op);
+  std::array<struct timespec, 2U> tv2{};
+  const auto process_timespec = [](auto cur_op, const auto &src, auto &dst) {
+    if ((cur_op == UTIME_NOW) || (cur_op == UTIME_OMIT)) {
+      dst.tv_nsec = static_cast<time_t>(cur_op);
       dst.tv_sec = 0;
       return;
     }
@@ -973,27 +961,23 @@ auto remote_server::fuse_utimens(const char *path, const remote::file_time *tv,
   process_timespec(op0, tv[0U], tv2[0U]);
   process_timespec(op1, tv[1U], tv2[1U]);
 
-  auto res = utimensat(0, file_path.c_str(), &tv2[0U], AT_SYMLINK_NOFOLLOW);
+  auto res = utimensat(0, file_path.c_str(), tv2.data(), AT_SYMLINK_NOFOLLOW);
   auto ret = ((res < 0) ? -errno : 0);
   RAISE_REMOTE_FUSE_SERVER_EVENT(function_name, file_path, ret);
   return ret;
 }
 
 auto remote_server::fuse_write(const char *path, const char *buffer,
-                               const remote::file_size &write_size,
-                               const remote::file_offset &write_offset,
-                               const remote::file_handle &handle)
+                               remote::file_size write_size,
+                               remote::file_offset write_offset,
+                               remote::file_handle handle)
     -> packet::error_type {
   REPERTORY_USES_FUNCTION_NAME();
 
   auto file_path = construct_path(path);
 
-  ssize_t bytes_written{
-      has_open_info(static_cast<native_handle>(handle), EBADF)};
-  if (bytes_written == 0) {
-    bytes_written = pwrite64(static_cast<native_handle>(handle), buffer,
-                             write_size, static_cast<off_t>(write_offset));
-  }
+  auto bytes_written = pwrite64(static_cast<native_handle>(handle), buffer,
+                                write_size, static_cast<off_t>(write_offset));
 
   auto ret = ((bytes_written < 0) ? -errno : bytes_written);
   if (ret < 0) {
@@ -1003,11 +987,12 @@ auto remote_server::fuse_write(const char *path, const char *buffer,
   return static_cast<packet::error_type>(ret);
 }
 
-auto remote_server::fuse_write_base64(
-    const char * /*path*/, const char * /*buffer*/,
-    const remote::file_size & /*write_size*/,
-    const remote::file_offset & /*write_offset*/,
-    const remote::file_handle & /*handle*/) -> packet::error_type {
+auto remote_server::fuse_write_base64(const char * /*path*/,
+                                      const char * /*buffer*/,
+                                      remote::file_size /*write_size*/,
+                                      remote::file_offset /*write_offset*/,
+                                      remote::file_handle /*handle*/)
+    -> packet::error_type {
   // DOES NOTHING
   return 0;
 }
@@ -1118,7 +1103,7 @@ auto remote_server::winfsp_close(PVOID file_desc) -> packet::error_type {
 auto remote_server::winfsp_create(PWSTR file_name, UINT32 create_options,
                                   UINT32 granted_access, UINT32 attributes,
                                   UINT64 /*allocation_size*/, PVOID *file_desc,
-                                  remote::file_info *file_info,
+                                  remote::file_info *r_info,
                                   std::string &normalized_name, BOOLEAN &exists)
     -> packet::error_type {
   REPERTORY_USES_FUNCTION_NAME();
@@ -1157,15 +1142,15 @@ auto remote_server::winfsp_create(PWSTR file_name, UINT32 create_options,
       drive_.set_item_meta(construct_api_path(file_path), META_ATTRIBUTES,
                            std::to_string(attributes));
       set_open_info(res, open_info{
-                             "",
-                             nullptr,
-                             {},
-                             file_path,
+                             .client_id = "",
+                             .directory_buffer = nullptr,
+                             .handles = {},
+                             .path = file_path,
                          });
 
       auto api_path = utils::path::create_api_path(relative_path);
       normalized_name = utils::string::replace_copy(api_path, '/', '\\');
-      populate_file_info(api_path, 0, attributes, *file_info);
+      populate_file_info(api_path, 0, attributes, *r_info);
     }
 
     ret = static_cast<packet::error_type>(
@@ -1176,7 +1161,7 @@ auto remote_server::winfsp_create(PWSTR file_name, UINT32 create_options,
   return ret;
 }
 
-auto remote_server::winfsp_flush(PVOID file_desc, remote::file_info *file_info)
+auto remote_server::winfsp_flush(PVOID file_desc, remote::file_info *r_info)
     -> packet::error_type {
   REPERTORY_USES_FUNCTION_NAME();
 
@@ -1189,7 +1174,7 @@ auto remote_server::winfsp_flush(PVOID file_desc, remote::file_info *file_info)
                     utils::unix_error_to_windows(errno))
               : populate_file_info(construct_api_path(get_open_file_path(
                                        static_cast<native_handle>(handle))),
-                                   *file_info);
+                                   *r_info);
   }
 
   RAISE_REMOTE_FUSE_SERVER_EVENT(
@@ -1199,7 +1184,7 @@ auto remote_server::winfsp_flush(PVOID file_desc, remote::file_info *file_info)
 }
 
 auto remote_server::winfsp_get_file_info(PVOID file_desc,
-                                         remote::file_info *file_info)
+                                         remote::file_info *r_info)
     -> packet::error_type {
   REPERTORY_USES_FUNCTION_NAME();
 
@@ -1209,7 +1194,7 @@ auto remote_server::winfsp_get_file_info(PVOID file_desc,
   if (ret == STATUS_SUCCESS) {
     ret = populate_file_info(construct_api_path(get_open_file_path(
                                  static_cast<native_handle>(handle))),
-                             *file_info);
+                             *r_info);
   }
 
   RAISE_REMOTE_FUSE_SERVER_EVENT(
@@ -1229,10 +1214,10 @@ auto remote_server::winfsp_get_security_by_name(
   if (utils::file::file(file_path).exists() ||
       (utils::file::directory(file_path).exists())) {
     if (attributes) {
-      remote::file_info file_info{};
-      if ((ret = populate_file_info(construct_api_path(file_path),
-                                    file_info)) == STATUS_SUCCESS) {
-        *attributes = file_info.FileAttributes;
+      remote::file_info r_info{};
+      if ((ret = populate_file_info(construct_api_path(file_path), r_info)) ==
+          STATUS_SUCCESS) {
+        *attributes = r_info.FileAttributes;
       }
     }
   } else {
@@ -1254,7 +1239,7 @@ auto remote_server::winfsp_get_volume_info(UINT64 &total_size,
   return STATUS_SUCCESS;
 }
 
-auto remote_server::winfsp_mounted(const std::wstring &location)
+auto remote_server::winfsp_mounted(std::wstring_view location)
     -> packet::error_type {
   REPERTORY_USES_FUNCTION_NAME();
 
@@ -1265,7 +1250,7 @@ auto remote_server::winfsp_mounted(const std::wstring &location)
 
 auto remote_server::winfsp_open(PWSTR file_name, UINT32 create_options,
                                 UINT32 granted_access, PVOID *file_desc,
-                                remote::file_info *file_info,
+                                remote::file_info *r_info,
                                 std::string &normalized_name)
     -> packet::error_type {
   REPERTORY_USES_FUNCTION_NAME();
@@ -1286,15 +1271,15 @@ auto remote_server::winfsp_open(PWSTR file_name, UINT32 create_options,
   if (res >= 0) {
     *file_desc = reinterpret_cast<PVOID>(res);
     set_open_info(res, open_info{
-                           "",
-                           nullptr,
-                           {},
-                           file_path,
+                           .client_id = "",
+                           .directory_buffer = nullptr,
+                           .handles = {},
+                           .path = file_path,
                        });
 
     auto api_path = utils::path::create_api_path(relative_path);
     normalized_name = utils::string::replace_copy(api_path, '/', '\\');
-    res = populate_file_info(api_path, *file_info);
+    res = populate_file_info(api_path, *r_info);
     if (res != STATUS_SUCCESS) {
       utils::error::raise_error(function_name,
                                 "populate file info failed|err|" +
@@ -1311,7 +1296,7 @@ auto remote_server::winfsp_open(PWSTR file_name, UINT32 create_options,
 auto remote_server::winfsp_overwrite(PVOID file_desc, UINT32 attributes,
                                      BOOLEAN replace_attributes,
                                      UINT64 /*allocation_size*/,
-                                     remote::file_info *file_info)
+                                     remote::file_info *r_info)
     -> packet::error_type {
   REPERTORY_USES_FUNCTION_NAME();
 
@@ -1352,7 +1337,7 @@ auto remote_server::winfsp_overwrite(PVOID file_desc, UINT32 attributes,
       }
       ret = populate_file_info(construct_api_path(get_open_file_path(
                                    static_cast<native_handle>(handle))),
-                               *file_info);
+                               *r_info);
     } else {
       ret =
           static_cast<packet::error_type>(utils::unix_error_to_windows(errno));
@@ -1479,7 +1464,7 @@ auto remote_server::winfsp_rename(PVOID /*file_desc*/, PWSTR file_name,
 auto remote_server::winfsp_set_basic_info(
     PVOID file_desc, UINT32 attributes, UINT64 creation_time,
     UINT64 last_access_time, UINT64 last_write_time, UINT64 change_time,
-    remote::file_info *file_info) -> packet::error_type {
+    remote::file_info *r_info) -> packet::error_type {
   REPERTORY_USES_FUNCTION_NAME();
 
   auto handle = reinterpret_cast<remote::file_handle>(file_desc);
@@ -1533,7 +1518,7 @@ auto remote_server::winfsp_set_basic_info(
           std::to_string(utils::time::windows_time_to_unix_time(change_time)));
     }
 
-    ret = populate_file_info(api_path, *file_info);
+    ret = populate_file_info(api_path, *r_info);
   }
 
   RAISE_REMOTE_FUSE_SERVER_EVENT(
@@ -1544,7 +1529,7 @@ auto remote_server::winfsp_set_basic_info(
 
 auto remote_server::winfsp_set_file_size(PVOID file_desc, UINT64 new_size,
                                          BOOLEAN set_allocation_size,
-                                         remote::file_info *file_info)
+                                         remote::file_info *r_info)
     -> packet::error_type {
   REPERTORY_USES_FUNCTION_NAME();
 
@@ -1562,7 +1547,7 @@ auto remote_server::winfsp_set_file_size(PVOID file_desc, UINT64 new_size,
     if (ret == 0) {
       ret = populate_file_info(construct_api_path(get_open_file_path(
                                    static_cast<native_handle>(handle))),
-                               *file_info);
+                               *r_info);
     }
   }
 
@@ -1572,7 +1557,7 @@ auto remote_server::winfsp_set_file_size(PVOID file_desc, UINT64 new_size,
   return ret;
 }
 
-auto remote_server::winfsp_unmounted(const std::wstring &location)
+auto remote_server::winfsp_unmounted(std::wstring_view location)
     -> packet::error_type {
   REPERTORY_USES_FUNCTION_NAME();
 
@@ -1585,7 +1570,7 @@ auto remote_server::winfsp_write(PVOID file_desc, PVOID buffer, UINT64 offset,
                                  UINT32 length, BOOLEAN write_to_end,
                                  BOOLEAN constrained_io,
                                  PUINT32 bytes_transferred,
-                                 remote::file_info *file_info)
+                                 remote::file_info *r_info)
     -> packet::error_type {
   REPERTORY_USES_FUNCTION_NAME();
 
@@ -1620,7 +1605,7 @@ auto remote_server::winfsp_write(PVOID file_desc, PVOID buffer, UINT64 offset,
           *bytes_transferred = static_cast<UINT32>(res);
           ret = populate_file_info(construct_api_path(get_open_file_path(
                                        static_cast<native_handle>(handle))),
-                                   *file_info);
+                                   *r_info);
         } else {
           ret = static_cast<packet::error_type>(
               utils::unix_error_to_windows(errno));
@@ -1635,7 +1620,7 @@ auto remote_server::winfsp_write(PVOID file_desc, PVOID buffer, UINT64 offset,
   return ret;
 }
 
-auto remote_server::json_create_directory_snapshot(const std::string &path,
+auto remote_server::json_create_directory_snapshot(std::string_view path,
                                                    json &json_data)
     -> packet::error_type {
   REPERTORY_USES_FUNCTION_NAME();
@@ -1665,9 +1650,11 @@ auto remote_server::json_create_directory_snapshot(const std::string &path,
   return ret;
 }
 
-auto remote_server::json_read_directory_snapshot(
-    const std::string &path, const remote::file_handle &handle,
-    std::uint32_t page, json &json_data) -> packet::error_type {
+auto remote_server::json_read_directory_snapshot(std::string_view path,
+                                                 remote::file_handle handle,
+                                                 std::uint32_t page,
+                                                 json &json_data)
+    -> packet::error_type {
   REPERTORY_USES_FUNCTION_NAME();
 
   int res{-EBADF};
@@ -1696,8 +1683,8 @@ auto remote_server::json_read_directory_snapshot(
   return ret;
 }
 
-auto remote_server::json_release_directory_snapshot(
-    const std::string &path, const remote::file_handle &handle)
+auto remote_server::json_release_directory_snapshot(std::string_view path,
+                                                    remote::file_handle handle)
     -> packet::error_type {
   REPERTORY_USES_FUNCTION_NAME();
 
@@ -1707,7 +1694,7 @@ auto remote_server::json_release_directory_snapshot(
   return 0;
 }
 
-auto remote_server::update_to_windows_format(const std::string &root_api_path,
+auto remote_server::update_to_windows_format(std::string_view root_api_path,
                                              json &item) -> json & {
   REPERTORY_USES_FUNCTION_NAME();
 
@@ -1733,26 +1720,28 @@ auto remote_server::update_to_windows_format(const std::string &root_api_path,
     item[JSON_META] = meta;
   }
 
-  item[JSON_META][META_ACCESSED] = std::to_string(
-      utils::string::to_uint64(empty_as_zero(item[JSON_META][META_ACCESSED])));
-  item[JSON_META][META_CREATION] = std::to_string(
-      utils::string::to_uint64(empty_as_zero(item[JSON_META][META_CREATION])));
-  item[JSON_META][META_MODIFIED] = std::to_string(
-      utils::string::to_uint64(empty_as_zero(item[JSON_META][META_MODIFIED])));
-
   auto update_meta{false};
-  if (item[JSON_META][META_WRITTEN].empty() ||
-      (item[JSON_META][META_WRITTEN].get<std::string>() == "0") ||
-      (item[JSON_META][META_WRITTEN].get<std::string>() ==
-       std::to_string(utils::time::WIN32_TIME_CONVERSION))) {
-    item[JSON_META][META_WRITTEN] =
-        item[JSON_META][META_MODIFIED].get<std::string>();
-    update_meta = true;
-  }
+  const auto ensure_set = [&item, &update_meta](std::string_view name,
+                                                std::string_view default_value,
+                                                bool as_time) {
+    if (not item[JSON_META].contains(name) || item[JSON_META][name].empty() ||
+        (as_time && (item[JSON_META][name].template get<std::string>() == "0" ||
+                     item[JSON_META][name].template get<std::string>() ==
+                         std::to_string(utils::time::WIN32_TIME_CONVERSION)))) {
+      item[JSON_META][name] = default_value;
+      update_meta = true;
+    }
+  };
 
-  if (item[JSON_META][META_ATTRIBUTES].empty()) {
-    item[JSON_META][META_ATTRIBUTES] = "0";
-  }
+  auto default_time = std::to_string(utils::time::get_time_now());
+  ensure_set(META_ACCESSED, default_time, true);
+  ensure_set(META_CREATION, default_time, true);
+  ensure_set(META_MODIFIED, default_time, true);
+  ensure_set(META_CHANGED, item[JSON_META][META_MODIFIED].get<std::string>(),
+             true);
+  ensure_set(META_WRITTEN, item[JSON_META][META_MODIFIED].get<std::string>(),
+             true);
+  ensure_set(META_ATTRIBUTES, "0", false);
 
   auto attributes = utils::string::to_uint32(
       item[JSON_META][META_ATTRIBUTES].get<std::string>());

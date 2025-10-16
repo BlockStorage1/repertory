@@ -24,6 +24,7 @@
 #include "drives/fuse/remotefuse/remote_fuse_drive.hpp"
 
 #include "app_config.hpp"
+#include "drives/fuse/fuse_drive_base.hpp"
 #include "events/consumers/console_consumer.hpp"
 #include "events/consumers/logging_consumer.hpp"
 #include "events/event_system.hpp"
@@ -50,8 +51,8 @@ auto remote_fuse_drive::access_impl(std::string api_path, int mask)
 }
 
 #if defined(__APPLE__)
-api_error remote_fuse_drive::chflags_impl(std::string api_path,
-                                          uint32_t flags) {
+auto remote_fuse_drive::chflags_impl(std::string api_path, uint32_t flags)
+    -> api_error {
   return utils::to_api_error(
       remote_instance_->fuse_chflags(api_path.c_str(), flags));
 }
@@ -121,8 +122,7 @@ void remote_fuse_drive::destroy_impl(void *ptr) {
   fuse_base::destroy_impl(ptr);
 }
 
-auto remote_fuse_drive::fgetattr_impl(std::string api_path,
-                                      struct stat *unix_st,
+auto remote_fuse_drive::fgetattr_impl(std::string api_path, struct stat *u_stat,
                                       struct fuse_file_info *f_info)
     -> api_error {
   remote::stat r_stat{};
@@ -131,33 +131,51 @@ auto remote_fuse_drive::fgetattr_impl(std::string api_path,
   auto res = remote_instance_->fuse_fgetattr(api_path.c_str(), r_stat,
                                              directory, f_info->fh);
   if (res == 0) {
-    populate_stat(r_stat, directory, *unix_st);
+    populate_stat(r_stat, directory, *u_stat);
   }
 
   return utils::to_api_error(res);
 }
 
 #if defined(__APPLE__)
-api_error remote_fuse_drive::fsetattr_x_impl(std::string api_path,
-                                             struct setattr_x *attr,
-                                             struct fuse_file_info *f_info) {
+auto remote_fuse_drive::fsetattr_x_impl(std::string api_path,
+                                        struct setattr_x *attr,
+                                        struct fuse_file_info *f_info)
+    -> api_error {
+  if (SETATTR_WANTS_MODTIME(attr)) {
+    if (not fuse_drive_base::validate_timespec(attr->modtime)) {
+      return api_error::invalid_operation;
+    }
+  }
+
+  if (SETATTR_WANTS_ACCTIME(attr)) {
+    if (not fuse_drive_base::validate_timespec(attr->acctime)) {
+      return api_error::invalid_operation;
+    }
+  }
+
   remote::setattr_x attributes{};
   attributes.valid = attr->valid;
   attributes.mode = attr->mode;
   attributes.uid = attr->uid;
   attributes.gid = attr->gid;
-  attributes.size = attr->size;
-  attributes.acctime = ((attr->acctime.tv_sec * utils::time::NANOS_PER_SECOND) +
-                        attr->acctime.tv_nsec);
-  attributes.modtime = ((attr->modtime.tv_sec * utils::time::NANOS_PER_SECOND) +
-                        attr->modtime.tv_nsec);
-  attributes.crtime = ((attr->crtime.tv_sec * utils::time::NANOS_PER_SECOND) +
-                       attr->crtime.tv_nsec);
-  attributes.chgtime = ((attr->chgtime.tv_sec * utils::time::NANOS_PER_SECOND) +
-                        attr->chgtime.tv_nsec);
+  attributes.size = static_cast<remote::file_size>(attr->size);
+  attributes.acctime = ((static_cast<remote::file_time>(attr->acctime.tv_sec) *
+                         utils::time::NANOS_PER_SECOND) +
+                        static_cast<remote::file_time>(attr->acctime.tv_nsec));
+  attributes.modtime = ((static_cast<remote::file_time>(attr->modtime.tv_sec) *
+                         utils::time::NANOS_PER_SECOND) +
+                        static_cast<remote::file_time>(attr->modtime.tv_nsec));
+  attributes.crtime = ((static_cast<remote::file_time>(attr->crtime.tv_sec) *
+                        utils::time::NANOS_PER_SECOND) +
+                       static_cast<remote::file_time>(attr->crtime.tv_nsec));
+  attributes.chgtime = ((static_cast<remote::file_time>(attr->chgtime.tv_sec) *
+                         utils::time::NANOS_PER_SECOND) +
+                        static_cast<remote::file_time>(attr->chgtime.tv_nsec));
   attributes.bkuptime =
-      ((attr->bkuptime.tv_sec * utils::time::NANOS_PER_SECOND) +
-       attr->bkuptime.tv_nsec);
+      ((static_cast<remote::file_time>(attr->bkuptime.tv_sec) *
+        utils::time::NANOS_PER_SECOND) +
+       static_cast<remote::file_time>(attr->bkuptime.tv_nsec));
   attributes.flags = attr->flags;
   return utils::to_api_error(remote_instance_->fuse_fsetattr_x(
       api_path.c_str(), attributes, f_info->fh));
@@ -166,7 +184,6 @@ api_error remote_fuse_drive::fsetattr_x_impl(std::string api_path,
 
 auto remote_fuse_drive::fsync_impl(std::string api_path, int datasync,
                                    struct fuse_file_info *f_info) -> api_error {
-
   return utils::to_api_error(
       remote_instance_->fuse_fsync(api_path.c_str(), datasync, f_info->fh));
 }
@@ -181,11 +198,15 @@ auto remote_fuse_drive::ftruncate_impl(std::string api_path, off_t size,
 #endif // FUSE_USE_VERSION < 30
 
 #if FUSE_USE_VERSION >= 30
-auto remote_fuse_drive::getattr_impl(std::string api_path, struct stat *unix_st,
-                                     struct fuse_file_info * /*f_info*/)
+auto remote_fuse_drive::getattr_impl(std::string api_path, struct stat *u_stat,
+                                     struct fuse_file_info *f_info)
     -> api_error {
+  if (f_info != nullptr && f_info->fh != 0 &&
+      f_info->fh != static_cast<std::uint64_t>(REPERTORY_INVALID_HANDLE)) {
+    return fgetattr_impl(api_path, u_stat, f_info);
+  }
 #else  // FUSE_USE_VERSION < 30
-auto remote_fuse_drive::getattr_impl(std::string api_path, struct stat *unix_st)
+auto remote_fuse_drive::getattr_impl(std::string api_path, struct stat *u_stat)
     -> api_error {
 #endif // FUSE_USE_VERSION >= 30
   bool directory = false;
@@ -194,16 +215,16 @@ auto remote_fuse_drive::getattr_impl(std::string api_path, struct stat *unix_st)
   auto res =
       remote_instance_->fuse_getattr(api_path.c_str(), r_stat, directory);
   if (res == 0) {
-    populate_stat(r_stat, directory, *unix_st);
+    populate_stat(r_stat, directory, *u_stat);
   }
 
   return utils::to_api_error(res);
 }
 
 #if defined(__APPLE__)
-api_error remote_fuse_drive::getxtimes_impl(std::string api_path,
-                                            struct timespec *bkuptime,
-                                            struct timespec *crtime) {
+auto remote_fuse_drive::getxtimes_impl(std::string api_path,
+                                       struct timespec *bkuptime,
+                                       struct timespec *crtime) -> api_error {
   if (not(bkuptime && crtime)) {
     return utils::to_api_error(-EFAULT);
   }
@@ -309,54 +330,53 @@ auto remote_fuse_drive::opendir_impl(std::string api_path,
 }
 
 void remote_fuse_drive::populate_stat(const remote::stat &r_stat,
-                                      bool directory, struct stat &unix_st) {
-  std::memset(&unix_st, 0, sizeof(struct stat));
-  unix_st.st_blksize =
-      static_cast<decltype(unix_st.st_blksize)>(r_stat.st_blksize);
-  unix_st.st_blocks =
-      static_cast<decltype(unix_st.st_blocks)>(r_stat.st_blocks);
-  unix_st.st_gid = r_stat.st_gid;
-  unix_st.st_mode = (directory ? S_IFDIR : S_IFREG) | r_stat.st_mode;
-  unix_st.st_nlink = r_stat.st_nlink;
-  unix_st.st_size = static_cast<decltype(unix_st.st_size)>(r_stat.st_size);
-  unix_st.st_uid = r_stat.st_uid;
+                                      bool directory, struct stat &u_stat) {
+  std::memset(&u_stat, 0, sizeof(struct stat));
+  u_stat.st_blksize =
+      static_cast<decltype(u_stat.st_blksize)>(r_stat.st_blksize);
+  u_stat.st_blocks = static_cast<decltype(u_stat.st_blocks)>(r_stat.st_blocks);
+  u_stat.st_gid = r_stat.st_gid;
+  u_stat.st_mode = (directory ? S_IFDIR : S_IFREG) | r_stat.st_mode;
+  u_stat.st_nlink = r_stat.st_nlink;
+  u_stat.st_size = static_cast<decltype(u_stat.st_size)>(r_stat.st_size);
+  u_stat.st_uid = r_stat.st_uid;
 
 #if defined(__APPLE__)
-  unix_st.st_atimespec.tv_nsec =
+  u_stat.st_atimespec.tv_nsec =
       r_stat.st_atimespec % utils::time::NANOS_PER_SECOND;
-  unix_st.st_atimespec.tv_sec =
+  u_stat.st_atimespec.tv_sec =
       r_stat.st_atimespec / utils::time::NANOS_PER_SECOND;
 
-  unix_st.st_birthtimespec.tv_nsec =
+  u_stat.st_birthtimespec.tv_nsec =
       r_stat.st_birthtimespec % utils::time::NANOS_PER_SECOND;
-  unix_st.st_birthtimespec.tv_sec =
+  u_stat.st_birthtimespec.tv_sec =
       r_stat.st_birthtimespec / utils::time::NANOS_PER_SECOND;
 
-  unix_st.st_ctimespec.tv_nsec =
+  u_stat.st_ctimespec.tv_nsec =
       r_stat.st_ctimespec % utils::time::NANOS_PER_SECOND;
-  unix_st.st_ctimespec.tv_sec =
+  u_stat.st_ctimespec.tv_sec =
       r_stat.st_ctimespec / utils::time::NANOS_PER_SECOND;
 
-  unix_st.st_mtimespec.tv_nsec =
+  u_stat.st_mtimespec.tv_nsec =
       r_stat.st_mtimespec % utils::time::NANOS_PER_SECOND;
-  unix_st.st_mtimespec.tv_sec =
+  u_stat.st_mtimespec.tv_sec =
       r_stat.st_mtimespec / utils::time::NANOS_PER_SECOND;
 
-  unix_st.st_flags = r_stat.st_flags;
+  u_stat.st_flags = r_stat.st_flags;
 #else  // !defined(__APPLE__)
-  unix_st.st_atim.tv_nsec = static_cast<suseconds_t>(
+  u_stat.st_atim.tv_nsec = static_cast<suseconds_t>(
       r_stat.st_atimespec % utils::time::NANOS_PER_SECOND);
-  unix_st.st_atim.tv_sec = static_cast<suseconds_t>(
+  u_stat.st_atim.tv_sec = static_cast<suseconds_t>(
       r_stat.st_atimespec / utils::time::NANOS_PER_SECOND);
 
-  unix_st.st_ctim.tv_nsec = static_cast<suseconds_t>(
+  u_stat.st_ctim.tv_nsec = static_cast<suseconds_t>(
       r_stat.st_ctimespec % utils::time::NANOS_PER_SECOND);
-  unix_st.st_ctim.tv_sec = static_cast<suseconds_t>(
+  u_stat.st_ctim.tv_sec = static_cast<suseconds_t>(
       r_stat.st_ctimespec / utils::time::NANOS_PER_SECOND);
 
-  unix_st.st_mtim.tv_nsec = static_cast<suseconds_t>(
+  u_stat.st_mtim.tv_nsec = static_cast<suseconds_t>(
       r_stat.st_mtimespec % utils::time::NANOS_PER_SECOND);
-  unix_st.st_mtim.tv_sec = static_cast<suseconds_t>(
+  u_stat.st_mtim.tv_sec = static_cast<suseconds_t>(
       r_stat.st_mtimespec / utils::time::NANOS_PER_SECOND);
 #endif // defined(__APPLE__)
 }
@@ -397,24 +417,36 @@ auto remote_fuse_drive::readdir_impl(std::string api_path, void *buf,
               api_path.c_str(), static_cast<remote::file_offset>(offset),
               f_info->fh, item_path)) == 0) {
     std::unique_ptr<struct stat> p_stat{nullptr};
-    int stat_res{0};
     if ((item_path == ".") || (item_path == "..")) {
+      auto stat_res{api_error::success};
       p_stat = std::make_unique<struct stat>();
       std::memset(p_stat.get(), 0, sizeof(struct stat));
       if (item_path == ".") {
-        stat_res =
-            stat(utils::path::combine(get_mount_location(), {api_path}).c_str(),
+#if FUSE_USE_VERSION >= 30
+        stat_res = getattr_impl(api_path, p_stat.get(), nullptr);
+#else  // FUSE_USE_VERSION < 30
+        stat_res = getattr_impl(api_path, p_stat.get());
+#endif // FUSE_USE_VERSION >= 30
+      } else if (api_path == "/" && get_mount_location() != "/") {
+        auto local_res =
+            stat(utils::path::get_parent_path(get_mount_location()).c_str(),
                  p_stat.get());
+        if (local_res != 0) {
+          res = local_res;
+          break;
+        }
       } else {
-        stat_res =
-            stat(utils::path::get_parent_path(
-                     utils::path::combine(get_mount_location(), {api_path}))
-                     .c_str(),
-                 p_stat.get());
+#if FUSE_USE_VERSION >= 30
+        stat_res = getattr_impl(utils::path::get_parent_api_path(api_path),
+                                p_stat.get(), nullptr);
+#else  // FUSE_USE_VERSION < 30
+        stat_res = getattr_impl(utils::path::get_parent_api_path(api_path),
+                                p_stat.get());
+#endif // FUSE_USE_VERSION >= 30
       }
 
-      if (stat_res != 0) {
-        res = stat_res;
+      if (stat_res != api_error::success) {
+        res = utils::from_api_error(stat_res);
         break;
       }
     } else {
@@ -469,73 +501,100 @@ auto remote_fuse_drive::rmdir_impl(std::string api_path) -> api_error {
 }
 
 #if defined(__APPLE__)
-api_error remote_fuse_drive::setattr_x_impl(std::string api_path,
-                                            struct setattr_x *attr) {
+auto remote_fuse_drive::setattr_x_impl(std::string api_path,
+                                       struct setattr_x *attr) -> api_error {
+  if (SETATTR_WANTS_MODTIME(attr)) {
+    if (not fuse_drive_base::validate_timespec(attr->modtime)) {
+      return api_error::invalid_operation;
+    }
+  }
+
+  if (SETATTR_WANTS_ACCTIME(attr)) {
+    if (not fuse_drive_base::validate_timespec(attr->acctime)) {
+      return api_error::invalid_operation;
+    }
+  }
+
   remote::setattr_x attributes{};
   attributes.valid = attr->valid;
   attributes.mode = attr->mode;
   attributes.uid = attr->uid;
   attributes.gid = attr->gid;
-  attributes.size = attr->size;
-  attributes.acctime = ((attr->acctime.tv_sec * utils::time::NANOS_PER_SECOND) +
-                        attr->acctime.tv_nsec);
-  attributes.modtime = ((attr->modtime.tv_sec * utils::time::NANOS_PER_SECOND) +
-                        attr->modtime.tv_nsec);
-  attributes.crtime = ((attr->crtime.tv_sec * utils::time::NANOS_PER_SECOND) +
-                       attr->crtime.tv_nsec);
-  attributes.chgtime = ((attr->chgtime.tv_sec * utils::time::NANOS_PER_SECOND) +
-                        attr->chgtime.tv_nsec);
+  attributes.size = static_cast<remote::file_size>(attr->size);
+  attributes.acctime = ((static_cast<remote::file_time>(attr->acctime.tv_sec) *
+                         utils::time::NANOS_PER_SECOND) +
+                        static_cast<remote::file_time>(attr->acctime.tv_nsec));
+  attributes.modtime = ((static_cast<remote::file_time>(attr->modtime.tv_sec) *
+                         utils::time::NANOS_PER_SECOND) +
+                        static_cast<remote::file_time>(attr->modtime.tv_nsec));
+  attributes.crtime = ((static_cast<remote::file_time>(attr->crtime.tv_sec) *
+                        utils::time::NANOS_PER_SECOND) +
+                       static_cast<remote::file_time>(attr->crtime.tv_nsec));
+  attributes.chgtime = ((static_cast<remote::file_time>(attr->chgtime.tv_sec) *
+                         utils::time::NANOS_PER_SECOND) +
+                        static_cast<remote::file_time>(attr->chgtime.tv_nsec));
   attributes.bkuptime =
-      ((attr->bkuptime.tv_sec * utils::time::NANOS_PER_SECOND) +
-       attr->bkuptime.tv_nsec);
+      ((static_cast<remote::file_time>(attr->bkuptime.tv_sec) *
+        utils::time::NANOS_PER_SECOND) +
+       static_cast<remote::file_time>(attr->bkuptime.tv_nsec));
   attributes.flags = attr->flags;
   return utils::to_api_error(
       remote_instance_->fuse_setattr_x(api_path.c_str(), attributes));
 }
 
-api_error remote_fuse_drive::setbkuptime_impl(std::string api_path,
-                                              const struct timespec *bkuptime) {
+auto remote_fuse_drive::setbkuptime_impl(std::string api_path,
+                                         const struct timespec *bkuptime)
+    -> api_error {
   remote::file_time repertory_bkuptime =
-      ((bkuptime->tv_sec * utils::time::NANOS_PER_SECOND) + bkuptime->tv_nsec);
+      ((static_cast<remote::file_time>(bkuptime->tv_sec) *
+        utils::time::NANOS_PER_SECOND) +
+       static_cast<remote::file_time>(bkuptime->tv_nsec));
   return utils::to_api_error(
       remote_instance_->fuse_setbkuptime(api_path.c_str(), repertory_bkuptime));
 }
 
-api_error remote_fuse_drive::setchgtime_impl(std::string api_path,
-                                             const struct timespec *chgtime) {
+auto remote_fuse_drive::setchgtime_impl(std::string api_path,
+                                        const struct timespec *chgtime)
+    -> api_error {
   remote::file_time repertory_chgtime =
-      ((chgtime->tv_sec * utils::time::NANOS_PER_SECOND) + chgtime->tv_nsec);
+      ((static_cast<remote::file_time>(chgtime->tv_sec) *
+        utils::time::NANOS_PER_SECOND) +
+       static_cast<remote::file_time>(chgtime->tv_nsec));
   return utils::to_api_error(
       remote_instance_->fuse_setchgtime(api_path.c_str(), repertory_chgtime));
 }
 
-api_error remote_fuse_drive::setcrtime_impl(std::string api_path,
-                                            const struct timespec *crtime) {
+auto remote_fuse_drive::setcrtime_impl(std::string api_path,
+                                       const struct timespec *crtime)
+    -> api_error {
   remote::file_time repertory_crtime =
-      ((crtime->tv_sec * utils::time::NANOS_PER_SECOND) + crtime->tv_nsec);
+      ((static_cast<remote::file_time>(crtime->tv_sec) *
+        utils::time::NANOS_PER_SECOND) +
+       static_cast<remote::file_time>(crtime->tv_nsec));
   return utils::to_api_error(
       remote_instance_->fuse_setcrtime(api_path.c_str(), repertory_crtime));
 }
 
-api_error remote_fuse_drive::setvolname_impl(const char *volname) {
+auto remote_fuse_drive::setvolname_impl(const char *volname) -> api_error {
   return utils::to_api_error(remote_instance_->fuse_setvolname(volname));
 }
 
-api_error remote_fuse_drive::statfs_x_impl(std::string api_path,
-                                           struct statfs *stbuf) {
+auto remote_fuse_drive::statfs_x_impl(std::string api_path,
+                                      struct statfs *stbuf) -> api_error {
   auto res = statfs(config_.get_data_directory().c_str(), stbuf);
   if (res == 0) {
-    remote::statfs_x r{};
-    if ((res = remote_instance_->fuse_statfs_x(api_path.c_str(), stbuf->f_bsize,
-                                               r)) == 0) {
-      stbuf->f_blocks = r.f_blocks;
-      stbuf->f_bavail = r.f_bavail;
-      stbuf->f_bfree = r.f_bfree;
-      stbuf->f_ffree = r.f_ffree;
-      stbuf->f_files = r.f_files;
+    remote::statfs_x r_stat{};
+    res = remote_instance_->fuse_statfs_x(api_path.c_str(), stbuf->f_bsize,
+                                          r_stat);
+    if (res == 0) {
+      stbuf->f_blocks = r_stat.f_blocks;
+      stbuf->f_bavail = r_stat.f_bavail;
+      stbuf->f_bfree = r_stat.f_bfree;
+      stbuf->f_ffree = r_stat.f_ffree;
+      stbuf->f_files = r_stat.f_files;
       stbuf->f_owner = getuid();
       strncpy(&stbuf->f_mntonname[0U], get_mount_location().c_str(), MNAMELEN);
-      strncpy(&stbuf->f_mntfromname[0U], &r.f_mntfromname[0U], MNAMELEN);
+      strncpy(&stbuf->f_mntfromname[0U], &r_stat.f_mntfromname[0U], MNAMELEN);
     }
   } else {
     res = -errno;
@@ -592,6 +651,16 @@ auto remote_fuse_drive::utimens_impl(std::string api_path,
 auto remote_fuse_drive::utimens_impl(std::string api_path,
                                      const struct timespec tv[2]) -> api_error {
 #endif // FUSE_USE_VERSION >= 30
+  REPERTORY_USES_FUNCTION_NAME();
+
+  if (not fuse_drive_base::validate_timespec(tv[0]) ||
+      not fuse_drive_base::validate_timespec(tv[1])) {
+    utils::error::handle_info(
+        function_name,
+        fmt::format("failed|{}|{}", tv[0].tv_nsec, tv[1].tv_nsec));
+    return api_error::invalid_operation;
+  }
+
   remote::file_time rtv[2U] = {0};
   if (tv != nullptr) {
     const auto update_timespec = [](auto &dst, const auto &src) {

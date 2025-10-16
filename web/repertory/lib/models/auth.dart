@@ -17,19 +17,37 @@ class Auth with ChangeNotifier {
   bool get authenticated => _authenticated;
   SecureKey get key => _key;
 
-  Future<void> authenticate(String user, String password) async {
-    final sodium = constants.sodium;
+  Future<bool> authenticate(String user, String password) async {
+    try {
+      final sodium = constants.sodium;
 
-    final keyHash = sodium.crypto.genericHash(
-      outLen: sodium.crypto.aeadXChaCha20Poly1305IETF.keyBytes,
-      message: Uint8List.fromList(password.toCharArray()),
-    );
+      final keyHash = sodium.crypto.genericHash(
+        outLen: sodium.crypto.aeadXChaCha20Poly1305IETF.keyBytes,
+        message: Uint8List.fromList(password.toCharArray()),
+      );
 
-    _authenticated = true;
-    _key = SecureKey.fromList(sodium, keyHash);
-    _user = user;
+      _key = SecureKey.fromList(sodium, keyHash);
+      _user = user;
 
-    notifyListeners();
+      final auth = await createAuth();
+      final response = await http.get(
+        Uri.parse(
+          Uri.encodeFull('${getBaseUri()}/api/v1/locations?auth=$auth'),
+        ),
+      );
+
+      _authenticated = (response.statusCode == 200);
+      if (_authenticated) {
+        notifyListeners();
+
+        return _authenticated;
+      }
+    } catch (e) {
+      debugPrint('$e');
+    }
+
+    logoff();
+    return false;
   }
 
   Future<String> createAuth() async {
@@ -56,9 +74,8 @@ class Auth with ChangeNotifier {
     _authenticated = false;
     _key = SecureKey.random(constants.sodium, 32);
     _user = "";
+    mountList?.clear(notify: false);
 
     notifyListeners();
-
-    mountList?.clear();
   }
 }

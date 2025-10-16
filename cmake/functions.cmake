@@ -1,3 +1,7 @@
+if (PROJECT_MACOS_ICNS_NAME)
+  set(PROJECT_MACOS_ICNS_SOURCE "${CMAKE_CURRENT_SOURCE_DIR}/assets/${PROJECT_MACOS_ICNS_NAME}")
+endif()
+
 function(set_common_target_options name)
   target_compile_definitions(${name} PUBLIC 
     ${PROJECT_DEFINITIONS}
@@ -10,6 +14,17 @@ function(set_common_target_options name)
 
   target_link_directories(${name} BEFORE PUBLIC
     ${PROJECT_EXTERNAL_BUILD_ROOT}/lib
+  )
+
+  if (PROJECT_STATIC_LINK)
+    target_compile_definitions(${name} PRIVATE U_STATIC_IMPLEMENTATION)
+  endif()
+
+  target_link_libraries(${name} PRIVATE 
+    ICU::io
+    ICU::i18n
+    ICU::uc
+    ICU::data
   )
 
   target_include_directories(${name} AFTER PUBLIC 
@@ -31,11 +46,31 @@ function(add_project_executable2 name dependencies libraries headers sources is_
     list(APPEND sources ${PROJECT_WINDOWS_VERSION_RC})
   endif()
 
-  add_executable(${name}
-    ${headers}
-    ${sources}
-    ${CMAKE_CURRENT_SOURCE_DIR}/${PROJECT_NAME}/${name}/main.cpp
-  )
+  if (PROJECT_IS_DARWIN AND PROJECT_MACOS_ICNS_SOURCE AND "${name}" STREQUAL "${PROJECT_NAME}")
+    set_source_files_properties(${PROJECT_MACOS_ICNS_SOURCE} PROPERTIES
+      MACOSX_PACKAGE_LOCATION "Resources"
+    )
+
+    add_executable(${name}
+      MACOSX_BUNDLE
+      ${headers}
+      ${sources}
+      ${PROJECT_MACOS_ICNS_SOURCE}
+      ${CMAKE_CURRENT_SOURCE_DIR}/${PROJECT_NAME}/${name}/main.cpp
+    )
+
+    set_target_properties(${name} PROPERTIES
+      MACOSX_BUNDLE TRUE
+      MACOSX_BUNDLE_ICON_FILE "${PROJECT_MACOS_ICNS_NAME}"
+      RESOURCE "${PROJECT_MACOS_ICNS_SOURCE}"
+    )
+  else()
+    add_executable(${name}
+      ${headers}
+      ${sources}
+      ${CMAKE_CURRENT_SOURCE_DIR}/${PROJECT_NAME}/${name}/main.cpp
+    )
+  endif()
 
   foreach(dependency ${dependencies})
     set_common_target_options(${dependency})

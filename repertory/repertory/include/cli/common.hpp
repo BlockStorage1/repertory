@@ -33,6 +33,7 @@
 #include "types/rpc.hpp"
 #include "utils/cli_utils.hpp"
 #include "utils/file.hpp"
+#include "utils/path.hpp"
 #include "utils/string.hpp"
 #include "version.hpp"
 
@@ -40,7 +41,6 @@
 #include "drives/winfsp/remotewinfsp/remote_client.hpp"
 #include "drives/winfsp/remotewinfsp/remote_winfsp_drive.hpp"
 #include "drives/winfsp/winfsp_drive.hpp"
-#include "utils/com_init_wrapper.hpp"
 
 using repertory_drive = repertory::winfsp_drive;
 using remote_client = repertory::remote_winfsp::remote_client;
@@ -56,5 +56,32 @@ using remote_client = repertory::remote_fuse::remote_client;
 using remote_drive = repertory::remote_fuse::remote_fuse_drive;
 using remote_instance = repertory::remote_fuse::i_remote_instance;
 #endif // defined(_WIN32)
+
+namespace repertory::cli {
+[[nodiscard]] inline auto handle_error(exit_code code, std::string_view msg)
+    -> exit_code {
+  fmt::println("{}", static_cast<std::int32_t>(code));
+  fmt::println("{}", msg);
+  return code;
+}
+
+[[nodiscard]] inline auto handle_error(exit_code code,
+                                       rpc_response_type response_type,
+                                       std::string_view msg) -> exit_code {
+  fmt::println("{}", static_cast<std::uint8_t>(response_type));
+  fmt::println("{}", msg);
+  return code;
+}
+
+[[nodiscard]] inline auto check_data_directory(std::string_view data_directory)
+    -> exit_code {
+  if (not utils::file::directory{utils::path::absolute(data_directory)}
+              .exists()) {
+    return handle_error(exit_code::mount_not_found, "failed: mount not found");
+  }
+
+  return exit_code::success;
+}
+} // namespace repertory::cli
 
 #endif // REPERTORY_INCLUDE_CLI_COMMON_HPP_

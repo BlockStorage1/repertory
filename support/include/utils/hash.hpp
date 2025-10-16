@@ -27,32 +27,55 @@
 
 #include "utils/error.hpp"
 
-namespace repertory::utils::encryption {
+namespace repertory::utils::hash {
+using hash_32_t = std::array<unsigned char, 4U>;
+using hash_64_t = std::array<unsigned char, 8U>;
+using hash_128_t = std::array<unsigned char, 16U>;
 using hash_256_t = std::array<unsigned char, 32U>;
 using hash_384_t = std::array<unsigned char, 48U>;
 using hash_512_t = std::array<unsigned char, 64U>;
 
+[[nodiscard]] auto create_hash_blake2b_32(std::string_view data) -> hash_32_t;
+
+[[nodiscard]] auto create_hash_blake2b_32(std::wstring_view data) -> hash_32_t;
+
+[[nodiscard]] auto create_hash_blake2b_32(const data_buffer &data) -> hash_32_t;
+
+[[nodiscard]] auto create_hash_blake2b_64(std::string_view data) -> hash_64_t;
+
+[[nodiscard]] auto create_hash_blake2b_64(std::wstring_view data) -> hash_64_t;
+
+[[nodiscard]] auto create_hash_blake2b_64(const data_buffer &data) -> hash_64_t;
+
+[[nodiscard]] auto create_hash_blake2b_128(std::string_view data) -> hash_128_t;
+
+[[nodiscard]] auto create_hash_blake2b_128(std::wstring_view data)
+    -> hash_128_t;
+
+[[nodiscard]] auto create_hash_blake2b_128(const data_buffer &data)
+    -> hash_128_t;
+
 [[nodiscard]] auto create_hash_blake2b_256(std::string_view data) -> hash_256_t;
 
-[[nodiscard]] auto
-create_hash_blake2b_256(std::wstring_view data) -> hash_256_t;
+[[nodiscard]] auto create_hash_blake2b_256(std::wstring_view data)
+    -> hash_256_t;
 
-[[nodiscard]] auto
-create_hash_blake2b_256(const data_buffer &data) -> hash_256_t;
+[[nodiscard]] auto create_hash_blake2b_256(const data_buffer &data)
+    -> hash_256_t;
 
 [[nodiscard]] auto create_hash_blake2b_384(std::string_view data) -> hash_384_t;
 
-[[nodiscard]] auto
-create_hash_blake2b_384(std::wstring_view data) -> hash_384_t;
+[[nodiscard]] auto create_hash_blake2b_384(std::wstring_view data)
+    -> hash_384_t;
 
-[[nodiscard]] auto
-create_hash_blake2b_384(const data_buffer &data) -> hash_384_t;
+[[nodiscard]] auto create_hash_blake2b_384(const data_buffer &data)
+    -> hash_384_t;
 
-[[nodiscard]] auto
-create_hash_blake2b_512(std::wstring_view data) -> hash_512_t;
+[[nodiscard]] auto create_hash_blake2b_512(std::wstring_view data)
+    -> hash_512_t;
 
-[[nodiscard]] auto
-create_hash_blake2b_512(const data_buffer &data) -> hash_512_t;
+[[nodiscard]] auto create_hash_blake2b_512(const data_buffer &data)
+    -> hash_512_t;
 
 [[nodiscard]] auto create_hash_blake2b_512(std::string_view data) -> hash_512_t;
 
@@ -83,8 +106,8 @@ template <typename hash_t>
     std::function<hash_t(const unsigned char *data, std::size_t size)> &;
 
 template <typename hash_t>
-auto create_hash_blake2b_t(const unsigned char *data,
-                           std::size_t data_size) -> hash_t {
+auto create_hash_blake2b_t(const unsigned char *data, std::size_t data_size)
+    -> hash_t {
   REPERTORY_USES_FUNCTION_NAME();
 
   hash_t hash{};
@@ -123,6 +146,27 @@ auto create_hash_blake2b_t(const unsigned char *data,
   return hash;
 }
 
+inline const std::function<hash_32_t(const unsigned char *data,
+                                     std::size_t size)>
+    blake2b_32_hasher =
+        [](const unsigned char *data, std::size_t data_size) -> hash_32_t {
+  return create_hash_blake2b_t<hash_32_t>(data, data_size);
+};
+
+inline const std::function<hash_64_t(const unsigned char *data,
+                                     std::size_t size)>
+    blake2b_64_hasher =
+        [](const unsigned char *data, std::size_t data_size) -> hash_64_t {
+  return create_hash_blake2b_t<hash_64_t>(data, data_size);
+};
+
+inline const std::function<hash_128_t(const unsigned char *data,
+                                      std::size_t size)>
+    blake2b_128_hasher =
+        [](const unsigned char *data, std::size_t data_size) -> hash_128_t {
+  return create_hash_blake2b_t<hash_128_t>(data, data_size);
+};
+
 inline const std::function<hash_256_t(const unsigned char *data,
                                       std::size_t size)>
     blake2b_256_hasher =
@@ -159,6 +203,24 @@ inline const std::function<hash_512_t(const unsigned char *data,
 };
 
 template <>
+[[nodiscard]] inline auto default_create_hash<hash_32_t>() -> const
+    std::function<hash_32_t(const unsigned char *data, std::size_t size)> & {
+  return blake2b_32_hasher;
+}
+
+template <>
+[[nodiscard]] inline auto default_create_hash<hash_64_t>() -> const
+    std::function<hash_64_t(const unsigned char *data, std::size_t size)> & {
+  return blake2b_64_hasher;
+}
+
+template <>
+[[nodiscard]] inline auto default_create_hash<hash_128_t>() -> const
+    std::function<hash_128_t(const unsigned char *data, std::size_t size)> & {
+  return blake2b_128_hasher;
+}
+
+template <>
 [[nodiscard]] inline auto default_create_hash<hash_256_t>() -> const
     std::function<hash_256_t(const unsigned char *data, std::size_t size)> & {
   return blake2b_256_hasher;
@@ -175,7 +237,7 @@ template <>
     std::function<hash_512_t(const unsigned char *data, std::size_t size)> & {
   return blake2b_512_hasher;
 }
-} // namespace repertory::utils::encryption
+} // namespace repertory::utils::hash
 
 #endif // defined(PROJECT_ENABLE_LIBSODIUM)
 #endif // REPERTORY_INCLUDE_UTILS_HASH_HPP_

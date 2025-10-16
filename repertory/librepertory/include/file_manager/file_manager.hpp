@@ -67,40 +67,41 @@ private:
   std::unordered_map<std::string, std::shared_ptr<i_closeable_open_file>>
       open_file_lookup_;
   stop_type stop_requested_{false};
+  std::unordered_map<std::uint64_t, std::shared_ptr<i_closeable_open_file>>
+      unlinked_file_lookup_;
   std::unordered_map<std::string, std::unique_ptr<upload>> upload_lookup_;
   mutable std::mutex upload_mtx_;
   std::condition_variable upload_notify_;
   std::unique_ptr<std::thread> upload_thread_;
 
 private:
-  [[nodiscard]] auto close_all(const std::string &api_path) -> bool;
-
   void close_timed_out_files();
 
-  [[nodiscard]] auto get_open_file_by_handle(std::uint64_t handle) const
+  [[nodiscard]] auto get_open_file_by_handle(std::uint64_t handle,
+                                             bool &is_unlinked) const
       -> std::shared_ptr<i_closeable_open_file>;
 
-  [[nodiscard]] auto get_open_file_count(const std::string &api_path) const
+  [[nodiscard]] auto get_open_file_count(std::string_view api_path) const
       -> std::size_t;
 
   [[nodiscard]] auto get_stop_requested() const -> bool;
 
-  [[nodiscard]] auto open(const std::string &api_path, bool directory,
+  [[nodiscard]] auto open(std::string_view api_path, bool directory,
                           const open_file_data &ofd, std::uint64_t &handle,
                           std::shared_ptr<i_open_file> &file,
                           std::shared_ptr<i_closeable_open_file> closeable_file)
       -> api_error;
 
-  void queue_upload(const std::string &api_path, const std::string &source_path,
-                    bool no_lock);
+  void queue_upload(std::string_view api_path, std::string_view source_path,
+                    bool is_unlinked, bool no_lock);
 
-  void remove_resume(const std::string &api_path,
-                     const std::string &source_path, bool no_lock);
+  void remove_resume(std::string_view api_path, std::string_view source_path,
+                     bool no_lock);
 
-  void remove_upload(const std::string &api_path, bool no_lock);
+  void remove_upload(std::string_view api_path, bool no_lock);
 
-  void swap_renamed_items(std::string from_api_path, std::string to_api_path,
-                          bool directory);
+  void swap_renamed_items(std::string_view from_api_path,
+                          std::string_view to_api_path, bool directory);
 
   void upload_completed(const file_upload_completed &evt);
 
@@ -109,34 +110,44 @@ private:
 public:
   [[nodiscard]] auto get_next_handle() -> std::uint64_t;
 
-  auto handle_file_rename(const std::string &from_api_path,
-                          const std::string &to_api_path) -> api_error;
+  auto handle_file_rename(std::string_view from_api_path,
+                          std::string_view to_api_path) -> api_error;
 
   void queue_upload(const i_open_file &file) override;
 
-  void remove_resume(const std::string &api_path,
-                     const std::string &source_path) override;
+  void remove_resume(std::string_view api_path,
+                     std::string_view source_path) override;
 
-  static auto remove_source_and_shrink_cache(const std::string &api_path,
-                                             const std::string &source_path,
+  static auto remove_source_and_shrink_cache(std::string_view api_path,
+                                             std::string_view source_path,
                                              std::uint64_t file_size,
                                              bool allocated) -> bool;
 
-  void remove_upload(const std::string &api_path) override;
+  void remove_upload(std::string_view api_path) override;
 
   void store_resume(const i_open_file &file) override;
 
 public:
   void close(std::uint64_t handle);
 
-  [[nodiscard]] auto create(const std::string &api_path, api_meta_map &meta,
+  [[nodiscard]] auto create(std::string_view api_path, api_meta_map &meta,
                             open_file_data ofd, std::uint64_t &handle,
                             std::shared_ptr<i_open_file> &file) -> api_error;
 
-  [[nodiscard]] auto evict_file(const std::string &api_path) -> bool override;
+  [[nodiscard]] auto download_pinned_file(std::string_view api_path)
+      -> bool override;
 
-  [[nodiscard]] auto get_directory_items(const std::string &api_path) const
+  [[nodiscard]] auto evict_file(std::string_view api_path) -> bool override;
+
+  [[nodiscard]] auto get_directory_item(std::string_view api_path,
+                                        directory_item &item) const
+      -> api_error override;
+
+  [[nodiscard]] auto get_directory_items(std::string_view api_path) const
       -> directory_item_list override;
+
+  [[nodiscard]] auto get_open_file(std::string_view api_path,
+                                   std::shared_ptr<i_open_file> &file) -> bool;
 
   [[nodiscard]] auto get_open_file(std::uint64_t handle, bool write_supported,
                                    std::shared_ptr<i_open_file> &file) -> bool;
@@ -153,7 +164,7 @@ public:
 
   [[nodiscard]] auto has_no_open_file_handles() const -> bool override;
 
-  [[nodiscard]] auto is_processing(const std::string &api_path) const
+  [[nodiscard]] auto is_processing(std::string_view api_path) const
       -> bool override;
 
 #if defined(PROJECT_TESTING)
@@ -161,18 +172,20 @@ public:
                           const open_file_data &ofd, std::uint64_t &handle,
                           std::shared_ptr<i_open_file> &file) -> api_error;
 #endif // defined(PROJECT_TESTING)
-  [[nodiscard]] auto open(const std::string &api_path, bool directory,
+  [[nodiscard]] auto open(std::string_view api_path, bool directory,
                           const open_file_data &ofd, std::uint64_t &handle,
                           std::shared_ptr<i_open_file> &file) -> api_error;
 
-  [[nodiscard]] auto remove_file(const std::string &api_path) -> api_error;
+  [[nodiscard]] auto remove_directory(std::string_view api_path) -> api_error;
 
-  [[nodiscard]] auto rename_directory(const std::string &from_api_path,
-                                      const std::string &to_api_path)
+  [[nodiscard]] auto remove_file(std::string_view api_path) -> api_error;
+
+  [[nodiscard]] auto rename_directory(std::string_view from_api_path,
+                                      std::string_view to_api_path)
       -> api_error;
 
-  [[nodiscard]] auto rename_file(const std::string &from_api_path,
-                                 const std::string &to_api_path, bool overwrite)
+  [[nodiscard]] auto rename_file(std::string_view from_api_path,
+                                 std::string_view to_api_path, bool overwrite)
       -> api_error;
 
   void start();

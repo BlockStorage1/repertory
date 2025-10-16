@@ -49,18 +49,18 @@ private:
   std::recursive_mutex directory_mutex_;
 
 public:
-  void execute_action(const std::string &api_path,
+  void execute_action(std::string_view api_path,
                       const execute_callback &execute);
 
   [[nodiscard]] auto get_directory(std::uint64_t handle)
       -> std::shared_ptr<directory_iterator>;
 
-  auto remove_directory(const std::string &api_path)
+  auto remove_directory(std::string_view api_path)
       -> std::shared_ptr<directory_iterator>;
 
   void remove_directory(std::uint64_t handle);
 
-  void set_directory(const std::string &api_path, std::uint64_t handle,
+  void set_directory(std::string_view api_path, std::uint64_t handle,
                      std::shared_ptr<directory_iterator> iterator);
 };
 } // namespace repertory

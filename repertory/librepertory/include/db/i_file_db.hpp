@@ -29,6 +29,13 @@ class i_file_db {
   INTERFACE_SETUP(i_file_db);
 
 public:
+  struct directory_data final {
+    std::string api_path;
+    std::pair<utils::encryption::kdf_config, utils::encryption::kdf_config>
+        kdf_configs;
+    std::string source_path;
+  };
+
   struct file_info final {
     std::string api_path;
     bool directory{};
@@ -40,13 +47,14 @@ public:
     std::uint64_t file_size{};
     std::vector<
         std::array<unsigned char, crypto_aead_xchacha20poly1305_IETF_NPUBBYTES>>
-        iv_list{};
+        iv_list;
+    std::pair<utils::encryption::kdf_config, utils::encryption::kdf_config>
+        kdf_configs;
     std::string source_path;
   };
 
 public:
-  [[nodiscard]] virtual auto add_directory(const std::string &api_path,
-                                           const std::string &source_path)
+  [[nodiscard]] virtual auto add_or_update_directory(const directory_data &data)
       -> api_error = 0;
 
   [[nodiscard]] virtual auto add_or_update_file(const file_data &data)
@@ -60,39 +68,43 @@ public:
       std::function<void(const std::vector<i_file_db::file_info> &)> callback,
       stop_type_callback stop_requested_cb) const = 0;
 
-  [[nodiscard]] virtual auto get_api_path(const std::string &source_path,
+  [[nodiscard]] virtual auto get_api_path(std::string_view source_path,
                                           std::string &api_path) const
       -> api_error = 0;
 
   [[nodiscard]] virtual auto
-  get_directory_api_path(const std::string &source_path,
+  get_directory_api_path(std::string_view source_path,
                          std::string &api_path) const -> api_error = 0;
 
+  [[nodiscard]] virtual auto get_directory_data(std::string_view api_path,
+                                                directory_data &data) const
+      -> api_error = 0;
+
   [[nodiscard]] virtual auto
-  get_directory_source_path(const std::string &api_path,
+  get_directory_source_path(std::string_view api_path,
                             std::string &source_path) const -> api_error = 0;
 
-  [[nodiscard]] virtual auto get_file_api_path(const std::string &source_path,
+  [[nodiscard]] virtual auto get_file_api_path(std::string_view source_path,
                                                std::string &api_path) const
       -> api_error = 0;
 
-  [[nodiscard]] virtual auto get_file_data(const std::string &api_path,
+  [[nodiscard]] virtual auto get_file_data(std::string_view api_path,
                                            file_data &data) const
       -> api_error = 0;
 
   [[nodiscard]] virtual auto
-  get_file_source_path(const std::string &api_path,
+  get_file_source_path(std::string_view api_path,
                        std::string &source_path) const -> api_error = 0;
 
   [[nodiscard]] virtual auto
   get_item_list(stop_type_callback stop_requested_cb) const
       -> std::vector<file_info> = 0;
 
-  [[nodiscard]] virtual auto get_source_path(const std::string &api_path,
+  [[nodiscard]] virtual auto get_source_path(std::string_view api_path,
                                              std::string &source_path) const
       -> api_error = 0;
 
-  [[nodiscard]] virtual auto remove_item(const std::string &api_path)
+  [[nodiscard]] virtual auto remove_item(std::string_view api_path)
       -> api_error = 0;
 };
 } // namespace repertory

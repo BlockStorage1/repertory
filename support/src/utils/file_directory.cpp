@@ -21,6 +21,7 @@
 */
 #include "utils/file_directory.hpp"
 
+#include "utils/com_init_wrapper.hpp"
 #include "utils/common.hpp"
 #include "utils/error.hpp"
 #include "utils/string.hpp"
@@ -83,19 +84,19 @@ auto traverse_directory(
         });
   }
 
-  struct dirent *de{nullptr};
-  while (res && (de = readdir(root)) && !is_stop_requested()) {
-    if (de->d_type == DT_DIR) {
-      if ((std::string_view(de->d_name) == ".") ||
-          (std::string_view(de->d_name) == "..")) {
+  struct dirent *entry{nullptr};
+  while (res && (entry = ::readdir(root)) && !is_stop_requested()) {
+    if (entry->d_type == DT_DIR) {
+      if ((std::string_view(entry->d_name) == ".") ||
+          (std::string_view(entry->d_name) == "..")) {
         continue;
       }
 
       res = directory_action(repertory::utils::file::directory(
-          repertory::utils::path::combine(path, {de->d_name})));
+          repertory::utils::path::combine(path, {entry->d_name})));
     } else {
       res = file_action(repertory::utils::file::file(
-          repertory::utils::path::combine(path, {de->d_name})));
+          repertory::utils::path::combine(path, {entry->d_name})));
     }
   }
 
@@ -112,16 +113,67 @@ auto directory::copy_to(std::string_view new_path, bool overwrite) const
   REPERTORY_USES_FUNCTION_NAME();
 
   try {
-    throw utils::error::create_exception(
-        function_name, {
-                           "failed to copy directory",
-                           "not implemented",
-                           utils::string::from_bool(overwrite),
-                           new_path,
-                           path_,
-                       });
-  } catch (const std::exception &e) {
-    utils::error::handle_exception(function_name, e);
+    if (not exists()) {
+      throw utils::error::create_exception(function_name,
+                                           {
+                                               "failed to copy directory",
+                                               "source does not exist",
+                                               path_,
+                                               std::string{new_path},
+                                           });
+    }
+
+    auto src_root = utils::path::finalize(path_);
+    auto dst_root = utils::path::finalize(new_path);
+
+    if (directory{dst_root}.exists()) {
+      auto src_base = utils::path::strip_to_file_name(src_root);
+      dst_root = utils::path::combine(dst_root, {src_base});
+    } else {
+      auto dst_parent = utils::path::get_parent_path(dst_root);
+      if (not dst_parent.empty() && not directory{dst_parent}.exists()) {
+        auto parent_parent = utils::path::get_parent_path(dst_parent);
+        auto last_piece = utils::path::strip_to_file_name(dst_parent);
+        [[maybe_unused]] auto sub_dir =
+            directory{parent_parent}.create_directory(last_piece);
+      }
+      if (not directory{dst_root}.exists()) {
+        auto root_parent = utils::path::get_parent_path(dst_root);
+        auto root_name = utils::path::strip_to_file_name(dst_root);
+        [[maybe_unused]] auto sub_dir =
+            directory{root_parent}.create_directory(root_name);
+      }
+    }
+
+    auto success = traverse_directory(
+        src_root,
+        [this, &dst_root, &src_root](auto &&dir_item) -> bool {
+          auto child_src = dir_item.get_path();
+          auto rel_path = utils::path::get_relative_path(child_src, src_root);
+          auto child_dst = utils::path::combine(dst_root, {rel_path});
+
+          auto child_parent = utils::path::get_parent_path(child_dst);
+          auto child_name = utils::path::strip_to_file_name(child_dst);
+          [[maybe_unused]] auto sub_dir =
+              directory{child_parent}.create_directory(child_name);
+          return not is_stop_requested();
+        },
+        [this, &dst_root, overwrite, &src_root](auto &&file_item) -> bool {
+          auto child_src = file_item.get_path();
+          auto rel_path = utils::path::get_relative_path(child_src, src_root);
+          auto child_dst = utils::path::combine(dst_root, {rel_path});
+
+          if (not file{child_src}.copy_to(child_dst, overwrite)) {
+            return false;
+          }
+
+          return not is_stop_requested();
+        },
+        stop_requested_);
+
+    return success && not is_stop_requested();
+  } catch (const std::exception &ex) {
+    utils::error::handle_exception(function_name, ex);
   } catch (...) {
     utils::error::handle_exception(function_name);
   }
@@ -137,7 +189,7 @@ auto directory::count(bool recursive) const -> std::uint64_t {
 
     traverse_directory(
         path_,
-        [&ret, &recursive](auto dir_item) -> bool {
+        [&ret, &recursive](auto &&dir_item) -> bool {
           if (recursive) {
             ret += dir_item.count(true);
           }
@@ -145,7 +197,7 @@ auto directory::count(bool recursive) const -> std::uint64_t {
           ++ret;
           return true;
         },
-        [&ret](auto /* file_item */) -> bool {
+        [&ret](auto && /* file_item */) -> bool {
           ++ret;
           return true;
         },
@@ -172,6 +224,8 @@ auto directory::create_directory(std::string_view path) const
     }
 
 #if defined(_WIN32)
+    [[maybe_unused]] thread_local const utils::com_init_wrapper wrapper;
+
     auto res = ::SHCreateDirectory(nullptr,
                                    utils::string::from_utf8(abs_path).c_str());
     if (res != ERROR_SUCCESS) {
@@ -215,8 +269,8 @@ auto directory::exists() const -> bool {
 #if defined(_WIN32)
   return ::PathIsDirectoryA(path_.c_str()) != 0;
 #else  // !defined(_WIN32)
-  struct stat64 st{};
-  return (stat64(path_.c_str(), &st) == 0 && S_ISDIR(st.st_mode));
+  struct stat64 u_stat{};
+  return (stat64(path_.c_str(), &u_stat) == 0 && S_ISDIR(u_stat.st_mode));
 #endif // defined(_WIN32)
 
   return false;
@@ -249,14 +303,14 @@ auto directory::get_directories() const -> std::vector<fs_directory_t> {
 
     traverse_directory(
         path_,
-        [this, &ret](auto dir_item) -> bool {
+        [this, &ret](auto &&dir_item) -> bool {
           ret.emplace_back(fs_directory_t{
               new directory(dir_item.get_path(), stop_requested_),
           });
 
           return true;
         },
-        [](auto /* file_item */) -> bool { return true; }, stop_requested_);
+        [](auto && /* file_item */) -> bool { return true; }, stop_requested_);
 
     return ret;
   } catch (const std::exception &e) {
@@ -308,8 +362,8 @@ auto directory::get_files() const -> std::vector<fs_file_t> {
     std::vector<fs_file_t> ret{};
 
     traverse_directory(
-        path_, [](auto /* dir_item */) -> bool { return true; },
-        [&ret](auto file_item) -> bool {
+        path_, [](auto && /* dir_item */) -> bool { return true; },
+        [&ret](auto &&file_item) -> bool {
           ret.emplace_back(fs_file_t{
               new file(file_item.get_path()),
           });
@@ -335,13 +389,13 @@ auto directory::get_items() const -> std::vector<fs_item_t> {
 
     traverse_directory(
         path_,
-        [this, &ret](auto dir_item) -> bool {
+        [this, &ret](auto &&dir_item) -> bool {
           ret.emplace_back(fs_item_t{
               new directory(dir_item.get_path(), stop_requested_),
           });
           return true;
         },
-        [&ret](auto file_item) -> bool {
+        [&ret](auto &&file_item) -> bool {
           ret.emplace_back(fs_item_t{
               new file(file_item.get_path()),
           });
@@ -381,15 +435,68 @@ auto directory::move_to(std::string_view new_path) -> bool {
   REPERTORY_USES_FUNCTION_NAME();
 
   try {
-    throw utils::error::create_exception(function_name,
-                                         {
-                                             "failed to move directory",
-                                             "not implemented",
-                                             new_path,
-                                             path_,
-                                         });
-  } catch (const std::exception &e) {
-    utils::error::handle_exception(function_name, e);
+    if (not exists()) {
+      return true;
+    }
+
+    auto src_root = utils::path::finalize(path_);
+    auto dst_root = utils::path::finalize(new_path);
+    if (src_root == dst_root) {
+      return true;
+    }
+
+    if (directory{dst_root}.exists()) {
+      throw utils::error::create_exception(function_name,
+                                           {
+                                               "failed to move directory",
+                                               "destination exists",
+                                               src_root,
+                                               dst_root,
+                                           });
+    }
+
+    auto dst_parent = utils::path::get_parent_path(dst_root);
+    if (not dst_parent.empty() && not directory{dst_parent}.exists()) {
+      auto parent_parent = utils::path::get_parent_path(dst_parent);
+      auto last_piece = utils::path::strip_to_file_name(dst_parent);
+      [[maybe_unused]] auto sub_dir =
+          directory{parent_parent}.create_directory(last_piece);
+    }
+
+    if (not directory{dst_root}.exists()) {
+      auto root_parent = utils::path::get_parent_path(dst_root);
+      auto root_name = utils::path::strip_to_file_name(dst_root);
+      [[maybe_unused]] auto sub_dir =
+          directory{root_parent}.create_directory(root_name);
+    }
+
+    if (not copy_to(dst_root, true)) {
+      throw utils::error::create_exception(function_name,
+                                           {
+                                               "failed to move directory",
+                                               "copy failed",
+                                               src_root,
+                                               dst_root,
+                                           });
+    }
+
+    if (is_stop_requested()) {
+      return false;
+    }
+
+    if (not remove_recursively()) {
+      throw utils::error::create_exception(function_name,
+                                           {
+                                               "failed to move directory",
+                                               "remove source failed",
+                                               src_root,
+                                           });
+    }
+
+    path_ = dst_root;
+    return true;
+  } catch (const std::exception &ex) {
+    utils::error::handle_exception(function_name, ex);
   } catch (...) {
     utils::error::handle_exception(function_name);
   }
@@ -436,8 +543,10 @@ auto directory::remove_recursively() -> bool {
 
     if (not traverse_directory(
             path_,
-            [](auto dir_item) -> bool { return dir_item.remove_recursively(); },
-            [](auto file_item) -> bool { return file_item.remove(); },
+            [](auto &&dir_item) -> bool {
+              return dir_item.remove_recursively();
+            },
+            [](auto &&file_item) -> bool { return file_item.remove(); },
             stop_requested_)) {
       return false;
     }
@@ -460,14 +569,14 @@ auto directory::size(bool recursive) const -> std::uint64_t {
 
     traverse_directory(
         path_,
-        [&ret, &recursive](auto dir_item) -> bool {
+        [&ret, &recursive](auto &&dir_item) -> bool {
           if (recursive) {
             ret += dir_item.size(true);
           }
 
           return true;
         },
-        [&ret](auto file_item) -> bool {
+        [&ret](auto &&file_item) -> bool {
           auto cur_size = file_item.size();
           if (cur_size.has_value()) {
             ret += cur_size.value();

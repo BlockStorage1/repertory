@@ -28,8 +28,8 @@
 namespace repertory {
 struct trace_log final : public i_event {
   trace_log() = default;
-  trace_log(std::string_view function_name_, std::string msg_)
-      : function_name(std::string(function_name_)), msg(std::move(msg_)) {}
+  trace_log(std::string_view function_name_, std::string_view msg_)
+      : function_name(function_name_), msg(msg_) {}
 
   static constexpr event_level level{event_level::trace};
   static constexpr std::string_view name{"trace_log"};

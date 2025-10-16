@@ -28,11 +28,12 @@
 namespace repertory {
 struct provider_upload_begin final : public i_event {
   provider_upload_begin() = default;
-  provider_upload_begin(std::string api_path_, std::string_view function_name_,
-                        std::string source_path_)
-      : api_path(std::move(api_path_)),
-        function_name(std::string(function_name_)),
-        source_path(std::move(source_path_)) {}
+  provider_upload_begin(std::string_view api_path_,
+                        std::string_view function_name_,
+                        std::string_view source_path_)
+      : api_path(api_path_),
+        function_name(function_name_),
+        source_path(source_path_) {}
 
   static constexpr event_level level{event_level::info};
   static constexpr std::string_view name{"provider_upload_begin"};

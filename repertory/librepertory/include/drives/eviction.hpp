@@ -46,7 +46,7 @@ private:
   i_provider &provider_;
 
 private:
-  [[nodiscard]] auto check_minimum_requirements(const std::string &file_path)
+  [[nodiscard]] auto check_minimum_requirements(std::string_view file_path)
       -> bool;
 
   [[nodiscard]] auto get_filtered_cached_files() -> std::deque<std::string>;

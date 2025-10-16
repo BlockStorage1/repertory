@@ -33,15 +33,17 @@ void calculate_allocation_size(bool directory, std::uint64_t file_size,
                                std::string &allocation_meta_size);
 
 [[nodiscard]] auto
-create_rocksdb(const app_config &cfg, const std::string &name,
+create_rocksdb(const app_config &cfg, std::string_view name,
                const std::vector<rocksdb::ColumnFamilyDescriptor> &families,
                std::vector<rocksdb::ColumnFamilyHandle *> &handles, bool clear)
     -> std::unique_ptr<rocksdb::TransactionDB>;
 
-[[nodiscard]] auto create_volume_label(const provider_type &prov)
-    -> std::string;
+[[nodiscard]] auto create_volume_label(provider_type prov) -> std::string;
 
 [[nodiscard]] auto get_attributes_from_meta(const api_meta_map &meta) -> DWORD;
+
+[[nodiscard]] auto get_version_number(std::string_view version)
+    -> std::uint32_t;
 } // namespace utils
 } // namespace repertory
 

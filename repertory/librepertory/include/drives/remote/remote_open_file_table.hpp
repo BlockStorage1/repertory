@@ -62,9 +62,9 @@ private:
   mutable std::recursive_mutex file_mutex_;
 
 protected:
-  void add_directory(const std::string &client_id, std::uint64_t handle);
+  void add_directory(std::string_view client_id, std::uint64_t handle);
 
-  void close_all(const std::string &client_id);
+  void close_all(std::string_view client_id);
 
 #if defined(_WIN32)
   [[nodiscard]] auto get_directory_buffer(const native_handle &handle,
@@ -77,10 +77,10 @@ protected:
   [[nodiscard]] auto get_open_info(const native_handle &handle, open_info &oi)
       -> bool;
 
-  [[nodiscard]] auto has_open_directory(const std::string &client_id,
+  [[nodiscard]] auto has_open_directory(std::string_view client_id,
                                         std::uint64_t handle) -> bool;
 
-  [[nodiscard]] auto has_compat_open_info(const remote::file_handle &handle,
+  [[nodiscard]] auto has_compat_open_info(remote::file_handle handle,
                                           int error_return) -> int;
 
   template <typename error_type>
@@ -91,29 +91,29 @@ protected:
     return handle_lookup_.contains(handle) ? 0 : error_return;
   }
 
-  void remove_all(const std::string &file_path);
+  void remove_all(std::string_view file_path);
 
   void remove_and_close_all(const native_handle &handle);
 
-  void remove_compat_open_info(const remote::file_handle &handle);
+  void remove_compat_open_info(remote::file_handle handle);
 
-  auto remove_directory(const std::string &client_id, std::uint64_t handle)
+  auto remove_directory(std::string_view client_id, std::uint64_t handle)
       -> bool;
 
   void remove_open_info(const native_handle &handle);
 
-  void set_client_id(const native_handle &handle, const std::string &client_id);
+  void set_client_id(const native_handle &handle, std::string_view client_id);
 
-  void set_compat_client_id(const remote::file_handle &handle,
-                            const std::string &client_id);
+  void set_compat_client_id(remote::file_handle handle,
+                            std::string_view client_id);
 
-  void set_compat_open_info(const remote::file_handle &handle,
-                            const std::string &file_path);
+  void set_compat_open_info(remote::file_handle handle,
+                            std::string_view file_path);
 
   void set_open_info(const native_handle &handle, open_info op_info);
 
 public:
-  [[nodiscard]] auto get_open_file_count(const std::string &file_path) const
+  [[nodiscard]] auto get_open_file_count(std::string_view file_path) const
       -> std::size_t;
 };
 } // namespace repertory

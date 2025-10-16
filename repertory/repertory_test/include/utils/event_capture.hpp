@@ -88,7 +88,7 @@ public:
     lock.unlock();
   }
 
-  [[nodiscard]] auto wait_for_event(const std::string &event_name) -> bool {
+  [[nodiscard]] auto wait_for_event(std::string_view event_name) -> bool {
     auto missing = true;
     const auto start_time = std::chrono::system_clock::now();
 

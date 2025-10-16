@@ -1,12 +1,17 @@
+// ui_settings.dart
+
 import 'dart:convert' show jsonEncode;
 
 import 'package:flutter/material.dart';
+import 'package:flutter_settings_ui/flutter_settings_ui.dart'
+    show DevicePlatform, SettingsList, SettingsTile;
 import 'package:http/http.dart' as http;
 import 'package:provider/provider.dart';
 import 'package:repertory/constants.dart' as constants;
 import 'package:repertory/helpers.dart'
     show
         convertAllToString,
+        createSettingsTheme,
         displayAuthError,
         getBaseUri,
         getChanged,
@@ -15,7 +20,8 @@ import 'package:repertory/helpers.dart'
         trimNotEmptyValidator;
 import 'package:repertory/models/auth.dart';
 import 'package:repertory/settings.dart';
-import 'package:settings_ui/settings_ui.dart';
+import 'package:repertory/utils/safe_set_state_mixin.dart';
+import 'package:repertory/widgets/settings/settings_section.dart';
 
 class UISettingsWidget extends StatefulWidget {
   final bool showAdvanced;
@@ -32,9 +38,14 @@ class UISettingsWidget extends StatefulWidget {
   State<UISettingsWidget> createState() => _UISettingsWidgetState();
 }
 
-class _UISettingsWidgetState extends State<UISettingsWidget> {
+class _UISettingsWidgetState extends State<UISettingsWidget>
+    with SafeSetState<UISettingsWidget> {
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final settingsTheme = createSettingsTheme(scheme);
+
     List<SettingsTile> commonSettings = [];
 
     widget.settings.forEach((key, value) {
@@ -56,6 +67,7 @@ class _UISettingsWidgetState extends State<UISettingsWidget> {
             );
           }
           break;
+
         case 'ApiPort':
           {
             createIntSetting(
@@ -73,6 +85,7 @@ class _UISettingsWidgetState extends State<UISettingsWidget> {
             );
           }
           break;
+
         case 'ApiUser':
           {
             createStringSetting(
@@ -94,10 +107,21 @@ class _UISettingsWidgetState extends State<UISettingsWidget> {
       }
     });
 
+    final titleStyle = theme.textTheme.titleLarge?.copyWith(
+      fontWeight: FontWeight.w700,
+      color: scheme.onSurface,
+    );
+
     return SettingsList(
       shrinkWrap: false,
+      platform: DevicePlatform.web,
+      lightTheme: settingsTheme,
+      darkTheme: settingsTheme,
       sections: [
-        SettingsSection(title: const Text('Settings'), tiles: commonSettings),
+        SettingsSection(
+          title: Text('Settings', style: titleStyle),
+          tiles: commonSettings,
+        ),
       ],
     );
   }
@@ -106,11 +130,10 @@ class _UISettingsWidgetState extends State<UISettingsWidget> {
   void dispose() {
     final settings = getChanged(widget.origSettings, widget.settings);
     if (settings.isNotEmpty) {
-      final key =
-          Provider.of<Auth>(
-            constants.navigatorKey.currentContext!,
-            listen: false,
-          ).key;
+      final key = Provider.of<Auth>(
+        constants.navigatorKey.currentContext!,
+        listen: false,
+      ).key;
       convertAllToString(settings, key)
           .then((map) async {
             try {
@@ -142,14 +165,5 @@ class _UISettingsWidgetState extends State<UISettingsWidget> {
     }
 
     super.dispose();
-  }
-
-  @override
-  void setState(VoidCallback fn) {
-    if (!mounted) {
-      return;
-    }
-
-    super.setState(fn);
   }
 }

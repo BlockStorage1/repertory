@@ -43,7 +43,7 @@ private:
   using write_callback = size_t (*)(char *, size_t, size_t, void *);
 
   struct read_write_info final {
-    data_buffer data{};
+    data_buffer data;
     stop_type_callback stop_requested_cb;
   };
 
@@ -62,14 +62,14 @@ public:
 
 public:
   [[nodiscard]] static auto construct_url(CURL *curl,
-                                          const std::string &relative_path,
+                                          std::string_view relative_path,
                                           const host_config &cfg)
       -> std::string;
 
   [[nodiscard]] static auto create_host_config(const s3_config &cfg)
       -> host_config;
 
-  [[nodiscard]] static auto url_encode(CURL *curl, const std::string &data,
+  [[nodiscard]] static auto url_encode(CURL *curl, std::string_view data,
                                        bool allow_slash) -> std::string;
 
   template <typename request_type>
@@ -93,19 +93,19 @@ public:
     }
 
     data_buffer data{};
-    const auto key =
-        utils::encryption::generate_key<utils::encryption::hash_256_t>(
-            request.decryption_token.value());
+    const auto key = utils::encryption::generate_key<utils::hash::hash_256_t>(
+        request.decryption_token.value());
     if (not utils::encryption::read_encrypted_range(
             request.range.value(), key,
-            [&](data_buffer &ct, std::uint64_t start_offset,
+            [&](data_buffer &buffer, std::uint64_t start_offset,
                 std::uint64_t end_offset) -> bool {
               auto encrypted_request = request;
               encrypted_request.decryption_token = std::nullopt;
               encrypted_request.range = {{start_offset, end_offset}};
               encrypted_request.response_handler =
-                  [&ct](const auto &encrypted_data, long /*response_code*/) {
-                    ct = encrypted_data;
+                  [&buffer](const auto &encrypted_data,
+                            long /*response_code*/) {
+                    buffer = encrypted_data;
                   };
               encrypted_request.total_size = std::nullopt;
 

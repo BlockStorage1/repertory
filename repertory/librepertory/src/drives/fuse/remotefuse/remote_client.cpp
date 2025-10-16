@@ -37,7 +37,7 @@ auto remote_client::check() -> packet::error_type {
   return packet_client_.send(function_name, request, service_flags);
 }
 
-auto remote_client::fuse_access(const char *path, const std::int32_t &mask)
+auto remote_client::fuse_access(const char *path, std::int32_t mask)
     -> packet::error_type {
   REPERTORY_USES_FUNCTION_NAME();
 
@@ -61,7 +61,7 @@ auto remote_client::fuse_chflags(const char *path, std::uint32_t flags)
   return packet_client_.send(function_name, request, service_flags);
 }
 
-auto remote_client::fuse_chmod(const char *path, const remote::file_mode &mode)
+auto remote_client::fuse_chmod(const char *path, remote::file_mode mode)
     -> packet::error_type {
   REPERTORY_USES_FUNCTION_NAME();
 
@@ -73,9 +73,8 @@ auto remote_client::fuse_chmod(const char *path, const remote::file_mode &mode)
   return packet_client_.send(function_name, request, service_flags);
 }
 
-auto remote_client::fuse_chown(const char *path, const remote::user_id &uid,
-                               const remote::group_id &gid)
-    -> packet::error_type {
+auto remote_client::fuse_chown(const char *path, remote::user_id uid,
+                               remote::group_id gid) -> packet::error_type {
   REPERTORY_USES_FUNCTION_NAME();
 
   packet request;
@@ -95,8 +94,8 @@ auto remote_client::fuse_destroy() -> packet::error_type {
 }
 
 /*packet::error_type remote_client::fuse_fallocate(const char *path, const
-std::int32_t &mode, const remote::file_offset &offset, const remote::file_offset
-&length, const remote::file_handle &handle) { packet request;
+std::int32_t &mode, remote::file_offset offset, const remote::file_offset
+&length, remote::file_handle handle) { packet request;
   request.encode(path);
   request.encode(mode);
   request.encode(offset);
@@ -107,9 +106,8 @@ std::int32_t &mode, const remote::file_offset &offset, const remote::file_offset
   return packetClient_.send(function_name, request, service_flags);
 }*/
 
-auto remote_client::fuse_fgetattr(const char *path, remote::stat &st,
-                                  bool &directory,
-                                  const remote::file_handle &handle)
+auto remote_client::fuse_fgetattr(const char *path, remote::stat &r_stat,
+                                  bool &directory, remote::file_handle handle)
     -> packet::error_type {
   REPERTORY_USES_FUNCTION_NAME();
 
@@ -124,10 +122,12 @@ auto remote_client::fuse_fgetattr(const char *path, remote::stat &st,
   auto ret =
       packet_client_.send(function_name, request, response, service_flags);
   if (ret == 0) {
-    if ((ret = response.decode(st)) == 0) {
-      std::uint8_t d{};
-      if ((ret = response.decode(d)) == 0) {
-        directory = static_cast<bool>(d);
+    ret = response.decode(r_stat);
+    if (ret == 0) {
+      std::uint8_t is_dir{};
+      ret = response.decode(is_dir);
+      if (ret == 0) {
+        directory = static_cast<bool>(is_dir);
       }
     }
   }
@@ -137,7 +137,7 @@ auto remote_client::fuse_fgetattr(const char *path, remote::stat &st,
 
 auto remote_client::fuse_fsetattr_x(const char *path,
                                     const remote::setattr_x &attr,
-                                    const remote::file_handle &handle)
+                                    remote::file_handle handle)
     -> packet::error_type {
   REPERTORY_USES_FUNCTION_NAME();
 
@@ -150,8 +150,8 @@ auto remote_client::fuse_fsetattr_x(const char *path,
   return packet_client_.send(function_name, request, service_flags);
 }
 
-auto remote_client::fuse_fsync(const char *path, const std::int32_t &datasync,
-                               const remote::file_handle &handle)
+auto remote_client::fuse_fsync(const char *path, std::int32_t datasync,
+                               remote::file_handle handle)
     -> packet::error_type {
   REPERTORY_USES_FUNCTION_NAME();
 
@@ -164,9 +164,8 @@ auto remote_client::fuse_fsync(const char *path, const std::int32_t &datasync,
   return packet_client_.send(function_name, request, service_flags);
 }
 
-auto remote_client::fuse_ftruncate(const char *path,
-                                   const remote::file_offset &size,
-                                   const remote::file_handle &handle)
+auto remote_client::fuse_ftruncate(const char *path, remote::file_offset size,
+                                   remote::file_handle handle)
     -> packet::error_type {
   REPERTORY_USES_FUNCTION_NAME();
 
@@ -179,7 +178,7 @@ auto remote_client::fuse_ftruncate(const char *path,
   return packet_client_.send(function_name, request, service_flags);
 }
 
-auto remote_client::fuse_getattr(const char *path, remote::stat &st,
+auto remote_client::fuse_getattr(const char *path, remote::stat &r_stat,
                                  bool &directory) -> packet::error_type {
   REPERTORY_USES_FUNCTION_NAME();
 
@@ -193,10 +192,12 @@ auto remote_client::fuse_getattr(const char *path, remote::stat &st,
   auto ret =
       packet_client_.send(function_name, request, response, service_flags);
   if (ret == 0) {
-    if ((ret = response.decode(st)) == 0) {
-      std::uint8_t d = 0;
-      if ((ret = response.decode(d)) == 0) {
-        directory = static_cast<bool>(d);
+    ret = response.decode(r_stat);
+    if (ret == 0) {
+      std::uint8_t is_dir{};
+      ret = response.decode(is_dir);
+      if (ret == 0) {
+        directory = static_cast<bool>(is_dir);
       }
     }
   }
@@ -205,7 +206,7 @@ auto remote_client::fuse_getattr(const char *path, remote::stat &st,
 }
 
 /*packet::error_type remote_client::fuse_getxattr(const char *path, const char
-*name, char *value, const remote::file_size &size) { packet::error_type ret = 0;
+*name, char *value, remote::file_size size) { packet::error_type ret = 0;
 if (size > std::numeric_limits<std::size_t>::max()) { ret = -ERANGE; } else {
 packet request; request.encode(path); request.encode(name);
     request.encode(size);
@@ -226,7 +227,7 @@ response.CurrentPointer(), static_cast<std::size_t>(size2));
 }
 
 packet::error_type remote_client::fuse_getxattr_osx(const char *path, const char
-*name, char *value, const remote::file_size &size, std::uint32_t position) {
+*name, char *value, remote::file_size size, std::uint32_t position) {
 packet::error_type ret = 0; if (size > std::numeric_limits<std::size_t>::max())
 { ret = -ERANGE; } else { packet request; request.encode(path);
     request.encode(name);
@@ -277,7 +278,7 @@ auto remote_client::fuse_init() -> packet::error_type {
 }
 
 /*packet::error_type remote_client::fuse_listxattr(const char *path, char
-*buffer, const remote::file_size &size) { packet::error_type ret = 0; if (size >
+*buffer, remote::file_size size) { packet::error_type ret = 0; if (size >
 std::numeric_limits<std::size_t>::max()) { ret = -ERANGE; } else { packet
 request; request.encode(path); request.encode(size);
 
@@ -297,7 +298,7 @@ static_cast<std::size_t>(size2));
   return ret;
 }*/
 
-auto remote_client::fuse_mkdir(const char *path, const remote::file_mode &mode)
+auto remote_client::fuse_mkdir(const char *path, remote::file_mode mode)
     -> packet::error_type {
   REPERTORY_USES_FUNCTION_NAME();
 
@@ -327,7 +328,7 @@ auto remote_client::fuse_opendir(const char *path, remote::file_handle &handle)
   return ret;
 }
 
-auto remote_client::fuse_create(const char *path, const remote::file_mode &mode,
+auto remote_client::fuse_create(const char *path, remote::file_mode mode,
                                 const remote::open_flags &flags,
                                 remote::file_handle &handle)
     -> packet::error_type {
@@ -370,9 +371,9 @@ auto remote_client::fuse_open(const char *path, const remote::open_flags &flags,
 }
 
 auto remote_client::fuse_read(const char *path, char *buffer,
-                              const remote::file_size &read_size,
-                              const remote::file_offset &read_offset,
-                              const remote::file_handle &handle)
+                              remote::file_size read_size,
+                              remote::file_offset read_offset,
+                              remote::file_handle handle)
     -> packet::error_type {
   REPERTORY_USES_FUNCTION_NAME();
 
@@ -406,9 +407,9 @@ auto remote_client::fuse_rename(const char *from, const char *to)
 }
 
 auto remote_client::fuse_write(const char *path, const char *buffer,
-                               const remote::file_size &write_size,
-                               const remote::file_offset &write_offset,
-                               const remote::file_handle &handle)
+                               remote::file_size write_size,
+                               remote::file_offset write_offset,
+                               remote::file_handle handle)
     -> packet::error_type {
   REPERTORY_USES_FUNCTION_NAME();
 
@@ -428,9 +429,9 @@ auto remote_client::fuse_write(const char *path, const char *buffer,
 }
 
 auto remote_client::fuse_write_base64(const char *path, const char *buffer,
-                                      const remote::file_size &write_size,
-                                      const remote::file_offset &write_offset,
-                                      const remote::file_handle &handle)
+                                      remote::file_size write_size,
+                                      remote::file_offset write_offset,
+                                      remote::file_handle handle)
     -> packet::error_type {
   REPERTORY_USES_FUNCTION_NAME();
 
@@ -449,9 +450,8 @@ auto remote_client::fuse_write_base64(const char *path, const char *buffer,
   return packet_client_.send(function_name, request, service_flags);
 }
 
-auto remote_client::fuse_readdir(const char *path,
-                                 const remote::file_offset &offset,
-                                 const remote::file_handle &handle,
+auto remote_client::fuse_readdir(const char *path, remote::file_offset offset,
+                                 remote::file_handle handle,
                                  std::string &item_path) -> packet::error_type {
   REPERTORY_USES_FUNCTION_NAME();
 
@@ -471,8 +471,7 @@ auto remote_client::fuse_readdir(const char *path,
   return ret;
 }
 
-auto remote_client::fuse_release(const char *path,
-                                 const remote::file_handle &handle)
+auto remote_client::fuse_release(const char *path, remote::file_handle handle)
     -> packet::error_type {
   REPERTORY_USES_FUNCTION_NAME();
 
@@ -485,7 +484,7 @@ auto remote_client::fuse_release(const char *path,
 }
 
 auto remote_client::fuse_releasedir(const char *path,
-                                    const remote::file_handle &handle)
+                                    remote::file_handle handle)
     -> packet::error_type {
   REPERTORY_USES_FUNCTION_NAME();
 
@@ -528,7 +527,7 @@ auto remote_client::fuse_setattr_x(const char *path, remote::setattr_x &attr)
 }
 
 auto remote_client::fuse_setbkuptime(const char *path,
-                                     const remote::file_time &bkuptime)
+                                     remote::file_time bkuptime)
     -> packet::error_type {
   REPERTORY_USES_FUNCTION_NAME();
 
@@ -540,8 +539,7 @@ auto remote_client::fuse_setbkuptime(const char *path,
   return packet_client_.send(function_name, request, service_flags);
 }
 
-auto remote_client::fuse_setchgtime(const char *path,
-                                    const remote::file_time &chgtime)
+auto remote_client::fuse_setchgtime(const char *path, remote::file_time chgtime)
     -> packet::error_type {
   REPERTORY_USES_FUNCTION_NAME();
 
@@ -553,8 +551,7 @@ auto remote_client::fuse_setchgtime(const char *path,
   return packet_client_.send(function_name, request, service_flags);
 }
 
-auto remote_client::fuse_setcrtime(const char *path,
-                                   const remote::file_time &crtime)
+auto remote_client::fuse_setcrtime(const char *path, remote::file_time crtime)
     -> packet::error_type {
   REPERTORY_USES_FUNCTION_NAME();
 
@@ -577,7 +574,7 @@ auto remote_client::fuse_setvolname(const char *volname) -> packet::error_type {
 }
 
 /*packet::error_type remote_client::fuse_setxattr(const char *path, const char
-*name, const char *value, const remote::file_size &size, const std::int32_t
+*name, const char *value, remote::file_size size, const std::int32_t
 &flags) { packet::error_type ret = 0; if (size >
 std::numeric_limits<std::size_t>::max()) { ret = -ERANGE; } else { packet
 request; request.encode(path); request.encode(name); request.encode(size);
@@ -592,7 +589,7 @@ request; request.encode(path); request.encode(name); request.encode(size);
 }
 
 packet::error_type remote_client::fuse_setxattr_osx(const char *path, const char
-*name, const char *value, const remote::file_size &size, const std::int32_t
+*name, const char *value, remote::file_size size, const std::int32_t
 &flags, const std::uint32_t &position) override { packet::error_type ret = 0; if
 (size > std::numeric_limits<std::size_t>::max()) { ret = -ERANGE; } else {
 packet request; request.encode(path); request.Encode(name);
@@ -607,7 +604,7 @@ request.encode(flags); request.encode(position);
 }*/
 
 auto remote_client::fuse_statfs(const char *path, std::uint64_t frsize,
-                                remote::statfs &st) -> packet::error_type {
+                                remote::statfs &r_stat) -> packet::error_type {
   REPERTORY_USES_FUNCTION_NAME();
 
   packet request;
@@ -619,14 +616,15 @@ auto remote_client::fuse_statfs(const char *path, std::uint64_t frsize,
   auto ret =
       packet_client_.send(function_name, request, response, service_flags);
   if (ret == 0) {
-    ret = response.decode(st);
+    ret = response.decode(r_stat);
   }
 
   return ret;
 }
 
 auto remote_client::fuse_statfs_x(const char *path, std::uint64_t bsize,
-                                  remote::statfs_x &st) -> packet::error_type {
+                                  remote::statfs_x &r_stat)
+    -> packet::error_type {
   REPERTORY_USES_FUNCTION_NAME();
 
   packet request;
@@ -638,14 +636,13 @@ auto remote_client::fuse_statfs_x(const char *path, std::uint64_t bsize,
   auto ret =
       packet_client_.send(function_name, request, response, service_flags);
   if (ret == 0) {
-    ret = response.decode(st);
+    ret = response.decode(r_stat);
   }
 
   return ret;
 }
 
-auto remote_client::fuse_truncate(const char *path,
-                                  const remote::file_offset &size)
+auto remote_client::fuse_truncate(const char *path, remote::file_offset size)
     -> packet::error_type {
   REPERTORY_USES_FUNCTION_NAME();
 
@@ -682,7 +679,7 @@ auto remote_client::fuse_utimens(const char *path, const remote::file_time *tv,
   return packet_client_.send(function_name, request, service_flags);
 }
 
-auto remote_client::json_create_directory_snapshot(const std::string &path,
+auto remote_client::json_create_directory_snapshot(std::string_view path,
                                                    json &json_data)
     -> packet::error_type {
   REPERTORY_USES_FUNCTION_NAME();
@@ -701,9 +698,11 @@ auto remote_client::json_create_directory_snapshot(const std::string &path,
   return ret;
 }
 
-auto remote_client::json_read_directory_snapshot(
-    const std::string &path, const remote::file_handle &handle,
-    std::uint32_t page, json &json_data) -> packet::error_type {
+auto remote_client::json_read_directory_snapshot(std::string_view path,
+                                                 remote::file_handle handle,
+                                                 std::uint32_t page,
+                                                 json &json_data)
+    -> packet::error_type {
   REPERTORY_USES_FUNCTION_NAME();
 
   packet request;
@@ -722,8 +721,8 @@ auto remote_client::json_read_directory_snapshot(
   return ret;
 }
 
-auto remote_client::json_release_directory_snapshot(
-    const std::string &path, const remote::file_handle &handle)
+auto remote_client::json_release_directory_snapshot(std::string_view path,
+                                                    remote::file_handle handle)
     -> packet::error_type {
   REPERTORY_USES_FUNCTION_NAME();
 
@@ -735,8 +734,8 @@ auto remote_client::json_release_directory_snapshot(
   return packet_client_.send(function_name, request, service_flags);
 }
 
-void remote_client::set_fuse_uid_gid(const remote::user_id &uid,
-                                     const remote::group_id &gid) {
+void remote_client::set_fuse_uid_gid(remote::user_id uid,
+                                     remote::group_id gid) {
   uid_ = uid;
   gid_ = gid;
 }

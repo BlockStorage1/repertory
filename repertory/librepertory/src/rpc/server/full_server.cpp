@@ -50,6 +50,20 @@ void full_server::handle_get_directory_items(const httplib::Request &req,
   res.status = http_error_codes::ok;
 }
 
+void full_server::handle_get_item_info(const httplib::Request &req,
+                                       httplib::Response &res) {
+  auto api_path = utils::path::create_api_path(req.get_param_value("api_path"));
+  directory_item item;
+  auto ret = fm_.get_directory_item(api_path, item);
+  if (ret == api_error::success) {
+    res.set_content(json(item).dump(), "application/json");
+    res.status = http_error_codes::ok;
+    return;
+  }
+
+  res.status = http_error_codes::not_found;
+}
+
 void full_server::handle_get_drive_information(const httplib::Request & /*req*/,
                                                httplib::Response &res) {
   res.set_content(
@@ -177,6 +191,11 @@ void full_server::initialize(httplib::Server &inst) {
            [this](auto &&req, auto &&res) {
              handle_get_directory_items(std::forward<decltype(req)>(req),
                                         std::forward<decltype(res)>(res));
+           });
+  inst.Get("/api/v1/" + rpc_method::get_item_info,
+           [this](auto &&req, auto &&res) {
+             handle_get_item_info(std::forward<decltype(req)>(req),
+                                  std::forward<decltype(res)>(res));
            });
   inst.Get("/api/v1/" + rpc_method::get_drive_information,
            [this](auto &&req, auto &&res) {

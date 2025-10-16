@@ -69,42 +69,50 @@ void base_provider::add_all_items(stop_type &stop_requested) {
   }
 }
 
-auto base_provider::create_api_file(std::string path, std::string key,
+auto base_provider::create_api_file(std::string_view path, std::string_view key,
                                     std::uint64_t size, std::uint64_t file_time)
     -> api_file {
-  api_file file{};
-  file.api_path = utils::path::create_api_path(path);
-  file.api_parent = utils::path::get_parent_api_path(file.api_path);
-  file.accessed_date = file_time;
-  file.changed_date = file_time;
-  file.creation_date = file_time;
-  file.modified_date = file_time;
-  file.key = key;
-  file.file_size = size;
+  auto api_path = utils::path::create_api_path(path);
+  api_file file{
+      .api_path = api_path,
+      .api_parent = utils::path::get_parent_api_path(api_path),
+      .accessed_date = file_time,
+      .changed_date = file_time,
+      .creation_date = file_time,
+      .file_size = size,
+      .key = std::string{key},
+      .modified_date = file_time,
+      .source_path = "",
+      .written_date = file_time,
+  };
   return file;
 }
 
-auto base_provider::create_api_file(std::string path, std::uint64_t size,
+auto base_provider::create_api_file(std::string_view path, std::uint64_t size,
                                     api_meta_map &meta) -> api_file {
   auto current_size = utils::string::to_uint64(meta[META_SIZE]);
   if (current_size == 0U) {
     current_size = size;
   }
 
-  api_file file{};
-  file.api_path = utils::path::create_api_path(path);
-  file.api_parent = utils::path::get_parent_api_path(file.api_path);
-  file.accessed_date = utils::string::to_uint64(meta[META_ACCESSED]);
-  file.changed_date = utils::string::to_uint64(meta[META_CHANGED]);
-  file.creation_date = utils::string::to_uint64(meta[META_CREATION]);
-  file.file_size = current_size;
-  file.modified_date = utils::string::to_uint64(meta[META_MODIFIED]);
+  auto api_path = utils::path::create_api_path(path);
+  api_file file{
+      .api_path = api_path,
+      .api_parent = utils::path::get_parent_api_path(api_path),
+      .accessed_date = utils::string::to_uint64(meta[META_ACCESSED]),
+      .changed_date = utils::string::to_uint64(meta[META_CHANGED]),
+      .creation_date = utils::string::to_uint64(meta[META_CREATION]),
+      .file_size = current_size,
+      .key = "",
+      .modified_date = utils::string::to_uint64(meta[META_MODIFIED]),
+      .source_path = "",
+      .written_date = utils::string::to_uint64(meta[META_WRITTEN]),
+  };
   return file;
 }
 
 auto base_provider::create_directory_clone_source_meta(
-    const std::string &source_api_path, const std::string &api_path)
-    -> api_error {
+    std::string_view source_api_path, std::string_view api_path) -> api_error {
   REPERTORY_USES_FUNCTION_NAME();
 
   bool exists{};
@@ -155,7 +163,7 @@ auto base_provider::create_directory_clone_source_meta(
   return create_directory(api_path, meta);
 }
 
-auto base_provider::create_directory(const std::string &api_path,
+auto base_provider::create_directory(std::string_view api_path,
                                      api_meta_map &meta) -> api_error {
   REPERTORY_USES_FUNCTION_NAME();
 
@@ -202,7 +210,7 @@ auto base_provider::create_directory(const std::string &api_path,
   return api_error::error;
 }
 
-auto base_provider::create_file(const std::string &api_path, api_meta_map &meta)
+auto base_provider::create_file(std::string_view api_path, api_meta_map &meta)
     -> api_error {
   REPERTORY_USES_FUNCTION_NAME();
 
@@ -248,7 +256,7 @@ auto base_provider::create_file(const std::string &api_path, api_meta_map &meta)
     stop_type stop_requested{false};
     res = upload_file(api_path, meta[META_SOURCE], stop_requested);
     if (res != api_error::success) {
-      db3_->remove_api_path(api_path);
+      meta_db_->remove_api_path(api_path);
     }
 
     return res;
@@ -260,7 +268,7 @@ auto base_provider::create_file(const std::string &api_path, api_meta_map &meta)
   return api_error::error;
 }
 
-auto base_provider::get_api_path_from_source(const std::string &source_path,
+auto base_provider::get_api_path_from_source(std::string_view source_path,
                                              std::string &api_path) const
     -> api_error {
   REPERTORY_USES_FUNCTION_NAME();
@@ -272,10 +280,51 @@ auto base_provider::get_api_path_from_source(const std::string &source_path,
     return api_error::item_not_found;
   }
 
-  return db3_->get_api_path(source_path, api_path);
+  return meta_db_->get_api_path(source_path, api_path);
 }
 
-auto base_provider::get_directory_items(const std::string &api_path,
+auto base_provider::get_directory_item(std::string_view api_path,
+                                       directory_item &item) const
+    -> api_error {
+  REPERTORY_USES_FUNCTION_NAME();
+
+  try {
+    bool directory{};
+    auto ret = is_directory(api_path, directory);
+    if (ret != api_error::success) {
+      return ret;
+    }
+
+    filesystem_item fsi{};
+    ret = get_filesystem_item(api_path, directory, fsi);
+    if (ret != api_error::success) {
+      return ret;
+    }
+
+    api_meta_map meta;
+    ret = get_item_meta(api_path, meta);
+    if (ret != api_error::success) {
+      return ret;
+    }
+
+    item = {
+        .api_path = fsi.api_path,
+        .api_parent = fsi.api_parent,
+        .directory = fsi.directory,
+        .size = fsi.size,
+        .meta = meta,
+    };
+
+    return ret;
+  } catch (const std::exception &e) {
+    utils::error::raise_api_path_error(function_name, api_path, e,
+                                       "failed to get directory item");
+  }
+
+  return api_error::error;
+}
+
+auto base_provider::get_directory_items(std::string_view api_path,
                                         directory_item_list &list) const
     -> api_error {
   REPERTORY_USES_FUNCTION_NAME();
@@ -337,7 +386,7 @@ auto base_provider::get_directory_items(const std::string &api_path,
   return api_error::success;
 }
 
-auto base_provider::get_file_size(const std::string &api_path,
+auto base_provider::get_file_size(std::string_view api_path,
                                   std::uint64_t &file_size) const -> api_error {
   bool exists{};
   auto res = is_directory(api_path, exists);
@@ -358,7 +407,7 @@ auto base_provider::get_file_size(const std::string &api_path,
   return api_error::success;
 }
 
-auto base_provider::get_filesystem_item(const std::string &api_path,
+auto base_provider::get_filesystem_item(std::string_view api_path,
                                         bool directory,
                                         filesystem_item &fsi) const
     -> api_error {
@@ -394,82 +443,38 @@ auto base_provider::get_filesystem_item(const std::string &api_path,
   return api_error::success;
 }
 
-auto base_provider::get_filesystem_item_and_file(const std::string &api_path,
-                                                 api_file &file,
-                                                 filesystem_item &fsi) const
-    -> api_error {
-  auto res = get_file(api_path, file);
-  if (res != api_error::success) {
-    return res;
-  }
-
-  api_meta_map meta{};
-  res = get_item_meta(api_path, meta);
-  if (res != api_error::success) {
-    return res;
-  }
-
-  fsi.api_parent = utils::path::get_parent_api_path(api_path);
-  fsi.api_path = api_path;
-  fsi.directory = false;
-  fsi.size = utils::string::to_uint64(meta[META_SIZE]);
-  fsi.source_path = meta[META_SOURCE];
-
-  return api_error::success;
-}
-
 auto base_provider::get_filesystem_item_from_source_path(
-    const std::string &source_path, filesystem_item &fsi) const -> api_error {
+    std::string_view source_path, filesystem_item &fsi) const -> api_error {
   std::string api_path{};
   auto res = get_api_path_from_source(source_path, api_path);
   if (res != api_error::success) {
     return res;
   }
 
-  bool exists{};
-  res = is_directory(api_path, exists);
-  if (res != api_error::success) {
-    return res;
-  }
-  if (exists) {
-    return api_error::directory_exists;
-  }
-
   return get_filesystem_item(api_path, false, fsi);
 }
 
-auto base_provider::get_item_meta(const std::string &api_path,
+auto base_provider::get_item_meta(std::string_view api_path,
                                   api_meta_map &meta) const -> api_error {
-  return db3_->get_item_meta(api_path, meta);
+  return meta_db_->get_item_meta(api_path, meta);
 }
 
-auto base_provider::get_item_meta(const std::string &api_path,
-                                  const std::string &key,
+auto base_provider::get_item_meta(std::string_view api_path,
+                                  std::string_view key,
                                   std::string &value) const -> api_error {
-  return db3_->get_item_meta(api_path, key, value);
+  return meta_db_->get_item_meta(api_path, key, value);
 }
 
 auto base_provider::get_pinned_files() const -> std::vector<std::string> {
-  return db3_->get_pinned_files();
+  return meta_db_->get_pinned_files();
 }
 
 auto base_provider::get_total_item_count() const -> std::uint64_t {
-  return db3_->get_total_item_count();
+  return meta_db_->get_total_item_count();
 }
 
 auto base_provider::get_used_drive_space() const -> std::uint64_t {
-  return db3_->get_total_size();
-}
-
-auto base_provider::is_file_writeable(const std::string &api_path) const
-    -> bool {
-  bool exists{};
-  auto res = is_directory(api_path, exists);
-  if (res != api_error::success) {
-    return false;
-  }
-
-  return not exists;
+  return meta_db_->get_total_size();
 }
 
 void base_provider::process_removed_directories(
@@ -489,7 +494,7 @@ void base_provider::process_removed_directories(
       continue;
     }
 
-    db3_->remove_api_path(item.api_path);
+    meta_db_->remove_api_path(item.api_path);
     event_system::instance().raise<directory_removed_externally>(
         item.api_path, function_name, item.source_path);
   }
@@ -516,7 +521,7 @@ void base_provider::process_removed_files(std::deque<removed_item> removed_list,
     }
 
     if (not utils::file::file{item.source_path}.exists()) {
-      db3_->remove_api_path(item.api_path);
+      meta_db_->remove_api_path(item.api_path);
       event_system::instance().raise<file_removed_externally>(
           item.api_path, function_name, item.source_path);
       continue;
@@ -560,20 +565,18 @@ void base_provider::process_removed_files(std::deque<removed_item> removed_list,
       continue;
     }
 
-    db3_->remove_api_path(item.api_path);
+    meta_db_->remove_api_path(item.api_path);
     event_system::instance().raise<file_removed_externally>(
         item.api_path, function_name, item.source_path);
   }
 }
 
 void base_provider::process_removed_items(stop_type &stop_requested) {
-  REPERTORY_USES_FUNCTION_NAME();
-
   const auto get_stop_requested = [&stop_requested]() -> bool {
     return stop_requested || app_config::get_stop_requested();
   };
 
-  db3_->enumerate_api_path_list(
+  meta_db_->enumerate_api_path_list(
       [this, &get_stop_requested](auto &&list) {
         [[maybe_unused]] auto res =
             std::all_of(list.begin(), list.end(), [&](auto &&api_path) -> bool {
@@ -633,8 +636,6 @@ void base_provider::process_removed_items(stop_type &stop_requested) {
 }
 
 void base_provider::remove_deleted_items(stop_type &stop_requested) {
-  REPERTORY_USES_FUNCTION_NAME();
-
   const auto get_stop_requested = [&stop_requested]() -> bool {
     return stop_requested || app_config::get_stop_requested();
   };
@@ -652,7 +653,7 @@ void base_provider::remove_deleted_items(stop_type &stop_requested) {
   process_removed_items(stop_requested);
 }
 
-auto base_provider::remove_file(const std::string &api_path) -> api_error {
+auto base_provider::remove_file(std::string_view api_path) -> api_error {
   REPERTORY_USES_FUNCTION_NAME();
 
   const auto notify_end = [&api_path](api_error error) -> api_error {
@@ -669,7 +670,7 @@ auto base_provider::remove_file(const std::string &api_path) -> api_error {
   const auto remove_file_meta = [this, &api_path, &notify_end]() -> api_error {
     api_meta_map meta{};
     auto res = get_item_meta(api_path, meta);
-    db3_->remove_api_path(api_path);
+    meta_db_->remove_api_path(api_path);
     return notify_end(res);
   };
 
@@ -701,7 +702,7 @@ auto base_provider::remove_file(const std::string &api_path) -> api_error {
   return remove_file_meta();
 }
 
-auto base_provider::remove_directory(const std::string &api_path) -> api_error {
+auto base_provider::remove_directory(std::string_view api_path) -> api_error {
   REPERTORY_USES_FUNCTION_NAME();
 
   const auto notify_end = [&api_path](api_error error) -> api_error {
@@ -729,14 +730,14 @@ auto base_provider::remove_directory(const std::string &api_path) -> api_error {
     return notify_end(res);
   }
 
-  db3_->remove_api_path(api_path);
+  meta_db_->remove_api_path(api_path);
 
   return notify_end(api_error::success);
 }
 
-auto base_provider::remove_item_meta(const std::string &api_path,
-                                     const std::string &key) -> api_error {
-  return db3_->remove_item_meta(api_path, key);
+auto base_provider::remove_item_meta(std::string_view api_path,
+                                     std::string_view key) -> api_error {
+  return meta_db_->remove_item_meta(api_path, key);
 }
 
 void base_provider::remove_unmatched_source_files(stop_type &stop_requested) {
@@ -791,15 +792,44 @@ void base_provider::remove_unmatched_source_files(stop_type &stop_requested) {
   }
 }
 
-auto base_provider::set_item_meta(const std::string &api_path,
-                                  const std::string &key,
-                                  const std::string &value) -> api_error {
-  return db3_->set_item_meta(api_path, key, value);
+auto base_provider::set_item_meta(std::string_view api_path,
+                                  std::string_view key, std::string_view value)
+    -> api_error {
+  REPERTORY_USES_FUNCTION_NAME();
+
+  auto ret = meta_db_->set_item_meta(api_path, key, value);
+  if (ret != api_error::success) {
+    return ret;
+  }
+
+  if (key == META_PINNED && utils::string::to_bool(std::string{value})) {
+    if (fm_ == nullptr || not fm_->download_pinned_file(api_path)) {
+      utils::error::raise_api_path_error(function_name, api_path,
+                                         "failed to pin file");
+    }
+  }
+
+  return ret;
 }
 
-auto base_provider::set_item_meta(const std::string &api_path,
-                                  const api_meta_map &meta) -> api_error {
-  return db3_->set_item_meta(api_path, meta);
+auto base_provider::set_item_meta(std::string_view api_path, api_meta_map meta)
+    -> api_error {
+  REPERTORY_USES_FUNCTION_NAME();
+
+  auto ret = meta_db_->set_item_meta(api_path, meta);
+  if (ret != api_error::success) {
+    return ret;
+  }
+
+  if (meta.contains(META_PINNED) &&
+      utils::string::to_bool(meta.at(META_PINNED))) {
+    if (fm_ == nullptr || not fm_->download_pinned_file(api_path)) {
+      utils::error::raise_api_path_error(function_name, api_path,
+                                         "failed to pin file");
+    }
+  }
+
+  return ret;
 }
 
 auto base_provider::start(api_item_added_callback api_item_added,
@@ -808,8 +838,7 @@ auto base_provider::start(api_item_added_callback api_item_added,
 
   api_item_added_ = api_item_added;
   fm_ = mgr;
-
-  db3_ = create_meta_db(config_);
+  meta_db_ = create_meta_db(config_);
 
   api_meta_map meta{};
   if (get_item_meta("/", meta) == api_error::item_not_found) {
@@ -869,11 +898,11 @@ auto base_provider::start(api_item_added_callback api_item_added,
 void base_provider::stop() {
   cache_size_mgr::instance().stop();
   polling::instance().remove_callback("check_deleted");
-  db3_.reset();
+  meta_db_.reset();
 }
 
-auto base_provider::upload_file(const std::string &api_path,
-                                const std::string &source_path,
+auto base_provider::upload_file(std::string_view api_path,
+                                std::string_view source_path,
                                 stop_type &stop_requested) -> api_error {
   REPERTORY_USES_FUNCTION_NAME();
 

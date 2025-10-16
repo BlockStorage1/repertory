@@ -67,6 +67,8 @@ protected:
       -> api_error override;
 
 public:
+  void force_download() override {}
+
   [[nodiscard]] auto get_source_path() const -> std::string override {
     return "direct";
   }

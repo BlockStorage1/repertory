@@ -29,11 +29,9 @@
 namespace repertory {
 struct remote_server_event final : public i_event {
   remote_server_event() = default;
-  remote_server_event(std::string api_path_, packet::error_type error_,
+  remote_server_event(std::string_view api_path_, packet::error_type error_,
                       std::string_view function_name_)
-      : api_path(std::move(api_path_)),
-        error(error_),
-        function_name(std::string{function_name_}) {}
+      : api_path(api_path_), error(error_), function_name(function_name_) {}
 
   static constexpr event_level level{event_level::debug};
   static constexpr std::string_view name{"remote_server_event"};

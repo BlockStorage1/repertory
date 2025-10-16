@@ -27,11 +27,12 @@
 #include "utils/utils.hpp"
 
 namespace repertory {
-void directory_cache::execute_action(const std::string &api_path,
+void directory_cache::execute_action(std::string_view api_path,
                                      const execute_callback &execute) {
   recur_mutex_lock directory_lock(directory_mutex_);
-  if ((directory_lookup_.find(api_path) != directory_lookup_.end())) {
-    execute(*directory_lookup_[api_path].iterator);
+  if ((directory_lookup_.find(std::string{api_path}) !=
+       directory_lookup_.end())) {
+    execute(*directory_lookup_[std::string{api_path}].iterator);
   }
 }
 
@@ -51,14 +52,14 @@ auto directory_cache::get_directory(std::uint64_t handle)
   return nullptr;
 }
 
-auto directory_cache::remove_directory(const std::string &api_path)
+auto directory_cache::remove_directory(std::string_view api_path)
     -> std::shared_ptr<directory_iterator> {
   std::shared_ptr<directory_iterator> ret;
-
   recur_mutex_lock directory_lock(directory_mutex_);
-  if (directory_lookup_.find(api_path) != directory_lookup_.end()) {
-    ret = directory_lookup_[api_path].iterator;
-    directory_lookup_.erase(api_path);
+  if (directory_lookup_.find(std::string{api_path}) !=
+      directory_lookup_.end()) {
+    ret = directory_lookup_[std::string{api_path}].iterator;
+    directory_lookup_.erase(std::string{api_path});
   }
 
   return ret;
@@ -83,10 +84,10 @@ void directory_cache::remove_directory(std::uint64_t handle) {
 }
 
 void directory_cache::set_directory(
-    const std::string &api_path, std::uint64_t handle,
+    std::string_view api_path, std::uint64_t handle,
     std::shared_ptr<directory_iterator> iterator) {
   recur_mutex_lock directory_lock(directory_mutex_);
-  auto &entry = directory_lookup_[api_path];
+  auto &entry = directory_lookup_[std::string{api_path}];
   entry.iterator = std::move(iterator);
   entry.handles.push_back(handle);
 }

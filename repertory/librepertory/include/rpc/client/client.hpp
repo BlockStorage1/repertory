@@ -30,35 +30,40 @@ public:
   explicit client(rpc_host_info host_info);
 
 private:
-  const rpc_host_info host_info_;
+  rpc_host_info host_info_;
   std::atomic<std::uint32_t> request_id_{0U};
 
 public:
-  [[nodiscard]] auto get_drive_information() -> rpc_response;
+  [[nodiscard]] auto get_drive_information() const -> rpc_response;
 
-  [[nodiscard]] auto get_config() -> rpc_response;
+  [[nodiscard]] auto get_config() const -> rpc_response;
 
-  [[nodiscard]] auto get_config_value_by_name(const std::string &name)
+  [[nodiscard]] auto get_config_value_by_name(std::string_view name) const
       -> rpc_response;
 
-  [[nodiscard]] auto get_directory_items(const std::string &api_path)
+  [[nodiscard]] auto get_directory_items(std::string_view api_path) const
       -> rpc_response;
 
-  [[nodiscard]] auto get_open_files() -> rpc_response;
-
-  [[nodiscard]] auto get_pinned_files() -> rpc_response;
-
-  [[nodiscard]] auto pin_file(const std::string &api_path) -> rpc_response;
-
-  [[nodiscard]] auto pinned_status(const std::string &api_path) -> rpc_response;
-
-  [[nodiscard]] auto set_config_value_by_name(const std::string &name,
-                                              const std::string &value)
+  [[nodiscard]] auto get_item_info(std::string_view api_path) const
       -> rpc_response;
 
-  [[nodiscard]] auto unmount() -> rpc_response;
+  [[nodiscard]] auto get_open_files() const -> rpc_response;
 
-  [[nodiscard]] auto unpin_file(const std::string &api_path) -> rpc_response;
+  [[nodiscard]] auto get_pinned_files() const -> rpc_response;
+
+  [[nodiscard]] auto pin_file(std::string_view api_path) const -> rpc_response;
+
+  [[nodiscard]] auto pinned_status(std::string_view api_path) const
+      -> rpc_response;
+
+  [[nodiscard]] auto set_config_value_by_name(std::string_view name,
+                                              std::string_view value) const
+      -> rpc_response;
+
+  [[nodiscard]] auto unmount() const -> rpc_response;
+
+  [[nodiscard]] auto unpin_file(std::string_view api_path) const
+      -> rpc_response;
 };
 } // namespace repertory
 

@@ -1,3 +1,5 @@
+// add_mount_screen.dart
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -7,6 +9,10 @@ import 'package:repertory/models/auth.dart';
 import 'package:repertory/models/mount.dart';
 import 'package:repertory/models/mount_list.dart';
 import 'package:repertory/types/mount_config.dart';
+import 'package:repertory/utils/safe_set_state_mixin.dart';
+import 'package:repertory/widgets/app_dropdown.dart';
+import 'package:repertory/widgets/app_outlined_icon_button.dart';
+import 'package:repertory/widgets/app_scaffold.dart';
 import 'package:repertory/widgets/mount_settings.dart';
 
 class AddMountScreen extends StatefulWidget {
@@ -17,10 +23,12 @@ class AddMountScreen extends StatefulWidget {
   State<AddMountScreen> createState() => _AddMountScreenState();
 }
 
-class _AddMountScreenState extends State<AddMountScreen> {
+class _AddMountScreenState extends State<AddMountScreen>
+    with SafeSetState<AddMountScreen> {
   Mount? _mount;
   final _mountNameController = TextEditingController();
   String _mountType = "";
+  bool _enabled = true;
 
   final Map<String, Map<String, dynamic>> _settings = {
     "": {},
@@ -31,176 +39,155 @@ class _AddMountScreenState extends State<AddMountScreen> {
   };
 
   @override
+  void dispose() {
+    _mountNameController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-        title: Text(widget.title),
-        actions: [
-          Consumer<Auth>(
-            builder: (context, auth, _) {
-              return IconButton(
-                icon: const Icon(Icons.logout),
-                onPressed: () => auth.logoff(),
-              );
-            },
-          ),
-        ],
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(constants.padding),
-        child: Consumer<Auth>(
-          builder: (context, auth, _) {
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.start,
-              mainAxisSize: MainAxisSize.max,
-              children: [
-                Card(
-                  margin: EdgeInsets.all(0.0),
-                  child: Padding(
-                    padding: const EdgeInsets.all(constants.padding),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisAlignment: MainAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Text('Provider Type'),
-                        const SizedBox(width: constants.padding),
-                        DropdownButton<String>(
-                          autofocus: true,
-                          value: _mountType,
-                          onChanged: (mountType) =>
-                              _handleChange(auth, mountType ?? ''),
-                          items: constants.providerTypeList
-                              .map<DropdownMenuItem<String>>((item) {
-                                return DropdownMenuItem<String>(
-                                  value: item,
-                                  child: Text(item),
-                                );
-                              })
-                              .toList(),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                if (_mountType.isNotEmpty && _mountType != 'Remote')
-                  const SizedBox(height: constants.padding),
-                if (_mountType.isNotEmpty && _mountType != 'Remote')
-                  Card(
-                    margin: EdgeInsets.all(0.0),
-                    child: Padding(
-                      padding: const EdgeInsets.all(constants.padding),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisAlignment: MainAxisAlignment.start,
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Text('Configuration Name'),
-                          const SizedBox(width: constants.padding),
-                          TextField(
-                            autofocus: true,
-                            controller: _mountNameController,
-                            keyboardType: TextInputType.text,
-                            inputFormatters: [
-                              FilteringTextInputFormatter.deny(RegExp(r'\s')),
-                            ],
-                            onChanged: (_) => _handleChange(auth, _mountType),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                if (_mount != null) ...[
-                  const SizedBox(height: constants.padding),
-                  Expanded(
-                    child: Card(
-                      margin: EdgeInsets.all(0.0),
-                      child: Padding(
-                        padding: const EdgeInsets.all(constants.padding),
-                        child: MountSettingsWidget(
-                          isAdd: true,
-                          mount: _mount!,
-                          settings: _settings[_mountType]!,
-                          showAdvanced: false,
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: constants.padding),
-                  Row(
-                    children: [
-                      ElevatedButton.icon(
-                        label: const Text('Test'),
-                        icon: const Icon(Icons.check),
-                        onPressed: _handleProviderTest,
-                      ),
-                      const SizedBox(width: constants.padding),
-                      ElevatedButton.icon(
-                        label: const Text('Add'),
-                        icon: const Icon(Icons.add),
-                        onPressed: () async {
-                          final mountList = Provider.of<MountList>(context);
+    final scheme = Theme.of(context).colorScheme;
 
-                          List<String> failed = [];
-                          if (!validateSettings(
-                            _settings[_mountType]!,
-                            failed,
-                          )) {
-                            for (var key in failed) {
-                              displayErrorMessage(
-                                context,
-                                "Setting '$key' is not valid",
-                              );
-                            }
-                            return;
-                          }
-
-                          if (mountList.hasConfigName(
-                            _mountNameController.text,
-                          )) {
-                            return displayErrorMessage(
-                              context,
-                              "Configuration name '${_mountNameController.text}' already exists",
-                            );
-                          }
-
-                          if (_mountType == "Sia" || _mountType == "S3") {
-                            final bucket =
-                                _settings[_mountType]!["${_mountType}Config"]["Bucket"]
-                                    as String;
-                            if (mountList.hasBucketName(_mountType, bucket)) {
-                              return displayErrorMessage(
-                                context,
-                                "Bucket '$bucket' already exists",
-                              );
-                            }
-                          }
-
-                          final success = await mountList.add(
-                            _mountType,
-                            _mountType == 'Remote'
-                                ? '${_settings[_mountType]!['RemoteConfig']['HostNameOrIp']}_${_settings[_mountType]!['RemoteConfig']['ApiPort']}'
-                                : _mountNameController.text,
-                            _settings[_mountType]!,
-                          );
-
-                          if (!success || !context.mounted) {
-                            return;
-                          }
-
-                          Navigator.pop(context);
-                        },
-                      ),
-                    ],
-                  ),
-                ],
-              ],
+    return AppScaffold(
+      title: widget.title,
+      showBack: true,
+      children: [
+        AppDropdown<String>(
+          constrainToIntrinsic: true,
+          isExpanded: false,
+          labelOf: (s) => s,
+          labelText: 'Provider Type',
+          onChanged: (mountType) {
+            _handleChange(
+              Provider.of<Auth>(context, listen: false),
+              mountType ?? '',
             );
           },
+          prefixIcon: Icons.miscellaneous_services,
+          value: _mountType.isEmpty ? null : _mountType,
+          values: constants.providerTypeList,
+          widthMultiplier: 2.0,
         ),
-      ),
+        if (_mountType.isNotEmpty && _mountType != 'Remote') ...[
+          const SizedBox(height: constants.padding),
+          TextField(
+            autofocus: true,
+            controller: _mountNameController,
+            keyboardType: TextInputType.text,
+            inputFormatters: [FilteringTextInputFormatter.deny(RegExp(r'\s'))],
+            onChanged: (_) => _handleChange(
+              Provider.of<Auth>(context, listen: false),
+              _mountType,
+            ),
+            decoration: createCommonDecoration(
+              scheme,
+              'Configuration Name',
+              hintText: 'Enter a unique name',
+              icon: Icons.drive_file_rename_outline,
+            ),
+          ),
+        ],
+        if (_mount != null) ...[
+          const SizedBox(height: constants.padding),
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: constants.padding,
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(constants.borderRadius),
+                child: MountSettingsWidget(
+                  isAdd: true,
+                  mount: _mount!,
+                  settings: _settings[_mountType]!,
+                  showAdvanced: false,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: constants.padding),
+          Row(
+            children: [
+              IntrinsicWidth(
+                child: AppOutlinedIconButton(
+                  enabled: _enabled,
+                  icon: Icons.check,
+                  text: 'Test',
+                  onPressed: _handleProviderTest,
+                ),
+              ),
+              const SizedBox(width: constants.padding),
+              IntrinsicWidth(
+                child: AppOutlinedIconButton(
+                  enabled: _enabled,
+                  icon: Icons.add,
+                  text: 'Add',
+                  onPressed: () async {
+                    setState(() {
+                      _enabled = false;
+                    });
+
+                    try {
+                      final mountList = Provider.of<MountList>(
+                        context,
+                        listen: false,
+                      );
+
+                      List<String> failed = [];
+                      if (!validateSettings(_settings[_mountType]!, failed)) {
+                        for (var key in failed) {
+                          displayErrorMessage(
+                            context,
+                            "Setting '$key' is not valid",
+                          );
+                        }
+                        return;
+                      }
+
+                      if (mountList.hasConfigName(_mountNameController.text)) {
+                        return displayErrorMessage(
+                          context,
+                          "Configuration name '${_mountNameController.text}' already exists",
+                        );
+                      }
+
+                      if (_mountType == "Sia" || _mountType == "S3") {
+                        final bucket =
+                            _settings[_mountType]!["${_mountType}Config"]["Bucket"]
+                                as String;
+                        if (mountList.hasBucketName(_mountType, bucket)) {
+                          return displayErrorMessage(
+                            context,
+                            "Bucket '$bucket' already exists",
+                          );
+                        }
+                      }
+
+                      final success = await mountList.add(
+                        _mountType,
+                        _mountType == 'Remote'
+                            ? '${_settings[_mountType]!['RemoteConfig']['HostNameOrIp']}_${_settings[_mountType]!['RemoteConfig']['ApiPort']}'
+                            : _mountNameController.text,
+                        _settings[_mountType]!,
+                      );
+
+                      if (!success || !context.mounted) {
+                        return;
+                      }
+
+                      Navigator.pop(context);
+                    } finally {
+                      setState(() {
+                        _enabled = true;
+                      });
+                    }
+                  },
+                ),
+              ),
+            ],
+          ),
+        ],
+      ],
     );
   }
 
@@ -212,7 +199,7 @@ class _AddMountScreenState extends State<AddMountScreen> {
       if (_mountType == 'Remote') {
         _mountNameController.text = 'remote';
       } else if (changed) {
-        _mountNameController.text = mountType == 'Sia' ? 'default' : '';
+        _mountNameController.text = '';
       }
 
       _mount = (_mountNameController.text.isEmpty)
@@ -231,27 +218,28 @@ class _AddMountScreenState extends State<AddMountScreen> {
   }
 
   Future<void> _handleProviderTest() async {
-    if (_mount == null) {
-      return;
+    setState(() {
+      _enabled = false;
+    });
+
+    try {
+      if (_mount == null) {
+        return;
+      }
+
+      final success = await _mount!.test();
+      if (!mounted) {
+        return;
+      }
+
+      displayErrorMessage(
+        context,
+        success ? "Success" : "Provider settings are invalid!",
+      );
+    } finally {
+      setState(() {
+        _enabled = true;
+      });
     }
-
-    final success = await _mount!.test();
-    if (!mounted) {
-      return;
-    }
-
-    displayErrorMessage(
-      context,
-      success ? "Success" : "Provider settings are invalid!",
-    );
-  }
-
-  @override
-  void setState(VoidCallback fn) {
-    if (!mounted) {
-      return;
-    }
-
-    super.setState(fn);
   }
 }

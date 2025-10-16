@@ -36,64 +36,63 @@ namespace remote_winfsp {
 class remote_server final : public virtual remote_server_base<i_winfsp_drive> {
 public:
   remote_server(app_config &config, i_winfsp_drive &drive,
-                const std::string &mount_location)
-      : remote_server_base(config, drive,
-                           utils::string::to_lower(mount_location)) {}
+                std::string_view mount_location)
+      : remote_server_base(
+            config, drive,
+            utils::string::to_lower(std::string{mount_location})) {}
 
 private:
   directory_cache directory_cache_;
   std::atomic<std::uint64_t> next_handle_{0U};
 
 private:
-  [[nodiscard]] auto construct_path(std::string path) -> std::string;
+  [[nodiscard]] auto construct_path(std::string_view path) -> std::string;
 
   [[nodiscard]] auto get_next_handle() -> std::uint64_t;
 
-  [[nodiscard]] auto populate_file_info(const std::string &api_path,
-                                        remote::file_info &file_info)
+  [[nodiscard]] auto populate_file_info(std::string_view api_path,
+                                        remote::file_info &r_info)
       -> packet::error_type;
 
   void populate_stat(const char *path, bool directory, remote::stat &r_stat,
-                     const struct _stat64 &unix_st);
+                     const struct _stat64 &u_stat);
 
 public:
   // FUSE Layer
-  [[nodiscard]] auto fuse_access(const char *path, const std::int32_t &mask)
+  [[nodiscard]] auto fuse_access(const char *path, std::int32_t mask)
       -> packet::error_type override;
 
   [[nodiscard]] auto fuse_chflags(const char *path, std::uint32_t flags)
       -> packet::error_type override;
 
-  [[nodiscard]] auto fuse_chmod(const char *path, const remote::file_mode &mode)
+  [[nodiscard]] auto fuse_chmod(const char *path, remote::file_mode mode)
       -> packet::error_type override;
 
-  [[nodiscard]] auto fuse_chown(const char *path, const remote::user_id &uid,
-                                const remote::group_id &gid)
+  [[nodiscard]] auto fuse_chown(const char *path, remote::user_id uid,
+                                remote::group_id gid)
       -> packet::error_type override;
 
   [[nodiscard]] auto fuse_destroy() -> packet::error_type override;
 
   /*packet::error_type fuse_fallocate(const char *path, const std::int32_t
-     &mode, const remote::file_offset &offset, const remote::file_offset
-     &length, const remote::file_handle &handle) override ;*/
+     &mode, remote::file_offset offset, const remote::file_offset
+     &length, remote::file_handle handle) override ;*/
 
   [[nodiscard]] auto fuse_fgetattr(const char *path, remote::stat &r_stat,
-                                   bool &directory,
-                                   const remote::file_handle &handle)
+                                   bool &directory, remote::file_handle handle)
       -> packet::error_type override;
 
   [[nodiscard]] auto fuse_fsetattr_x(const char *path,
                                      const remote::setattr_x &attr,
-                                     const remote::file_handle &handle)
+                                     remote::file_handle handle)
       -> packet::error_type override;
 
-  [[nodiscard]] auto fuse_fsync(const char *path, const std::int32_t &datasync,
-                                const remote::file_handle &handle)
+  [[nodiscard]] auto fuse_fsync(const char *path, std::int32_t datasync,
+                                remote::file_handle handle)
       -> packet::error_type override;
 
-  [[nodiscard]] auto fuse_ftruncate(const char *path,
-                                    const remote::file_offset &size,
-                                    const remote::file_handle &handle)
+  [[nodiscard]] auto fuse_ftruncate(const char *path, remote::file_offset size,
+                                    remote::file_handle handle)
       -> packet::error_type override;
 
   [[nodiscard]] auto fuse_getattr(const char *path, remote::stat &r_stat,
@@ -101,10 +100,10 @@ public:
       -> packet::error_type override;
 
   /*packet::error_type fuse_getxattr(const char *path, const char *name, char
-  *value, const remote::file_size &size) override ;
+  *value, remote::file_size size) override ;
 
   packet::error_type fuse_getxattrOSX(const char *path, const char *name, char
-  *value, const remote::file_size &size, std::uint32_t position) override ;*/
+  *value, remote::file_size size, std::uint32_t position) override ;*/
 
   [[nodiscard]] auto fuse_getxtimes(const char *path,
                                     remote::file_time &bkuptime,
@@ -114,18 +113,18 @@ public:
   [[nodiscard]] auto fuse_init() -> packet::error_type override;
 
   /*packet::error_type fuse_listxattr(const char *path, char *buffer,
-                                         const remote::file_size &size) override
+                                         remote::file_size size) override
      ;*/
 
-  [[nodiscard]] auto fuse_mkdir(const char *path, const remote::file_mode &mode)
+  [[nodiscard]] auto fuse_mkdir(const char *path, remote::file_mode mode)
       -> packet::error_type override;
 
   [[nodiscard]] auto fuse_opendir(const char *path, remote::file_handle &handle)
       -> packet::error_type override;
 
-  [[nodiscard]] auto
-  fuse_create(const char *path, const remote::file_mode &mode,
-              const remote::open_flags &flags, remote::file_handle &handle)
+  [[nodiscard]] auto fuse_create(const char *path, remote::file_mode mode,
+                                 const remote::open_flags &flags,
+                                 remote::file_handle &handle)
       -> packet::error_type override;
 
   [[nodiscard]] auto fuse_open(const char *path,
@@ -133,38 +132,35 @@ public:
                                remote::file_handle &handle)
       -> packet::error_type override;
 
-  [[nodiscard]] auto fuse_read(const char *path, char *buffer,
-                               const remote::file_size &read_size,
-                               const remote::file_offset &read_offset,
-                               const remote::file_handle &handle)
+  [[nodiscard]] auto
+  fuse_read(const char *path, char *buffer, remote::file_size read_size,
+            remote::file_offset read_offset, remote::file_handle handle)
       -> packet::error_type override;
 
   [[nodiscard]] auto fuse_rename(const char *from, const char *to)
       -> packet::error_type override;
 
-  [[nodiscard]] auto fuse_write(const char *path, const char *buffer,
-                                const remote::file_size &write_size,
-                                const remote::file_offset &write_offset,
-                                const remote::file_handle &handle)
+  [[nodiscard]] auto
+  fuse_write(const char *path, const char *buffer, remote::file_size write_size,
+             remote::file_offset write_offset, remote::file_handle handle)
       -> packet::error_type override;
 
   [[nodiscard]] auto fuse_write_base64(const char *path, const char *buffer,
-                                       const remote::file_size &write_size,
-                                       const remote::file_offset &write_offset,
-                                       const remote::file_handle &handle)
+                                       remote::file_size write_size,
+                                       remote::file_offset write_offset,
+                                       remote::file_handle handle)
       -> packet::error_type override;
 
-  [[nodiscard]] auto
-  fuse_readdir(const char *path, const remote::file_offset &offset,
-               const remote::file_handle &handle, std::string &item_path)
+  [[nodiscard]] auto fuse_readdir(const char *path, remote::file_offset offset,
+                                  remote::file_handle handle,
+                                  std::string &item_path)
       -> packet::error_type override;
 
-  [[nodiscard]] auto fuse_release(const char *path,
-                                  const remote::file_handle &handle)
+  [[nodiscard]] auto fuse_release(const char *path, remote::file_handle handle)
       -> packet::error_type override;
 
   [[nodiscard]] auto fuse_releasedir(const char *path,
-                                     const remote::file_handle &handle)
+                                     remote::file_handle handle)
       -> packet::error_type override;
 
   /*packet::error_type fuse_removexattr(const char *path, const char *name)
@@ -177,26 +173,25 @@ public:
       -> packet::error_type override;
 
   [[nodiscard]] auto fuse_setbkuptime(const char *path,
-                                      const remote::file_time &bkuptime)
+                                      remote::file_time bkuptime)
       -> packet::error_type override;
 
   [[nodiscard]] auto fuse_setchgtime(const char *path,
-                                     const remote::file_time &chgtime)
+                                     remote::file_time chgtime)
       -> packet::error_type override;
 
-  [[nodiscard]] auto fuse_setcrtime(const char *path,
-                                    const remote::file_time &crtime)
+  [[nodiscard]] auto fuse_setcrtime(const char *path, remote::file_time crtime)
       -> packet::error_type override;
 
   [[nodiscard]] auto fuse_setvolname(const char *volname)
       -> packet::error_type override;
 
   /*packet::error_type fuse_setxattr(const char *path, const char *name, const
-  char *value, const remote::file_size &size, const std::int32_t &flags)
+  char *value, remote::file_size size, std::int32_t flags)
   override ;
 
   packet::error_type fuse_setxattr_osx(const char *path, const char *name, const
-  char *value, const remote::file_size &size, const std::int32_t &flags,
+  char *value, remote::file_size size, std::int32_t flags,
                                            std::uint32_t position) override ;*/
 
   [[nodiscard]] auto fuse_statfs(const char *path, std::uint64_t frsize,
@@ -207,8 +202,7 @@ public:
                                    remote::statfs_x &r_stat)
       -> packet::error_type override;
 
-  [[nodiscard]] auto fuse_truncate(const char *path,
-                                   const remote::file_offset &size)
+  [[nodiscard]] auto fuse_truncate(const char *path, remote::file_offset size)
       -> packet::error_type override;
 
   [[nodiscard]] auto fuse_unlink(const char *path)
@@ -218,21 +212,22 @@ public:
                                   std::uint64_t op0, std::uint64_t op1)
       -> packet::error_type override;
 
-  void set_fuse_uid_gid(const remote::user_id & /* uid */,
-                        const remote::group_id & /* gid */) override {}
+  void set_fuse_uid_gid(remote::user_id /* uid */,
+                        remote::group_id /* gid */) override {}
 
   // JSON Layer
-  [[nodiscard]] auto json_create_directory_snapshot(const std::string &path,
+  [[nodiscard]] auto json_create_directory_snapshot(std::string_view path,
                                                     json &json_data)
       -> packet::error_type override;
 
-  [[nodiscard]] auto json_read_directory_snapshot(
-      const std::string &path, const remote::file_handle &handle,
-      std::uint32_t page, json &json_data) -> packet::error_type override;
+  [[nodiscard]] auto json_read_directory_snapshot(std::string_view path,
+                                                  remote::file_handle handle,
+                                                  std::uint32_t page,
+                                                  json &json_data)
+      -> packet::error_type override;
 
-  [[nodiscard]] auto
-  json_release_directory_snapshot(const std::string &path,
-                                  const remote::file_handle &handle)
+  [[nodiscard]] auto json_release_directory_snapshot(std::string_view path,
+                                                     remote::file_handle handle)
       -> packet::error_type override;
 
   // WinFSP Layer
@@ -249,17 +244,17 @@ public:
   [[nodiscard]] auto
   winfsp_create(PWSTR file_name, UINT32 create_options, UINT32 granted_access,
                 UINT32 attributes, UINT64 allocation_size, PVOID *file_desc,
-                remote::file_info *file_info, std::string &normalized_name,
+                remote::file_info *r_info, std::string &normalized_name,
                 BOOLEAN &exists) -> packet::error_type override;
 
-  [[nodiscard]] auto winfsp_flush(PVOID file_desc, remote::file_info *file_info)
+  [[nodiscard]] auto winfsp_flush(PVOID file_desc, remote::file_info *r_info)
       -> packet::error_type override;
 
   [[nodiscard]] auto winfsp_get_dir_buffer(PVOID file_desc, PVOID *&ptr)
       -> packet::error_type override;
 
   [[nodiscard]] auto winfsp_get_file_info(PVOID file_desc,
-                                          remote::file_info *file_info)
+                                          remote::file_info *r_info)
       -> packet::error_type override;
 
   [[nodiscard]] auto winfsp_get_security_by_name(
@@ -271,19 +266,19 @@ public:
                                             std::string &volume_label)
       -> packet::error_type override;
 
-  [[nodiscard]] auto winfsp_mounted(const std::wstring &location)
+  [[nodiscard]] auto winfsp_mounted(std::wstring_view location)
       -> packet::error_type override;
 
   [[nodiscard]] auto winfsp_open(PWSTR file_name, UINT32 create_options,
                                  UINT32 granted_access, PVOID *file_desc,
-                                 remote::file_info *file_info,
+                                 remote::file_info *r_info,
                                  std::string &normalized_name)
       -> packet::error_type override;
 
   [[nodiscard]] auto winfsp_overwrite(PVOID file_desc, UINT32 attributes,
                                       BOOLEAN replace_attributes,
                                       UINT64 allocation_size,
-                                      remote::file_info *file_info)
+                                      remote::file_info *r_info)
       -> packet::error_type override;
 
   [[nodiscard]] auto winfsp_read(PVOID file_desc, PVOID buffer, UINT64 offset,
@@ -302,20 +297,20 @@ public:
   [[nodiscard]] auto winfsp_set_basic_info(
       PVOID file_desc, UINT32 attributes, UINT64 creation_time,
       UINT64 last_access_time, UINT64 last_write_time, UINT64 change_time,
-      remote::file_info *file_info) -> packet::error_type override;
+      remote::file_info *r_info) -> packet::error_type override;
 
   [[nodiscard]] auto winfsp_set_file_size(PVOID file_desc, UINT64 new_size,
                                           BOOLEAN set_allocation_size,
-                                          remote::file_info *file_info)
+                                          remote::file_info *r_info)
       -> packet::error_type override;
 
-  [[nodiscard]] auto winfsp_unmounted(const std::wstring &location)
+  [[nodiscard]] auto winfsp_unmounted(std::wstring_view location)
       -> packet::error_type override;
 
   [[nodiscard]] auto
   winfsp_write(PVOID file_desc, PVOID buffer, UINT64 offset, UINT32 length,
                BOOLEAN write_to_end, BOOLEAN constrained_io,
-               PUINT32 bytes_transferred, remote::file_info *file_info)
+               PUINT32 bytes_transferred, remote::file_info *r_info)
       -> packet::error_type override;
 };
 } // namespace remote_winfsp

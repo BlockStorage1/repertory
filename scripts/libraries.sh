@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 PROJECT_LIBRARIES=(
   BOOST
@@ -26,6 +26,7 @@ PROJECT_CLEANUP[EXPAT]="3rd_party/mingw64/expat-*"
 PROJECT_CLEANUP[GCC]="3rd_party/mingw64/gcc-*"
 PROJECT_CLEANUP[ICU]="3rd_party/mingw64/icu-release-*"
 PROJECT_CLEANUP[JSON]="3rd_party/json-*"
+PROJECT_CLEANUP[INNOSETUP]="3rd_party/mingw64/innosetup-*"
 PROJECT_CLEANUP[LIBBITCOIN_SYSTEM_ON]="3rd_party/boost_${PROJECT_VERSIONS[BOOST_MAJOR]}_${PROJECT_VERSIONS[BOOST_MINOR]}_*"
 PROJECT_CLEANUP[LIBSODIUM]="3rd_party/libsodium-*:3rd_party/libsodium*"
 PROJECT_CLEANUP[MINGW]="3rd_party/mingw64/mingw-w64-*"
@@ -52,6 +53,8 @@ PROJECT_DOWNLOADS[GCC]="https://mirrorservice.org/sites/sourceware.org/pub/gcc/r
 PROJECT_DOWNLOADS[GTEST]="https://github.com/google/googletest/archive/refs/tags/v${PROJECT_VERSIONS[GTEST]}.tar.gz;googletest-${PROJECT_VERSIONS[GTEST]}.tar.gz;3rd_party"
 PROJECT_DOWNLOADS[ICU]="https://github.com/unicode-org/icu/archive/refs/tags/release-${PROJECT_VERSIONS[ICU]}.tar.gz;icu-release-${PROJECT_VERSIONS[ICU]}.tar.gz;3rd_party/mingw64"
 PROJECT_DOWNLOADS[JSON]="https://github.com/nlohmann/json/archive/refs/tags/v${PROJECT_VERSIONS[JSON]}.tar.gz;json-${PROJECT_VERSIONS[JSON]}.tar.gz;3rd_party"
+PROJECT_DOWNLOADS[INNOSETUP]="https://files.jrsoftware.org/is/6/innosetup-${PROJECT_VERSIONS[INNOSETUP]}.exe;innosetup-${PROJECT_VERSIONS[INNOSETUP]}.exe;3rd_party/mingw64"
+PROJECT_DOWNLOADS[WINFSP]="https://github.com/winfsp/winfsp/releases/download/v${PROJECT_VERSIONS[WINFSP2]}/winfsp-${PROJECT_VERSIONS[WINFSP]}.msi;winfsp-${PROJECT_VERSIONS[WINFSP]}.msi;3rd_party"
 PROJECT_DOWNLOADS[LIBSODIUM]="https://github.com/jedisct1/libsodium/archive/refs/tags/${PROJECT_VERSIONS[LIBSODIUM]}-RELEASE.tar.gz;libsodium-${PROJECT_VERSIONS[LIBSODIUM]}.tar.gz;3rd_party"
 PROJECT_DOWNLOADS[MINGW]="https://sourceforge.net/projects/mingw-w64/files/mingw-w64/mingw-w64-release/mingw-w64-v${PROJECT_VERSIONS[MINGW]}.tar.bz2;;mingw-w64-v${PROJECT_VERSIONS[MINGW]}.tar.bz2;3rd_party/mingw64"
 PROJECT_DOWNLOADS[OPENSSL]="https://github.com/openssl/openssl/releases/download/openssl-${PROJECT_VERSIONS[OPENSSL]}/openssl-${PROJECT_VERSIONS[OPENSSL]}.tar.gz;openssl-${PROJECT_VERSIONS[OPENSSL]}.tar.gz;3rd_party"

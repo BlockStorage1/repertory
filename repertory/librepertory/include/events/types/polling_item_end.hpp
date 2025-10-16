@@ -28,9 +28,8 @@
 namespace repertory {
 struct polling_item_end final : public i_event {
   polling_item_end() = default;
-  polling_item_end(std::string_view function_name_, std::string item_name_)
-      : function_name(std::string(function_name_)),
-        item_name(std::move(item_name_)) {}
+  polling_item_end(std::string_view function_name_, std::string_view item_name_)
+      : function_name(function_name_), item_name(item_name_) {}
 
   static constexpr event_level level{event_level::debug};
   static constexpr std::string_view name{"polling_item_end"};

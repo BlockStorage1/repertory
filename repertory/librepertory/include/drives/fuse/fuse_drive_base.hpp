@@ -47,11 +47,11 @@ protected:
       -> api_error override;
 
 protected:
-  [[nodiscard]] auto check_access(const std::string &api_path, int mask) const
+  [[nodiscard]] auto check_access(std::string_view api_path, int mask) const
       -> api_error;
 
   [[nodiscard]] auto
-  check_and_perform(const std::string &api_path, int parent_mask,
+  check_and_perform(std::string_view api_path, int parent_mask,
                     const std::function<api_error(api_meta_map &meta)> &action)
       -> api_error;
 
@@ -86,22 +86,21 @@ protected:
       -> mode_t;
 
   static void get_timespec_from_meta(const api_meta_map &meta,
-                                     const std::string &name,
+                                     std::string_view name,
                                      struct timespec &ts);
 
   [[nodiscard]] static auto get_uid_from_meta(const api_meta_map &meta)
       -> uid_t;
 
 #if defined(__APPLE__)
-  [[nodiscard]] auto parse_xattr_parameters(const char *name,
-                                            const uint32_t &position,
-                                            std::string &attribute_name,
-                                            const std::string &api_path)
+  [[nodiscard]] auto
+  parse_xattr_parameters(const char *name, const uint32_t &position,
+                         std::string &attribute_name, std::string_view api_path)
       -> api_error;
 #else  // !defined(__APPLE__)
   [[nodiscard]] auto parse_xattr_parameters(const char *name,
                                             std::string &attribute_name,
-                                            const std::string &api_path)
+                                            std::string_view api_path)
       -> api_error;
 #endif // defined(__APPLE__)
 
@@ -109,30 +108,31 @@ protected:
   [[nodiscard]] auto
   parse_xattr_parameters(const char *name, const char *value, size_t size,
                          const uint32_t &position, std::string &attribute_name,
-                         const std::string &api_path) -> api_error;
+                         std::string_view api_path) -> api_error;
 #else  // !defined(__APPLE__)
-  [[nodiscard]] auto parse_xattr_parameters(const char *name, const char *value,
-                                            size_t size,
-                                            std::string &attribute_name,
-                                            const std::string &api_path)
+  [[nodiscard]] auto
+  parse_xattr_parameters(const char *name, const char *value, size_t size,
+                         std::string &attribute_name, std::string_view api_path)
       -> api_error;
 #endif // defined(__APPLE__)
 
-  static void populate_stat(const std::string &api_path,
+  static void populate_stat(std::string_view api_path,
                             std::uint64_t size_or_count,
                             const api_meta_map &meta, bool directory,
-                            i_provider &provider, struct stat *st);
+                            i_provider &provider, struct stat *u_stat);
 
   static void set_timespec_from_meta(const api_meta_map &meta,
-                                     const std::string &name,
+                                     std::string_view name,
                                      struct timespec &ts);
 
 public:
-  [[nodiscard]] auto check_owner(const std::string &api_path) const
+  [[nodiscard]] auto check_owner(std::string_view api_path) const
       -> api_error override;
 
-  [[nodiscard]] auto check_parent_access(const std::string &api_path,
+  [[nodiscard]] auto check_parent_access(std::string_view api_path,
                                          int mask) const -> api_error override;
+
+  [[nodiscard]] static auto validate_timespec(const timespec &spec) -> bool;
 };
 } // namespace repertory
 

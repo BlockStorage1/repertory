@@ -61,7 +61,7 @@ private:
       std::string_view function_name,
       std::function<rocksdb::Status(rocksdb::Transaction *txn)> action) -> bool;
 
-  [[nodiscard]] auto remove_resume(const std::string &api_path,
+  [[nodiscard]] auto remove_resume(std::string_view api_path,
                                    rocksdb::Transaction *txn)
       -> rocksdb::Status;
 
@@ -84,23 +84,21 @@ public:
   [[nodiscard]] auto get_resume_list() const
       -> std::vector<resume_entry> override;
 
-  [[nodiscard]] auto get_upload(const std::string &api_path) const
+  [[nodiscard]] auto get_upload(std::string_view api_path) const
       -> std::optional<upload_entry> override;
 
   [[nodiscard]] auto get_upload_active_list() const
       -> std::vector<upload_active_entry> override;
 
-  [[nodiscard]] auto remove_resume(const std::string &api_path)
+  [[nodiscard]] auto remove_resume(std::string_view api_path) -> bool override;
+
+  [[nodiscard]] auto remove_upload(std::string_view api_path) -> bool override;
+
+  [[nodiscard]] auto remove_upload_active(std::string_view api_path)
       -> bool override;
 
-  [[nodiscard]] auto remove_upload(const std::string &api_path)
-      -> bool override;
-
-  [[nodiscard]] auto remove_upload_active(const std::string &api_path)
-      -> bool override;
-
-  [[nodiscard]] auto rename_resume(const std::string &from_api_path,
-                                   const std::string &to_api_path)
+  [[nodiscard]] auto rename_resume(std::string_view from_api_path,
+                                   std::string_view to_api_path)
       -> bool override;
 };
 

@@ -70,9 +70,9 @@ private:
   std::string mount_location_;
 
 private:
-  void populate_file_info(const json &item, FSP_FSCTL_FILE_INFO &file_info);
+  void populate_file_info(const json &item, FSP_FSCTL_FILE_INFO &f_info);
 
-  static void set_file_info(FileInfo &dest, const remote::file_info &src);
+  static void set_file_info(FileInfo &f_info, const remote::file_info &r_info);
 
 public:
   auto CanDelete(PVOID file_node, PVOID file_desc, PWSTR file_name)
@@ -88,10 +88,10 @@ public:
               UINT64 allocation_size, PVOID *file_node, PVOID *file_desc,
               OpenFileInfo *ofi) -> NTSTATUS override;
 
-  auto Flush(PVOID file_node, PVOID file_desc, FileInfo *file_info)
+  auto Flush(PVOID file_node, PVOID file_desc, FileInfo *f_info)
       -> NTSTATUS override;
 
-  auto GetFileInfo(PVOID file_node, PVOID file_desc, FileInfo *file_info)
+  auto GetFileInfo(PVOID file_node, PVOID file_desc, FileInfo *f_info)
       -> NTSTATUS override;
 
   auto GetSecurityByName(PWSTR file_name, PUINT32 attributes,
@@ -102,7 +102,10 @@ public:
 
   auto Init(PVOID host) -> NTSTATUS override;
 
-  [[nodiscard]] auto mount(const std::vector<std::string> &drive_args) -> int;
+  [[nodiscard]] auto mount(std::vector<std::string> orig_args,
+                           std::vector<std::string> drive_args,
+                           provider_type prov, std::string_view unique_id)
+      -> int;
 
   auto Mounted(PVOID host) -> NTSTATUS override;
 
@@ -112,7 +115,7 @@ public:
 
   auto Overwrite(PVOID file_node, PVOID file_desc, UINT32 attributes,
                  BOOLEAN replace_attributes, UINT64 allocation_size,
-                 FileInfo *file_info) -> NTSTATUS override;
+                 FileInfo *f_info) -> NTSTATUS override;
 
   auto Read(PVOID file_node, PVOID file_desc, PVOID buffer, UINT64 offset,
             ULONG length, PULONG bytes_transferred) -> NTSTATUS override;
@@ -128,18 +131,17 @@ public:
   auto SetBasicInfo(PVOID file_node, PVOID file_desc, UINT32 attributes,
                     UINT64 creation_time, UINT64 last_access_time,
                     UINT64 last_write_time, UINT64 change_time,
-                    FileInfo *file_info) -> NTSTATUS override;
+                    FileInfo *f_info) -> NTSTATUS override;
 
   auto SetFileSize(PVOID file_node, PVOID file_desc, UINT64 new_size,
-                   BOOLEAN set_allocation_size, FileInfo *file_info)
+                   BOOLEAN set_allocation_size, FileInfo *f_info)
       -> NTSTATUS override;
 
   VOID Unmounted(PVOID host) override;
 
   auto Write(PVOID file_node, PVOID file_desc, PVOID buffer, UINT64 offset,
              ULONG length, BOOLEAN write_to_end, BOOLEAN constrained_io,
-             PULONG bytes_transferred, FileInfo *file_info)
-      -> NTSTATUS override;
+             PULONG bytes_transferred, FileInfo *f_info) -> NTSTATUS override;
 
   void shutdown() { ::GenerateConsoleCtrlEvent(CTRL_C_EVENT, 0); }
 

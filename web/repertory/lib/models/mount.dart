@@ -21,6 +21,7 @@ class Mount with ChangeNotifier {
     refresh();
   }
 
+  bool get autoStart => mountConfig.autoStart;
   String? get bucket => mountConfig.bucket;
   String get id => '${type}_$name';
   bool? get mounted => mountConfig.mounted;
@@ -96,6 +97,35 @@ class Mount with ChangeNotifier {
 
       mountConfig.updateStatus(jsonDecode(response.body));
       notifyListeners();
+    } catch (e) {
+      debugPrint('$e');
+    }
+  }
+
+  Future<void> setMountAutoStart(bool autoStart) async {
+    try {
+      mountConfig.autoStart = autoStart;
+
+      final auth = await _auth.createAuth();
+      final response = await http.put(
+        Uri.parse(
+          Uri.encodeFull(
+            '${getBaseUri()}/api/v1/mount_auto_start?auth=$auth&name=$name&type=$type&auto_start=$autoStart',
+          ),
+        ),
+      );
+
+      if (response.statusCode == 401) {
+        _auth.logoff();
+        return;
+      }
+
+      if (response.statusCode == 404) {
+        _mountList?.reset();
+        return;
+      }
+
+      return refresh();
     } catch (e) {
       debugPrint('$e');
     }
@@ -250,6 +280,29 @@ class Mount with ChangeNotifier {
     }
 
     _isRefreshing = false;
+  }
+
+  Future<void> remove() async {
+    try {
+      final auth = await _auth.createAuth();
+      final response = await http.delete(
+        Uri.parse(
+          Uri.encodeFull(
+            '${getBaseUri()}/api/v1/remove_mount?auth=$auth&name=$name&type=$type',
+          ),
+        ),
+      );
+
+      if (response.statusCode == 401) {
+        _auth.logoff();
+      }
+
+      if (response.statusCode == 200) {
+        _mountList?.remove(name, type);
+      }
+    } catch (e) {
+      debugPrint('$e');
+    }
   }
 
   Future<void> setValue(String key, String value) async {

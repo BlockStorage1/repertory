@@ -43,7 +43,7 @@ auto enc_file::copy_to(std::string_view new_path, bool overwrite) const
   return file_->copy_to(new_path, overwrite);
 }
 
-void enc_file::flush() const { return file_->flush(); }
+void enc_file::flush() const { file_->flush(); }
 
 auto enc_file::move_to(std::string_view path) -> bool {
   return file_->move_to(path);
@@ -68,8 +68,8 @@ auto enc_file::read(unsigned char *data, std::size_t to_read,
   std::size_t bytes_read{};
   auto ret{
       utils::encryption::read_encrypted_range(
-          {offset, offset + to_read - 1U},
-          utils::encryption::generate_key<utils::encryption::hash_256_t>(
+          {.begin = offset, .end = offset + to_read - 1U},
+          utils::encryption::generate_key<utils::hash::hash_256_t>(
               encryption_token_),
           [&](auto &&ct_buffer, auto &&start_offset,
               auto &&end_offset) -> bool {
@@ -145,7 +145,7 @@ auto enc_file::truncate(std::size_t size) -> bool {
     return i_file::write(data, offset);
   }
 
-  auto begin_chunk{
+  /* auto begin_chunk{
       file_size.value() /
           utils::encryption::encrypting_reader::get_data_chunk_size(),
   };
@@ -153,13 +153,14 @@ auto enc_file::truncate(std::size_t size) -> bool {
       utils::divide_with_ceiling(
           file_size.value(),
           utils::encryption::encrypting_reader::get_data_chunk_size()),
-  };
+  }; */
 
   return false;
 }
 
-auto enc_file::write(const unsigned char *data, std::size_t to_write,
-                     std::size_t offset, std::size_t *total_written) -> bool {
+auto enc_file::write(const unsigned char * /* data */, std::size_t to_write,
+                     std::size_t offset, std::size_t * /* total_written */)
+    -> bool {
   auto file_size{size()};
   if (not file_size.has_value()) {
     return false;
@@ -181,7 +182,7 @@ auto enc_file::size() const -> std::optional<std::uint64_t> {
   }
 
   return utils::encryption::encrypting_reader::calculate_decrypted_size(
-      file_size.value());
+      file_size.value(), false);
 }
 } // namespace repertory::utils::file
 

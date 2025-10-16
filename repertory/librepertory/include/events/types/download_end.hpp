@@ -28,12 +28,12 @@
 namespace repertory {
 struct download_end final : public i_event {
   download_end() = default;
-  download_end(std::string api_path_, std::string dest_path_, api_error error_,
-               std::string_view function_name_)
-      : api_path(std::move(api_path_)),
-        dest_path(std::move(dest_path_)),
+  download_end(std::string_view api_path_, std::string_view dest_path_,
+               api_error error_, std::string_view function_name_)
+      : api_path(api_path_),
+        dest_path(dest_path_),
         error(error_),
-        function_name(std::string(function_name_)) {}
+        function_name(function_name_) {}
 
   static constexpr event_level level{event_level::info};
   static constexpr std::string_view name{"download_end"};

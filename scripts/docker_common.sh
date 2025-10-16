@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 if [ "${PROJECT_BUILD_ARCH}" == "aarch64" ] &&
   [ "${PROJECT_ENABLE_MULTIARCH_DOCKER}" == "1" ]; then
@@ -26,10 +26,16 @@ if [ "${PROJECT_BUILD_ARCH}" == "aarch64" ]; then
   docker build ${APP_VERSION_BUILD_ARGS} \
     --platform linux/arm64 \
     --build-arg NUM_JOBS=${NUM_JOBS} \
+    --build-arg UID=$(id -u) \
+    --build-arg GID=$(id -g) \
+    --build-arg USERNAME=$(id -un) \
     -t ${DOCKER_TAG} . || exit 1
 else
   docker build ${APP_VERSION_BUILD_ARGS} \
     --build-arg NUM_JOBS=${NUM_JOBS} \
+    --build-arg UID=$(id -u) \
+    --build-arg GID=$(id -g) \
+    --build-arg USERNAME=$(id -un) \
     -t ${DOCKER_TAG} . || exit 1
 fi
 rm Dockerfile

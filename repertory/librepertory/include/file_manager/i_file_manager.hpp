@@ -31,11 +31,17 @@ class i_file_manager {
   INTERFACE_SETUP(i_file_manager);
 
 public:
-  [[nodiscard]] virtual auto evict_file(const std::string &api_path)
+  [[nodiscard]] virtual auto download_pinned_file(std::string_view api_path)
       -> bool = 0;
 
+  [[nodiscard]] virtual auto evict_file(std::string_view api_path) -> bool = 0;
+
+  [[nodiscard]] virtual auto get_directory_item(std::string_view api_path,
+                                                directory_item &item) const
+      -> api_error = 0;
+
   [[nodiscard]] virtual auto
-  get_directory_items(const std::string &api_path) const
+  get_directory_items(std::string_view api_path) const
       -> directory_item_list = 0;
 
   [[nodiscard]] virtual auto get_open_files() const
@@ -43,7 +49,7 @@ public:
 
   [[nodiscard]] virtual auto has_no_open_file_handles() const -> bool = 0;
 
-  [[nodiscard]] virtual auto is_processing(const std::string &api_path) const
+  [[nodiscard]] virtual auto is_processing(std::string_view api_path) const
       -> bool = 0;
 };
 } // namespace repertory

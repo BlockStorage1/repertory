@@ -39,14 +39,17 @@ inline const option generate_config_option = {"-gc", "--generate_config"};
 inline const option get_option = {"-get", "--get"};
 inline const option get_directory_items_option = {"-gdi",
                                                   "--get_directory_items"};
+inline const option get_item_info_option = {"-gi", "--get_item_info"};
 inline const option get_pinned_files_option = {"-gpf", "--get_pinned_files"};
 inline const option help_option = {"-h", "--help"};
 inline const option hidden_option = {"-hidden", "--hidden"};
+inline const option launch_only_option = {"-lo", "--launch_only"};
 inline const option open_files_option = {"-of", "--open_files"};
 inline const option pin_file_option = {"-pf", "--pin_file"};
 inline const option pinned_status_option = {"-ps", "--pinned_status"};
 inline const option password_option = {"-pw", "--password"};
 inline const option remote_mount_option = {"-rm", "--remote_mount"};
+inline const option remove_option = {"-rp", "--remove"};
 inline const option set_option = {"-set", "--set"};
 inline const option status_option = {"-status", "--status"};
 inline const option test_option = {"-test", "--test"};
@@ -68,14 +71,17 @@ inline const std::vector<option> option_list = {
     generate_config_option,
     get_option,
     get_directory_items_option,
+    get_item_info_option,
     get_pinned_files_option,
     help_option,
     hidden_option,
+    launch_only_option,
     open_files_option,
     password_option,
     pin_file_option,
     pinned_status_option,
     remote_mount_option,
+    remove_option,
     set_option,
     status_option,
     test_option,
@@ -90,20 +96,20 @@ inline const std::vector<option> option_list = {
 
 // Prototypes
 void get_api_authentication_data(std::string &user, std::string &password,
-                                 std::uint16_t &port, const provider_type &prov,
-                                 const std::string &data_directory);
+                                 std::uint16_t &port,
+                                 std::string_view data_directory);
 
 [[nodiscard]] auto get_provider_type_from_args(std::vector<const char *> args)
     -> provider_type;
 
 [[nodiscard]] auto has_option(std::vector<const char *> args,
-                              const std::string &option_name) -> bool;
+                              std::string_view option_name) -> bool;
 
 [[nodiscard]] auto has_option(std::vector<const char *> args, const option &opt)
     -> bool;
 
 [[nodiscard]] auto parse_option(std::vector<const char *> args,
-                                const std::string &option_name,
+                                std::string_view option_name,
                                 std::uint8_t count) -> std::vector<std::string>;
 
 [[nodiscard]] auto parse_string_option(std::vector<const char *> args,

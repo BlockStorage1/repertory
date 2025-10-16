@@ -52,7 +52,11 @@ private:
 
 protected:
   bool atime_enabled_{true};
-  bool console_enabled_{false};
+  bool console_enabled_{true};
+  bool foreground_{false};
+#if defined(__APPLE__)
+  std::string label_;
+#endif // defined(__APPLE__)
   std::optional<gid_t> forced_gid_;
   std::optional<uid_t> forced_uid_;
   std::optional<mode_t> forced_umask_;
@@ -95,50 +99,51 @@ private:
 
 #if FUSE_USE_VERSION >= 30
   [[nodiscard]] static auto chmod_(const char *path, mode_t mode,
-                                   struct fuse_file_info *fi) -> int;
+                                   struct fuse_file_info *f_info) -> int;
 #else  // FUSE_USE_VERSION < 30
   [[nodiscard]] static auto chmod_(const char *path, mode_t mode) -> int;
 #endif // FUSE_USE_VERSION >= 30
 
 #if FUSE_USE_VERSION >= 30
   [[nodiscard]] static auto chown_(const char *path, uid_t uid, gid_t gid,
-                                   struct fuse_file_info *fi) -> int;
+                                   struct fuse_file_info *f_info) -> int;
 #else  // FUSE_USE_VERSION < 30
   [[nodiscard]] static auto chown_(const char *path, uid_t uid, gid_t gid)
       -> int;
 #endif // FUSE_USE_VERSION >= 30
 
   [[nodiscard]] static auto create_(const char *path, mode_t mode,
-                                    struct fuse_file_info *fi) -> int;
+                                    struct fuse_file_info *f_info) -> int;
 
   static void destroy_(void *ptr);
 
   [[nodiscard]] static auto fallocate_(const char *path, int mode, off_t offset,
-                                       off_t length, struct fuse_file_info *fi)
-      -> int;
+                                       off_t length,
+                                       struct fuse_file_info *f_info) -> int;
 
 #if FUSE_USE_VERSION < 30
-  [[nodiscard]] static auto fgetattr_(const char *path, struct stat *st,
-                                      struct fuse_file_info *fi) -> int;
+  [[nodiscard]] static auto fgetattr_(const char *path, struct stat *u_stat,
+                                      struct fuse_file_info *f_info) -> int;
 #endif // FUSE_USE_VERSION < 30
 
 #if defined(__APPLE__)
   [[nodiscard]] static auto fsetattr_x_(const char *path,
                                         struct setattr_x *attr,
-                                        struct fuse_file_info *fi) -> int;
+                                        struct fuse_file_info *f_info) -> int;
 #endif // defined(__APPLE__)
 
   [[nodiscard]] static auto fsync_(const char *path, int datasync,
-                                   struct fuse_file_info *fi) -> int;
+                                   struct fuse_file_info *f_info) -> int;
 
   [[nodiscard]] static auto ftruncate_(const char *path, off_t size,
-                                       struct fuse_file_info *fi) -> int;
+                                       struct fuse_file_info *f_info) -> int;
 
 #if FUSE_USE_VERSION >= 30
-  [[nodiscard]] static auto getattr_(const char *path, struct stat *st,
-                                     struct fuse_file_info *fi) -> int;
+  [[nodiscard]] static auto getattr_(const char *path, struct stat *u_stat,
+                                     struct fuse_file_info *f_info) -> int;
 #else  // FUSE_USE_VERSION < 30
-  [[nodiscard]] static auto getattr_(const char *path, struct stat *st) -> int;
+  [[nodiscard]] static auto getattr_(const char *path, struct stat *u_stat)
+      -> int;
 #endif // FUSE_USE_VERSION >= 30
 
 #if defined(__APPLE__)
@@ -154,35 +159,40 @@ private:
   [[nodiscard]] static auto init_(struct fuse_conn_info *conn) -> void *;
 #endif // FUSE_USE_VERSION >= 30
 
+  [[nodiscard]] static auto ioctl_(const char *path, int cmd, void *arg,
+                                   struct fuse_file_info *f_info,
+                                   unsigned int flags, void *data) -> int;
+
   [[nodiscard]] static auto mkdir_(const char *path, mode_t mode) -> int;
 
-  [[nodiscard]] static auto open_(const char *path, struct fuse_file_info *fi)
-      -> int;
+  [[nodiscard]] static auto open_(const char *path,
+                                  struct fuse_file_info *f_info) -> int;
 
   [[nodiscard]] static auto opendir_(const char *path,
-                                     struct fuse_file_info *fi) -> int;
+                                     struct fuse_file_info *f_info) -> int;
 
   [[nodiscard]] static auto read_(const char *path, char *buffer,
                                   size_t read_size, off_t read_offset,
-                                  struct fuse_file_info *fi) -> int;
+                                  struct fuse_file_info *f_info) -> int;
 
 #if FUSE_USE_VERSION >= 30
   [[nodiscard]] static auto readdir_(const char *path, void *buf,
                                      fuse_fill_dir_t fuse_fill_dir,
-                                     off_t offset, struct fuse_file_info *fi,
+                                     off_t offset,
+                                     struct fuse_file_info *f_info,
                                      fuse_readdir_flags flags) -> int;
 #else  // FUSE_USE_VERSION < 30
   [[nodiscard]] static auto readdir_(const char *path, void *buf,
                                      fuse_fill_dir_t fuse_fill_dir,
-                                     off_t offset, struct fuse_file_info *fi)
-      -> int;
+                                     off_t offset,
+                                     struct fuse_file_info *f_info) -> int;
 #endif // FUSE_USE_VERSION >= 30
 
   [[nodiscard]] static auto release_(const char *path,
-                                     struct fuse_file_info *fi) -> int;
+                                     struct fuse_file_info *f_info) -> int;
 
   [[nodiscard]] static auto releasedir_(const char *path,
-                                        struct fuse_file_info *fi) -> int;
+                                        struct fuse_file_info *f_info) -> int;
 
 #if FUSE_USE_VERSION >= 30
   [[nodiscard]] static auto rename_(const char *from, const char *to,
@@ -248,7 +258,7 @@ private:
 
 #if FUSE_USE_VERSION >= 30
   [[nodiscard]] static auto truncate_(const char *path, off_t size,
-                                      struct fuse_file_info *fi) -> int;
+                                      struct fuse_file_info *f_info) -> int;
 #else  // FUSE_USE_VERSION < 30
   [[nodiscard]] static auto truncate_(const char *path, off_t size) -> int;
 #endif // FUSE_USE_VERSION >= 30
@@ -258,7 +268,7 @@ private:
 #if FUSE_USE_VERSION >= 30
   [[nodiscard]] static auto utimens_(const char *path,
                                      const struct timespec tv[2],
-                                     struct fuse_file_info *fi) -> int;
+                                     struct fuse_file_info *f_info) -> int;
 #else  // FUSE_USE_VERSION < 30
   [[nodiscard]] static auto utimens_(const char *path,
                                      const struct timespec tv[2]) -> int;
@@ -266,7 +276,7 @@ private:
 
   [[nodiscard]] static auto write_(const char *path, const char *buffer,
                                    size_t write_size, off_t write_offset,
-                                   struct fuse_file_info *fi) -> int;
+                                   struct fuse_file_info *f_info) -> int;
 
 protected:
   [[nodiscard]] virtual auto access_impl(std::string /*api_path*/, int /*mask*/)
@@ -284,11 +294,11 @@ protected:
 #if FUSE_USE_VERSION >= 30
   [[nodiscard]] virtual auto chmod_impl(std::string /*api_path*/,
                                         mode_t /*mode*/,
-                                        struct fuse_file_info * /*fi*/)
+                                        struct fuse_file_info * /*f_info*/)
       -> api_error {
     return api_error::not_implemented;
   }
-#else //FUSE_USE_VERSION < 30
+#else  // FUSE_USE_VERSION < 30
   [[nodiscard]] virtual auto chmod_impl(std::string /*api_path*/,
                                         mode_t /*mode*/) -> api_error {
     return api_error::not_implemented;
@@ -298,11 +308,11 @@ protected:
 #if FUSE_USE_VERSION >= 30
   [[nodiscard]] virtual auto chown_impl(std::string /*api_path*/, uid_t /*uid*/,
                                         gid_t /*gid*/,
-                                        struct fuse_file_info * /*fi*/)
+                                        struct fuse_file_info * /*f_info*/)
       -> api_error {
     return api_error::not_implemented;
   }
-#else // FUSE_USE_VERSION < 30
+#else  // FUSE_USE_VERSION < 30
   [[nodiscard]] virtual auto chown_impl(std::string /*api_path*/, uid_t /*uid*/,
                                         gid_t /*gid*/) -> api_error {
     return api_error::not_implemented;
@@ -311,7 +321,7 @@ protected:
 
   [[nodiscard]] virtual auto create_impl(std::string /*api_path*/,
                                          mode_t /*mode*/,
-                                         struct fuse_file_info * /*fi*/)
+                                         struct fuse_file_info * /*f_info*/)
       -> api_error {
     return api_error::not_implemented;
   }
@@ -320,14 +330,14 @@ protected:
 
   [[nodiscard]] virtual auto
   fallocate_impl(std::string /*api_path*/, int /*mode*/, off_t /*offset*/,
-                 off_t /*length*/, struct fuse_file_info * /*fi*/)
+                 off_t /*length*/, struct fuse_file_info * /*f_info*/)
       -> api_error {
     return api_error::not_implemented;
   }
 
   [[nodiscard]] virtual auto fgetattr_impl(std::string /*api_path*/,
-                                           struct stat * /*st*/,
-                                           struct fuse_file_info * /*fi*/)
+                                           struct stat * /*u_stat*/,
+                                           struct fuse_file_info * /*f_info*/)
       -> api_error {
     return api_error::not_implemented;
   }
@@ -335,7 +345,7 @@ protected:
 #if defined(__APPLE__)
   [[nodiscard]] virtual auto fsetattr_x_impl(std::string /*api_path*/,
                                              struct setattr_x * /*attr*/,
-                                             struct fuse_file_info * /*fi*/)
+                                             struct fuse_file_info * /*f_info*/)
       -> api_error {
     return api_error::not_implemented;
   }
@@ -343,7 +353,7 @@ protected:
 
   [[nodiscard]] virtual auto fsync_impl(std::string /*api_path*/,
                                         int /*datasync*/,
-                                        struct fuse_file_info * /*fi*/)
+                                        struct fuse_file_info * /*f_info*/)
       -> api_error {
     return api_error::not_implemented;
   }
@@ -351,7 +361,7 @@ protected:
 #if FUSE_USE_VERSION < 30
   [[nodiscard]] virtual auto ftruncate_impl(std::string /*api_path*/,
                                             off_t /*size*/,
-                                            struct fuse_file_info * /*fi*/)
+                                            struct fuse_file_info * /*f_info*/)
       -> api_error {
     return api_error::not_implemented;
   }
@@ -359,14 +369,15 @@ protected:
 
 #if FUSE_USE_VERSION >= 30
   [[nodiscard]] virtual auto getattr_impl(std::string /*api_path*/,
-                                          struct stat * /*st*/,
-                                          struct fuse_file_info * /*fi*/)
+                                          struct stat * /*u_stat*/,
+                                          struct fuse_file_info * /*f_info*/)
       -> api_error {
     return api_error::not_implemented;
   }
-#else // FUSE_USE_VERSION < 30
+#else  // FUSE_USE_VERSION < 30
   [[nodiscard]] virtual auto getattr_impl(std::string /*api_path*/,
-                                          struct stat * /*st*/) -> api_error {
+                                          struct stat * /*u_stat*/)
+      -> api_error {
     return api_error::not_implemented;
   }
 #endif // FUSE_USE_VERSION >= 30
@@ -383,9 +394,16 @@ protected:
 #if FUSE_USE_VERSION >= 30
   virtual auto init_impl(struct fuse_conn_info *conn, struct fuse_config *cfg)
       -> void *;
-#else // FUSE_USE_VERSION < 30
+#else  // FUSE_USE_VERSION < 30
   virtual auto init_impl(struct fuse_conn_info *conn) -> void *;
 #endif // FUSE_USE_VERSION >= 30
+
+  [[nodiscard]] virtual auto ioctl_impl(std::string /*api_path*/, int /* cmd */,
+                                        void * /* arg */,
+                                        struct fuse_file_info * /*f_info*/)
+      -> api_error {
+    return api_error::no_tty;
+  }
 
   [[nodiscard]] virtual auto mkdir_impl(std::string /*api_path*/,
                                         mode_t /*mode*/) -> api_error {
@@ -393,20 +411,20 @@ protected:
   }
 
   [[nodiscard]] virtual auto open_impl(std::string /*api_path*/,
-                                       struct fuse_file_info * /*fi*/)
+                                       struct fuse_file_info * /*f_info*/)
       -> api_error {
     return api_error::not_implemented;
   }
 
   [[nodiscard]] virtual auto opendir_impl(std::string /*api_path*/,
-                                          struct fuse_file_info * /*fi*/)
+                                          struct fuse_file_info * /*f_info*/)
       -> api_error {
     return api_error::not_implemented;
   }
 
   [[nodiscard]] virtual auto
   read_impl(std::string /*api_path*/, char * /*buffer*/, size_t /*read_size*/,
-            off_t /*read_offset*/, struct fuse_file_info * /*fi*/,
+            off_t /*read_offset*/, struct fuse_file_info * /*f_info*/,
             std::size_t & /*bytes_read*/) -> api_error {
     return api_error::not_implemented;
   }
@@ -415,27 +433,27 @@ protected:
   [[nodiscard]] virtual auto
   readdir_impl(std::string /*api_path*/, void * /*buf*/,
                fuse_fill_dir_t /*fuse_fill_dir*/, off_t /*offset*/,
-               struct fuse_file_info * /*fi*/, fuse_readdir_flags /*flags*/)
+               struct fuse_file_info * /*f_info*/, fuse_readdir_flags /*flags*/)
       -> api_error {
     return api_error::not_implemented;
   }
-#else // FUSE_USE_VERSION < 30
+#else  // FUSE_USE_VERSION < 30
   [[nodiscard]] virtual auto
   readdir_impl(std::string /*api_path*/, void * /*buf*/,
                fuse_fill_dir_t /*fuse_fill_dir*/, off_t /*offset*/,
-               struct fuse_file_info * /*fi*/) -> api_error {
+               struct fuse_file_info * /*f_info*/) -> api_error {
     return api_error::not_implemented;
   }
 #endif // FUSE_USE_VERSION >= 30
 
   [[nodiscard]] virtual auto release_impl(std::string /*api_path*/,
-                                          struct fuse_file_info * /*fi*/)
+                                          struct fuse_file_info * /*f_info*/)
       -> api_error {
     return api_error::not_implemented;
   }
 
   [[nodiscard]] virtual auto releasedir_impl(std::string /*api_path*/,
-                                             struct fuse_file_info * /*fi*/)
+                                             struct fuse_file_info * /*f_info*/)
       -> api_error {
     return api_error::not_implemented;
   }
@@ -446,7 +464,7 @@ protected:
                                          unsigned int /*flags*/) -> api_error {
     return api_error::not_implemented;
   }
-#else // FUSE_USE_VERSION < 30
+#else  // FUSE_USE_VERSION < 30
   [[nodiscard]] virtual auto rename_impl(std::string /*from_api_path*/,
                                          std::string /*to_api_path*/)
       -> api_error {
@@ -464,14 +482,14 @@ protected:
   getxattr_impl(std::string /*api_path*/, const char * /*name*/,
                 char * /*value*/, size_t /*size*/, uint32_t /*position*/,
                 int & /*attribute_size*/) -> api_error {
-    return api_error::not_implemented;
+    return api_error::xattr_not_found;
   }
 #else  // !defined(__APPLE__)
   [[nodiscard]] virtual auto
   getxattr_impl(std::string /*api_path*/, const char * /*name*/,
                 char * /*value*/, size_t /*size*/, int & /*attribute_size*/)
       -> api_error {
-    return api_error::not_implemented;
+    return api_error::xattr_not_found;
   }
 #endif // defined(__APPLE__)
 
@@ -551,11 +569,11 @@ protected:
 #if FUSE_USE_VERSION >= 30
   [[nodiscard]] virtual auto truncate_impl(std::string /*api_path*/,
                                            off_t /*size*/,
-                                           struct fuse_file_info * /*fi*/)
+                                           struct fuse_file_info * /*f_info*/)
       -> api_error {
     return api_error::not_implemented;
   }
-#else // FUSE_USE_VERSION < 30
+#else  // FUSE_USE_VERSION < 30
   [[nodiscard]] virtual auto truncate_impl(std::string /*api_path*/,
                                            off_t /*size*/) -> api_error {
     return api_error::not_implemented;
@@ -570,11 +588,11 @@ protected:
 #if FUSE_USE_VERSION >= 30
   [[nodiscard]] virtual auto utimens_impl(std::string /*api_path*/,
                                           const struct timespec /*tv*/[2],
-                                          struct fuse_file_info * /*fi*/)
+                                          struct fuse_file_info * /*f_info*/)
       -> api_error {
     return api_error::not_implemented;
   }
-#else // FUSE_USE_VERSION < 30
+#else  // FUSE_USE_VERSION < 30
   [[nodiscard]] virtual auto utimens_impl(std::string /*api_path*/,
                                           const struct timespec /*tv*/[2])
       -> api_error {
@@ -585,8 +603,8 @@ protected:
   [[nodiscard]] virtual auto
   write_impl(std::string /*api_path*/, const char * /*buffer*/,
              size_t /*write_size*/, off_t /*write_offset*/,
-             struct fuse_file_info * /*fi*/, std::size_t & /*bytes_written*/)
-      -> api_error {
+             struct fuse_file_info * /*f_info*/,
+             std::size_t & /*bytes_written*/) -> api_error {
     return api_error::not_implemented;
   }
 
@@ -604,13 +622,15 @@ public:
 
   static void display_version_information(std::vector<const char *> args);
 
-  static auto unmount(const std::string &mount_location) -> int;
+  auto unmount(std::string_view mount_location) -> int;
 
   [[nodiscard]] auto get_mount_location() const -> std::string {
     return mount_location_;
   }
 
-  [[nodiscard]] auto mount(std::vector<std::string> args) -> int;
+  [[nodiscard]] auto mount(std::vector<std::string> orig_args,
+                           std::vector<std::string> args, provider_type prov,
+                           std::string_view unique_id) -> int;
 };
 } // namespace repertory
 

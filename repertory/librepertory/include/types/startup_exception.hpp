@@ -25,8 +25,8 @@
 namespace repertory {
 class startup_exception : public virtual std::runtime_error {
 public:
-  explicit startup_exception(const std::string &msg)
-      : std::runtime_error(msg) {}
+  explicit startup_exception(std::string_view msg)
+      : std::runtime_error(std::string{msg}) {}
 };
 } // namespace repertory
 

@@ -29,7 +29,7 @@
 namespace repertory {
 class app_config;
 class i_file_manager;
-class i_http_comm;
+struct i_http_comm;
 
 class base_provider : public i_provider {
 private:
@@ -49,8 +49,8 @@ private:
 
 private:
   api_item_added_callback api_item_added_;
-  std::unique_ptr<i_meta_db> db3_;
-  i_file_manager *fm_{};
+  i_file_manager *fm_{nullptr};
+  std::unique_ptr<i_meta_db> meta_db_;
 
 private:
   void add_all_items(stop_type &stop_requested);
@@ -68,22 +68,21 @@ private:
   void remove_unmatched_source_files(stop_type &stop_requested);
 
 protected:
-  [[nodiscard]] static auto create_api_file(std::string path, std::string key,
-                                            std::uint64_t size,
-                                            std::uint64_t file_time)
-      -> api_file;
+  [[nodiscard]] static auto
+  create_api_file(std::string_view path, std::string_view key,
+                  std::uint64_t size, std::uint64_t file_time) -> api_file;
 
-  [[nodiscard]] static auto create_api_file(std::string path,
+  [[nodiscard]] static auto create_api_file(std::string_view path,
                                             std::uint64_t size,
                                             api_meta_map &meta) -> api_file;
 
-  [[nodiscard]] virtual auto create_directory_impl(const std::string &api_path,
+  [[nodiscard]] virtual auto create_directory_impl(std::string_view api_path,
                                                    api_meta_map &meta)
       -> api_error = 0;
 
-  [[nodiscard]] virtual auto
-  create_file_extra(const std::string & /* api_path */,
-                    api_meta_map & /* meta */) -> api_error {
+  [[nodiscard]] virtual auto create_file_extra(std::string_view /* api_path */,
+                                               api_meta_map & /* meta */)
+      -> api_error {
     return api_error::success;
   }
 
@@ -106,12 +105,12 @@ protected:
     return config_;
   }
 
-  [[nodiscard]] auto get_db() -> i_meta_db & { return *db3_; }
+  [[nodiscard]] auto get_db() -> i_meta_db & { return *meta_db_; }
 
-  [[nodiscard]] auto get_db() const -> const i_meta_db & { return *db3_; }
+  [[nodiscard]] auto get_db() const -> const i_meta_db & { return *meta_db_; }
 
   [[nodiscard]] virtual auto
-  get_directory_items_impl(const std::string &api_path,
+  get_directory_items_impl(std::string_view api_path,
                            directory_item_list &list) const -> api_error = 0;
 
   [[nodiscard]] auto get_file_mgr() -> i_file_manager * { return fm_; }
@@ -120,62 +119,61 @@ protected:
     return fm_;
   }
 
-  [[nodiscard]] virtual auto remove_directory_impl(const std::string &api_path)
+  [[nodiscard]] virtual auto remove_directory_impl(std::string_view api_path)
       -> api_error = 0;
 
-  [[nodiscard]] virtual auto remove_file_impl(const std::string &api_path)
+  [[nodiscard]] virtual auto remove_file_impl(std::string_view api_path)
       -> api_error = 0;
 
-  [[nodiscard]] virtual auto upload_file_impl(const std::string &api_path,
-                                              const std::string &source_path,
+  [[nodiscard]] virtual auto upload_file_impl(std::string_view api_path,
+                                              std::string_view source_path,
                                               stop_type &stop_requested)
       -> api_error = 0;
 
 public:
   [[nodiscard]] auto
-  create_directory_clone_source_meta(const std::string &source_api_path,
-                                     const std::string &api_path)
+  create_directory_clone_source_meta(std::string_view source_api_path,
+                                     std::string_view api_path)
       -> api_error override;
 
-  [[nodiscard]] auto create_directory(const std::string &api_path,
+  [[nodiscard]] auto create_directory(std::string_view api_path,
                                       api_meta_map &meta) -> api_error override;
 
-  [[nodiscard]] auto create_file(const std::string &api_path,
-                                 api_meta_map &meta) -> api_error override;
+  [[nodiscard]] auto create_file(std::string_view api_path, api_meta_map &meta)
+      -> api_error override;
 
-  [[nodiscard]] auto get_api_path_from_source(const std::string &source_path,
+  [[nodiscard]] auto get_api_path_from_source(std::string_view source_path,
                                               std::string &api_path) const
       -> api_error override;
 
-  [[nodiscard]] auto get_directory_items(const std::string &api_path,
+  [[nodiscard]] auto get_directory_item(std::string_view api_path,
+                                        directory_item &item) const
+      -> api_error override;
+
+  [[nodiscard]] auto get_directory_items(std::string_view api_path,
                                          directory_item_list &list) const
       -> api_error override;
 
-  [[nodiscard]] auto get_file_size(const std::string &api_path,
+  [[nodiscard]] auto get_file_size(std::string_view api_path,
                                    std::uint64_t &file_size) const
       -> api_error override;
 
-  [[nodiscard]] auto get_filesystem_item(const std::string &api_path,
+  [[nodiscard]] auto get_filesystem_item(std::string_view api_path,
                                          bool directory,
                                          filesystem_item &fsi) const
       -> api_error override;
 
-  [[nodiscard]] auto get_filesystem_item_and_file(const std::string &api_path,
-                                                  api_file &f,
-                                                  filesystem_item &fsi) const
-      -> api_error override;
-
   [[nodiscard]] auto
-  get_filesystem_item_from_source_path(const std::string &source_path,
+  get_filesystem_item_from_source_path(std::string_view source_path,
                                        filesystem_item &fsi) const
       -> api_error override;
 
-  [[nodiscard]] auto get_item_meta(const std::string &api_path,
+  [[nodiscard]] auto get_item_meta(std::string_view api_path,
                                    api_meta_map &meta) const
       -> api_error override;
 
-  [[nodiscard]] auto get_item_meta(const std::string &api_path,
-                                   const std::string &key,
+  [[nodiscard]] auto get_item_meta(std::string_view api_path,
+                                   std::string_view key,
                                    std::string &value) const
       -> api_error override;
 
@@ -186,28 +184,23 @@ public:
 
   [[nodiscard]] auto get_used_drive_space() const -> std::uint64_t override;
 
-  [[nodiscard]] auto is_file_writeable(const std::string &api_path) const
-      -> bool override;
-
   [[nodiscard]] auto is_read_only() const -> bool override { return false; }
 
-  [[nodiscard]] auto remove_directory(const std::string &api_path)
+  [[nodiscard]] auto remove_directory(std::string_view api_path)
       -> api_error override;
 
-  [[nodiscard]] auto remove_file(const std::string &api_path)
+  [[nodiscard]] auto remove_file(std::string_view api_path)
       -> api_error override;
 
-  [[nodiscard]] auto remove_item_meta(const std::string &api_path,
-                                      const std::string &key)
+  [[nodiscard]] auto remove_item_meta(std::string_view api_path,
+                                      std::string_view key)
       -> api_error override;
 
-  [[nodiscard]] auto set_item_meta(const std::string &api_path,
-                                   const std::string &key,
-                                   const std::string &value)
+  [[nodiscard]] auto set_item_meta(std::string_view api_path,
+                                   std::string_view key, std::string_view value)
       -> api_error override;
 
-  [[nodiscard]] auto set_item_meta(const std::string &api_path,
-                                   const api_meta_map &meta)
+  [[nodiscard]] auto set_item_meta(std::string_view api_path, api_meta_map meta)
       -> api_error override;
 
   [[nodiscard]] auto start(api_item_added_callback api_item_added,
@@ -215,8 +208,8 @@ public:
 
   void stop() override;
 
-  [[nodiscard]] auto upload_file(const std::string &api_path,
-                                 const std::string &source_path,
+  [[nodiscard]] auto upload_file(std::string_view api_path,
+                                 std::string_view source_path,
                                  stop_type &stop_requested)
       -> api_error override;
 };

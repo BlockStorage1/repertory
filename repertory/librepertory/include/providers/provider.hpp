@@ -28,9 +28,8 @@ namespace repertory {
 class app_config;
 class i_provider;
 
-[[nodiscard]] auto
-create_provider(const provider_type &prov,
-                app_config &config) -> std::unique_ptr<i_provider>;
+[[nodiscard]] auto create_provider(provider_type prov, app_config &config)
+    -> std::unique_ptr<i_provider>;
 } // namespace repertory
 
 #endif // REPERTORY_INCLUDE_PROVIDERS_PROVIDER_HPP_

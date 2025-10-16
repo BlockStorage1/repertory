@@ -33,24 +33,27 @@ inline constexpr auto PACKET_SERVICE_FLAGS{PACKET_SERVICE_WINFSP};
 inline constexpr auto PACKET_SERVICE_FLAGS{PACKET_SERVICE_FUSE};
 #endif // defined(_WIN32)
 
-inline constexpr auto default_remote_directory_page_size{std::size_t(100U)};
 inline constexpr auto default_remote_client_pool_size{20U};
+inline constexpr auto default_remote_conn_timeout_ms{3000U};
+inline constexpr auto default_remote_directory_page_size{std::size_t(100U)};
 inline constexpr auto default_remote_max_connections{20U};
-inline constexpr auto default_remote_receive_timeout_ms{120U * 1000U};
-inline constexpr auto default_remote_send_timeout_ms{30U * 1000U};
+inline constexpr auto default_remote_recv_timeout_ms{6000U};
+inline constexpr auto default_remote_send_timeout_ms{6000U};
 
 namespace repertory::remote {
 struct remote_config final {
   std::uint16_t api_port{};
+  std::uint32_t conn_timeout_ms{default_remote_conn_timeout_ms};
   std::string encryption_token;
   std::string host_name_or_ip;
   std::uint8_t max_connections{default_remote_max_connections};
-  std::uint32_t recv_timeout_ms{default_remote_receive_timeout_ms};
+  std::uint32_t recv_timeout_ms{default_remote_recv_timeout_ms};
   std::uint32_t send_timeout_ms{default_remote_send_timeout_ms};
 
   auto operator==(const remote_config &cfg) const noexcept -> bool {
     if (&cfg != this) {
       return api_port == cfg.api_port &&
+             conn_timeout_ms == cfg.conn_timeout_ms &&
              encryption_token == cfg.encryption_token &&
              host_name_or_ip == cfg.host_name_or_ip &&
              max_connections == cfg.max_connections &&
@@ -228,6 +231,7 @@ template <> struct adl_serializer<repertory::remote::remote_config> {
   static void to_json(json &data,
                       const repertory::remote::remote_config &value) {
     data[repertory::JSON_API_PORT] = value.api_port;
+    data[repertory::JSON_CONNECT_TIMEOUT_MS] = value.conn_timeout_ms;
     data[repertory::JSON_ENCRYPTION_TOKEN] = value.encryption_token;
     data[repertory::JSON_HOST_NAME_OR_IP] = value.host_name_or_ip;
     data[repertory::JSON_MAX_CONNECTIONS] = value.max_connections;
@@ -238,6 +242,9 @@ template <> struct adl_serializer<repertory::remote::remote_config> {
   static void from_json(const json &data,
                         repertory::remote::remote_config &value) {
     data.at(repertory::JSON_API_PORT).get_to(value.api_port);
+    if (data.contains(repertory::JSON_CONNECT_TIMEOUT_MS)) {
+      data.at(repertory::JSON_CONNECT_TIMEOUT_MS).get_to(value.conn_timeout_ms);
+    }
     data.at(repertory::JSON_ENCRYPTION_TOKEN).get_to(value.encryption_token);
     data.at(repertory::JSON_HOST_NAME_OR_IP).get_to(value.host_name_or_ip);
     data.at(repertory::JSON_MAX_CONNECTIONS).get_to(value.max_connections);

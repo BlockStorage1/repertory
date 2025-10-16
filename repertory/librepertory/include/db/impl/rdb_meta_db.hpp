@@ -54,7 +54,7 @@ private:
 
   void create_or_open(bool clear);
 
-  [[nodiscard]] auto get_item_meta_json(const std::string &api_path,
+  [[nodiscard]] auto get_item_meta_json(std::string_view api_path,
                                         json &json_data) const -> api_error;
 
   [[nodiscard]] static auto
@@ -66,13 +66,12 @@ private:
       std::function<rocksdb::Status(rocksdb::Transaction *txn)> action)
       -> api_error;
 
-  [[nodiscard]] auto remove_api_path(const std::string &api_path,
-                                     const std::string &source_path,
+  [[nodiscard]] auto remove_api_path(std::string_view api_path,
+                                     std::string_view source_path,
                                      rocksdb::Transaction *txn)
       -> rocksdb::Status;
 
-  [[nodiscard]] auto update_item_meta(const std::string &api_path,
-                                      json json_data,
+  [[nodiscard]] auto update_item_meta(std::string_view api_path, json json_data,
                                       rocksdb::Transaction *base_txn = nullptr,
                                       rocksdb::Status *status = nullptr)
       -> api_error;
@@ -84,19 +83,19 @@ public:
       std::function<void(const std::vector<std::string> &)> callback,
       stop_type_callback stop_requested_cb) const override;
 
-  [[nodiscard]] auto get_api_path(const std::string &source_path,
+  [[nodiscard]] auto get_api_path(std::string_view source_path,
                                   std::string &api_path) const
       -> api_error override;
 
   [[nodiscard]] auto get_api_path_list() const
       -> std::vector<std::string> override;
 
-  [[nodiscard]] auto get_item_meta(const std::string &api_path,
+  [[nodiscard]] auto get_item_meta(std::string_view api_path,
                                    api_meta_map &meta) const
       -> api_error override;
 
-  [[nodiscard]] auto get_item_meta(const std::string &api_path,
-                                   const std::string &key,
+  [[nodiscard]] auto get_item_meta(std::string_view api_path,
+                                   std::string_view key,
                                    std::string &value) const
       -> api_error override;
 
@@ -107,22 +106,21 @@ public:
 
   [[nodiscard]] auto get_total_size() const -> std::uint64_t override;
 
-  void remove_api_path(const std::string &api_path) override;
+  void remove_api_path(std::string_view api_path) override;
 
-  [[nodiscard]] auto remove_item_meta(const std::string &api_path,
-                                      const std::string &key)
+  [[nodiscard]] auto remove_item_meta(std::string_view api_path,
+                                      std::string_view key)
       -> api_error override;
 
-  [[nodiscard]] auto rename_item_meta(const std::string &from_api_path,
-                                      const std::string &to_api_path)
+  [[nodiscard]] auto rename_item_meta(std::string_view from_api_path,
+                                      std::string_view to_api_path)
       -> api_error override;
 
-  [[nodiscard]] auto set_item_meta(const std::string &api_path,
-                                   const std::string &key,
-                                   const std::string &value)
+  [[nodiscard]] auto set_item_meta(std::string_view api_path,
+                                   std::string_view key, std::string_view value)
       -> api_error override;
 
-  [[nodiscard]] auto set_item_meta(const std::string &api_path,
+  [[nodiscard]] auto set_item_meta(std::string_view api_path,
                                    const api_meta_map &meta)
       -> api_error override;
 };
