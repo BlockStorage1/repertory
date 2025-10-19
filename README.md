@@ -1,4 +1,7 @@
 # Repertory
+> /rĕp′ər-tôr″ē/  
+> noun  
+> *A place, such as a storehouse, where a stock of things is kept; a repository*
 
 Repertory allows you to mount **S3** and **Sia** storage as local drives using:
 
@@ -788,3 +791,4 @@ QShT/z7oG79Orxyomwrb8ZJCi7wEfcCuK1NWgqLVUgXhpi2J9WYS6DAbF3Oh3Hhl
 DYSHlcfFBteqNDlR2uFInIECAwEAAQ==
 -----END PUBLIC KEY-----
 ```
+
